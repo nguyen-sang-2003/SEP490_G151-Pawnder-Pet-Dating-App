@@ -1,215 +1,233 @@
-﻿-- tạo bảng database 
-create database pawnder_database
-use pawnder_database
-
+-- ========================
+-- Bảng Role
+-- ========================
 CREATE TABLE Role (
-    RoleId INT IDENTITY(1,1) PRIMARY KEY,
-    RoleName VARCHAR(50) NOT NULL,
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+    RoleId SERIAL PRIMARY KEY,
+    RoleName VARCHAR(100) NOT NULL,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
+-- ========================
+-- Bảng UserStatus
+-- ========================
 CREATE TABLE UserStatus (
-    UserStatusId INT IDENTITY(1,1) PRIMARY KEY,
-    UserStatusName VARCHAR(50) NOT NULL,
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+    UserStatusId SERIAL PRIMARY KEY,
+    UserStatusName VARCHAR(100) NOT NULL,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE UserProfiles (
-    ProfileId INT IDENTITY(1,1) PRIMARY KEY,
-    FullName NVARCHAR(100),
-    Gender VARCHAR(10),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+-- ========================
+-- Bảng User
+-- ========================
+CREATE TABLE "User" (
+    UserId SERIAL PRIMARY KEY,
+    RoleId INT REFERENCES Role(RoleId),
+    UserStatusId INT REFERENCES UserStatus(UserStatusId),
+    FullName VARCHAR(150),
+    Gender VARCHAR(50),
+    Email VARCHAR(150) UNIQUE NOT NULL,
+    PasswordHash TEXT NOT NULL,
+    TokenJWT TEXT,
+	IsDeleted BOOLEAN DEFAULT FALSE,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE Locations (
-    LocationId INT IDENTITY(1,1) PRIMARY KEY,
-    Country NVARCHAR(100),
-    Province NVARCHAR(100),
-    District NVARCHAR(100),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+-- ========================
+-- Bảng Attribute
+-- ========================
+CREATE TABLE Attribute (
+    AttributeId SERIAL PRIMARY KEY,
+    Name VARCHAR(150) NOT NULL,
+    TypeValue VARCHAR(100),
+    Unit VARCHAR(50),
+	IsDeleted BOOLEAN DEFAULT FALSE,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE Users (
-    UserId INT IDENTITY(1,1) PRIMARY KEY,
-    RoleId INT FOREIGN KEY REFERENCES Role(RoleId),
-    ProfileId INT FOREIGN KEY REFERENCES UserProfiles(ProfileId),
-    UserStatusId INT FOREIGN KEY REFERENCES UserStatus(UserStatusId),
-    PetId INT NULL, -- sẽ liên kết tới Pet
-    LocationId INT FOREIGN KEY REFERENCES Locations(LocationId),
-    Email VARCHAR(100) UNIQUE NOT NULL,
-    PasswordHash VARCHAR(255) NOT NULL,
-    TokenJWT VARCHAR(500),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
-);
-
-CREATE TABLE AttributePreferences (
-    AttributePreferencesId INT IDENTITY(1,1) PRIMARY KEY,
-    Name NVARCHAR(100),
-    TypeValue VARCHAR(50),
-    Unit VARCHAR(20),
-    IsActive BIT DEFAULT 1,
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
-);
-
-CREATE TABLE UserPreferences (
-    UserPreferencesId INT IDENTITY(1,1) PRIMARY KEY,
-    UserId INT FOREIGN KEY REFERENCES Users(UserId),
-    AttributePreferencesId INT FOREIGN KEY REFERENCES AttributePreferences(AttributePreferencesId),
-    Value NVARCHAR(200),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
-);
-
-CREATE TABLE PetAttributes (
-    AttributePetId INT IDENTITY(1,1) PRIMARY KEY,
-    Name NVARCHAR(100),
-    TypeValue VARCHAR(50),
-    Unit VARCHAR(20),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
-);
-
+-- ========================
+-- Bảng Pet
+-- ========================
 CREATE TABLE Pet (
-    PetId INT IDENTITY(1,1) PRIMARY KEY,
-    Name NVARCHAR(100),
-    Breed NVARCHAR(100),
-    Gender VARCHAR(10),
+    PetId SERIAL PRIMARY KEY,
+    UserId INT REFERENCES "User"(UserId),
+    Name VARCHAR(100),
+    Breed VARCHAR(100),
+    Gender VARCHAR(50),
     Age INT,
-    Description NVARCHAR(500),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+    Description TEXT,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE PetCharacteristics (
-    PetCharacteristicsId INT IDENTITY(1,1) PRIMARY KEY,
-    PetId INT FOREIGN KEY REFERENCES Pet(PetId),
-    AttributePetId INT FOREIGN KEY REFERENCES PetAttributes(AttributePetId),
-    Value NVARCHAR(200),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
-);
-
+-- ========================
+-- Bảng PetPhoto
+-- ========================
 CREATE TABLE PetPhoto (
-    PhotoId INT IDENTITY(1,1) PRIMARY KEY,
-    PetId INT FOREIGN KEY REFERENCES Pet(PetId),
-    ImagePetURL NVARCHAR(255),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+    PhotoId SERIAL PRIMARY KEY,
+    PetId INT REFERENCES Pet(PetId),
+    ImagePetURL TEXT,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE RequestMatches (
-    MatchId INT IDENTITY(1,1) PRIMARY KEY,
-    FromUserId INT FOREIGN KEY REFERENCES Users(UserId),
-    ToUserId INT FOREIGN KEY REFERENCES Users(UserId),
-    StatusRequest VARCHAR(50),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+-- ========================
+-- Bảng PetCharacteristic
+-- ========================
+CREATE TABLE PetCharacteristic (
+    PetCharacteristicId SERIAL PRIMARY KEY,
+    PetId INT REFERENCES Pet(PetId),
+    AttributeId INT REFERENCES Attribute(AttributeId),
+    Value VARCHAR(255),
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE Messages (
-    MessagesId INT IDENTITY(1,1) PRIMARY KEY,
-    MatchId INT FOREIGN KEY REFERENCES RequestMatches(MatchId),
-    UserId INT FOREIGN KEY REFERENCES Users(UserId),
-    Content NVARCHAR(MAX),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+-- ========================
+-- Bảng UserPreference
+-- ========================
+CREATE TABLE UserPreference (
+    UserPreferenceId SERIAL PRIMARY KEY,
+    UserId INT REFERENCES "User"(UserId),
+    AttributeId INT REFERENCES Attribute(AttributeId),
+    Value VARCHAR(255),
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE PaymentHistory (
-    HistoryId INT IDENTITY(1,1) PRIMARY KEY,
-    UserId INT FOREIGN KEY REFERENCES Users(UserId),
-    StatusService VARCHAR(50),
-    StartDate DATETIME,
-    EndDate DATETIME,
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
-);
-
-CREATE TABLE Block (
-    BlockId INT IDENTITY(1,1) PRIMARY KEY,
-    FromUserId INT FOREIGN KEY REFERENCES Users(UserId),
-    ToUserId INT FOREIGN KEY REFERENCES Users(UserId),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
-);
-
-CREATE TABLE Reports (
-    ReportId INT IDENTITY(1,1) PRIMARY KEY,
-    FromUserId INT FOREIGN KEY REFERENCES Users(UserId),
-    ToUserId INT FOREIGN KEY REFERENCES Users(UserId),
-    Reason NVARCHAR(200),
+-- ========================
+-- Bảng ExpertConfirmation
+-- ========================
+CREATE TABLE ExpertConfirmation (
+    ConfirmationId SERIAL PRIMARY KEY,
+    UserRequestId INT REFERENCES "User"(UserId),
+    ExpertId INT REFERENCES "User"(UserId),
+    ContentConfirmation TEXT,
+    ContentAccurate BOOLEAN,
     Status VARCHAR(50),
-    Resolution NVARCHAR(200),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE Notifications (
-    NotificationId INT IDENTITY(1,1) PRIMARY KEY,
-    UserId INT FOREIGN KEY REFERENCES Users(UserId),
-    Title NVARCHAR(200),
-    Message NVARCHAR(500),
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE()
+-- ========================
+-- Bảng PaymentHistory
+-- ========================
+CREATE TABLE PaymentHistory (
+    HistoryId SERIAL PRIMARY KEY,
+    UserId INT REFERENCES "User"(UserId),
+    StatusService VARCHAR(50),
+    StartDate DATE,
+    EndDate DATE,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
 );
 
--- thêm data cho các bảng
+-- ========================
+-- Bảng Block
+-- ========================
+CREATE TABLE Block (
+    BlockId SERIAL PRIMARY KEY,
+    FromUserId INT REFERENCES "User"(UserId),
+    ToUserId INT REFERENCES "User"(UserId),
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
+);
+
+-- ========================
+-- Bảng Report
+-- ========================
+CREATE TABLE Report (
+    ReportId SERIAL PRIMARY KEY,
+    FromUserId INT REFERENCES "User"(UserId),
+    ToUserId INT REFERENCES "User"(UserId),
+    Reason TEXT,
+    Status VARCHAR(50),
+    Resolution TEXT,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
+);
+
+-- ========================
+-- Bảng Notification
+-- ========================
+CREATE TABLE Notification (
+    NotificationId SERIAL PRIMARY KEY,
+    UserId INT REFERENCES "User"(UserId),
+    Title VARCHAR(150),
+    Message TEXT,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
+);
+
+-- ========================
+-- Bảng RequestMatch
+-- ========================
+CREATE TABLE RequestMatch (
+    MatchId SERIAL PRIMARY KEY,
+    FromUserId INT REFERENCES "User"(UserId),
+    ToUserId INT REFERENCES "User"(UserId),
+    StatusRequest VARCHAR(50),
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
+);
+
+-- ========================
+-- Bảng Message
+-- ========================
+CREATE TABLE Message (
+    MessageId SERIAL PRIMARY KEY,
+    MatchId INT REFERENCES RequestMatch(MatchId),
+    UserId INT REFERENCES "User"(UserId),
+    Content TEXT,
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
+);
+
+-- ========================
+-- Bảng Location
+-- ========================
+CREATE TABLE Location (
+    LocationId SERIAL PRIMARY KEY,
+    UserId INT REFERENCES "User"(UserId),
+    Country VARCHAR(100),
+    Province VARCHAR(100),
+    Commune VARCHAR(100),
+    CreatedAt TIMESTAMP DEFAULT NOW(),
+    UpdatedAt TIMESTAMP DEFAULT NOW()
+);
+
+-- ========================
+-- Thêm dữ liệu bảng Role
+-- ========================
 INSERT INTO Role (RoleName) VALUES
 ('Admin'),
+('Expert'),
 ('User');
 
+-- ========================
+-- Thêm dữ liệu bảng UserStatus
+-- ========================
 INSERT INTO UserStatus (UserStatusName) VALUES
-(N'Hoạt động'),
-(N'Không hoạt động'),
-(N'Bị khóa');
+('Bị khóa'),
+('Tài khoản thường'),
+('Tài khoản VIP');
 
-INSERT INTO UserProfiles (FullName, Gender) VALUES
-(N'Nguyễn Văn An', 'Nam'),
-(N'Trần Thị Bình', 'Nữ');
-
-INSERT INTO Locations (Country, Province, District) VALUES
-(N'Việt Nam', N'Hà Nội', N'Ba Đình'),
-(N'Việt Nam', N'Hồ Chí Minh', N'Quận 1');
-
-INSERT INTO Users (RoleId, ProfileId, UserStatusId, LocationId, Email, PasswordHash, TokenJWT)
-VALUES
-(1, 1, 1, 1, 'admin@pawnder.vn', 'matkhau_admin', 'token_admin'),
-(2, 2, 1, 2, 'user@pawnder.vn', 'matkhau_user', 'token_user');
-
-INSERT INTO AttributePreferences (Name, TypeValue, Unit, IsActive)
-VALUES
-(N'Khoảng cách', 'Number', 'km', 1),
-(N'Kích cỡ', 'String', NULL, 1);
-
-INSERT INTO UserPreferences (UserId, AttributePreferencesId, Value)
-VALUES
-(2, 1, N'10'),
-(2, 2, N'Small');
-
-INSERT INTO PetAttributes (Name, TypeValue, Unit)
-VALUES
-(N'màu lông', 'String', NULL),
-(N'chiều cao', 'Number', 'kg'),
-(N'cân nặng', 'Number', 'cm');
-
-INSERT INTO Pet (Name, Breed, Gender, Age, Description)
-VALUES
-(N'Lucky', N'Poodle', 'Male', 2, N'Dễ thương, thông minh'),
-(N'Miu', N'Mèo Anh Lông Ngắn', 'Female', 1, N'Rất ngoan, thích chơi đồ');
-
-INSERT INTO PetCharacteristics (PetId, AttributePetId, Value)
-VALUES
-(1, 1, N'Nâu'),
-(1, 2, N'5'),
-(1, 3, N'30'),
-(2, 1, N'Xám'),
-(2, 2, N'3'),
-(2, 3, N'25');
-
-
+-- ========================
+-- Thêm dữ liệu bảng Attribute
+-- ========================
+INSERT INTO Attribute (Name, TypeValue, Unit) VALUES
+('Chiều cao', 'float', 'cm'),
+('Cân nặng', 'float', 'kg'),
+('Dáng người', 'string', NULL),
+('Tỷ lệ cơ thể', 'string', NULL),
+('Hình dạng đầu', 'string', NULL),
+('Mắt', 'string', NULL),
+('Tai', 'string', NULL),
+('Mũi', 'string', NULL),
+('Mõm', 'string', NULL),
+('Hàm/răng', 'string', NULL),
+('Nếp nhăn', 'string', NULL),
+('Ria', 'boolean', NULL);

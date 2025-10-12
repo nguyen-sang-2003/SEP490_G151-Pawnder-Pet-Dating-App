@@ -5,13 +5,13 @@ namespace BE.Models;
 
 public partial class Role
 {
-    public int RoleId { get; set; }
+    public int Roleid { get; set; }
 
-    public string RoleName { get; set; } = null!;
+    public string Rolename { get; set; } = null!;
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime? Createdat { get; set; }
 
-    public DateTime? UpdatedAt { get; set; }
+    public DateTime? Updatedat { get; set; }
 
     public virtual ICollection<User> Users { get; set; } = new List<User>();
 }

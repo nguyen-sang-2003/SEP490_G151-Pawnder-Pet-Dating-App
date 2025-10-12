@@ -3,23 +3,23 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class RequestMatch
+public partial class Requestmatch
 {
-    public int MatchId { get; set; }
+    public int Matchid { get; set; }
 
-    public int? FromUserId { get; set; }
+    public int? Fromuserid { get; set; }
 
-    public int? ToUserId { get; set; }
+    public int? Touserid { get; set; }
 
-    public string? StatusRequest { get; set; }
+    public string? Statusrequest { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime? Createdat { get; set; }
 
-    public DateTime? UpdatedAt { get; set; }
+    public DateTime? Updatedat { get; set; }
 
-    public virtual User? FromUser { get; set; }
+    public virtual User? Fromuser { get; set; }
 
     public virtual ICollection<Message> Messages { get; set; } = new List<Message>();
 
-    public virtual User? ToUser { get; set; }
+    public virtual User? Touser { get; set; }
 }

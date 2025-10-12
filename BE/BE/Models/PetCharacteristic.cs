@@ -3,21 +3,21 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class PetCharacteristic
+public partial class Petcharacteristic
 {
-    public int PetCharacteristicsId { get; set; }
+    public int Petcharacteristicid { get; set; }
 
-    public int? PetId { get; set; }
+    public int? Petid { get; set; }
 
-    public int? AttributePetId { get; set; }
+    public int? Attributeid { get; set; }
 
     public string? Value { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime? Createdat { get; set; }
 
-    public DateTime? UpdatedAt { get; set; }
+    public DateTime? Updatedat { get; set; }
 
-    public virtual PetAttribute? AttributePet { get; set; }
+    public virtual Attribute? Attribute { get; set; }
 
     public virtual Pet? Pet { get; set; }
 }

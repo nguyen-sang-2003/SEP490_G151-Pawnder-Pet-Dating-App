@@ -1,5 +1,6 @@
 using BE.Models;
 using Microsoft.EntityFrameworkCore;
+using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +12,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<PawnderDatabaseContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DbContext")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DbContext")));
 
 var app = builder.Build();
 

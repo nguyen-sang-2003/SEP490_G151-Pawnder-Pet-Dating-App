@@ -3,21 +3,21 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class UserPreference
+public partial class Userpreference
 {
-    public int UserPreferencesId { get; set; }
+    public int Userpreferenceid { get; set; }
 
-    public int? UserId { get; set; }
+    public int? Userid { get; set; }
 
-    public int? AttributePreferencesId { get; set; }
+    public int? Attributeid { get; set; }
 
     public string? Value { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime? Createdat { get; set; }
 
-    public DateTime? UpdatedAt { get; set; }
+    public DateTime? Updatedat { get; set; }
 
-    public virtual AttributePreference? AttributePreferences { get; set; }
+    public virtual Attribute? Attribute { get; set; }
 
     public virtual User? User { get; set; }
 }

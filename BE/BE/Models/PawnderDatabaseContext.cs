@@ -15,9 +15,11 @@ public partial class PawnderDatabaseContext : DbContext
     {
     }
 
-    public virtual DbSet<AttributePreference> AttributePreferences { get; set; }
+    public virtual DbSet<Attribute> Attributes { get; set; }
 
     public virtual DbSet<Block> Blocks { get; set; }
+
+    public virtual DbSet<Expertconfirmation> Expertconfirmations { get; set; }
 
     public virtual DbSet<Location> Locations { get; set; }
 
@@ -25,388 +27,481 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<Notification> Notifications { get; set; }
 
-    public virtual DbSet<PaymentHistory> PaymentHistories { get; set; }
+    public virtual DbSet<Paymenthistory> Paymenthistories { get; set; }
 
     public virtual DbSet<Pet> Pets { get; set; }
 
-    public virtual DbSet<PetAttribute> PetAttributes { get; set; }
+    public virtual DbSet<Petcharacteristic> Petcharacteristics { get; set; }
 
-    public virtual DbSet<PetCharacteristic> PetCharacteristics { get; set; }
-
-    public virtual DbSet<PetPhoto> PetPhotos { get; set; }
+    public virtual DbSet<Petphoto> Petphotos { get; set; }
 
     public virtual DbSet<Report> Reports { get; set; }
 
-    public virtual DbSet<RequestMatch> RequestMatches { get; set; }
+    public virtual DbSet<Requestmatch> Requestmatches { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
-    public virtual DbSet<UserPreference> UserPreferences { get; set; }
+    public virtual DbSet<Userpreference> Userpreferences { get; set; }
 
-    public virtual DbSet<UserProfile> UserProfiles { get; set; }
-
-    public virtual DbSet<UserStatus> UserStatuses { get; set; }
+    public virtual DbSet<Userstatus> Userstatuses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<AttributePreference>(entity =>
+        modelBuilder.Entity<Attribute>(entity =>
         {
-            entity.HasKey(e => e.AttributePreferencesId).HasName("PK__Attribut__73C33AF4BAA30D99");
+            entity.HasKey(e => e.Attributeid).HasName("attribute_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.TypeValue)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+            entity.ToTable("attribute");
+
+            entity.Property(e => e.Attributeid).HasColumnName("attributeid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Name)
+                .HasMaxLength(150)
+                .HasColumnName("name");
+            entity.Property(e => e.Typevalue)
+                .HasMaxLength(100)
+                .HasColumnName("typevalue");
             entity.Property(e => e.Unit)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+                .HasMaxLength(50)
+                .HasColumnName("unit");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
         });
 
         modelBuilder.Entity<Block>(entity =>
         {
-            entity.HasKey(e => e.BlockId).HasName("PK__Block__144215F167F0D223");
+            entity.HasKey(e => e.Blockid).HasName("block_pkey");
 
-            entity.ToTable("Block");
+            entity.ToTable("block");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+            entity.Property(e => e.Blockid).HasColumnName("blockid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Fromuserid).HasColumnName("fromuserid");
+            entity.Property(e => e.Touserid).HasColumnName("touserid");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.BlockFromUsers)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("FK__Block__FromUserI__0E6E26BF");
+            entity.HasOne(d => d.Fromuser).WithMany(p => p.BlockFromusers)
+                .HasForeignKey(d => d.Fromuserid)
+                .HasConstraintName("block_fromuserid_fkey");
 
-            entity.HasOne(d => d.ToUser).WithMany(p => p.BlockToUsers)
-                .HasForeignKey(d => d.ToUserId)
-                .HasConstraintName("FK__Block__ToUserId__0F624AF8");
+            entity.HasOne(d => d.Touser).WithMany(p => p.BlockTousers)
+                .HasForeignKey(d => d.Touserid)
+                .HasConstraintName("block_touserid_fkey");
+        });
+
+        modelBuilder.Entity<Expertconfirmation>(entity =>
+        {
+            entity.HasKey(e => e.Confirmationid).HasName("expertconfirmation_pkey");
+
+            entity.ToTable("expertconfirmation");
+
+            entity.Property(e => e.Confirmationid).HasColumnName("confirmationid");
+            entity.Property(e => e.Contentaccurate).HasColumnName("contentaccurate");
+            entity.Property(e => e.Contentconfirmation).HasColumnName("contentconfirmation");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Expertid).HasColumnName("expertid");
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .HasColumnName("status");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userrequestid).HasColumnName("userrequestid");
+
+            entity.HasOne(d => d.Expert).WithMany(p => p.ExpertconfirmationExperts)
+                .HasForeignKey(d => d.Expertid)
+                .HasConstraintName("expertconfirmation_expertid_fkey");
+
+            entity.HasOne(d => d.Userrequest).WithMany(p => p.ExpertconfirmationUserrequests)
+                .HasForeignKey(d => d.Userrequestid)
+                .HasConstraintName("expertconfirmation_userrequestid_fkey");
         });
 
         modelBuilder.Entity<Location>(entity =>
         {
-            entity.HasKey(e => e.LocationId).HasName("PK__Location__E7FEA49735C09ECD");
+            entity.HasKey(e => e.Locationid).HasName("location_pkey");
 
-            entity.Property(e => e.Country).HasMaxLength(100);
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.District).HasMaxLength(100);
-            entity.Property(e => e.Province).HasMaxLength(100);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+            entity.ToTable("location");
+
+            entity.Property(e => e.Locationid).HasColumnName("locationid");
+            entity.Property(e => e.Commune)
+                .HasMaxLength(100)
+                .HasColumnName("commune");
+            entity.Property(e => e.Country)
+                .HasMaxLength(100)
+                .HasColumnName("country");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Province)
+                .HasMaxLength(100)
+                .HasColumnName("province");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userid).HasColumnName("userid");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Locations)
+                .HasForeignKey(d => d.Userid)
+                .HasConstraintName("location_userid_fkey");
         });
 
         modelBuilder.Entity<Message>(entity =>
         {
-            entity.HasKey(e => e.MessagesId).HasName("PK__Messages__F683BF1A8ED229E8");
+            entity.HasKey(e => e.Messageid).HasName("message_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+            entity.ToTable("message");
+
+            entity.Property(e => e.Messageid).HasColumnName("messageid");
+            entity.Property(e => e.Content).HasColumnName("content");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Matchid).HasColumnName("matchid");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userid).HasColumnName("userid");
 
             entity.HasOne(d => d.Match).WithMany(p => p.Messages)
-                .HasForeignKey(d => d.MatchId)
-                .HasConstraintName("FK__Messages__MatchI__03F0984C");
+                .HasForeignKey(d => d.Matchid)
+                .HasConstraintName("message_matchid_fkey");
 
             entity.HasOne(d => d.User).WithMany(p => p.Messages)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK__Messages__UserId__04E4BC85");
+                .HasForeignKey(d => d.Userid)
+                .HasConstraintName("message_userid_fkey");
         });
 
         modelBuilder.Entity<Notification>(entity =>
         {
-            entity.HasKey(e => e.NotificationId).HasName("PK__Notifica__20CF2E121E6153E0");
+            entity.HasKey(e => e.Notificationid).HasName("notification_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Message).HasMaxLength(500);
-            entity.Property(e => e.Title).HasMaxLength(200);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+            entity.ToTable("notification");
+
+            entity.Property(e => e.Notificationid).HasColumnName("notificationid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Message).HasColumnName("message");
+            entity.Property(e => e.Title)
+                .HasMaxLength(150)
+                .HasColumnName("title");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userid).HasColumnName("userid");
 
             entity.HasOne(d => d.User).WithMany(p => p.Notifications)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK__Notificat__UserI__19DFD96B");
+                .HasForeignKey(d => d.Userid)
+                .HasConstraintName("notification_userid_fkey");
         });
 
-        modelBuilder.Entity<PaymentHistory>(entity =>
+        modelBuilder.Entity<Paymenthistory>(entity =>
         {
-            entity.HasKey(e => e.HistoryId).HasName("PK__PaymentH__4D7B4ABD04BB5AC6");
+            entity.HasKey(e => e.Historyid).HasName("paymenthistory_pkey");
 
-            entity.ToTable("PaymentHistory");
+            entity.ToTable("paymenthistory");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.EndDate).HasColumnType("datetime");
-            entity.Property(e => e.StartDate).HasColumnType("datetime");
-            entity.Property(e => e.StatusService)
+            entity.Property(e => e.Historyid).HasColumnName("historyid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Enddate).HasColumnName("enddate");
+            entity.Property(e => e.Startdate).HasColumnName("startdate");
+            entity.Property(e => e.Statusservice)
                 .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+                .HasColumnName("statusservice");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userid).HasColumnName("userid");
 
-            entity.HasOne(d => d.User).WithMany(p => p.PaymentHistories)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK__PaymentHi__UserI__09A971A2");
+            entity.HasOne(d => d.User).WithMany(p => p.Paymenthistories)
+                .HasForeignKey(d => d.Userid)
+                .HasConstraintName("paymenthistory_userid_fkey");
         });
 
         modelBuilder.Entity<Pet>(entity =>
         {
-            entity.HasKey(e => e.PetId).HasName("PK__Pet__48E53862834047FB");
+            entity.HasKey(e => e.Petid).HasName("pet_pkey");
 
-            entity.ToTable("Pet");
+            entity.ToTable("pet");
 
-            entity.Property(e => e.Breed).HasMaxLength(100);
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Petid).HasColumnName("petid");
+            entity.Property(e => e.Age).HasColumnName("age");
+            entity.Property(e => e.Breed)
+                .HasMaxLength(100)
+                .HasColumnName("breed");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.Gender)
-                .HasMaxLength(10)
-                .IsUnicode(false);
-            entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-        });
-
-        modelBuilder.Entity<PetAttribute>(entity =>
-        {
-            entity.HasKey(e => e.AttributePetId).HasName("PK__PetAttri__D2600B55389C8B37");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.TypeValue)
                 .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.Unit)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+                .HasColumnName("gender");
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .HasColumnName("name");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userid).HasColumnName("userid");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Pets)
+                .HasForeignKey(d => d.Userid)
+                .HasConstraintName("pet_userid_fkey");
         });
 
-        modelBuilder.Entity<PetCharacteristic>(entity =>
+        modelBuilder.Entity<Petcharacteristic>(entity =>
         {
-            entity.HasKey(e => e.PetCharacteristicsId).HasName("PK__PetChara__ECA4D848F041CF54");
+            entity.HasKey(e => e.Petcharacteristicid).HasName("petcharacteristic_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Value).HasMaxLength(200);
+            entity.ToTable("petcharacteristic");
 
-            entity.HasOne(d => d.AttributePet).WithMany(p => p.PetCharacteristics)
-                .HasForeignKey(d => d.AttributePetId)
-                .HasConstraintName("FK__PetCharac__Attri__74AE54BC");
-
-            entity.HasOne(d => d.Pet).WithMany(p => p.PetCharacteristics)
-                .HasForeignKey(d => d.PetId)
-                .HasConstraintName("FK__PetCharac__PetId__73BA3083");
-        });
-
-        modelBuilder.Entity<PetPhoto>(entity =>
-        {
-            entity.HasKey(e => e.PhotoId).HasName("PK__PetPhoto__21B7B5E2B24778DC");
-
-            entity.ToTable("PetPhoto");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.ImagePetUrl)
+            entity.Property(e => e.Petcharacteristicid).HasColumnName("petcharacteristicid");
+            entity.Property(e => e.Attributeid).HasColumnName("attributeid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Petid).HasColumnName("petid");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Value)
                 .HasMaxLength(255)
-                .HasColumnName("ImagePetURL");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+                .HasColumnName("value");
 
-            entity.HasOne(d => d.Pet).WithMany(p => p.PetPhotos)
-                .HasForeignKey(d => d.PetId)
-                .HasConstraintName("FK__PetPhoto__PetId__797309D9");
+            entity.HasOne(d => d.Attribute).WithMany(p => p.Petcharacteristics)
+                .HasForeignKey(d => d.Attributeid)
+                .HasConstraintName("petcharacteristic_attributeid_fkey");
+
+            entity.HasOne(d => d.Pet).WithMany(p => p.Petcharacteristics)
+                .HasForeignKey(d => d.Petid)
+                .HasConstraintName("petcharacteristic_petid_fkey");
+        });
+
+        modelBuilder.Entity<Petphoto>(entity =>
+        {
+            entity.HasKey(e => e.Photoid).HasName("petphoto_pkey");
+
+            entity.ToTable("petphoto");
+
+            entity.Property(e => e.Photoid).HasColumnName("photoid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Imagepeturl).HasColumnName("imagepeturl");
+            entity.Property(e => e.Petid).HasColumnName("petid");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+
+            entity.HasOne(d => d.Pet).WithMany(p => p.Petphotos)
+                .HasForeignKey(d => d.Petid)
+                .HasConstraintName("petphoto_petid_fkey");
         });
 
         modelBuilder.Entity<Report>(entity =>
         {
-            entity.HasKey(e => e.ReportId).HasName("PK__Reports__D5BD4805FBCE96ED");
+            entity.HasKey(e => e.Reportid).HasName("report_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Reason).HasMaxLength(200);
-            entity.Property(e => e.Resolution).HasMaxLength(200);
+            entity.ToTable("report");
+
+            entity.Property(e => e.Reportid).HasColumnName("reportid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Fromuserid).HasColumnName("fromuserid");
+            entity.Property(e => e.Reason).HasColumnName("reason");
+            entity.Property(e => e.Resolution).HasColumnName("resolution");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+                .HasColumnName("status");
+            entity.Property(e => e.Touserid).HasColumnName("touserid");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.ReportFromUsers)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("FK__Reports__FromUse__14270015");
+            entity.HasOne(d => d.Fromuser).WithMany(p => p.ReportFromusers)
+                .HasForeignKey(d => d.Fromuserid)
+                .HasConstraintName("report_fromuserid_fkey");
 
-            entity.HasOne(d => d.ToUser).WithMany(p => p.ReportToUsers)
-                .HasForeignKey(d => d.ToUserId)
-                .HasConstraintName("FK__Reports__ToUserI__151B244E");
+            entity.HasOne(d => d.Touser).WithMany(p => p.ReportTousers)
+                .HasForeignKey(d => d.Touserid)
+                .HasConstraintName("report_touserid_fkey");
         });
 
-        modelBuilder.Entity<RequestMatch>(entity =>
+        modelBuilder.Entity<Requestmatch>(entity =>
         {
-            entity.HasKey(e => e.MatchId).HasName("PK__RequestM__4218C8170C9CF62D");
+            entity.HasKey(e => e.Matchid).HasName("requestmatch_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.StatusRequest)
+            entity.ToTable("requestmatch");
+
+            entity.Property(e => e.Matchid).HasColumnName("matchid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Fromuserid).HasColumnName("fromuserid");
+            entity.Property(e => e.Statusrequest)
                 .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+                .HasColumnName("statusrequest");
+            entity.Property(e => e.Touserid).HasColumnName("touserid");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.RequestMatchFromUsers)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("FK__RequestMa__FromU__7E37BEF6");
+            entity.HasOne(d => d.Fromuser).WithMany(p => p.RequestmatchFromusers)
+                .HasForeignKey(d => d.Fromuserid)
+                .HasConstraintName("requestmatch_fromuserid_fkey");
 
-            entity.HasOne(d => d.ToUser).WithMany(p => p.RequestMatchToUsers)
-                .HasForeignKey(d => d.ToUserId)
-                .HasConstraintName("FK__RequestMa__ToUse__7F2BE32F");
+            entity.HasOne(d => d.Touser).WithMany(p => p.RequestmatchTousers)
+                .HasForeignKey(d => d.Touserid)
+                .HasConstraintName("requestmatch_touserid_fkey");
         });
 
         modelBuilder.Entity<Role>(entity =>
         {
-            entity.HasKey(e => e.RoleId).HasName("PK__Role__8AFACE1AD2241D0F");
+            entity.HasKey(e => e.Roleid).HasName("role_pkey");
 
-            entity.ToTable("Role");
+            entity.ToTable("role");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.RoleName)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+            entity.Property(e => e.Roleid).HasColumnName("roleid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Rolename)
+                .HasMaxLength(100)
+                .HasColumnName("rolename");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
         });
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.UserId).HasName("PK__Users__1788CC4CEFB8FB91");
+            entity.HasKey(e => e.Userid).HasName("User_pkey");
 
-            entity.HasIndex(e => e.Email, "UQ__Users__A9D105342BA08634").IsUnique();
+            entity.ToTable("User");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
+            entity.HasIndex(e => e.Email, "User_email_key").IsUnique();
+
+            entity.Property(e => e.Userid).HasColumnName("userid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
             entity.Property(e => e.Email)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.PasswordHash)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.TokenJwt)
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("TokenJWT");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-
-            entity.HasOne(d => d.Location).WithMany(p => p.Users)
-                .HasForeignKey(d => d.LocationId)
-                .HasConstraintName("FK__Users__LocationI__5CD6CB2B");
-
-            entity.HasOne(d => d.Profile).WithMany(p => p.Users)
-                .HasForeignKey(d => d.ProfileId)
-                .HasConstraintName("FK__Users__ProfileId__5AEE82B9");
+                .HasMaxLength(150)
+                .HasColumnName("email");
+            entity.Property(e => e.Fullname)
+                .HasMaxLength(150)
+                .HasColumnName("fullname");
+            entity.Property(e => e.Gender)
+                .HasMaxLength(50)
+                .HasColumnName("gender");
+            entity.Property(e => e.Passwordhash).HasColumnName("passwordhash");
+            entity.Property(e => e.Roleid).HasColumnName("roleid");
+            entity.Property(e => e.Tokenjwt).HasColumnName("tokenjwt");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userstatusid).HasColumnName("userstatusid");
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
-                .HasForeignKey(d => d.RoleId)
-                .HasConstraintName("FK__Users__RoleId__59FA5E80");
+                .HasForeignKey(d => d.Roleid)
+                .HasConstraintName("User_roleid_fkey");
 
-            entity.HasOne(d => d.UserStatus).WithMany(p => p.Users)
-                .HasForeignKey(d => d.UserStatusId)
-                .HasConstraintName("FK__Users__UserStatu__5BE2A6F2");
+            entity.HasOne(d => d.Userstatus).WithMany(p => p.Users)
+                .HasForeignKey(d => d.Userstatusid)
+                .HasConstraintName("User_userstatusid_fkey");
         });
 
-        modelBuilder.Entity<UserPreference>(entity =>
+        modelBuilder.Entity<Userpreference>(entity =>
         {
-            entity.HasKey(e => e.UserPreferencesId).HasName("PK__UserPref__4D1A68C55CF1D3B6");
+            entity.HasKey(e => e.Userpreferenceid).HasName("userpreference_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Value).HasMaxLength(200);
+            entity.ToTable("userpreference");
 
-            entity.HasOne(d => d.AttributePreferences).WithMany(p => p.UserPreferences)
-                .HasForeignKey(d => d.AttributePreferencesId)
-                .HasConstraintName("FK__UserPrefe__Attri__6754599E");
+            entity.Property(e => e.Userpreferenceid).HasColumnName("userpreferenceid");
+            entity.Property(e => e.Attributeid).HasColumnName("attributeid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userid).HasColumnName("userid");
+            entity.Property(e => e.Value)
+                .HasMaxLength(255)
+                .HasColumnName("value");
 
-            entity.HasOne(d => d.User).WithMany(p => p.UserPreferences)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK__UserPrefe__UserI__66603565");
+            entity.HasOne(d => d.Attribute).WithMany(p => p.Userpreferences)
+                .HasForeignKey(d => d.Attributeid)
+                .HasConstraintName("userpreference_attributeid_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Userpreferences)
+                .HasForeignKey(d => d.Userid)
+                .HasConstraintName("userpreference_userid_fkey");
         });
 
-        modelBuilder.Entity<UserProfile>(entity =>
+        modelBuilder.Entity<Userstatus>(entity =>
         {
-            entity.HasKey(e => e.ProfileId).HasName("PK__UserProf__290C88E4904426BD");
+            entity.HasKey(e => e.Userstatusid).HasName("userstatus_pkey");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.FullName).HasMaxLength(100);
-            entity.Property(e => e.Gender)
-                .HasMaxLength(10)
-                .IsUnicode(false);
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-        });
+            entity.ToTable("userstatus");
 
-        modelBuilder.Entity<UserStatus>(entity =>
-        {
-            entity.HasKey(e => e.UserStatusId).HasName("PK__UserStat__A33F543A572DE3B9");
-
-            entity.ToTable("UserStatus");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.UserStatusName)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+            entity.Property(e => e.Userstatusid).HasColumnName("userstatusid");
+            entity.Property(e => e.Createdat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("createdat");
+            entity.Property(e => e.Updatedat)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("updatedat");
+            entity.Property(e => e.Userstatusname)
+                .HasMaxLength(100)
+                .HasColumnName("userstatusname");
         });
 
         OnModelCreatingPartial(modelBuilder);
