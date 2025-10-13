@@ -1,4 +1,5 @@
 using BE.Models;
+using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
 using System;
 
@@ -13,6 +14,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<PawnderDatabaseContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DbContext")));
+
+builder.Services.AddControllers().AddOData(opt => opt.Select().Expand().Filter().OrderBy().Count().SetMaxTop(100));
 
 var app = builder.Build();
 
