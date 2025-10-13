@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Security.Claims;
 
-namespace BE.Controlers
+namespace BE.Controllers
 {
     [ApiController]
     public class AuthController : ControllerBase
