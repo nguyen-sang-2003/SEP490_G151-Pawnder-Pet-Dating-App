@@ -1,4 +1,5 @@
 ﻿using BE.Models;
+using BE.DTO;
 using BE.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -48,15 +49,6 @@ namespace BE.Controllers
                 Message = "Đăng nhập thành công",
                 Token = token
             });
-        }
-        public class LoginRequest
-        {
-            [Required(ErrorMessage = "Email không được để trống")]
-            [EmailAddress(ErrorMessage = "Email không hợp lệ")]
-            public string Email { get; set; }
-            [Required(ErrorMessage = "Mật khẩu không được để trống")]
-            [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu phải ít nhất 6 ký tự")]
-            public string Password { get; set; }
         }
 
         [Authorize]
