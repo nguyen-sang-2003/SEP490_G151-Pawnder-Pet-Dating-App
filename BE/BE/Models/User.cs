@@ -5,55 +5,61 @@ namespace BE.Models;
 
 public partial class User
 {
-    public int Userid { get; set; }
+    public Guid UserId { get; set; }
 
-    public int? Roleid { get; set; }
+    public Guid? RoleId { get; set; }
 
-    public int? Userstatusid { get; set; }
+    public Guid? UserStatusId { get; set; }
 
-    public string? Fullname { get; set; }
+    public Guid? AddressId { get; set; }
+
+    public string? FullName { get; set; }
 
     public string? Gender { get; set; }
 
     public string Email { get; set; } = null!;
 
-    public string Passwordhash { get; set; } = null!;
+    public string PasswordHash { get; set; } = null!;
 
-    public string? Tokenjwt { get; set; }
+    public string? ProviderLogin { get; set; }
 
-    public DateTime? Createdat { get; set; }
+    public string? TokenJWT { get; set; }
 
-    public DateTime? Updatedat { get; set; }
+    public bool? IsDeleted { get; set; }
 
-    public virtual ICollection<Block> BlockFromusers { get; set; } = new List<Block>();
+    public DateTime? CreatedAt { get; set; }
 
-    public virtual ICollection<Block> BlockTousers { get; set; } = new List<Block>();
+    public DateTime? UpdatedAt { get; set; }
 
-    public virtual ICollection<Expertconfirmation> ExpertconfirmationExperts { get; set; } = new List<Expertconfirmation>();
+    public virtual Address? Address { get; set; }
 
-    public virtual ICollection<Expertconfirmation> ExpertconfirmationUserrequests { get; set; } = new List<Expertconfirmation>();
+    public virtual ICollection<Block> BlockFromUsers { get; set; } = new List<Block>();
 
-    public virtual ICollection<Location> Locations { get; set; } = new List<Location>();
+    public virtual ICollection<Block> BlockToUsers { get; set; } = new List<Block>();
 
-    public virtual ICollection<Message> Messages { get; set; } = new List<Message>();
+    public virtual ICollection<ChatAi> ChatAis { get; set; } = new List<ChatAi>();
+
+    public virtual ICollection<ChatUser> ChatUserFromUsers { get; set; } = new List<ChatUser>();
+
+    public virtual ICollection<ChatUser> ChatUserToUsers { get; set; } = new List<ChatUser>();
+
+    public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
+
+    public virtual ICollection<ExpertConfirmation> ExpertConfirmationExperts { get; set; } = new List<ExpertConfirmation>();
+
+    public virtual ICollection<ExpertConfirmation> ExpertConfirmationUsers { get; set; } = new List<ExpertConfirmation>();
 
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
-    public virtual ICollection<Paymenthistory> Paymenthistories { get; set; } = new List<Paymenthistory>();
+    public virtual ICollection<PaymentHistory> PaymentHistories { get; set; } = new List<PaymentHistory>();
 
     public virtual ICollection<Pet> Pets { get; set; } = new List<Pet>();
 
-    public virtual ICollection<Report> ReportFromusers { get; set; } = new List<Report>();
-
-    public virtual ICollection<Report> ReportTousers { get; set; } = new List<Report>();
-
-    public virtual ICollection<Requestmatch> RequestmatchFromusers { get; set; } = new List<Requestmatch>();
-
-    public virtual ICollection<Requestmatch> RequestmatchTousers { get; set; } = new List<Requestmatch>();
+    public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
 
     public virtual Role? Role { get; set; }
 
-    public virtual ICollection<Userpreference> Userpreferences { get; set; } = new List<Userpreference>();
+    public virtual ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
 
-    public virtual Userstatus? Userstatus { get; set; }
+    public virtual UserStatus? Userstatus { get; set; }
 }

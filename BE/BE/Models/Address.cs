@@ -3,11 +3,17 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class Role
+public partial class Address
 {
-    public Guid RoleId { get; set; }
+    public Guid AddressId { get; set; }
 
-    public string RoleName { get; set; } = null!;
+    public string FullAddress { get; set; } = null!;
+
+    public string? City { get; set; }
+
+    public string? District { get; set; }
+
+    public string? Ward { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 

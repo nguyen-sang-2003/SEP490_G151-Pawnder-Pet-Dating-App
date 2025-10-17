@@ -3,25 +3,25 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class Expertconfirmation
+public partial class ExpertConfirmation
 {
-    public int Confirmationid { get; set; }
+    public Guid ExpertId { get; set; }
 
-    public int? Userrequestid { get; set; }
+    public Guid UserId { get; set; }
 
-    public int? Expertid { get; set; }
-
-    public string? Contentconfirmation { get; set; }
-
-    public bool? Contentaccurate { get; set; }
+    public Guid ChatAiId { get; set; }
 
     public string? Status { get; set; }
 
-    public DateTime? Createdat { get; set; }
+    public string? Message { get; set; }
 
-    public DateTime? Updatedat { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
-    public virtual User? Expert { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
-    public virtual User? Userrequest { get; set; }
+    public virtual ChatAi ChatAi { get; set; } = null!;
+
+    public virtual User Expert { get; set; } = null!;
+
+    public virtual User User { get; set; } = null!;
 }

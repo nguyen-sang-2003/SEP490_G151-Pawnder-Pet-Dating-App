@@ -5,17 +5,15 @@ namespace BE.Models;
 
 public partial class Block
 {
-    public int Blockid { get; set; }
+    public Guid FromUserId { get; set; }
 
-    public int? Fromuserid { get; set; }
+    public Guid ToUserId { get; set; }
 
-    public int? Touserid { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
-    public DateTime? Createdat { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
-    public DateTime? Updatedat { get; set; }
+    public virtual User FromUser { get; set; } = null!;
 
-    public virtual User? Fromuser { get; set; }
-
-    public virtual User? Touser { get; set; }
+    public virtual User ToUser { get; set; } = null!;
 }

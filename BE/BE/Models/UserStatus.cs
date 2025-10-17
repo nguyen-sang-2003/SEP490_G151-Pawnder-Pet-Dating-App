@@ -3,15 +3,15 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class Userstatus
+public partial class UserStatus
 {
-    public int Userstatusid { get; set; }
+    public Guid UserStatusId { get; set; }
 
-    public string Userstatusname { get; set; } = null!;
+    public string UserStatusName { get; set; } = null!;
 
-    public DateTime? Createdat { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
-    public DateTime? Updatedat { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
     public virtual ICollection<User> Users { get; set; } = new List<User>();
 }

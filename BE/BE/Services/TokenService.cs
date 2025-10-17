@@ -18,7 +18,7 @@ namespace BE.Services
             _audience = config["Jwt:Audience"];
         }
 
-        public string GenerateToken(int userId, string role)
+        public string GenerateToken(Guid userId, string role)
         {
             var claims = new[]
             {
