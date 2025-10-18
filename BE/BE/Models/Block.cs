@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BE.Models;
 
 public partial class Block
 {
-    public Guid FromUserId { get; set; }
+    public int FromUserId { get; set; }
 
-    public Guid ToUserId { get; set; }
+    public int ToUserId { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 

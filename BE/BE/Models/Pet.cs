@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BE.Models;
 
 public partial class Pet
 {
-    public Guid PetId { get; set; }
+    public int PetId { get; set; }
 
-    public Guid? UserId { get; set; }
+    public int? UserId { get; set; }
 
     public string? Name { get; set; }
 
