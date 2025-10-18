@@ -5,11 +5,11 @@ namespace BE.Models;
 
 public partial class Report
 {
-    public int Reportid { get; set; }
+    public int ReportId { get; set; }
 
-    public int? Fromuserid { get; set; }
+    public int? UserReportId { get; set; }
 
-    public int? Touserid { get; set; }
+    public int? ContentId { get; set; }
 
     public string? Reason { get; set; }
 
@@ -17,11 +17,11 @@ public partial class Report
 
     public string? Resolution { get; set; }
 
-    public DateTime? Createdat { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
-    public DateTime? Updatedat { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
-    public virtual User? Fromuser { get; set; }
+    public virtual ChatUserContent? Content { get; set; }
 
-    public virtual User? Touser { get; set; }
+    public virtual User? UserReport { get; set; }
 }
