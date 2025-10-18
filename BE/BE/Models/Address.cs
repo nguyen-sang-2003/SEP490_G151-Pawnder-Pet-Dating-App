@@ -5,7 +5,7 @@ namespace BE.Models;
 
 public partial class Address
 {
-    public Guid AddressId { get; set; }
+    public int AddressId { get; set; }
 
     public string FullAddress { get; set; } = null!;
 

@@ -55,7 +55,7 @@ namespace BE.Controllers
             {
                 // Attributeid để DB tự sinh (nếu là identity/sequence)
                 Name = dto.Name,
-                Typevalue = dto.Typevalue,
+                TypeValue = dto.Typevalue,
                 Unit = dto.Unit
                 // Createdat/Updatedat để DB/SaveChanges xử lý
             };
@@ -79,7 +79,7 @@ namespace BE.Controllers
 
             // Chỉ update các trường cho phép (tránh overposting)
             entity.Name = dto.Name;
-            entity.Typevalue = dto.Typevalue;
+            entity.TypeValue = dto.Typevalue;
             entity.Unit = dto.Unit;
 
             try
@@ -112,10 +112,10 @@ namespace BE.Controllers
         {
             Attributeid = e.Attributeid,
             Name = e.Name,
-            Typevalue = e.Typevalue,
+            Typevalue = e.TypeValue,
             Unit = e.Unit,
-            Createdat = e.Createdat,
-            Updatedat = e.Updatedat
+            Createdat = e.CreatedAt,
+            Updatedat = e.UpdatedAt
         };
 
         private bool AttributeExists(int id)
