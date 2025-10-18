@@ -38,7 +38,7 @@ namespace BE.Controllers
         }
 
         // GET /notification/{notificationId}
-        [Authorize]
+        [Authorize(Roles = "Admin,User")]
         [HttpGet("{notificationId:int}")]
         public async Task<ActionResult> GetNotificationById(int notificationId)
         {
