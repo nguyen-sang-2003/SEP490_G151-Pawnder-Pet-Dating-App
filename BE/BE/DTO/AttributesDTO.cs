@@ -1,18 +1,47 @@
-﻿namespace BE.DTO
+﻿// BE/DTO/AttributeDtos.cs
+namespace BE.DTO
 {
-    public class AttributesDTO
+    using System;
+    using System.ComponentModel.DataAnnotations;
+
+    public record AttributeResponse
     {
-        public int Attributeid { get; set; }
+        public int AttributeId { get; init; }
+        public string Name { get; init; } = null!;
+        public string? TypeValue { get; init; }
+        public bool? IsDeleted { get; init; }
+        public string? Unit { get; init; }
+        public DateTime? CreatedAt { get; init; }
+        public DateTime? UpdatedAt { get; init; }
+    }
 
-        public string Name { get; set; } = null!;
+    public record AttributeCreateRequest
+    {
+        [Required(ErrorMessage = "Tên thuộc tính là bắt buộc.")]
+        [StringLength(100, ErrorMessage = "Tên thuộc tính tối đa {1} ký tự.")]
+        public string Name { get; init; } = null!;
 
-        public string? Typevalue { get; set; }
+        [StringLength(50, ErrorMessage = "Kiểu giá trị tối đa {1} ký tự.")]
+        public string? TypeValue { get; init; }
 
-        public string? Unit { get; set; }
+        [StringLength(20, ErrorMessage = "Đơn vị tối đa {1} ký tự.")]
+        public string? Unit { get; init; }
 
-        public DateTime? Createdat { get; set; }
+        public bool? IsDeleted { get; init; }
+    }
 
-        public DateTime? Updatedat { get; set; }
+    public record AttributeUpdateRequest
+    {
+        [Required(ErrorMessage = "Tên thuộc tính là bắt buộc.")]
+        [StringLength(100, ErrorMessage = "Tên thuộc tính tối đa {1} ký tự.")]
+        public string Name { get; init; } = null!;
 
+        [StringLength(50, ErrorMessage = "Kiểu giá trị tối đa {1} ký tự.")]
+        public string? TypeValue { get; init; }
+
+        [StringLength(20, ErrorMessage = "Đơn vị tối đa {1} ký tự.")]
+        public string? Unit { get; init; }
+
+        public bool? IsDeleted { get; init; } // cho phép bật/tắt xoá mềm khi update (tuỳ bạn dùng hay không)
     }
 }
