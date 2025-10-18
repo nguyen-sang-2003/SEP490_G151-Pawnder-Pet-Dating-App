@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class ChatAiContent
 {
-    public Guid ContentId { get; set; }
+    public int ContentId { get; set; }
 
-    public Guid? ChataiId { get; set; }
+    public int? ChataiId { get; set; }
 
     public string? Question { get; set; }
 

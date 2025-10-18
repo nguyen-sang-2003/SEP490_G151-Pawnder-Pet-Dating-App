@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class PetCharacteristic
 {
-    public Guid PetId { get; set; }
+    public int PetId { get; set; }
 
-    public Guid AttributeId { get; set; }
+    public int AttributeId { get; set; }
 
     public string? Value { get; set; }
 

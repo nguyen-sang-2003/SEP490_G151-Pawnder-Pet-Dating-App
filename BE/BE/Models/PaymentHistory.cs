@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class PaymentHistory
 {
-    public Guid HistoryId { get; set; }
+    public int HistoryId { get; set; }
 
-    public Guid? UserId { get; set; }
+    public int? UserId { get; set; }
 
     public string? StatusService { get; set; }
 

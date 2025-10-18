@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class PetPhoto
 {
-    public Guid PhotoId { get; set; }
+    public int PhotoId { get; set; }
 
-    public Guid? PetId { get; set; }
+    public int? PetId { get; set; }
 
     public string ImageUrl { get; set; } = null!;
 

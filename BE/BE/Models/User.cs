@@ -5,13 +5,13 @@ namespace BE.Models;
 
 public partial class User
 {
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 
-    public Guid? RoleId { get; set; }
+    public int? RoleId { get; set; }
 
-    public Guid? UserStatusId { get; set; }
+    public int? UserStatusId { get; set; }
 
-    public Guid? AddressId { get; set; }
+    public int? AddressId { get; set; }
 
     public string? FullName { get; set; }
 

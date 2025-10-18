@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class Notification
 {
-    public Guid NotificationId { get; set; }
+    public int NotificationId { get; set; }
 
-    public Guid? UserId { get; set; }
+    public int? UserId { get; set; }
 
     public string? Title { get; set; }
 

@@ -62,7 +62,7 @@ namespace BE.Controllers
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized("Không xác định được người dùng.");
 
-                var id = Guid.Parse(userId);
+                var id = int.Parse(userId);
 
                 var user = _context.Users.FirstOrDefault(u => u.UserId == id);
                 if (user == null)

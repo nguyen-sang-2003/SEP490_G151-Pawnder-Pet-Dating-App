@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class UserPreference
 {
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 
-    public Guid AttributeId { get; set; }
+    public int AttributeId { get; set; }
 
     public string? Value { get; set; }
 
