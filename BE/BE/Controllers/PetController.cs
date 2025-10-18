@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Drawing;
@@ -17,6 +18,7 @@ namespace BE.Controllers
         }
 
         // GET /pet/user/{userId}
+        [Authorize(Roles = "Admin,User")]
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetPetsByUser(int userId)
         {
@@ -43,6 +45,7 @@ namespace BE.Controllers
         }
 
         // GET /pet/{petId}
+        [Authorize(Roles = "Admin,User")]
         [HttpGet("{petId}")]
         public async Task<IActionResult> GetPetById(int petId)
         {
@@ -69,6 +72,7 @@ namespace BE.Controllers
         }
 
         // POST /pet
+        [Authorize(Roles = "User")]
         [HttpPost]
         public async Task<IActionResult> CreatePet([FromBody] PetDto_2 petDto)
         {
@@ -94,6 +98,7 @@ namespace BE.Controllers
         }
 
         // PUT /pet/{petId}
+        [Authorize(Roles = "User")]
         [HttpPut("{petId}")]
         public async Task<IActionResult> UpdatePet(int petId, [FromBody] PetDto_2 updatedPet)
         {
@@ -115,6 +120,8 @@ namespace BE.Controllers
             return Ok(new { Message = "Cập nhật thông tin thú cưng thành công", Pet = pet });
         }
 
+        // DELETE /pet/{petId}
+        [Authorize(Roles = "User")]
         [HttpDelete("{petId}")]
         public async Task<IActionResult> DeletePet(int petId)
         {

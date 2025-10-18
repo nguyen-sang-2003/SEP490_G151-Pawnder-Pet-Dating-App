@@ -75,7 +75,7 @@ namespace BE.Controllers
         }
 
         // POST /notification
-        [Authorize]
+        [Authorize(Roles = "Admin,User")]
         [HttpPost]
         public async Task<IActionResult> CreateNotification([FromBody] NotificationDto_1 notificationDto)
         {
@@ -97,7 +97,7 @@ namespace BE.Controllers
         }
 
         // DELETE /notification/{notificationId}
-        [Authorize]
+        [Authorize(Roles = "Admin,User")]
         [HttpDelete("{notificationId:int}")]
         public async Task<IActionResult> DeleteNotification(int notificationId)
         {
