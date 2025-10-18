@@ -3,21 +3,21 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class Paymenthistory
+public partial class PaymentHistory
 {
-    public int Historyid { get; set; }
+    public int HistoryId { get; set; }
 
-    public int? Userid { get; set; }
+    public int? UserId { get; set; }
 
-    public string? Statusservice { get; set; }
+    public string? StatusService { get; set; }
 
-    public DateOnly? Startdate { get; set; }
+    public DateOnly? StartDate { get; set; }
 
-    public DateOnly? Enddate { get; set; }
+    public DateOnly? EndDate { get; set; }
 
-    public DateTime? Createdat { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
-    public DateTime? Updatedat { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
     public virtual User? User { get; set; }
 }
