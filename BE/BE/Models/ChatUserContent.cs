@@ -5,11 +5,11 @@ namespace BE.Models;
 
 public partial class ChatUserContent
 {
-    public Guid ContentId { get; set; }
+    public int ContentId { get; set; }
 
-    public Guid? MatchId { get; set; }
+    public int? MatchId { get; set; }
 
-    public Guid? FromUserId { get; set; }
+    public int? FromUserId { get; set; }
 
     public string? Message { get; set; }
 

@@ -5,11 +5,11 @@ namespace BE.Models;
 
 public partial class Report
 {
-    public Guid ReportId { get; set; }
+    public int ReportId { get; set; }
 
-    public Guid? UserReportId { get; set; }
+    public int? UserReportId { get; set; }
 
-    public Guid? ContentId { get; set; }
+    public int? ContentId { get; set; }
 
     public string? Reason { get; set; }
 

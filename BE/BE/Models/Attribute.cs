@@ -5,7 +5,7 @@ namespace BE.Models;
 
 public partial class Attribute
 {
-    public Guid Attributeid { get; set; }
+    public int Attributeid { get; set; }
 
     public string Name { get; set; } = null!;
 

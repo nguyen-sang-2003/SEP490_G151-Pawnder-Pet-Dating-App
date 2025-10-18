@@ -5,11 +5,11 @@ namespace BE.Models;
 
 public partial class ExpertConfirmation
 {
-    public Guid ExpertId { get; set; }
+    public int ExpertId { get; set; }
 
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 
-    public Guid ChatAiId { get; set; }
+    public int ChatAiId { get; set; }
 
     public string? Status { get; set; }
 

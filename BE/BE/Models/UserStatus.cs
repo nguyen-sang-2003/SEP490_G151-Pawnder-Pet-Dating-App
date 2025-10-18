@@ -5,7 +5,7 @@ namespace BE.Models;
 
 public partial class UserStatus
 {
-    public Guid UserStatusId { get; set; }
+    public int UserStatusId { get; set; }
 
     public string UserStatusName { get; set; } = null!;
 

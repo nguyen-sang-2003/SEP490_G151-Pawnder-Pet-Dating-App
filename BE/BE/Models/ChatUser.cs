@@ -5,11 +5,11 @@ namespace BE.Models;
 
 public partial class ChatUser
 {
-    public Guid MatchId { get; set; }
+    public int MatchId { get; set; }
 
-    public Guid? FromUserId { get; set; }
+    public int? FromUserId { get; set; }
 
-    public Guid? ToUserId { get; set; }
+    public int? ToUserId { get; set; }
 
     public string? Status { get; set; }
 
