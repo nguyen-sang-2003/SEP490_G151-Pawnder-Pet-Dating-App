@@ -10,6 +10,7 @@ import AddPetInfoScreen from "../features/auth/screens/AddPetInfoScreen";
 
 // Import Other Screens
 import HomeScreen from "../features/home/screens/HomeScreen";
+import ChatScreen from "../features/chat/screens/ChatScreen";
 import NotificationScreen from "../features/notification/screens/NotificationScreen";
 
 export type RootStackParamList = {
@@ -42,6 +43,7 @@ const AppNavigator = () => {
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="AddPetInfo" component={AddPetInfoScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
         <Stack.Screen name="Notification" component={NotificationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
