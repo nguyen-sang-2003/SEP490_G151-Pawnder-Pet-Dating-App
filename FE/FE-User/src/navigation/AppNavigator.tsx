@@ -12,6 +12,12 @@ import AddPetInfoScreen from "../features/auth/screens/AddPetInfoScreen";
 import HomeScreen from "../features/home/screens/HomeScreen";
 import ChatScreen from "../features/chat/screens/ChatScreen";
 import NotificationScreen from "../features/notification/screens/NotificationScreen";
+import FavoriteScreen from "../features/favorite/screens/FavoriteScreen";
+import UserProfileScreen from "../features/profile/screens/UserProfileScreen";
+import PetProfileScreen from "../features/profile/screens/PetProfileScreen";
+import EditUserProfileScreen from "../features/profile/screens/EditUserProfileScreen";
+import EditPetScreen from "../features/profile/screens/EditPetScreen";
+
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -27,9 +33,15 @@ export type RootStackParamList = {
   PetProfile: { petId: string };
   EditProfile: undefined;
   EditPet: { petId: string };
+  AddPet: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Wrapper component for AddPet to reuse AddPetInfoScreen
+const AddPetScreen = (props: any) => {
+  return <AddPetInfoScreen {...props} />;
+};
 
 const AppNavigator = () => {
   return (
@@ -45,6 +57,12 @@ const AppNavigator = () => {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
         <Stack.Screen name="Notification" component={NotificationScreen} />
+        <Stack.Screen name="Favorite" component={FavoriteScreen} />
+        <Stack.Screen name="Profile" component={UserProfileScreen} />
+        <Stack.Screen name="PetProfile" component={PetProfileScreen} />
+        <Stack.Screen name="EditProfile" component={EditUserProfileScreen} />
+        <Stack.Screen name="EditPet" component={EditPetScreen} />
+        <Stack.Screen name="AddPet" component={AddPetScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
