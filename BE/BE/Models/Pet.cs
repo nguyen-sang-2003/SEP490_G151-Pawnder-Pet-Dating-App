@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace BE.Models;
@@ -17,7 +17,7 @@ public partial class Pet
 
     public int? Age { get; set; }
 
-    public bool? IsDeadted { get; set; }
+    public bool? IsActive { get; set; }
 
     public bool? IsDeleted { get; set; }
 

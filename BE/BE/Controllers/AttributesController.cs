@@ -64,7 +64,7 @@ namespace BE.Controllers
             await _context.SaveChangesAsync();
 
             var resultDto = MapToDto(entity);
-            return CreatedAtAction(nameof(GetAttribute), new { id = entity.Attributeid }, resultDto);
+            return CreatedAtAction(nameof(GetAttribute), new { id = entity.AttributeId }, resultDto);
         }
 
         // PUT: api/Attributes/5
@@ -74,7 +74,7 @@ namespace BE.Controllers
         {
             if (dto == null ) return BadRequest();
 
-            var entity = await _context.Attributes.FirstOrDefaultAsync(a => a.Attributeid == id);
+            var entity = await _context.Attributes.FirstOrDefaultAsync(a => a.AttributeId == id);
             if (entity == null) return NotFound();
 
             // Chỉ update các trường cho phép (tránh overposting)
@@ -110,7 +110,7 @@ namespace BE.Controllers
 
         private static AttributesDTO MapToDto(AttributeEntity e) => new AttributesDTO
         {
-            Attributeid = e.Attributeid,
+            Attributeid = e.AttributeId,
             Name = e.Name,
             Typevalue = e.TypeValue,
             Unit = e.Unit,
@@ -119,6 +119,6 @@ namespace BE.Controllers
         };
 
         private bool AttributeExists(int id)
-            => _context.Attributes.Any(e => e.Attributeid == id);
+            => _context.Attributes.Any(e => e.AttributeId == id);
     }
 }
