@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Models;
+using BE.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,7 @@ namespace BE.Controllers
         {
             var pets = await _context.Pets
                 .Include(p => p.PetPhotos)
-                .Where(p => p.UserId == userId && (p.IsDeleted == false || p.IsDeleted == null))
+                .Where(p => p.UserId == userId && (p.IsDeleted == false))
                 .Select(p => new PetDto
                 {
                     PetId = p.PetId,
@@ -52,7 +53,7 @@ namespace BE.Controllers
             var pet = await _context.Pets
                 .Include(p => p.PetPhotos)
                 .Include(p => p.PetCharacteristics)
-                .Where(p => p.PetId == petId && (p.IsDeleted == false || p.IsDeleted == null))
+                .Where(p => p.PetId == petId && (p.IsDeleted == false))
                 .Select(p => new PetDto_1
                 {
                     PetId = p.PetId,
@@ -103,7 +104,7 @@ namespace BE.Controllers
         public async Task<IActionResult> UpdatePet(int petId, [FromBody] PetDto_2 updatedPet)
         {
             var pet = await _context.Pets.FindAsync(petId);
-            if (pet == null)
+            if (pet == null || pet.IsDeleted == false)
                 return NotFound(new { Message = "Không tìm thấy thú cưng" });
 
             pet.Name = updatedPet.Name;
