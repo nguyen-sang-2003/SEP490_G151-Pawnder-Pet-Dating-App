@@ -8,6 +8,10 @@ import SignInScreen from "../features/auth/screens/SignInScreen";
 import SignUpScreen from "../features/auth/screens/SignUpScreen";
 import AddPetInfoScreen from "../features/auth/screens/AddPetInfoScreen";
 
+// Import Other Screens
+import HomeScreen from "../features/home/screens/HomeScreen";
+import NotificationScreen from "../features/notification/screens/NotificationScreen";
+
 export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
@@ -18,6 +22,7 @@ export type RootStackParamList = {
   Chat: undefined;
   Favorite: undefined;
   Profile: undefined;
+  Notification: undefined;
   PetProfile: { petId: string };
   EditProfile: undefined;
   EditPet: { petId: string };
@@ -36,6 +41,8 @@ const AppNavigator = () => {
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="AddPetInfo" component={AddPetInfoScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Notification" component={NotificationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
