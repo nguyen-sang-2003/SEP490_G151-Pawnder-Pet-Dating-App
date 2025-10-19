@@ -9,7 +9,7 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 // Đồng bộ Tab với RootStackParamList
 export type Tab = keyof Pick<
   RootStackParamList,
-  "Home" | "Match" | "Chat" | "Favorite" | "Profile"
+  "Home" | "Chat" | "Favorite" | "Profile"
 >;
 
 interface BottomNavProps {
@@ -30,13 +30,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
         <Icon name="home" size={24} color={active === "Home" ? "#FF6EA7" : "#333"} />
         <Text style={[styles.navText, active === "Home" && { color: "#FF6EA7" }]}>
           Home
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navItem} onPress={() => handlePress("Match")}>
-        <Icon name="paw" size={24} color={active === "Match" ? "#FF6EA7" : "#333"} />
-        <Text style={[styles.navText, active === "Match" && { color: "#FF6EA7" }]}>
-          Match
         </Text>
       </TouchableOpacity>
 
