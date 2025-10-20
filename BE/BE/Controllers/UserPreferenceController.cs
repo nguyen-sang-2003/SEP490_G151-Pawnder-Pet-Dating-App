@@ -32,7 +32,7 @@ public class UserPreferenceController : ControllerBase
         if (!userExists)
             return NotFound(new { message = "User not found." });
 
-        var items = await _db.Userpreferences
+        var items = await _db.UserPreferences
             .AsNoTracking()
             .Where(up => up.UserId == userId)
             .Include(up => up.Attribute)
@@ -43,7 +43,7 @@ public class UserPreferenceController : ControllerBase
                 AttributeName = up.Attribute.Name!,
                 TypeValue = up.Attribute.TypeValue,
                 Unit = up.Attribute.Unit,
-                Value = up.Value,
+                
                 CreatedAt = up.CreatedAt,
                 UpdatedAt = up.UpdatedAt
             })
@@ -70,12 +70,12 @@ public class UserPreferenceController : ControllerBase
         // Validate attribute
         var attribute = await _db.Attributes
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Attributeid == attributeId && a.IsDeleted == false, ct);
+            .FirstOrDefaultAsync(a => a.AttributeId == attributeId && a.IsDeleted == false, ct);
         if (attribute is null)
             return NotFound(new { message = "Attribute not found." });
 
         // Check duplicate (composite key)
-        var exists = await _db.Userpreferences
+        var exists = await _db.UserPreferences
             .AnyAsync(up => up.UserId == userId && up.AttributeId == attributeId, ct);
         if (exists)
             return Conflict(new { message = "User preference already exists for this attribute." });
@@ -84,12 +84,12 @@ public class UserPreferenceController : ControllerBase
         {
             UserId = userId,
             AttributeId = attributeId,
-            Value = req.Value,
+          
             CreatedAt = DateTime.Now,
             UpdatedAt = DateTime.Now
         };
 
-        _db.Userpreferences.Add(entity);
+        _db.UserPreferences.Add(entity);
         await _db.SaveChangesAsync(ct);
 
         // Trả về 201 + Location header (trỏ về GET danh sách của user)
@@ -97,7 +97,7 @@ public class UserPreferenceController : ControllerBase
         {
             userId,
             attributeId,
-            entity.Value
+           
         });
     }
 
@@ -111,14 +111,14 @@ public class UserPreferenceController : ControllerBase
         CancellationToken ct = default)
     {
         // Tìm entity theo composite key
-        var entity = await _db.Userpreferences
+        var entity = await _db.UserPreferences
             .Include(up => up.Attribute)
             .FirstOrDefaultAsync(up => up.UserId == userId && up.AttributeId == attributeId, ct);
 
         if (entity is null)
             return NotFound(new { message = "User preference not found." });
 
-        entity.Value = req.Value;
+    
         entity.UpdatedAt = DateTime.Now;
 
         await _db.SaveChangesAsync(ct);
@@ -129,7 +129,7 @@ public class UserPreferenceController : ControllerBase
             AttributeName = entity.Attribute.Name!,
             TypeValue = entity.Attribute.TypeValue,
             Unit = entity.Attribute.Unit,
-            Value = entity.Value,
+           
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };

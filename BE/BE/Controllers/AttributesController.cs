@@ -54,12 +54,12 @@ namespace BE.Controllers
 
                 var total = await q.CountAsync(ct);
                 var items = await q
-                    .OrderBy(a => a.Attributeid)
+                    .OrderBy(a => a.AttributeId)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .Select(a => new AttributeResponse
                     {
-                        AttributeId = a.Attributeid,
+                        AttributeId = a.AttributeId,
                         Name = a.Name,
                         TypeValue = a.TypeValue,
                         Unit = a.Unit,
@@ -92,14 +92,14 @@ namespace BE.Controllers
             try
             {
                 var entity = await _db.Attributes.AsNoTracking()
-                    .FirstOrDefaultAsync(a => a.Attributeid == id, ct);
+                    .FirstOrDefaultAsync(a => a.AttributeId == id, ct);
 
                 if (entity == null)
                     return NotFound(new { message = "Không tìm thấy thuộc tính." });
 
                 var dto = new AttributeResponse
                 {
-                    AttributeId = entity.Attributeid,
+                    AttributeId = entity.AttributeId,
                     Name = entity.Name,
                     TypeValue = entity.TypeValue,
                     Unit = entity.Unit,
@@ -152,7 +152,7 @@ namespace BE.Controllers
 
                 var response = new AttributeResponse
                 {
-                    AttributeId = entity.Attributeid,
+                    AttributeId = entity.AttributeId,
                     Name = entity.Name,
                     TypeValue = entity.TypeValue,
                     Unit = entity.Unit,
@@ -161,7 +161,7 @@ namespace BE.Controllers
                     UpdatedAt = entity.UpdatedAt
                 };
 
-                return CreatedAtAction(nameof(GetById), new { id = entity.Attributeid },
+                return CreatedAtAction(nameof(GetById), new { id = entity.AttributeId },
                     new { message = "Tạo thuộc tính thành công.", data = response });
             }
             catch (DbUpdateException)
@@ -189,13 +189,13 @@ namespace BE.Controllers
 
             try
             {
-                var entity = await _db.Attributes.FirstOrDefaultAsync(a => a.Attributeid == id, ct);
+                var entity = await _db.Attributes.FirstOrDefaultAsync(a => a.AttributeId == id, ct);
                 if (entity == null)
                     return NotFound(new { message = "Không tìm thấy thuộc tính để cập nhật." });
 
                 // kiểm tra trùng tên (ngoại trừ chính nó)
                 var duplicate = await _db.Attributes
-                    .AnyAsync(a => a.Attributeid != id
+                    .AnyAsync(a => a.AttributeId != id
                                    && a.IsDeleted == false
                                    && a.Name.ToLower() == request.Name.ToLower(), ct);
                 if (duplicate)
@@ -239,7 +239,7 @@ namespace BE.Controllers
         {
             try
             {
-                var entity = await _db.Attributes.FirstOrDefaultAsync(a => a.Attributeid == id, ct);
+                var entity = await _db.Attributes.FirstOrDefaultAsync(a => a.AttributeId == id, ct);
                 if (entity == null)
                     return NotFound(new { message = "Không tìm thấy thuộc tính để xoá." });
 
