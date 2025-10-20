@@ -15,7 +15,7 @@ namespace BE.Controllers
     public class PetCharacteristicController : Controller
     {
         private readonly PawnderDatabaseContext _context;
-        public readonly Validate _validate = new Validate();
+        
         public PetCharacteristicController(PawnderDatabaseContext context)
         {
             _context = context;
