@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class Pet
 {
-    public int Petid { get; set; }
+    public int PetId { get; set; }
 
-    public int? Userid { get; set; }
+    public int? UserId { get; set; }
 
     public string? Name { get; set; }
 
@@ -17,15 +17,19 @@ public partial class Pet
 
     public int? Age { get; set; }
 
+    public bool? IsActive { get; set; }
+
+    public bool? IsDeleted { get; set; }
+
     public string? Description { get; set; }
 
-    public DateTime? Createdat { get; set; }
+    public DateTime? CreatedAt { get; set; }
 
-    public DateTime? Updatedat { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
-    public virtual ICollection<Petcharacteristic> Petcharacteristics { get; set; } = new List<Petcharacteristic>();
+    public virtual ICollection<PetCharacteristic> PetCharacteristics { get; set; } = new List<PetCharacteristic>();
 
-    public virtual ICollection<Petphoto> Petphotos { get; set; } = new List<Petphoto>();
+    public virtual ICollection<PetPhoto> PetPhotos { get; set; } = new List<PetPhoto>();
 
     public virtual User? User { get; set; }
 }

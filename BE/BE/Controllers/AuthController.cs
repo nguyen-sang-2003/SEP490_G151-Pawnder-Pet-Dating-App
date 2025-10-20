@@ -33,14 +33,14 @@ namespace BE.Controllers
                 return Unauthorized("Tài khoản không tồn tại");
             }
 
-            bool isPasswordValid = _passwordService.VerifyPassword(request.Password, user.Passwordhash);
+            bool isPasswordValid = _passwordService.VerifyPassword(request.Password, user.PasswordHash);
 
             if (!isPasswordValid)
                 return Unauthorized("Sai mật khẩu");
             
-            var token = _tokenService.GenerateToken(user.Userid,user.Role.Rolename);
+            var token = _tokenService.GenerateToken(user.UserId,user.Role.RoleName);
 
-            user.Tokenjwt = token;
+            user.TokenJwt = token;
             _context.Users.Update(user);
             _context.SaveChanges();
 
@@ -51,8 +51,9 @@ namespace BE.Controllers
             });
         }
 
-        [Authorize]
+       
         [HttpPost("logout")]
+        [Authorize]
         public async Task<ActionResult> Logout()
         {
             try
@@ -64,11 +65,11 @@ namespace BE.Controllers
 
                 var id = int.Parse(userId);
 
-                var user = _context.Users.FirstOrDefault(u => u.Userid == id);
+                var user = _context.Users.FirstOrDefault(u => u.UserId == id);
                 if (user == null)
                     return NotFound("Không tìm thấy người dùng.");
 
-                user.Tokenjwt = null;
+                user.TokenJwt = null;
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
