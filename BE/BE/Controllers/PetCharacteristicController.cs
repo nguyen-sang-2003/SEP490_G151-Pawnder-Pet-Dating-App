@@ -1,8 +1,10 @@
-﻿using BE.Models;
+﻿using BE.DTO;
+using BE.Models;
 using BE.Services;
 using Humanizer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 
@@ -20,105 +22,122 @@ namespace BE.Controllers
         }
 
         // GET /pet-characteristic/{petId}
-        [Authorize(Roles = "Admin,User")]
-        [HttpGet("{petId}")]
-        public async Task<IActionResult> GetCharacteristicsByPet(int petId)
+        [HttpGet("pet-characteristic/{petId}")]
+        public async Task<IActionResult> GetPetCharacteristics(int petId)
         {
-            var characteristics = await _context.Petcharacteristics
+            var characteristics = await _context.PetCharacteristics
                 .Include(pc => pc.Attribute)
-                .Where(pc => pc.PetId == petId && pc.Attribute.IsDeleted == false)
+                .Include(pc => pc.Option)
+                .Where(pc => pc.PetId == petId)
                 .Select(pc => new
                 {
-                    pc.AttributeId,
-                    AttributeName = pc.Attribute.Name,
-                    pc.Value,
-                    pc.Attribute.Unit,
-                    pc.Attribute.TypeValue
+                    attributeId = pc.AttributeId,
+                    name = pc.Attribute.Name,
+                    optionValue = pc.Option != null ? pc.Option.Name : null,
+                    value = pc.Value,
+                    unit = pc.Attribute.Unit,
+                    typeValue = pc.Attribute.TypeValue,
                 })
-                .OrderBy(pc => pc.AttributeId)
                 .ToListAsync();
-
-            if (!characteristics.Any())
-                return NotFound(new { Message = "Không tìm thấy đặc điểm nào cho pet này." });
 
             return Ok(characteristics);
         }
 
         // POST /pet-characteristic/{petId}/{attributeId}
-        [Authorize(Roles = "User")]
-        [HttpPost("{petId:int}/{attributeId:int}")]
-        public async Task<IActionResult> CreatePetCharacteristic(int petId, int attributeId, [FromBody] string Value)
+        [HttpPost("pet-characteristic/{petId}/{attributeId}")]
+        public async Task<IActionResult> CreatePetCharacteristic(int petId, int attributeId, [FromBody] PetCharacteristicDTO dto)
         {
-            if (string.IsNullOrWhiteSpace(Value)) return BadRequest("NewValue không được để trống.");
+            var pet = await _context.Pets.FindAsync(petId);
+            if (pet == null || pet.IsDeleted != false)
+                return NotFound(new { message = "Pet không tồn tại." });
 
-            var petExists = await _context.Pets.AnyAsync(p => p.PetId == petId);
-            if (!petExists)
-                return NotFound(new { Message = "Không tìm thấy thú cưng." });
-
-            var attribute = await _context.Attributes.FirstOrDefaultAsync(a => a.Attributeid == attributeId);
+            var attribute = await _context.Attributes
+                .Include(a => a.AttributeOptions)
+                .FirstOrDefaultAsync(a => a.AttributeId == attributeId);
             if (attribute == null || attribute.IsDeleted != false)
-                return NotFound(new { Message = "Thuộc tính không tồn tại hoặc đã bị xóa." });
+                return NotFound(new { message = "Attribute không tồn tại." });
 
-            var exists = await _context.Petcharacteristics
-                .AnyAsync(pc => pc.PetId == petId && pc.AttributeId == attributeId);
-            if (exists)
-                return Conflict(new { Message = "Đặc điểm này đã tồn tại cho pet." });
+            var existing = await _context.PetCharacteristics
+                .FirstOrDefaultAsync(pc => pc.PetId == petId && pc.AttributeId == attributeId);
+            if (existing != null)
+                return BadRequest(new { message = "Đặc điểm này đã tồn tại cho pet." });
 
-            if (!_validate.IsValidValueByType(Value, attribute.TypeValue))
-            {
-                return BadRequest(new
-                {
-                    Message = $"Giá trị '{Value}' không hợp lệ cho kiểu '{attribute.TypeValue}'."
-                });
-            }
-
-            var characteristic = new PetCharacteristic
+            var petChar = new PetCharacteristic
             {
                 PetId = petId,
                 AttributeId = attributeId,
-                Value = Value,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                OptionId = dto.OptionId > 0 ? dto.OptionId : null,
+                Value = dto.Value > 0 ? dto.Value : null,
+                UpdatedAt = DateTime.Now,
+                CreatedAt = DateTime.Now
             };
 
-            _context.Petcharacteristics.Add(characteristic);
+            _context.PetCharacteristics.Add(petChar);
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Tạo mới đặc điểm thành công." });
+            return Ok(new
+            {
+                attributeId = attribute.AttributeId,
+                name = attribute.Name,
+                typeValue = attribute.TypeValue,
+                unit = attribute.Unit,
+                value = petChar.Value,
+                optionValue = petChar.OptionId != null
+                    ? attribute.AttributeOptions.FirstOrDefault(o => o.OptionId == petChar.OptionId)?.Name
+                    : null
+            });
         }
 
         // PUT /pet-characteristic/{petId}/{attributeId}
-        [Authorize(Roles = "User")]
-        [HttpPut("{petId:int}/{attributeId:int}")]
-        public async Task<IActionResult> UpdatePetCharacteristic(int petId, int attributeId, [FromBody] string NewValue)
+        [HttpPut("pet-characteristic/{petId}/{attributeId}")]
+        public async Task<IActionResult> UpdatePetCharacteristic(int petId, int attributeId, [FromBody] PetCharacteristicDTO dto)
         {
-            if (string.IsNullOrWhiteSpace(NewValue)) return BadRequest("NewValue không được để trống."); 
 
-            var characteristic = await _context.Petcharacteristics
+            var petChar = await _context.PetCharacteristics
                 .Include(pc => pc.Attribute)
+                .Include(pc => pc.Option)
                 .FirstOrDefaultAsync(pc => pc.PetId == petId && pc.AttributeId == attributeId);
 
-            if (characteristic == null)
-                return NotFound(new { Message = "Không tìm thấy đặc điểm cần cập nhật." });
-
-            if (characteristic.Attribute.IsDeleted != false)
-                return BadRequest(new { Message = "Thuộc tính này đã bị xóa, không thể cập nhật." });
-
-            if (!_validate.IsValidValueByType(NewValue, characteristic.Attribute.TypeValue))
+            if (petChar == null)
             {
-                return BadRequest(new
-                {
-                    Message = $"Giá trị '{NewValue}' không hợp lệ cho kiểu '{characteristic.Attribute.TypeValue}'."
-                });
+                return NotFound(new { message = "Đặc điểm này chưa tồn tại cho pet." });
             }
 
-            characteristic.Value = NewValue;
-            characteristic.UpdatedAt = DateTime.Now;
+            if (dto.Value != 0)
+            {
+                petChar.Value = dto.Value; 
+            }
+            else petChar.Value = null;
 
-            _context.Petcharacteristics.Update(characteristic);
+            string? optionValueString = null;
+            if (dto.OptionId != 0)
+            {
+                var exitOptionAttribute = await _context.AttributeOptions.FirstOrDefaultAsync(op => op.OptionId == dto.OptionId && op.IsDeleted == false);
+                if (exitOptionAttribute == null)
+                {
+                    return BadRequest(new { message = "Option không tồn tại hoặc đã bị xóa." });
+                }
+                optionValueString = exitOptionAttribute.Name;
+                petChar.OptionId = dto.OptionId;
+            }
+            else petChar.OptionId = null;
+
+            petChar.UpdatedAt = DateTime.Now;
+
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Cập nhật đặc điểm thành công."});
+            var result = new
+            {
+                attributeId = petChar.AttributeId,
+                name = petChar.Attribute.Name,
+                optionValue = petChar.OptionId != null ? optionValueString : null,
+                value = petChar.Value,
+                unit = petChar.Attribute.Unit,
+                typeValue = petChar.Attribute.TypeValue,
+            };
+
+            return Ok(result);
         }
+
     }
 }

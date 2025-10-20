@@ -19,7 +19,7 @@ namespace BE.Controllers
         }
 
         // GET /pet/user/{userId}
-        [Authorize(Roles = "Admin,User")]
+        //[Authorize(Roles = "Admin,User")]
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetPetsByUser(int userId)
         {
@@ -33,7 +33,7 @@ namespace BE.Controllers
                     Breed = p.Breed,
                     Gender = p.Gender,
                     Age = p.Age,
-                    IsDeadted = p.IsDeadted,
+                    IsActive = p.IsActive,
                     Description = p.Description,
                     UrlImageAvatar = p.PetPhotos.Select(photo => photo.ImageUrl).FirstOrDefault()
                 })
@@ -46,7 +46,7 @@ namespace BE.Controllers
         }
 
         // GET /pet/{petId}
-        [Authorize(Roles = "Admin,User")]
+        //[Authorize(Roles = "Admin,User")]
         [HttpGet("{petId}")]
         public async Task<IActionResult> GetPetById(int petId)
         {
@@ -61,7 +61,7 @@ namespace BE.Controllers
                     Breed = p.Breed,
                     Gender = p.Gender,
                     Age = p.Age,
-                    IsDeadted = p.IsDeadted,
+                    IsActive = p.IsActive,
                     Description = p.Description,
                     UrlImage = p.PetPhotos.Select(photo => photo.ImageUrl).ToList()
                 }).FirstOrDefaultAsync();
@@ -73,7 +73,7 @@ namespace BE.Controllers
         }
 
         // POST /pet
-        [Authorize(Roles = "User")]
+        //[Authorize(Roles = "User")]
         [HttpPost]
         public async Task<IActionResult> CreatePet([FromBody] PetDto_2 petDto)
         {
@@ -87,7 +87,7 @@ namespace BE.Controllers
             pet.Breed = petDto.Breed;
             pet.Gender = petDto.Gender;
             pet.Age = petDto.Age;
-            pet.IsDeadted = petDto.IsDeadted;
+            pet.IsActive = petDto.IsActive;
             pet.Description = petDto.Description;
             pet.CreatedAt = DateTime.Now;
             pet.UpdatedAt = DateTime.Now;
@@ -99,7 +99,7 @@ namespace BE.Controllers
         }
 
         // PUT /pet/{petId}
-        [Authorize(Roles = "User")]
+        //[Authorize(Roles = "User")]
         [HttpPut("{petId}")]
         public async Task<IActionResult> UpdatePet(int petId, [FromBody] PetDto_2 updatedPet)
         {
@@ -111,7 +111,7 @@ namespace BE.Controllers
             pet.Breed = updatedPet.Breed;
             pet.Gender = updatedPet.Gender;
             pet.Age = updatedPet.Age;
-            pet.IsDeadted = updatedPet.IsDeadted;
+            pet.IsActive = updatedPet.IsActive;
             pet.Description = updatedPet.Description;
             pet.UpdatedAt = DateTime.Now;
 
@@ -122,7 +122,7 @@ namespace BE.Controllers
         }
 
         // DELETE /pet/{petId}
-        [Authorize(Roles = "User")]
+        //[Authorize(Roles = "User")]
         [HttpDelete("{petId}")]
         public async Task<IActionResult> DeletePet(int petId)
         {
