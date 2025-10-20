@@ -1,23 +1,31 @@
 ﻿namespace BE.DTO
 {
-	public class ReportDTO
+	public class ReportDto
 	{
-		public int Reportid { get; set; }
+		public int ReportId { get; set; }
 		public string? Reason { get; set; }
 		public string? Status { get; set; }
 		public string? Resolution { get; set; }
-		public DateTime? Createdat { get; set; }
-		public DateTime? Updatedat { get; set; }
-
-		public UserDTO? Fromuser { get; set; }
-		public UserDTO? Touser { get; set; }
+		public DateTime? CreatedAt { get; set; }
+		public DateTime? UpdatedAt { get; set; }
+		public UserReportDto? UserReport { get; set; }
 	}
 
-	public class UserDTO
+	public class UserReportDto
 	{
-		public int Userid { get; set; }
-		public string? Fullname { get; set; }
-		public string? Email { get; set; }
+		public int UserId { get; set; }
+		public string? FullName { get; set; }
+		public string Email { get; set; } = null!;
+	}
+	public class ReportCreateDTO
+	{
+		public string Reason { get; set; } = null!;
+	}
+
+	public class ReportUpdateDTO
+	{
+		public string? Status { get; set; }
+		public string? Resolution { get; set; }
 	}
 
 }

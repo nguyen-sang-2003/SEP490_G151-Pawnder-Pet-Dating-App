@@ -18,217 +18,311 @@ namespace BE.Controllers
 
 		// GET: api/report
 		[HttpGet("report")]
-		public async Task<ActionResult<IEnumerable<ReportDTO>>> GetReports()
+		public async Task<ActionResult<IEnumerable<ReportDto>>> GetAllReports()
 		{
-			var reports = await _context.Reports
-				.Include(r => r.Fromuser)
-				.Include(r => r.Touser)
-				.Select(r => new ReportDTO
-				{
-					Reportid = r.Reportid,
-					Reason = r.Reason,
-					Status = r.Status,
-					Resolution = r.Resolution,
-					Createdat = r.Createdat,
-					Updatedat = r.Updatedat,
-					Fromuser = r.Fromuser == null ? null : new UserDTO
+			try
+			{
+				var reports = await _context.Reports
+					.Include(r => r.UserReport)
+					.Include(r => r.Content)
+					.Select(r => new ReportDto
 					{
-						Userid = r.Fromuser.Userid,
-						Fullname = r.Fromuser.Fullname,
-						Email = r.Fromuser.Email
-					},
-					Touser = r.Touser == null ? null : new UserDTO
-					{
-						Userid = r.Touser.Userid,
-						Fullname = r.Touser.Fullname,
-						Email = r.Touser.Email
-					}
-				})
-				.ToListAsync();
+						ReportId = r.ReportId,
+						Reason = r.Reason,
+						Status = r.Status,
+						Resolution = r.Resolution,
+						CreatedAt = r.CreatedAt,
+						UpdatedAt = r.UpdatedAt,
+						UserReport = r.UserReport != null ? new UserReportDto
+						{
+							UserId = r.UserReport.UserId,
+							FullName = r.UserReport.FullName,
+							Email = r.UserReport.Email
+						} : null,
+						//Content = r.Content != null ? new ContentDto
+						//{
+						//	ContentId = r.Content.ContentId,
+						//	Message = r.Content.Message
+						//} : null
+					})
+					.ToListAsync();
 
-			return Ok(reports);
+				return Ok(new
+				{
+					success = true,
+					message = "Lấy danh sách báo cáo thành công.",
+					data = reports
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Đã xảy ra lỗi khi lấy danh sách báo cáo.",
+					error = ex.Message
+				});
+			}
 		}
 
-		// GET: api/report/{reportId}
+		//// GET: api/report/{reportId}
 		[HttpGet("report/{reportId}")]
-		public async Task<ActionResult<ReportDTO>> GetReport(int reportId)
+		public async Task<ActionResult<ReportDto>> GetReportById(int reportId)
 		{
-			var report = await _context.Reports
-				.Include(r => r.Fromuser)
-				.Include(r => r.Touser)
-				.Where(r => r.Reportid == reportId)
-				.Select(r => new ReportDTO
-				{
-					Reportid = r.Reportid,
-					Reason = r.Reason,
-					Status = r.Status,
-					Resolution = r.Resolution,
-					Createdat = r.Createdat,
-					Updatedat = r.Updatedat,
-					Fromuser = r.Fromuser == null ? null : new UserDTO
-					{
-						Userid = r.Fromuser.Userid,
-						Fullname = r.Fromuser.Fullname,
-						Email = r.Fromuser.Email
-					},
-					Touser = r.Touser == null ? null : new UserDTO
-					{
-						Userid = r.Touser.Userid,
-						Fullname = r.Touser.Fullname,
-						Email = r.Touser.Email
-					}
-				})
-				.FirstOrDefaultAsync();
-
-			if (report == null)
+			try
 			{
-				return NotFound(new { message = "Không có tìm thấy báo cáo" });
-			}
+				var report = await _context.Reports
+					.Include(r => r.UserReport)
+					.Include(r => r.Content)
+					.Where(r => r.ReportId == reportId)
+					.Select(r => new ReportDto
+					{
+						ReportId = r.ReportId,
+						Reason = r.Reason,
+						Status = r.Status,
+						Resolution = r.Resolution,
+						CreatedAt = r.CreatedAt,
+						UpdatedAt = r.UpdatedAt,
+						UserReport = r.UserReport != null ? new UserReportDto
+						{
+							UserId = r.UserReport.UserId,
+							FullName = r.UserReport.FullName,
+							Email = r.UserReport.Email
+						} : null,
+						//Content = r.Content != null ? new ContentDto
+						//{
+						//	ContentId = r.Content.ContentId,
+						//	Message = r.Content.Message
+						//} : null
+					})
+					.FirstOrDefaultAsync();
 
-			return Ok(report);
+				if (report == null)
+				{
+					return NotFound(new
+					{
+						success = false,
+						message = $"Không tìm thấy báo cáo với ID = {reportId}."
+					});
+				}
+
+				return Ok(new
+				{
+					success = true,
+					message = "Lấy thông tin báo cáo thành công.",
+					data = report
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Đã xảy ra lỗi khi lấy thông tin báo cáo.",
+					error = ex.Message
+				});
+			}
 		}
 
-		// GET: api/report/user/{userReportId}
+		//// GET: api/report/user/{userReportId}
 		[HttpGet("report/user/{userReportId}")]
-		public async Task<ActionResult<IEnumerable<ReportDTO>>> GetReportsByUser(int userReportId)
+		public async Task<ActionResult<IEnumerable<ReportDto>>> GetReportsByUserId(int userReportId)
 		{
-			var reports = await _context.Reports
-				.Include(r => r.Fromuser)
-				.Include(r => r.Touser)
-				.Where(r => r.Fromuserid == userReportId)
-				.Select(r => new ReportDTO
-				{
-					Reportid = r.Reportid,
-					Reason = r.Reason,
-					Status = r.Status,
-					Resolution = r.Resolution,
-					Createdat = r.Createdat,
-					Updatedat = r.Updatedat,
-					Fromuser = r.Fromuser == null ? null : new UserDTO
-					{
-						Userid = r.Fromuser.Userid,
-						Fullname = r.Fromuser.Fullname,
-						Email = r.Fromuser.Email
-					},
-					Touser = r.Touser == null ? null : new UserDTO
-					{
-						Userid = r.Touser.Userid,
-						Fullname = r.Touser.Fullname,
-						Email = r.Touser.Email
-					}
-				})
-				.ToListAsync();
-
-			if (reports.Count == 0)
+			try
 			{
-				return NotFound(new { message = "Không tìm thấy báo cáo của người dùng này" });
-			}
+				var reports = await _context.Reports
+					.Include(r => r.UserReport)
+					.Include(r => r.Content)
+					.Where(r => r.UserReportId == userReportId)
+					.Select(r => new ReportDto
+					{
+						ReportId = r.ReportId,
+						Reason = r.Reason,
+						Status = r.Status,
+						Resolution = r.Resolution,
+						CreatedAt = r.CreatedAt,
+						UpdatedAt = r.UpdatedAt,
+						UserReport = r.UserReport != null ? new UserReportDto
+						{
+							UserId = r.UserReport.UserId,
+							FullName = r.UserReport.FullName,
+							Email = r.UserReport.Email
+						} : null,
+						//Content = r.Content != null ? new ContentDto
+						//{
+						//	ContentId = r.Content.ContentId,
+						//	Message = r.Content.Message
+						//} : null
+					})
+					.ToListAsync();
 
-			return Ok(reports);
+				if (!reports.Any())
+				{
+					return NotFound(new
+					{
+						success = false,
+						message = $"Không tìm thấy báo cáo nào được gửi bởi người dùng có ID = {userReportId}."
+					});
+				}
+
+				return Ok(new
+				{
+					success = true,
+					message = $"Lấy danh sách báo cáo từ người dùng {userReportId} thành công.",
+					data = reports
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Đã xảy ra lỗi khi lấy danh sách báo cáo của người dùng.",
+					error = ex.Message
+				});
+			}
 		}
 
-		// POST: api/report/{fromUserId}/{toUserId}
-		[HttpPost("report/{fromUserId}/{toUserId}")]
-		public async Task<ActionResult<ReportDTO>> CreateReport(int fromUserId, int toUserId, [FromBody] ReportCreateDTO reportCreateDTO)
+		//// GET: api/report/user/{userReportId}
+		[HttpPost("report/{userReportId}/{contentId}")]
+		public async Task<IActionResult> CreateReport(int userReportId, int contentId, [FromBody] ReportCreateDTO dto)
 		{
-			var fromUser = await _context.Users.FindAsync(fromUserId);
-			if (fromUser == null)
-				return NotFound(new { message = "From user not found" });
+			if (string.IsNullOrWhiteSpace(dto.Reason))
+			{
+				return BadRequest(new
+				{
+					success = false,
+					message = "Reason is required."
+				});
+			}
 
-			var toUser = await _context.Users.FindAsync(toUserId);
-			if (toUser == null)
-				return NotFound(new { message = "To user not found" });
+			// Kiểm tra User tồn tại
+			var user = await _context.Users.FindAsync(userReportId);
+			if (user == null)
+				return NotFound(new { success = false, message = $"User with ID {userReportId} not found." });
 
+			// Kiểm tra Content tồn tại
+			var content = await _context.ChatUserContents.FindAsync(contentId);
+			if (content == null)
+				return NotFound(new { success = false, message = $"Content with ID {contentId} not found." });
+
+			// Tạo Report mới với DateTimeKind.Unspecified
 			var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
 			var report = new Report
 			{
-				Fromuserid = fromUserId,
-				Touserid = toUserId,
-				Reason = reportCreateDTO.Reason,
+				UserReportId = userReportId,
+				ContentId = contentId,
+				Reason = dto.Reason,
 				Status = "Pending",
-				Resolution = null,
-				Createdat = now,
-				Updatedat = now
+				CreatedAt = now,
+				UpdatedAt = now
 			};
 
 			_context.Reports.Add(report);
 			await _context.SaveChangesAsync();
 
-			var reportDTO = new ReportDTO
+			// Tạo DTO trả về
+			var reportDto = new ReportDto
 			{
-				Reportid = report.Reportid,
+				ReportId = report.ReportId,
 				Reason = report.Reason,
 				Status = report.Status,
 				Resolution = report.Resolution,
-				Createdat = report.Createdat,
-				Updatedat = report.Updatedat,
-				Fromuser = new UserDTO
+				CreatedAt = report.CreatedAt,
+				UpdatedAt = report.UpdatedAt,
+				UserReport = new UserReportDto
 				{
-					Userid = fromUser.Userid,
-					Fullname = fromUser.Fullname,
-					Email = fromUser.Email
+					UserId = user.UserId,
+					FullName = user.FullName,
+					Email = user.Email
 				},
-				Touser = new UserDTO
-				{
-					Userid = toUser.Userid,
-					Fullname = toUser.Fullname,
-					Email = toUser.Email
-				}
+				//Content = new ContentDto
+				//{
+				//	ContentId = content.ContentId,
+				//	Message = content.Message
+				//}
 			};
 
-			return CreatedAtAction(nameof(GetReport), new { reportId = report.Reportid }, reportDTO);
+			return CreatedAtAction(nameof(GetReportById), new { reportId = report.ReportId }, new
+			{
+				success = true,
+				message = "Tạo báo cáo thành công.",
+				data = reportDto
+			});
 		}
 
-		// PUT: api/report/{reportId}
+		//// PUT: api/report/{reportId}
 		[HttpPut("report/{reportId}")]
-		public async Task<IActionResult> UpdateReport(int reportId, [FromBody] ReportUpdateDTO updateDTO)
+		public async Task<IActionResult> UpdateReport(int reportId, [FromBody] ReportUpdateDTO dto)
 		{
+			// Tìm report cần cập nhật
 			var report = await _context.Reports.FindAsync(reportId);
-
 			if (report == null)
-				return NotFound(new { message = "Report not found" });
+			{
+				return NotFound(new
+				{
+					success = false,
+					message = $"Report with ID {reportId} not found."
+				});
+			}
 
-			if (!string.IsNullOrEmpty(updateDTO.Status))
-				report.Status = updateDTO.Status;
+			// Cập nhật các trường nếu được cung cấp
+			if (!string.IsNullOrWhiteSpace(dto.Status))
+				report.Status = dto.Status;
 
-			if (!string.IsNullOrEmpty(updateDTO.Resolution))
-				report.Resolution = updateDTO.Resolution;
+			if (!string.IsNullOrWhiteSpace(dto.Resolution))
+				report.Resolution = dto.Resolution;
 
-			report.Updatedat = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+			// Cập nhật UpdatedAt với DateTimeKind.Unspecified
+			report.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
 			try
 			{
 				await _context.SaveChangesAsync();
 			}
-			catch (DbUpdateException ex)
+			catch (Exception ex)
 			{
-				return StatusCode(500, new { message = "Error updating report", detail = ex.Message });
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Error updating report.",
+					error = ex.Message
+				});
 			}
 
-			var reportDTO = new ReportDTO
-			{
-				Reportid = report.Reportid,
-				Reason = report.Reason,
-				Status = report.Status,
-				Resolution = report.Resolution,
-				Createdat = report.Createdat,
-				Updatedat = report.Updatedat,
-				Fromuser = report.Fromuser != null ? new UserDTO
+			// Tạo DTO trả về
+			var reportDto = await _context.Reports
+				.Include(r => r.UserReport)
+				.Include(r => r.Content)
+				.Where(r => r.ReportId == report.ReportId)
+				.Select(r => new ReportDto
 				{
-					Userid = report.Fromuser.Userid,
-					Fullname = report.Fromuser.Fullname,
-					Email = report.Fromuser.Email
-				} : null,
-				Touser = report.Touser != null ? new UserDTO
-				{
-					Userid = report.Touser.Userid,
-					Fullname = report.Touser.Fullname,
-					Email = report.Touser.Email
-				} : null
-			};
+					ReportId = r.ReportId,
+					Reason = r.Reason,
+					Resolution = r.Resolution,
+					Status = r.Status,
+					CreatedAt = r.CreatedAt,
+					UpdatedAt = r.UpdatedAt,
+					UserReport = r.UserReport != null ? new UserReportDto
+					{
+						UserId = r.UserReport.UserId,
+						FullName = r.UserReport.FullName,
+						Email = r.UserReport.Email
+					} : null,
+					//Content = r.Content != null ? new ContentDto
+					//{
+					//	ContentId = r.Content.ContentId,
+					//	Message = r.Content.Message
+					//} : null
+				})
+				.FirstOrDefaultAsync();
 
-			return Ok(reportDTO);
+			return Ok(new
+			{
+				success = true,
+				message = "Cập nhật báo cáo thành công.",
+				data = reportDto
+			});
 		}
 
 	}

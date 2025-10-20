@@ -23,15 +23,14 @@ namespace BE.Controllers
 			try
 			{
 				var blockedUsers = await _context.Blocks
-					.Include(b => b.Touser)
-					.Where(b => b.Fromuserid == fromUserId)
+					.Include(b => b.ToUser)
+					.Where(b => b.FromUserId == fromUserId)
 					.Select(b => new
 					{
-						b.Blockid,
-						b.Touserid,
-						ToUserFullName = b.Touser != null ? b.Touser.Fullname : null,
-						ToUserEmail = b.Touser != null ? b.Touser.Email : null,
-						b.Createdat
+						b.ToUserId,
+						ToUserFullName = b.ToUser != null ? b.ToUser.FullName : null,
+						ToUserEmail = b.ToUser != null ? b.ToUser.Email : null,
+						b.CreatedAt
 					})
 					.ToListAsync();
 
@@ -59,8 +58,8 @@ namespace BE.Controllers
 					return BadRequest(new { Message = "Người dùng không thể tự chặn chính mình." });
 				}
 
-				var fromUserExists = await _context.Users.AnyAsync(u => u.Userid == fromUserId);
-				var toUserExists = await _context.Users.AnyAsync(u => u.Userid == toUserId);
+				var fromUserExists = await _context.Users.AnyAsync(u => u.UserId == fromUserId);
+				var toUserExists = await _context.Users.AnyAsync(u => u.UserId == toUserId);
 
 				if (!fromUserExists || !toUserExists)
 				{
@@ -68,7 +67,7 @@ namespace BE.Controllers
 				}
 
 				var existingBlock = await _context.Blocks
-					.FirstOrDefaultAsync(b => b.Fromuserid == fromUserId && b.Touserid == toUserId);
+					.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
 
 				if (existingBlock != null)
 				{
@@ -77,9 +76,9 @@ namespace BE.Controllers
 
 				var block = new Block
 				{
-					Fromuserid = fromUserId,
-					Touserid = toUserId,
-					Createdat = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+					FromUserId = fromUserId,
+					ToUserId = toUserId,
+					CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
 				};
 
 				_context.Blocks.Add(block);
@@ -87,10 +86,9 @@ namespace BE.Controllers
 
 				return Ok(new
 				{
-					block.Blockid,
-					block.Fromuserid,
-					block.Touserid,
-					block.Createdat,
+					block.FromUserId,
+					block.ToUserId,
+					block.CreatedAt,
 					Message = "Chặn người dùng thành công."
 				});
 			}
@@ -102,26 +100,24 @@ namespace BE.Controllers
 		}
 
 		// DELETE /block/{blockId}
-		[HttpDelete("block/{blockId}")]
-		public async Task<ActionResult> DeleteBlock(int blockId)
+		[HttpDelete("block/{fromUserId}/{toUserId}")]
+		public async Task<ActionResult> DeleteBlock(int fromUserId, int toUserId)
 		{
 			try
 			{
-				var block = await _context.Blocks.FindAsync(blockId);
-				if (block == null)
-				{
-					return NotFound(new { Message = "Block không tồn tại." });
-				}
+				var block = await _context.Blocks
+					.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
 
-				// Xóa block
+				if (block == null)
+					return NotFound(new { Message = "Chưa chặn người dùng này hoặc đã hủy chặn." });
+
 				_context.Blocks.Remove(block);
 				await _context.SaveChangesAsync();
 
 				return Ok(new
 				{
-					block.Blockid,
-					block.Fromuserid,
-					block.Touserid,
+					block.FromUserId,
+					block.ToUserId,
 					Message = "Hủy chặn người dùng thành công."
 				});
 			}
