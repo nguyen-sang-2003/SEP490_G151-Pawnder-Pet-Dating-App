@@ -7,6 +7,10 @@ public partial class Address
 {
     public int AddressId { get; set; }
 
+    public decimal? Latitude { get; set; }
+
+    public decimal? Longitude { get; set; }
+
     public string FullAddress { get; set; } = null!;
 
     public string? City { get; set; }
