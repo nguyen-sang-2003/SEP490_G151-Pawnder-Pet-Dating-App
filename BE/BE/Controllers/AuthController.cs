@@ -51,8 +51,9 @@ namespace BE.Controllers
             });
         }
 
-        [Authorize]
+       
         [HttpPost("logout")]
+        [Authorize]
         public async Task<ActionResult> Logout()
         {
             try

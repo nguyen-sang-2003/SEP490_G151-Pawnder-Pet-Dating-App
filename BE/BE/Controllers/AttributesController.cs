@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BE.DTO;
 using BE.Models;
-using AttributeEntity = BE.Models.Attribute; // tránh đụng System.Attribute
+using AttributeEntity = BE.Models.Attribute;
+using Microsoft.AspNetCore.Authorization; // tránh đụng System.Attribute
 
 namespace BE.Controllers
 {
@@ -24,6 +25,7 @@ namespace BE.Controllers
 
         // GET: api/attribute?search=&page=1&pageSize=20&includeDeleted=false
         [HttpGet]
+        
         public async Task<ActionResult> GetList(
             [FromQuery] string? search,
             [FromQuery] int page = 1,
@@ -83,6 +85,7 @@ namespace BE.Controllers
         }
 
         // GET: api/attribute/5
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult> GetById([FromRoute] int id, CancellationToken ct = default)
         {
@@ -116,7 +119,9 @@ namespace BE.Controllers
         }
 
         // POST: api/attribute
+        
         [HttpPost]
+      
         public async Task<ActionResult> Create([FromBody] AttributeCreateRequest request, CancellationToken ct = default)
         {
             if (!ModelState.IsValid)
@@ -174,7 +179,9 @@ namespace BE.Controllers
         }
 
         // PUT: api/attribute/5
+     
         [HttpPut("{id:int}")]
+       
         public async Task<ActionResult> Update([FromRoute] int id, [FromBody] AttributeUpdateRequest request, CancellationToken ct = default)
         {
             if (!ModelState.IsValid)
@@ -225,7 +232,9 @@ namespace BE.Controllers
         }
 
         // DELETE: api/attribute/5?hard=false
+
         [HttpDelete("{id:int}")]
+      
         public async Task<ActionResult> Delete([FromRoute] int id, [FromQuery] bool hard = false, CancellationToken ct = default)
         {
             try
