@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace BE.Models;
 
-public partial class ChatAiContent
+public partial class ChatAicontent
 {
     public int ContentId { get; set; }
 
-    public int? ChataiId { get; set; }
+    public int? ChatAiid { get; set; }
 
     public string? Question { get; set; }
 

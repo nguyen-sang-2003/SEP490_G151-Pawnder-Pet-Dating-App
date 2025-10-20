@@ -5,7 +5,7 @@ namespace BE.Models;
 
 public partial class ChatAi
 {
-    public int ChatAiId { get; set; }
+    public int ChatAiid { get; set; }
 
     public int? UserId { get; set; }
 
@@ -17,7 +17,7 @@ public partial class ChatAi
 
     public DateTime? UpdatedAt { get; set; }
 
-    public virtual ICollection<ChatAiContent> ChatAiContents { get; set; } = new List<ChatAiContent>();
+    public virtual ICollection<ChatAicontent> ChatAicontents { get; set; } = new List<ChatAicontent>();
 
     public virtual ICollection<ExpertConfirmation> ExpertConfirmations { get; set; } = new List<ExpertConfirmation>();
 

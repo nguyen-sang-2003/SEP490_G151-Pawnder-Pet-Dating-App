@@ -21,7 +21,7 @@ public partial class ChatUser
 
     public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
 
-    public virtual User? Fromuser { get; set; }
+    public virtual User? FromUser { get; set; }
 
-    public virtual User? Touser { get; set; }
+    public virtual User? ToUser { get; set; }
 }

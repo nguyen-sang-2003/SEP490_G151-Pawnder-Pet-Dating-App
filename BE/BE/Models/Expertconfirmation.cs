@@ -9,7 +9,7 @@ public partial class ExpertConfirmation
 
     public int UserId { get; set; }
 
-    public int ChatAiId { get; set; }
+    public int ChatAiid { get; set; }
 
     public string? Status { get; set; }
 

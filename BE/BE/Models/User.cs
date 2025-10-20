@@ -23,7 +23,7 @@ public partial class User
 
     public string? ProviderLogin { get; set; }
 
-    public string? TokenJWT { get; set; }
+    public string? TokenJwt { get; set; }
 
     public bool? IsDeleted { get; set; }
 
@@ -39,11 +39,11 @@ public partial class User
 
     public virtual ICollection<ChatAi> ChatAis { get; set; } = new List<ChatAi>();
 
+    public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
+
     public virtual ICollection<ChatUser> ChatUserFromUsers { get; set; } = new List<ChatUser>();
 
     public virtual ICollection<ChatUser> ChatUserToUsers { get; set; } = new List<ChatUser>();
-
-    public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
 
     public virtual ICollection<ExpertConfirmation> ExpertConfirmationExperts { get; set; } = new List<ExpertConfirmation>();
 
@@ -61,5 +61,5 @@ public partial class User
 
     public virtual ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
 
-    public virtual UserStatus? Userstatus { get; set; }
+    public virtual UserStatus? UserStatus { get; set; }
 }
