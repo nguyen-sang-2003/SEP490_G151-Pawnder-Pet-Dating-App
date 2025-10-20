@@ -27,6 +27,8 @@ CREATE TABLE "UserStatus" (
 -- ===========================
 CREATE TABLE "Address" (
     "AddressId" SERIAL PRIMARY KEY,
+    "Latitude" DECIMAL(9,6),
+    "Longitude" DECIMAL(9,6),
     "FullAddress" TEXT NOT NULL,
     "City" VARCHAR(100),
     "District" VARCHAR(100),
