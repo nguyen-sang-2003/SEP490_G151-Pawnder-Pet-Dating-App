@@ -18,18 +18,28 @@ type Props = NativeStackScreenProps<RootStackParamList, "Notification">;
 
 interface NotificationItem {
   id: string;
-  type: "match" | "like" | "message" | "system";
+  type: "match" | "like" | "message" | "system" | "expert_reply";
   title: string;
   message: string;
   time: string;
   isRead: boolean;
   avatar?: any;
   userId?: string;
+  expertRequestId?: string;
 }
 
 const notifications: NotificationItem[] = [
   {
     id: "1",
+    type: "expert_reply",
+    title: "Expert Confirmed Your Question",
+    message: "Dr. Nguyen reviewed your cat nutrition question",
+    time: "10 minutes ago",
+    isRead: false,
+    expertRequestId: "req1",
+  },
+  {
+    id: "2",
     type: "match",
     title: "It's a Match!",
     message: "You and Nguyễn Văn A liked each other",
@@ -39,7 +49,7 @@ const notifications: NotificationItem[] = [
     userId: "user1",
   },
   {
-    id: "2",
+    id: "3",
     type: "like",
     title: "New Like",
     message: "Trần Thị B liked your pet Coco",
@@ -49,7 +59,7 @@ const notifications: NotificationItem[] = [
     userId: "user2",
   },
   {
-    id: "3",
+    id: "4",
     type: "message",
     title: "New Message",
     message: "Lê Văn C sent you a message",
@@ -59,7 +69,7 @@ const notifications: NotificationItem[] = [
     userId: "user3",
   },
   {
-    id: "4",
+    id: "5",
     type: "system",
     title: "Welcome to Pawnder!",
     message: "Complete your pet profile to get more matches",
@@ -71,6 +81,8 @@ const notifications: NotificationItem[] = [
 const NotificationScreen = ({ navigation }: Props) => {
   const getNotificationIcon = (type: string) => {
     switch (type) {
+      case "expert_reply":
+        return { name: "shield-checkmark", color: "#4CAF50" };
       case "match":
         return { name: "heart", color: colors.primary };
       case "like":
@@ -86,6 +98,8 @@ const NotificationScreen = ({ navigation }: Props) => {
 
   const getNotificationBgColor = (type: string) => {
     switch (type) {
+      case "expert_reply":
+        return ["#4CAF50", "#81C784"];
       case "match":
         return ["#FF6EA7", "#FF9BC0"];
       case "like":
@@ -100,7 +114,10 @@ const NotificationScreen = ({ navigation }: Props) => {
   };
 
   const handleNotificationPress = (item: NotificationItem) => {
-    if (item.type === "match" || item.type === "like") {
+    if (item.type === "expert_reply") {
+      // Navigate to expert confirmation screen
+      navigation.navigate("ExpertConfirmation" as any);
+    } else if (item.type === "match" || item.type === "like") {
       // Navigate to profile or favorite
       if (item.userId) {
         navigation.navigate("Favorite");
