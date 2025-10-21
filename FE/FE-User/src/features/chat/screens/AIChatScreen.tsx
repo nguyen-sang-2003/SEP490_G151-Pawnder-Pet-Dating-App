@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Dimensions,
   ScrollView,
+  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -32,16 +33,18 @@ interface Message {
 
 const QUICK_QUESTIONS = [
   "🐱 What should I feed my cat?",
-  "🏃 How much exercise does my pet need?",
-  "💊 Vaccination schedule?",
-  "🎾 Fun activities for pets?",
+  "🏃 How much exercise does my cat need?",
+  "💊 When should I vaccinate my cat?",
+  "🎾 Fun activities for indoor cats?",
 ];
 
-const AIChatScreen = ({ navigation }: Props) => {
+const AIChatScreen = ({ navigation, route }: Props) => {
+  const chatId = route.params?.chatId || "new";
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      text: "Hi there! 👋 I'm your AI Pet Care Assistant. I'm here to help you with any questions about your furry friend! How can I assist you today?",
+      text: "Hi there! 👋 I'm your AI Pet Care Assistant. I'm here to help you with any questions about your cat! How can I assist you today?",
       isAI: true,
       timestamp: new Date(),
       suggestions: [
@@ -62,17 +65,17 @@ const AIChatScreen = ({ navigation }: Props) => {
     
     setTimeout(() => {
       const aiResponses = [
-        "That's a great question! Based on your pet's needs, I'd recommend...",
-        "Let me help you with that! Here's what you should know...",
-        "I'm happy to assist! For your pet, the best approach would be...",
-        "Great to hear from you! Here's my advice on that topic...",
+        "That's a great question! Based on your cat's needs, I'd recommend feeding them high-quality protein-rich food 2-3 times daily. Persian cats particularly need food that supports their coat health.",
+        "Let me help you with that! For indoor cats, I suggest 15-20 minutes of playtime twice daily. Use interactive toys like feather wands or laser pointers to keep them active.",
+        "Great question! Vaccination is crucial for cat health. Kittens should get their first shots at 6-8 weeks, with boosters at 12 and 16 weeks. Adult cats need annual boosters.",
+        "For training, cats respond well to positive reinforcement. Use treats and praise when they use the litter box correctly or come when called. Be patient and consistent!",
       ];
       
       const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
       
       const aiMessage: Message = {
         id: Date.now().toString(),
-        text: randomResponse + " " + userMessage.toLowerCase(),
+        text: randomResponse,
         isAI: true,
         timestamp: new Date(),
         suggestions: [
@@ -113,6 +116,39 @@ const AIChatScreen = ({ navigation }: Props) => {
     }
   };
 
+  const handleAskExpert = (message: Message) => {
+    // Find user's question before this AI response
+    const messageIndex = messages.findIndex(m => m.id === message.id);
+    const userQuestion = messageIndex > 0 ? messages[messageIndex - 1] : null;
+    
+    Alert.alert(
+      "Ask Expert to Confirm",
+      `Do you want an expert to review this AI advice?\n\n"${message.text.substring(0, 100)}..."`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Ask Expert",
+          onPress: () => {
+            // TODO: Call API - POST /expert-confirmation/{userId}/{chatId}
+            // Send: userQuestion, aiResponse, full chat context
+            
+            Alert.alert(
+              "Request Sent!",
+              "Your request has been sent to our experts. You'll receive a notification when they respond.",
+              [
+                {
+                  text: "View My Requests",
+                  onPress: () => navigation.navigate("ExpertConfirmation" as any),
+                },
+                { text: "OK" },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   const handleSuggestionPress = (suggestion: string) => {
     handleSend(suggestion);
   };
@@ -135,7 +171,7 @@ const AIChatScreen = ({ navigation }: Props) => {
         {item.isAI && (
           <View style={styles.aiAvatarContainer}>
             <LinearGradient
-              colors={["#9C27B0", "#E1BEE7"]}
+              colors={["#667EEA", "#8B9FEE"]}
               style={styles.aiAvatar}
             >
               <Icon name="sparkles" size={20} color={colors.white} />
@@ -156,6 +192,22 @@ const AIChatScreen = ({ navigation }: Props) => {
                 <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
               </View>
               <Text style={styles.aiMessageText}>{item.text}</Text>
+              
+              {/* Ask Expert Button */}
+              {item.id !== "welcome" && (
+                <TouchableOpacity
+                  style={styles.askExpertButton}
+                  onPress={() => handleAskExpert(item)}
+                >
+                  <LinearGradient
+                    colors={["#4CAF50", "#81C784"]}
+                    style={styles.askExpertGradient}
+                  >
+                    <Icon name="shield-checkmark" size={16} color={colors.white} />
+                    <Text style={styles.askExpertText}>Ask Expert to Confirm</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <LinearGradient
@@ -207,7 +259,7 @@ const AIChatScreen = ({ navigation }: Props) => {
 
         <View style={styles.headerCenter}>
           <LinearGradient
-            colors={["#9C27B0", "#E1BEE7"]}
+            colors={["#667EEA", "#8B9FEE"]}
             style={styles.headerAvatar}
           >
             <Icon name="sparkles" size={24} color={colors.white} />
@@ -220,8 +272,11 @@ const AIChatScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.menuButton}>
-          <Icon name="trash-outline" size={22} color={colors.error} />
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={() => navigation.navigate("ExpertConfirmation" as any)}
+        >
+          <Icon name="shield-checkmark" size={22} color="#4CAF50" />
         </TouchableOpacity>
       </View>
 
@@ -263,7 +318,7 @@ const AIChatScreen = ({ navigation }: Props) => {
         {isTyping && (
           <View style={styles.typingIndicator}>
             <LinearGradient
-              colors={["#9C27B0", "#E1BEE7"]}
+              colors={["#667EEA", "#8B9FEE"]}
               style={styles.typingAvatar}
             >
               <Icon name="sparkles" size={16} color={colors.white} />
@@ -280,12 +335,12 @@ const AIChatScreen = ({ navigation }: Props) => {
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.attachButton}>
-              <Icon name="camera-outline" size={28} color="#9C27B0" />
+              <Icon name="camera-outline" size={28} color="#667EEA" />
             </TouchableOpacity>
             
             <TextInput
               style={styles.input}
-              placeholder="Ask me anything about pet care..."
+              placeholder="Ask me anything about cat care..."
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={setInputText}
@@ -299,7 +354,7 @@ const AIChatScreen = ({ navigation }: Props) => {
               disabled={!inputText.trim()}
             >
               <LinearGradient
-                colors={inputText.trim() ? ["#9C27B0", "#BA68C8"] : ["#DDD", "#CCC"]}
+                colors={inputText.trim() ? ["#667EEA", "#764BA2"] : ["#DDD", "#CCC"]}
                 style={styles.sendGradient}
               >
                 <Icon
@@ -316,7 +371,7 @@ const AIChatScreen = ({ navigation }: Props) => {
       {/* AI Badge */}
       <View style={styles.aiBadge}>
         <LinearGradient
-          colors={["#9C27B0", "#BA68C8"]}
+          colors={["#667EEA", "#764BA2"]}
           style={styles.aiBadgeGradient}
         >
           <Icon name="sparkles" size={12} color={colors.white} />
@@ -376,7 +431,7 @@ const styles = StyleSheet.create({
   },
   headerStatus: {
     fontSize: 12,
-    color: "#9C27B0",
+    color: "#667EEA",
     marginTop: 2,
   },
   menuButton: {
@@ -411,12 +466,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#E1BEE7",
+    borderColor: "#8B9FEE",
     ...shadows.small,
   },
   quickQuestionText: {
     fontSize: 14,
-    color: "#9C27B0",
+    color: "#667EEA",
     fontWeight: "500",
   },
 
@@ -472,7 +527,7 @@ const styles = StyleSheet.create({
   aiLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#9C27B0",
+    color: "#667EEA",
   },
   messageTime: {
     fontSize: 11,
@@ -483,6 +538,27 @@ const styles = StyleSheet.create({
     color: colors.textDark,
     lineHeight: 22,
   },
+
+  // Ask Expert Button
+  askExpertButton: {
+    marginTop: 10,
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  askExpertGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 6,
+  },
+  askExpertText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.white,
+  },
+
   userBubbleGradient: {
     padding: 12,
     borderRadius: radius.lg,
@@ -512,7 +588,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 13,
-    color: "#9C27B0",
+    color: "#667EEA",
     fontWeight: "500",
   },
 
@@ -544,7 +620,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#9C27B0",
+    backgroundColor: "#667EEA",
     opacity: 0.6,
   },
 
@@ -611,4 +687,3 @@ const styles = StyleSheet.create({
 });
 
 export default AIChatScreen;
-

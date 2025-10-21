@@ -10,6 +10,9 @@ import {
   Platform,
   Image,
   Dimensions,
+  Alert,
+  Modal,
+  Pressable,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -18,7 +21,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 type Props = NativeStackScreenProps<RootStackParamList, "ChatDetail">;
 
@@ -66,6 +69,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -111,6 +116,93 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         setIsTyping(true);
       }, 2000);
     }
+  };
+
+  const handleMenuPress = () => {
+    setShowMenuModal(true);
+  };
+
+  const closeMenu = () => {
+    setShowMenuModal(false);
+  };
+
+  const handleViewProfile = () => {
+    closeMenu();
+    // Navigate to user's pet profile
+    navigation.navigate("PetProfile", { petId: chatId });
+  };
+
+  const handleUnmatch = () => {
+    closeMenu();
+    Alert.alert(
+      "Unmatch",
+      `Are you sure you want to unmatch with ${userName}? This will delete the conversation and you won't be able to message each other.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unmatch",
+          style: "destructive",
+          onPress: () => {
+            // TODO: Call Unmatch API - DELETE /chatuser/chat/{matchId}
+            console.log("Unmatched:", chatId);
+            Alert.alert("Unmatched", `You've unmatched with ${userName}`);
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReport = () => {
+    closeMenu();
+    // Navigate to Report screen
+    navigation.navigate("Report" as any, { 
+      userId: chatId, 
+      userName: userName 
+    });
+  };
+
+  const handleBlock = () => {
+    closeMenu();
+    Alert.alert(
+      "Block User",
+      `Are you sure you want to block ${userName}? You won't be able to message each other.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => {
+            // TODO: Call Block API - POST /block/{fromUserId}/{toUserId}
+            console.log("Blocked user:", chatId);
+            Alert.alert("Blocked", `${userName} has been blocked.`);
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteChat = () => {
+    closeMenu();
+    Alert.alert(
+      "Delete Conversation",
+      `Delete your conversation with ${userName}? You will still be matched and can start a new chat. To remove the match completely, use Unmatch instead.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            // TODO: Call Delete Chat API - DELETE /chat-user-content/{matchId}
+            console.log("Deleted conversation:", chatId);
+            setMessages([]);
+            Alert.alert("Deleted", "Conversation has been deleted. You're still matched.");
+            navigation.goBack();
+          },
+        },
+      ]
+    );
   };
 
   const formatTime = (date: Date) => {
@@ -213,7 +305,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.menuButton}>
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={handleMenuPress}
+        >
           <Icon name="ellipsis-vertical" size={24} color={colors.textDark} />
         </TouchableOpacity>
       </View>
@@ -282,6 +377,97 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Menu Modal - Bottom Sheet Style */}
+      <Modal
+        visible={showMenuModal}
+        transparent
+        animationType="slide"
+        onRequestClose={closeMenu}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeMenu}>
+          <Pressable style={styles.menuModal} onPress={(e) => e.stopPropagation()}>
+            {/* Menu Header */}
+            <View style={styles.menuHeader}>
+              <Image source={userAvatar} style={styles.menuAvatar} />
+              <View style={styles.menuHeaderText}>
+                <Text style={styles.menuUserName}>{userName}</Text>
+                <Text style={styles.menuUserStatus}>Active now</Text>
+              </View>
+              <TouchableOpacity onPress={closeMenu} style={styles.menuCloseBtn}>
+                <Icon name="close" size={24} color={colors.textDark} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Menu Options */}
+            <View style={styles.menuOptions}>
+              {/* View Full Profile */}
+              <TouchableOpacity style={styles.menuOption} onPress={handleViewProfile}>
+                <View style={[styles.menuIconContainer, { backgroundColor: "#FFE8F5" }]}>
+                  <Icon name="person-circle-outline" size={22} color={colors.primary} />
+                </View>
+                <View style={styles.menuOptionText}>
+                  <Text style={styles.menuOptionTitle}>View Full Profile</Text>
+                  <Text style={styles.menuOptionDesc}>See all pet photos & details</Text>
+                </View>
+                <Icon name="chevron-forward" size={20} color={colors.textMedium} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              {/* Unmatch */}
+              <TouchableOpacity style={styles.menuOption} onPress={handleUnmatch}>
+                <View style={[styles.menuIconContainer, { backgroundColor: "#FFF8E1" }]}>
+                  <Icon name="heart-dislike-outline" size={22} color="#FFA726" />
+                </View>
+                <View style={styles.menuOptionText}>
+                  <Text style={styles.menuOptionTitle}>Unmatch</Text>
+                  <Text style={styles.menuOptionDesc}>Remove this match</Text>
+                </View>
+                <Icon name="chevron-forward" size={20} color={colors.textMedium} />
+              </TouchableOpacity>
+
+              {/* Report */}
+              <TouchableOpacity style={styles.menuOption} onPress={handleReport}>
+                <View style={[styles.menuIconContainer, { backgroundColor: "#FFF3E0" }]}>
+                  <Icon name="flag-outline" size={22} color="#FF9800" />
+                </View>
+                <View style={styles.menuOptionText}>
+                  <Text style={styles.menuOptionTitle}>Report</Text>
+                  <Text style={styles.menuOptionDesc}>Report inappropriate behavior</Text>
+                </View>
+                <Icon name="chevron-forward" size={20} color={colors.textMedium} />
+              </TouchableOpacity>
+
+              {/* Block */}
+              <TouchableOpacity style={styles.menuOption} onPress={handleBlock}>
+                <View style={[styles.menuIconContainer, { backgroundColor: "#FFEBEE" }]}>
+                  <Icon name="ban-outline" size={22} color="#E94D6B" />
+                </View>
+                <View style={styles.menuOptionText}>
+                  <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>Block</Text>
+                  <Text style={styles.menuOptionDesc}>Block this user</Text>
+                </View>
+                <Icon name="chevron-forward" size={20} color={colors.textMedium} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              {/* Delete Conversation */}
+              <TouchableOpacity style={styles.menuOption} onPress={handleDeleteChat}>
+                <View style={[styles.menuIconContainer, { backgroundColor: "#F5F5F5" }]}>
+                  <Icon name="trash-outline" size={22} color={colors.error} />
+                </View>
+                <View style={styles.menuOptionText}>
+                  <Text style={[styles.menuOptionTitle, { color: colors.error }]}>Delete Conversation</Text>
+                  <Text style={styles.menuOptionDesc}>Clear all messages</Text>
+                </View>
+                <Icon name="chevron-forward" size={20} color={colors.textMedium} />
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -491,6 +677,91 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  // Menu Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  menuModal: {
+    backgroundColor: colors.whiteWarm,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    maxHeight: Dimensions.get("window").height * 0.75,
+  },
+  menuHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  menuHeaderText: {
+    flex: 1,
+  },
+  menuUserName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.textDark,
+  },
+  menuUserStatus: {
+    fontSize: 14,
+    color: colors.primary,
+    marginTop: 2,
+  },
+  menuCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.cardBackgroundLight,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuOptions: {
+    paddingVertical: 8,
+  },
+  menuOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  menuIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  menuOptionText: {
+    flex: 1,
+  },
+  menuOptionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textDark,
+  },
+  menuOptionDesc: {
+    fontSize: 13,
+    color: colors.textMedium,
+    marginTop: 2,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 8,
+    marginHorizontal: 20,
   },
 });
 

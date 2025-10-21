@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  TextInput,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -56,9 +57,16 @@ const chatData: ChatItem[] = [
 ];
 
 const ChatScreen = ({ navigation }: Props) => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredChats = chatData.filter(chat =>
+    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const handleChatPress = (item: ChatItem) => {
     if (item.isAI) {
-      navigation.navigate("AIChat");
+      navigation.navigate("AIChatList");
     } else {
       navigation.navigate("ChatDetail", {
         chatId: item.id,
@@ -75,7 +83,7 @@ const ChatScreen = ({ navigation }: Props) => {
     >
       <View style={styles.avatarWrapper}>
         <LinearGradient
-          colors={item.isAI ? ["#9C27B0", "#E1BEE7"] : gradients.primary}
+          colors={item.isAI ? ["#667EEA", "#764BA2"] : gradients.primary}
           style={styles.avatarGradient}
         >
           <Image source={item.avatar} style={styles.avatar} />
@@ -115,31 +123,48 @@ const ChatScreen = ({ navigation }: Props) => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        <Icon name="search" size={24} color={colors.primary} />
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Icon name="search" size={20} color={colors.textMedium} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search conversations..."
+          placeholderTextColor={colors.textLabel}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery("")}>
+            <Icon name="close-circle" size={20} color={colors.textMedium} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* AI Chat Option - Highlighted */}
       <TouchableOpacity 
         style={styles.aiChatCard}
-        onPress={() => navigation.navigate("AIChat")}
+        onPress={() => navigation.navigate("AIChatList")}
+        activeOpacity={0.8}
       >
         <LinearGradient
-          colors={["#9C27B0", "#BA68C8"]}
+          colors={["#667EEA", "#764BA2"]}
           style={styles.aiChatGradient}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 1, y: 0 }}
         >
+          <View style={styles.aiChatIconContainer}>
+            <Icon name="sparkles" size={24} color={colors.white} />
+          </View>
           <View style={styles.aiChatContent}>
-            <View style={styles.aiChatLeft}>
-              <Icon name="sparkles" size={28} color={colors.white} />
-              <View style={styles.aiChatText}>
-                <Text style={styles.aiChatTitle}>Chat with AI</Text>
-                <Text style={styles.aiChatSubtitle}>
-                  Get instant pet care advice
-                </Text>
-              </View>
+            <View style={styles.aiChatText}>
+              <Text style={styles.aiChatTitle}>Chat with AI</Text>
+              <Text style={styles.aiChatSubtitle}>
+                Get instant pet care advice
+              </Text>
             </View>
-            <Icon name="chevron-forward" size={24} color={colors.white} />
+            <Icon name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -150,11 +175,22 @@ const ChatScreen = ({ navigation }: Props) => {
       </View>
 
       <FlatList
-        data={chatData}
+        data={filteredChats}
         keyExtractor={(item) => item.id}
         renderItem={renderChatItem}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          searchQuery.length > 0 ? (
+            <View style={styles.emptyState}>
+              <Icon name="search-outline" size={64} color={colors.textLabel} />
+              <Text style={styles.emptyTitle}>No results found</Text>
+              <Text style={styles.emptyText}>
+                Try searching for a different name or message
+              </Text>
+            </View>
+          ) : null
+        }
       />
 
       {/* Bottom Navigation */}
@@ -175,12 +211,34 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "bold",
     color: colors.textDark,
+  },
+
+  // Search Bar
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.whiteWarm,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+    ...shadows.small,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textDark,
+    padding: 0,
   },
 
   // AI Chat Card
@@ -189,33 +247,40 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: radius.lg,
     overflow: "hidden",
-    ...shadows.large,
+    ...shadows.medium,
   },
   aiChatGradient: {
-    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 18,
+    gap: 14,
+  },
+  aiChatIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   aiChatContent: {
+    flex: 1,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-  },
-  aiChatLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
   },
   aiChatText: {
     flex: 1,
   },
   aiChatTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "700",
     color: colors.white,
     marginBottom: 4,
   },
   aiChatSubtitle: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
   },
 
   // Chat List
@@ -311,6 +376,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: colors.white,
+  },
+
+  // Empty State
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: colors.textDark,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textMedium,
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
 
