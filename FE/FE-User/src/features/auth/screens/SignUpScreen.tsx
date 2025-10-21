@@ -150,7 +150,10 @@ const SignUpScreen = ({ navigation }: Props) => {
         <TouchableOpacity 
           activeOpacity={0.9} 
           style={styles.btnShadow}
-          onPress={() => navigation.replace("AddPetPhotos", { isFromProfile: false })}
+          onPress={() => {
+            // TODO: API call to register and send OTP
+            navigation.navigate("OTPVerification", { email });
+          }}
         >
           <LinearGradient
             colors={["#FF7AAE", "#FF9BC0"]}

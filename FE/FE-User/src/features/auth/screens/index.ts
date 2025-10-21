@@ -4,4 +4,6 @@ export { default as SignUpScreen } from './SignUpScreen';
 export { default as AddPetInfoScreen } from './AddPetInfoScreen';
 export { default as AddPetPhotosScreen } from './AddPetPhotosScreen';
 export { default as AddPetDetailsScreen } from './AddPetDetailsScreen';
-
+export { default as OTPVerificationScreen } from './OTPVerificationScreen';
+export { default as ForgotPasswordScreen } from './ForgotPasswordScreen';
+export { default as ResetPasswordScreen } from './ResetPasswordScreen';

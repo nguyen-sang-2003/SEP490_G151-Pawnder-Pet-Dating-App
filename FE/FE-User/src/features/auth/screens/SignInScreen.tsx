@@ -93,7 +93,12 @@ const SignInScreen = ({ navigation }: Props) => {
           >
             Register Now!
           </Text>{" "}
-          / <Text style={[styles.link, { color: "#666" }]}>Forgot password</Text>
+          / <Text 
+            style={[styles.link, { color: "#666" }]}
+            onPress={() => navigation.navigate("ForgotPassword")}
+          >
+            Forgot password
+          </Text>
         </Text>
       </View>
     </LinearGradient>
