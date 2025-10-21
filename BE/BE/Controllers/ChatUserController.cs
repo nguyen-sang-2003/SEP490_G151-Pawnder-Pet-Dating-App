@@ -35,16 +35,17 @@ namespace BE.Controllers
         }
 
         // GET /chat/{toUserId}
-        [HttpGet("chat/{toUserId}")]
-        public async Task<IActionResult> GetChats(int toUserId)
+        [HttpGet("chat/{UserId}")]
+        public async Task<IActionResult> GetChats(int UserId)
         {
             var invites = await _context.ChatUsers
                 .Include(c => c.FromUser)
-                .Where(c => c.ToUserId == toUserId && c.Status == "Accepted")
+                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted")
                 .Select(c => new
                 {
                     matchId = c.MatchId,
                     fromUserId = c.FromUserId,
+                    toUserId = c.ToUserId,
                     status = c.Status,
                     createdAt = c.CreatedAt
                 })
@@ -144,6 +145,21 @@ namespace BE.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Đã xóa yêu cầu kết bạn." });
+        }
+
+        // DELETE /chat/{matchId}
+        [HttpDelete("chat/{matchId}")]
+        public async Task<IActionResult> DeleteChat(int matchId)
+        {
+            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.Status == "Accepted");
+            if (chatUser == null)
+                return NotFound(new { message = "Không tìm thấy đoạn chat." });
+
+            chatUser.IsDeleted = true;
+            _context.ChatUsers.Update(chatUser);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã xóa yêu đoạn chat." });
         }
     }
 }
