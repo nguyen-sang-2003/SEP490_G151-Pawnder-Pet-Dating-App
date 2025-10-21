@@ -10,7 +10,8 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+//Address service
+builder.Services.AddHttpClient();
 // Register OData + Controllers
 builder.Services
     .AddControllers()
