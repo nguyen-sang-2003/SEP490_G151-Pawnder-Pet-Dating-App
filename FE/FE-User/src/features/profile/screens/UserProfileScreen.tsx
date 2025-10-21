@@ -409,7 +409,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
           <View style={styles.section}>
             <TouchableOpacity
               style={styles.premiumUpgradeCard}
-              onPress={() => Alert.alert("Coming Soon", "Premium feature will be available soon!")}
+              onPress={() => navigation.navigate("Premium")}
             >
               <LinearGradient
                 colors={["#FFD700", "#FFA500", "#FF6EA7"]}
@@ -441,7 +441,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
           {owner.isPremium && (
             <TouchableOpacity 
               style={styles.actionButtonPremium}
-              onPress={() => Alert.alert("Coming Soon", "Premium management will be available soon!")}
+              onPress={() => navigation.navigate("Premium")}
             >
               <LinearGradient
                 colors={["#FFD700", "#FFA500"]}
@@ -458,7 +458,16 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => Alert.alert("Privacy & Safety", "Privacy settings will be available soon!")}
+            onPress={() => navigation.navigate("UserPreference")}
+          >
+            <Icon name="options-outline" size={22} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary }]}>Discovery Settings</Text>
+            <Icon name="chevron-forward" size={20} color={colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => navigation.navigate("PrivacyAndSafety")}
           >
             <Icon name="shield-checkmark-outline" size={22} color={colors.textDark} />
             <Text style={styles.actionText}>Privacy & Safety</Text>
@@ -467,7 +476,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => Alert.alert("Help & Support", "Help center will be available soon!")}
+            onPress={() => navigation.navigate("HelpAndSupport")}
           >
             <Icon name="help-circle-outline" size={22} color={colors.textDark} />
             <Text style={styles.actionText}>Help & Support</Text>
@@ -476,7 +485,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => Alert.alert("Share Profile", "Share feature will be available soon!")}
+            onPress={() => navigation.navigate("ShareProfile")}
           >
             <Icon name="share-social-outline" size={22} color={colors.textDark} />
             <Text style={styles.actionText}>Share Cat Profile</Text>
