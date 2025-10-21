@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -52,6 +53,34 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const handleSendMatchRequest = () => {
     // Send match request logic
     console.log("Match request sent");
+  };
+
+  const handleBlock = () => {
+    Alert.alert(
+      "Block User",
+      `Are you sure you want to block ${pet.owner.name}? You won't see their pets anymore.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => {
+            // TODO: Call Block API - POST /block/{fromUserId}/{toUserId}
+            console.log("Blocked user");
+            Alert.alert("Blocked", `${pet.owner.name} has been blocked.`);
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReport = () => {
+    // TODO: Navigate to Report screen
+    navigation.navigate("Report" as any, { 
+      userId: pet.id, 
+      userName: pet.owner.name 
+    });
   };
 
   return (
@@ -198,6 +227,31 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               <Icon name="paw" size={24} color="#fff" />
               <Text style={styles.actionBtnText}>Send match{"\n"}request</Text>
             </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Safety Actions */}
+        <View style={styles.safetyActions}>
+          <TouchableOpacity 
+            style={styles.safetyBtn}
+            onPress={handleReport}
+          >
+            <Icon name="flag-outline" size={20} color="#FF9800" />
+            <Text style={[styles.safetyBtnText, { color: "#FF9800" }]}>
+              Report
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.safetyDivider} />
+
+          <TouchableOpacity 
+            style={styles.safetyBtn}
+            onPress={handleBlock}
+          >
+            <Icon name="ban-outline" size={20} color="#E94D6B" />
+            <Text style={[styles.safetyBtnText, { color: "#E94D6B" }]}>
+              Block User
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -404,6 +458,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     lineHeight: 18,
+  },
+
+  // Safety Actions
+  safetyActions: {
+    flexDirection: "row",
+    backgroundColor: "#FFF8FB",
+    borderRadius: 16,
+    marginTop: 16,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#FF6EA7",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  safetyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  safetyBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  safetyDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "#E0E0E0",
   },
 });
 

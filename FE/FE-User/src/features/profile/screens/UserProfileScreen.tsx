@@ -91,17 +91,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
     },
   ]);
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: () => navigation.replace("Welcome"),
-      },
-    ]);
-  };
-
   const handleEditProfile = () => {
     navigation.navigate("EditProfile");
   };
@@ -146,6 +135,17 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
+      {/* Top Header with Settings */}
+      <View style={styles.topHeader}>
+        <Text style={styles.topHeaderTitle}>My Profile</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => navigation.navigate("Settings")}
+        >
+          <Icon name="settings-outline" size={22} color={colors.textDark} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -404,106 +404,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
-        {/* Premium Upgrade Card - Highlighted */}
-        {!owner.isPremium && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.premiumUpgradeCard}
-              onPress={() => navigation.navigate("Premium")}
-            >
-              <LinearGradient
-                colors={["#FFD700", "#FFA500", "#FF6EA7"]}
-                style={styles.premiumUpgradeGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <View style={styles.premiumUpgradeContent}>
-                  <View style={styles.premiumUpgradeLeft}>
-                    <View style={styles.premiumUpgradeIconBox}>
-                      <Icon name="star" size={32} color="#fff" />
-                    </View>
-                    <View style={styles.premiumUpgradeTextContainer}>
-                      <Text style={styles.premiumUpgradeTitle}>Go Premium</Text>
-                      <Text style={styles.premiumUpgradeDesc}>
-                        Unlock unlimited features
-                      </Text>
-                    </View>
-                  </View>
-                  <Icon name="chevron-forward" size={24} color="#fff" />
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Action Buttons */}
-        <View style={styles.actionsSection}>
-          {owner.isPremium && (
-            <TouchableOpacity 
-              style={styles.actionButtonPremium}
-              onPress={() => navigation.navigate("Premium")}
-            >
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                style={styles.actionGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Icon name="star" size={22} color="#fff" />
-                <Text style={styles.actionTextWhite}>Manage Premium</Text>
-                <Icon name="chevron-forward" size={20} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate("UserPreference")}
-          >
-            <Icon name="options-outline" size={22} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Discovery Settings</Text>
-            <Icon name="chevron-forward" size={20} color={colors.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate("PrivacyAndSafety")}
-          >
-            <Icon name="shield-checkmark-outline" size={22} color={colors.textDark} />
-            <Text style={styles.actionText}>Privacy & Safety</Text>
-            <Icon name="chevron-forward" size={20} color={colors.textMedium} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate("HelpAndSupport")}
-          >
-            <Icon name="help-circle-outline" size={22} color={colors.textDark} />
-            <Text style={styles.actionText}>Help & Support</Text>
-            <Icon name="chevron-forward" size={20} color={colors.textMedium} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate("ShareProfile")}
-          >
-            <Icon name="share-social-outline" size={22} color={colors.textDark} />
-            <Text style={styles.actionText}>Share Cat Profile</Text>
-            <Icon name="chevron-forward" size={20} color={colors.textMedium} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Logout Button */}
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-          activeOpacity={0.8}
-        >
-          <Icon name="log-out-outline" size={22} color={colors.error} />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 100 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -517,8 +418,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8F9FA",
   },
+  topHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: "#F8F9FA",
+  },
+  topHeaderTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: colors.textDark,
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.whiteWarm,
+    justifyContent: "center",
+    alignItems: "center",
+    ...shadows.small,
+  },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
 
   // Photo Section
@@ -890,47 +814,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Premium Upgrade Card
-  premiumUpgradeCard: {
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    ...shadows.large,
-  },
-  premiumUpgradeGradient: {
-    padding: 20,
-  },
-  premiumUpgradeContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  premiumUpgradeLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  premiumUpgradeIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  premiumUpgradeTextContainer: {
-    flex: 1,
-  },
-  premiumUpgradeTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  premiumUpgradeDesc: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.9)",
-  },
-
   // Info Card
   infoCard: {
     backgroundColor: colors.whiteWarm,
@@ -954,67 +837,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
 
-  // Actions Section
-  actionsSection: {
-    paddingHorizontal: 20,
-    marginTop: 24,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.whiteWarm,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: radius.lg,
-    marginBottom: 12,
-    ...shadows.small,
-  },
-  actionText: {
-    fontSize: 16,
-    color: colors.textDark,
-    fontWeight: "500",
-    flex: 1,
-    marginLeft: 12,
-  },
-  actionButtonPremium: {
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    marginBottom: 12,
-    ...shadows.large,
-  },
-  actionGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  actionTextWhite: {
-    fontSize: 16,
-    color: "#fff",
-    fontWeight: "600",
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  // Logout
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF5F5",
-    paddingVertical: 16,
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: radius.lg,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#FFEBEE",
-  },
-  logoutText: {
-    fontSize: 16,
-    color: colors.error,
-    fontWeight: "600",
-  },
 });
 
 export default UserProfileScreen;
