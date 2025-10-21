@@ -418,7 +418,9 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
-
+            entity.Property(e => e.IsProfileComplete)       // <-- thêm
+         .HasDefaultValue(false)
+         .IsRequired();
             entity.HasOne(d => d.Address).WithMany(p => p.Users)
                 .HasForeignKey(d => d.AddressId)
                 .HasConstraintName("User_AddressId_fkey");
