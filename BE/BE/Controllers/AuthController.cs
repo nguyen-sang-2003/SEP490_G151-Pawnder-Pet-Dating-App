@@ -12,6 +12,7 @@ using System.Security.Claims;
 namespace BE.Controllers
 {
     [ApiController]
+    [Route("api")]
     public class AuthController : ControllerBase
     {
         private readonly PawnderDatabaseContext _context;
@@ -40,7 +41,7 @@ namespace BE.Controllers
             
             var token = _tokenService.GenerateToken(user.UserId,user.Role.RoleName);
 
-            user.TokenJWT = token;
+            user.TokenJwt = token;
             _context.Users.Update(user);
             _context.SaveChanges();
 
@@ -51,8 +52,9 @@ namespace BE.Controllers
             });
         }
 
-        [Authorize]
+       
         [HttpPost("logout")]
+        [Authorize]
         public async Task<ActionResult> Logout()
         {
             try
@@ -68,7 +70,7 @@ namespace BE.Controllers
                 if (user == null)
                     return NotFound("Không tìm thấy người dùng.");
 
-                user.TokenJWT = null;
+                user.TokenJwt = null;
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 

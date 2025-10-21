@@ -5,7 +5,11 @@ namespace BE.Models;
 
 public partial class Address
 {
-    public Guid AddressId { get; set; }
+    public int AddressId { get; set; }
+
+    public decimal? Latitude { get; set; }
+
+    public decimal? Longitude { get; set; }
 
     public string FullAddress { get; set; } = null!;
 

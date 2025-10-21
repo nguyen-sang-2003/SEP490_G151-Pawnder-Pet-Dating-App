@@ -10,7 +10,8 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+//Address service
+builder.Services.AddHttpClient();
 // Register OData + Controllers
 builder.Services
     .AddControllers()
@@ -49,6 +50,10 @@ builder.Services.AddAuthentication(options =>
     };
 });
 builder.Services.AddAuthorization();
+
+// Register Email Service 
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<EmailService>();
 
 var app = builder.Build();
 

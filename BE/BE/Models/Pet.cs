@@ -5,9 +5,9 @@ namespace BE.Models;
 
 public partial class Pet
 {
-    public Guid PetId { get; set; }
+    public int PetId { get; set; }
 
-    public Guid? UserId { get; set; }
+    public int? UserId { get; set; }
 
     public string? Name { get; set; }
 
@@ -17,7 +17,7 @@ public partial class Pet
 
     public int? Age { get; set; }
 
-    public bool? IsDeadted { get; set; }
+    public bool? IsActive { get; set; }
 
     public bool? IsDeleted { get; set; }
 
