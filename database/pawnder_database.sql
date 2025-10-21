@@ -55,6 +55,8 @@ CREATE TABLE "User" (
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE "User"
+  ADD COLUMN "IsProfileComplete" BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- ===========================
 -- TABLE: Attribute
@@ -442,5 +444,4 @@ VALUES
  'Chào mừng bạn đến với Pawnder!', 'Bạn đã đăng ký tài khoản thành công.'),
 ((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
  'Có yêu cầu tư vấn mới', 'Người dùng đã gửi yêu cầu tư vấn AI.');
-ALTER TABLE "User"
-  ADD COLUMN "IsProfileComplete" BOOLEAN NOT NULL DEFAULT FALSE;
+
