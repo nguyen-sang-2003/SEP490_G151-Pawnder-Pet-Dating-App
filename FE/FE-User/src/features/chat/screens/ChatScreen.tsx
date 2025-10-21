@@ -56,8 +56,23 @@ const chatData: ChatItem[] = [
 ];
 
 const ChatScreen = ({ navigation }: Props) => {
+  const handleChatPress = (item: ChatItem) => {
+    if (item.isAI) {
+      navigation.navigate("AIChat");
+    } else {
+      navigation.navigate("ChatDetail", {
+        chatId: item.id,
+        userName: item.name,
+        userAvatar: item.avatar,
+      });
+    }
+  };
+
   const renderChatItem = ({ item }: { item: ChatItem }) => (
-    <TouchableOpacity style={styles.chatItem}>
+    <TouchableOpacity 
+      style={styles.chatItem}
+      onPress={() => handleChatPress(item)}
+    >
       <View style={styles.avatarWrapper}>
         <LinearGradient
           colors={item.isAI ? ["#9C27B0", "#E1BEE7"] : gradients.primary}
@@ -104,7 +119,10 @@ const ChatScreen = ({ navigation }: Props) => {
       </View>
 
       {/* AI Chat Option - Highlighted */}
-      <TouchableOpacity style={styles.aiChatCard}>
+      <TouchableOpacity 
+        style={styles.aiChatCard}
+        onPress={() => navigation.navigate("AIChat")}
+      >
         <LinearGradient
           colors={["#9C27B0", "#BA68C8"]}
           style={styles.aiChatGradient}
