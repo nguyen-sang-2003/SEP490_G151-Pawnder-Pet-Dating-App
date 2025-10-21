@@ -23,29 +23,6 @@ const PrivacyAndSafetyScreen = ({ navigation }: Props) => {
   const [allowMessages, setAllowMessages] = useState(true);
   const [showAge, setShowAge] = useState(false);
 
-  // Mock blocked users
-  const blockedUsers = [
-    { id: "1", name: "User 123", blockedAt: "2 days ago" },
-    { id: "2", name: "User 456", blockedAt: "1 week ago" },
-  ];
-
-  const handleUnblock = (userId: string, userName: string) => {
-    Alert.alert(
-      "Unblock User",
-      `Are you sure you want to unblock ${userName}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Unblock",
-          style: "destructive",
-          onPress: () => {
-            console.log("Unblocked:", userId);
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <LinearGradient
       colors={gradients.background}
@@ -173,67 +150,11 @@ const PrivacyAndSafetyScreen = ({ navigation }: Props) => {
             <Icon name="chevron-forward" size={20} color={colors.textMedium} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
-            <Icon name="flag-outline" size={24} color="#FF9800" />
-            <View style={styles.actionText}>
-              <Text style={styles.actionTitle}>Report a User</Text>
-              <Text style={styles.actionDesc}>
-                Report suspicious behavior
-              </Text>
-            </View>
-            <Icon name="chevron-forward" size={20} color={colors.textMedium} />
-          </TouchableOpacity>
         </View>
 
-        {/* Blocked Users */}
+        {/* Data Management */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Blocked Users ({blockedUsers.length})
-          </Text>
-
-          {blockedUsers.length > 0 ? (
-            <View style={styles.card}>
-              {blockedUsers.map((user, index) => (
-                <View key={user.id}>
-                  <View style={styles.blockedUserRow}>
-                    <View style={styles.blockedUserInfo}>
-                      <View style={styles.blockedAvatar}>
-                        <Icon name="person" size={20} color={colors.textMedium} />
-                      </View>
-                      <View>
-                        <Text style={styles.blockedUserName}>{user.name}</Text>
-                        <Text style={styles.blockedUserTime}>
-                          Blocked {user.blockedAt}
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.unblockBtn}
-                      onPress={() => handleUnblock(user.id, user.name)}
-                    >
-                      <Text style={styles.unblockText}>Unblock</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {index < blockedUsers.length - 1 && (
-                    <View style={styles.divider} />
-                  )}
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyCard}>
-              <Icon name="checkmark-circle" size={48} color={colors.success} />
-              <Text style={styles.emptyText}>No blocked users</Text>
-              <Text style={styles.emptyDesc}>
-                You haven't blocked anyone yet
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Data & Account */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data & Account</Text>
+          <Text style={styles.sectionTitle}>Data Management</Text>
 
           <TouchableOpacity style={styles.actionCard}>
             <Icon name="download-outline" size={24} color={colors.primary} />
@@ -242,17 +163,6 @@ const PrivacyAndSafetyScreen = ({ navigation }: Props) => {
               <Text style={styles.actionDesc}>
                 Get a copy of your information
               </Text>
-            </View>
-            <Icon name="chevron-forward" size={20} color={colors.textMedium} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <Icon name="trash-outline" size={24} color={colors.error} />
-            <View style={styles.actionText}>
-              <Text style={[styles.actionTitle, { color: colors.error }]}>
-                Delete Account
-              </Text>
-              <Text style={styles.actionDesc}>Permanently delete your account</Text>
             </View>
             <Icon name="chevron-forward" size={20} color={colors.textMedium} />
           </TouchableOpacity>
@@ -366,51 +276,6 @@ const styles = StyleSheet.create({
   actionDesc: {
     fontSize: 13,
     color: colors.textMedium,
-  },
-
-  // Blocked Users
-  blockedUserRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  blockedUserInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 12,
-  },
-  blockedAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.cardBackgroundLight,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  blockedUserName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.textDark,
-  },
-  blockedUserTime: {
-    fontSize: 13,
-    color: colors.textMedium,
-    marginTop: 2,
-  },
-  unblockBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  unblockText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.primary,
   },
 
   // Empty State
