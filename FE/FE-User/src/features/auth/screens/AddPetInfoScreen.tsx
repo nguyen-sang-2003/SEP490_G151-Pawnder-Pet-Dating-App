@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -15,9 +16,9 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 
-type Props = NativeStackScreenProps<RootStackParamList, "AddPetInfo">;
+type Props = NativeStackScreenProps<RootStackParamList, "AddPetInfo" | "AddPet">;
 
-const AddPetInfoScreen = ({ navigation }: Props) => {
+const AddPetInfoScreen = ({ navigation, route }: Props) => {
   const [petName, setPetName] = useState("");
   const [breed, setBreed] = useState("");
   const [age, setAge] = useState("");
@@ -28,17 +29,29 @@ const AddPetInfoScreen = ({ navigation }: Props) => {
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
 
+  // Determine where to navigate back based on route
+  const isFromProfile = route.name === "AddPet";
+  const backDestination = isFromProfile ? "Profile" : "Home";
+
   const handleContinue = () => {
     // Validate and save pet info
     if (!petName || !breed || !age || !gender) {
-      alert("Vui lòng điền đầy đủ thông tin!");
+      Alert.alert("Thông báo", "Vui lòng điền đầy đủ thông tin!");
       return;
     }
-    navigation.replace("Home");
+    if (isFromProfile) {
+      navigation.navigate(backDestination);
+    } else {
+      navigation.replace(backDestination);
+    }
   };
 
   const handleSkip = () => {
-    navigation.replace("Home");
+    if (isFromProfile) {
+      navigation.goBack();
+    } else {
+      navigation.replace(backDestination);
+    }
   };
 
   return (
