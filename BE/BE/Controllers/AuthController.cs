@@ -12,6 +12,7 @@ using System.Security.Claims;
 namespace BE.Controllers
 {
     [ApiController]
+    [Route("api")]
     public class AuthController : ControllerBase
     {
         private readonly PawnderDatabaseContext _context;
