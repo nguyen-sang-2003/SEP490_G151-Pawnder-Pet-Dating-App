@@ -150,7 +150,7 @@ const SignUpScreen = ({ navigation }: Props) => {
         <TouchableOpacity 
           activeOpacity={0.9} 
           style={styles.btnShadow}
-          onPress={() => navigation.replace("AddPetInfo")}
+          onPress={() => navigation.replace("AddPetPhotos", { isFromProfile: false })}
         >
           <LinearGradient
             colors={["#FF7AAE", "#FF9BC0"]}

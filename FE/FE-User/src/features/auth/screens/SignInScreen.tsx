@@ -73,7 +73,7 @@ const SignInScreen = ({ navigation }: Props) => {
 
         <Animatable.View ref={buttonRef} style={styles.btnShadow}>
           <TouchableOpacity activeOpacity={0.9} onPressIn={handlePressIn} 
-            onPress={() => navigation.replace("AddPetInfo")}
+            onPress={() => navigation.replace("Home")}
           >
             <LinearGradient
               colors={["#FF6EA7", "#FF9BC0"]}
