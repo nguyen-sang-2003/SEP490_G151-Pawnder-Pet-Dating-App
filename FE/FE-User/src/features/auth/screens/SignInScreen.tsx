@@ -6,18 +6,25 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import * as Animatable from "react-native-animatable";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import HeartsBackground from "../components/HeartsBackground";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { login } from "../../../api";
+import { setItem } from "../../../utils/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SignIn">;
 
 const SignInScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const buttonRef = useRef<Animatable.View & View>(null);
 
@@ -30,6 +37,86 @@ const SignInScreen = ({ navigation }: Props) => {
       },
       400
     );
+  };
+
+  const handleSignIn = async () => {
+    // Validation
+    if (!email.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Oops!',
+        message: 'Vui lòng nhập email của bạn 📧',
+      });
+      return;
+    }
+
+    if (!pass.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Oops!',
+        message: 'Vui lòng nhập mật khẩu 🔒',
+      });
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      showAlert({
+        type: 'error',
+        title: 'Email không hợp lệ',
+        message: 'Vui lòng nhập đúng định dạng email 📧',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await login(email.trim(), pass);
+      
+      // Save userId to AsyncStorage (handle both PascalCase and camelCase)
+      const userId = response.UserId || (response as any).userId;
+      if (userId) {
+        await setItem('userId', userId.toString());
+        console.log('💾 UserId saved to storage:', userId);
+      }
+      
+      // Check if profile is complete
+      console.log('📋 Login response:', JSON.stringify(response, null, 2));
+      
+      // Handle both PascalCase and camelCase from BE
+      const isComplete = response.IsProfileComplete ?? (response as any).isProfileComplete ?? false;
+      
+      console.log('🔍 IsProfileComplete value:', isComplete);
+      console.log('🔍 IsProfileComplete type:', typeof isComplete);
+      
+      if (isComplete === true) {
+        // Profile complete -> Go to Home
+        console.log('✅ Profile is complete, going to Home');
+        showAlert({
+          type: 'success',
+          title: 'Chào mừng! 🎉',
+          message: response.Message || 'Đăng nhập thành công',
+          onClose: () => navigation.replace("Home"),
+        });
+      } else {
+        // Profile incomplete -> Continue onboarding
+        console.log('⚠️ Profile is NOT complete, going to AddPetBasicInfo');
+        showAlert({
+          type: 'info',
+          title: 'Hoàn thành hồ sơ',
+          message: 'Hãy hoàn thành thông tin thú cưng để sử dụng ứng dụng!',
+          confirmText: 'Tiếp tục',
+          onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
+        });
+      }
+    } catch (error: any) {
+      showAlert({
+        type: 'error',
+        title: 'Đăng nhập thất bại 😿',
+        message: error.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,8 +159,11 @@ const SignInScreen = ({ navigation }: Props) => {
         />
 
         <Animatable.View ref={buttonRef} style={styles.btnShadow}>
-          <TouchableOpacity activeOpacity={0.9} onPressIn={handlePressIn} 
-            onPress={() => navigation.replace("Home")}
+          <TouchableOpacity 
+            activeOpacity={0.9} 
+            onPressIn={handlePressIn} 
+            onPress={handleSignIn}
+            disabled={loading}
           >
             <LinearGradient
               colors={["#FF6EA7", "#FF9BC0"]}
@@ -81,7 +171,11 @@ const SignInScreen = ({ navigation }: Props) => {
               end={{ x: 1, y: 1 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Sign in →</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Sign in →</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </Animatable.View>
@@ -101,6 +195,18 @@ const SignInScreen = ({ navigation }: Props) => {
           </Text>
         </Text>
       </View>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+        />
+      )}
     </LinearGradient>
   );
 };
