@@ -95,7 +95,15 @@ namespace BE.Controllers
             _context.Pets.Add(pet);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetPetById), new { petId = pet.PetId }, pet);
+            return Ok(new { 
+                PetId = pet.PetId,
+                UserId = pet.UserId,
+                Name = pet.Name,
+                Gender = pet.Gender,
+                Description = pet.Description,
+                IsActive = pet.IsActive,
+                CreatedAt = pet.CreatedAt
+            });
         }
 
         // PUT /pet/{petId}

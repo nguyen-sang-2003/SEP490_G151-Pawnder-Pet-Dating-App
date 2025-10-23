@@ -47,14 +47,16 @@ namespace BE.Controllers
         [HttpPost("pet-characteristic/{petId}/{attributeId}")]
         public async Task<IActionResult> CreatePetCharacteristic(int petId, int attributeId, [FromBody] PetCharacteristicDTO dto)
         {
+            Console.WriteLine($"CreatePetCharacteristic: petId={petId}, attributeId={attributeId}, OptionId={dto.OptionId}, Value={dto.Value}");
+            
             var pet = await _context.Pets.FindAsync(petId);
-            if (pet == null || pet.IsDeleted != false)
+            if (pet == null || pet.IsDeleted == true)
                 return NotFound(new { message = "Pet không tồn tại." });
 
             var attribute = await _context.Attributes
                 .Include(a => a.AttributeOptions)
                 .FirstOrDefaultAsync(a => a.AttributeId == attributeId);
-            if (attribute == null || attribute.IsDeleted != false)
+            if (attribute == null || attribute.IsDeleted == true)
                 return NotFound(new { message = "Attribute không tồn tại." });
 
             var existing = await _context.PetCharacteristics
@@ -66,8 +68,8 @@ namespace BE.Controllers
             {
                 PetId = petId,
                 AttributeId = attributeId,
-                OptionId = dto.OptionId > 0 ? dto.OptionId : null,
-                Value = dto.Value > 0 ? dto.Value : null,
+                OptionId = dto.OptionId.HasValue && dto.OptionId.Value > 0 ? dto.OptionId : null,
+                Value = dto.Value.HasValue && dto.Value.Value > 0 ? (int?)Convert.ToInt32(dto.Value.Value) : null,
                 UpdatedAt = DateTime.Now,
                 CreatedAt = DateTime.Now
             };
@@ -103,9 +105,9 @@ namespace BE.Controllers
                 return NotFound(new { message = "Đặc điểm này chưa tồn tại cho pet." });
             }
 
-            if (dto.Value != 0)
+            if (dto.Value.HasValue && dto.Value.Value != 0)
             {
-                petChar.Value = dto.Value; 
+                petChar.Value = (int?)Convert.ToInt32(dto.Value.Value); 
             }
             else petChar.Value = null;
 
