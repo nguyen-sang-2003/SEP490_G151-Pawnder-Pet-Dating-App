@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -15,6 +16,10 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import CustomAlert from "../../../components/CustomAlert";
+import { uploadPetPhotosBatch, completeUserProfile } from "../../../api";
+import { getItem } from "../../../utils/storage";
 
 const { width } = Dimensions.get("window");
 const PHOTO_SIZE = (width - 60) / 3; // 3 columns with padding
@@ -27,10 +32,11 @@ interface Photo {
 }
 
 const AddPetPhotosScreen = ({ navigation, route }: Props) => {
+  const { petId, isFromProfile } = route.params;
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [uploading, setUploading] = useState(false);
   const maxPhotos = 6;
-
-  const isFromProfile = route.params?.isFromProfile || false;
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleAddPhoto = () => {
     // TODO: Implement image picker
@@ -74,32 +80,86 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     );
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (photos.length === 0) {
-      Alert.alert("No Photos", "Please add at least one photo of your cat");
+      showAlert({
+        type: 'warning',
+        title: 'Chưa có ảnh',
+        message: 'Vui lòng thêm ít nhất 1 ảnh cho thú cưng!',
+      });
       return;
     }
-    
-    // Navigate to details screen with photos
-    navigation.navigate("AddPetDetails", { 
-      photos: photos.map(p => p.uri),
-      isFromProfile 
-    });
-  };
 
-  const handleSkip = () => {
-    // Navigate to details screen without photos
-    navigation.navigate("AddPetDetails", { 
-      photos: [],
-      isFromProfile 
-    });
+    try {
+      setUploading(true);
+
+      // Upload photos to backend
+      const imageUrls = photos.map(p => p.uri);
+      await uploadPetPhotosBatch(petId, imageUrls);
+
+      console.log('✅ Pet photos uploaded successfully');
+
+      // Mark user profile as complete (if not from profile)
+      if (!isFromProfile) {
+        try {
+          const userIdStr = await getItem('userId');
+          console.log('Retrieved userId from storage:', userIdStr);
+          
+          if (userIdStr) {
+            const userId = parseInt(userIdStr, 10);
+            console.log('Parsed userId:', userId);
+            
+            if (isNaN(userId) || userId <= 0) {
+              console.error('Invalid userId:', userId);
+              throw new Error('Invalid userId');
+            }
+            
+            await completeUserProfile(userId);
+            console.log('✅ User profile marked as complete');
+          } else {
+            console.warn('No userId found in storage');
+          }
+        } catch (err) {
+          console.warn('Failed to mark profile complete, but continuing:', err);
+          // Don't block user if this fails
+        }
+      }
+
+      showAlert({
+        type: 'success',
+        title: 'Hoàn tất! 🎉',
+        message: 'Thú cưng của bạn đã được tạo thành công!',
+        confirmText: 'Về trang chủ',
+        onClose: () => {
+          if (isFromProfile) {
+            navigation.navigate("Profile");
+          } else {
+            navigation.replace("Home");
+          }
+        },
+      });
+    } catch (error: any) {
+      console.error('Error uploading photos:', error);
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.message || 'Không thể tải ảnh lên. Vui lòng thử lại.',
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleBack = () => {
     if (isFromProfile) {
       navigation.goBack();
     } else {
-      navigation.goBack();
+      // Nếu chưa hoàn thành profile, không cho back
+      showAlert({
+        type: 'warning',
+        title: 'Cần hoàn thành hồ sơ',
+        message: 'Bạn cần hoàn tất tạo thú cưng để tiếp tục sử dụng app.',
+      });
     }
   };
 
@@ -116,10 +176,10 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.stepText}>Step 1 of 2</Text>
-          <Text style={styles.title}>Add Cat Photos 📸</Text>
+          <Text style={styles.stepText}>Step 3 of 3</Text>
+          <Text style={styles.title}>Add Pet Photos 📸</Text>
           <Text style={styles.subtitle}>
-            Show off your cat! Add up to {maxPhotos} photos
+            Add at least 1 photo (up to {maxPhotos})
           </Text>
         </View>
       </View>
@@ -202,6 +262,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         <TouchableOpacity
           style={[styles.btnShadow, { flex: 1 }]}
           onPress={handleNext}
+          disabled={uploading}
         >
           <LinearGradient
             colors={gradients.primary}
@@ -209,15 +270,29 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.buttonText}>Next</Text>
-            <Icon name="arrow-forward" size={20} color={colors.white} />
+            {uploading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Finish</Text>
+                <Icon name="checkmark-circle" size={20} color={colors.white} />
+              </>
+            )}
           </LinearGradient>
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleSkip} style={styles.skipBtn}>
-          <Text style={styles.skipText}>Skip photos</Text>
-        </TouchableOpacity>
       </View>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+        />
+      )}
     </LinearGradient>
   );
 };
