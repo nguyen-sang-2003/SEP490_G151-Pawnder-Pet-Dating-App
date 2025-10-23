@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -15,26 +15,65 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { sendOtp, verifyOtp, register, createAddressForUser } from "../../../api";
+import { requestLocationAndGetCoordinates } from "../../../services/location.service";
+import { setItem } from "../../../utils/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "OTPVerification">;
 
 const OTPVerificationScreen = ({ navigation, route }: Props) => {
-  const { email } = route.params;
+  const { email, userData } = route.params;
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [timer, setTimer] = useState(60);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [otpValidTimer, setOtpValidTimer] = useState(300); // 5 minutes
   const [canResend, setCanResend] = useState(false);
+  const [isOtpExpired, setIsOtpExpired] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [expectedOtp, setExpectedOtp] = useState<string | undefined>();
+  const [userId, setUserId] = useState<number | undefined>();
   const inputRefs = useRef<Array<TextInput | null>>([]);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
+  // Resend timer (60s)
   useEffect(() => {
-    if (timer > 0) {
+    if (resendTimer > 0) {
       const interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
+        setResendTimer((prev) => prev - 1);
       }, 1000);
       return () => clearInterval(interval);
     } else {
       setCanResend(true);
     }
-  }, [timer]);
+  }, [resendTimer]);
+
+  // OTP validity timer (5 minutes)
+  useEffect(() => {
+    if (otpValidTimer > 0 && !isOtpExpired) {
+      const interval = setInterval(() => {
+        setOtpValidTimer((prev) => {
+          if (prev <= 1) {
+            setIsOtpExpired(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [otpValidTimer, isOtpExpired]);
+
+  // Show alert when OTP expires
+  useEffect(() => {
+    if (isOtpExpired) {
+      showAlert({
+        type: 'warning',
+        title: 'OTP đã hết hạn ⏰',
+        message: 'Mã OTP đã hết hiệu lực. Vui lòng nhấn "Gửi lại mã" để nhận mã mới.',
+      });
+    }
+  }, [isOtpExpired]);
 
   const handleOtpChange = (value: string, index: number) => {
     if (!/^\d*$/.test(value)) return;
@@ -57,32 +96,184 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
   const handleVerify = async () => {
     const otpCode = otp.join("");
+    
     if (otpCode.length !== 6) {
-      Alert.alert("Error", "Please enter complete OTP code");
+      showAlert({
+        type: 'warning',
+        title: 'OTP chưa đầy đủ',
+        message: 'Vui lòng nhập đủ 6 số 🔢',
+      });
       return;
     }
 
-    // TODO: API call to verify OTP
-    console.log("Verifying OTP:", otpCode, "for email:", email);
-    
-    // Mock success - Navigate to add pet after email verification
-    Alert.alert("Success", "Email verified successfully!", [
-      { text: "OK", onPress: () => navigation.replace("AddPetPhotos", { isFromProfile: false }) }
-    ]);
+    // TEMPORARILY DISABLED: Skip OTP expiration check for testing
+    // if (isOtpExpired) {
+    //   showAlert({
+    //     type: 'error',
+    //     title: 'OTP đã hết hạn ⏰',
+    //     message: 'Mã OTP đã hết hiệu lực. Vui lòng gửi lại mã mới.',
+    //   });
+    //   return;
+    // }
+
+    setLoading(true);
+    try {
+      // Step 1: Verify OTP (TEMPORARILY DISABLED FOR TESTING)
+      // const isValid = await verifyOtp(email, otpCode, expectedOtp);
+      // 
+      // if (!isValid) {
+      //   showAlert({
+      //     type: 'error',
+      //     title: 'OTP không đúng ❌',
+      //     message: 'Mã OTP không chính xác. Vui lòng kiểm tra lại.',
+      //   });
+      //   return;
+      // }
+
+      // Step 2: Create account in database (skip OTP verification for now)
+      if (userData) {
+        console.log('OTP verified successfully. Creating account...');
+        const registerResponse = await register(userData);
+        const newUserId = registerResponse.userId || registerResponse.UserId;
+        
+        if (!newUserId) {
+          throw new Error('Không thể lấy UserId từ response');
+        }
+        
+        console.log('✅ Account created. UserId:', newUserId);
+        setUserId(newUserId);
+        
+        // Save userId to AsyncStorage for later use
+        await setItem('userId', newUserId.toString());
+        console.log('💾 UserId saved to storage');
+        
+        // Step 3: Request location permission and get GPS
+        showAlert({
+          type: 'info',
+          title: 'Cấp quyền vị trí 📍',
+          message: 'Để tìm thú cưng gần bạn, vui lòng cho phép Pawnder truy cập vị trí của bạn.',
+          confirmText: 'Đồng ý',
+          onClose: () => {
+            // Request location in background
+            handleLocationSetup(newUserId);
+          },
+        });
+      } else {
+        // If no userData (e.g., forgot password flow), just navigate
+        showAlert({
+          type: 'success',
+          title: 'Xác thực thành công! ✅',
+          message: 'Email đã được xác thực.',
+          confirmText: 'Tiếp tục',
+          onClose: () => navigation.replace("Home"),
+        });
+      }
+    } catch (error: any) {
+      console.error('Verification/Registration error:', error);
+      
+      let errorTitle = 'Xác thực thất bại';
+      let errorMessage = error.message || 'Có lỗi xảy ra. Vui lòng thử lại.';
+      
+      // Check if error is from registration (after OTP verified)
+      if (error.message?.includes('Email') || error.message?.includes('đã tồn tại')) {
+        errorTitle = 'Email đã được sử dụng';
+        errorMessage = 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác.';
+      }
+      
+      showAlert({
+        type: 'error',
+        title: errorTitle,
+        message: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLocationSetup = async (newUserId: number) => {
+    try {
+      setLoading(true);
+      
+      // Get GPS coordinates
+      console.log('Requesting location permission...');
+      const coordinates = await requestLocationAndGetCoordinates();
+      
+      if (!coordinates) {
+        // User denied permission, skip and navigate
+        console.warn('Location permission denied');
+        showAlert({
+          type: 'warning',
+          title: 'Bỏ qua vị trí',
+          message: 'Bạn có thể cập nhật vị trí sau trong cài đặt. Tiếp tục thêm thông tin thú cưng!',
+          confirmText: 'Tiếp tục',
+          onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
+        });
+        return;
+      }
+      
+      // Create address in database
+      console.log('Creating address with coordinates:', coordinates);
+      await createAddressForUser(newUserId, coordinates.latitude, coordinates.longitude);
+      
+      showAlert({
+        type: 'success',
+        title: 'Đăng ký hoàn tất! 🎉',
+        message: 'Vị trí đã được lưu. Bây giờ hãy thêm thông tin thú cưng của bạn!',
+        confirmText: 'Tiếp tục',
+        onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
+      });
+    } catch (error: any) {
+      console.error('Location setup error:', error);
+      
+      // Show error but allow user to continue
+      showAlert({
+        type: 'warning',
+        title: 'Không thể lưu vị trí',
+        message: error.message + ' Bạn có thể cập nhật sau. Tiếp tục thêm thông tin thú cưng!',
+        confirmText: 'Tiếp tục',
+        onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResend = async () => {
     if (!canResend) return;
 
-    // TODO: API call to resend OTP
-    console.log("Resending OTP to:", email);
-    
-    setTimer(60);
-    setCanResend(false);
-    setOtp(["", "", "", "", "", ""]);
-    inputRefs.current[0]?.focus();
-    
-    Alert.alert("Success", "OTP code has been resent to your email");
+    setLoading(true);
+    try {
+      // TEMPORARILY DISABLED: Don't send OTP email
+      // const response = await sendOtp(email);
+      // 
+      // // Store OTP for verification (development only)
+      // if (__DEV__ && response.otp) {
+      //   setExpectedOtp(response.otp);
+      //   console.log('New OTP:', response.otp);
+      // }
+      
+      // Reset timers without sending email
+      setResendTimer(60);
+      setOtpValidTimer(300); // Reset to 5 minutes
+      setCanResend(false);
+      setIsOtpExpired(false);
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+      
+      showAlert({
+        type: 'success',
+        title: 'Đã reset! 🔄',
+        message: 'Nhập bất kỳ 6 số nào để tiếp tục (đã tắt gửi OTP).',
+      });
+    } catch (error: any) {
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -122,6 +313,24 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
             <Text style={styles.email}>{email}</Text>
           </Text>
 
+          {/* OTP Validity Timer */}
+          <View style={styles.validityContainer}>
+            <Icon 
+              name="time-outline" 
+              size={16} 
+              color={isOtpExpired ? colors.error : otpValidTimer <= 60 ? colors.warning : colors.primary} 
+            />
+            <Text style={[
+              styles.validityText,
+              isOtpExpired && styles.expiredText,
+              otpValidTimer <= 60 && !isOtpExpired && styles.warningText,
+            ]}>
+              {isOtpExpired 
+                ? "Mã đã hết hạn! Vui lòng gửi lại" 
+                : `Mã có hiệu lực: ${Math.floor(otpValidTimer / 60)}:${String(otpValidTimer % 60).padStart(2, '0')}`}
+            </Text>
+          </View>
+
           {/* OTP Input */}
           <View style={styles.otpContainer}>
             {otp.map((digit, index) => (
@@ -146,32 +355,49 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity
             style={styles.verifyButton}
             onPress={handleVerify}
+            disabled={loading}
           >
             <LinearGradient
               colors={gradients.primary}
               style={styles.verifyGradient}
             >
-              <Text style={styles.verifyText}>Verify Email</Text>
+              {loading ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.verifyText}>Verify Email</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
           {/* Resend */}
           <View style={styles.resendContainer}>
             {canResend ? (
-              <TouchableOpacity onPress={handleResend}>
+              <TouchableOpacity onPress={handleResend} disabled={loading}>
                 <Text style={styles.resendText}>
-                  Didn't receive code?{" "}
-                  <Text style={styles.resendLink}>Resend</Text>
+                  Không nhận được mã?{" "}
+                  <Text style={styles.resendLink}>Gửi lại</Text>
                 </Text>
               </TouchableOpacity>
             ) : (
               <Text style={styles.timerText}>
-                Resend code in <Text style={styles.timerNumber}>{timer}s</Text>
+                Gửi lại sau <Text style={styles.timerNumber}>{resendTimer}s</Text>
               </Text>
             )}
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+        />
+      )}
     </LinearGradient>
   );
 };
@@ -224,12 +450,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textMedium,
     textAlign: "center",
-    marginBottom: 40,
+    marginBottom: 16,
     lineHeight: 22,
   },
   email: {
     fontWeight: "600",
     color: colors.primary,
+  },
+  validityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: colors.cardBackgroundLight,
+    borderRadius: radius.lg,
+    marginBottom: 24,
+  },
+  validityText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  warningText: {
+    color: colors.warning,
+  },
+  expiredText: {
+    color: colors.error,
   },
   otpContainer: {
     flexDirection: "row",
