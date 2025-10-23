@@ -8,6 +8,8 @@ import {
     Dimensions,
     Animated,
     PanResponder,
+    SafeAreaView,
+    StatusBar,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -18,8 +20,8 @@ import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
 
 const { width, height } = Dimensions.get("window");
-const CARD_WIDTH = width - 40;
-const CARD_HEIGHT = height * 0.62;
+const CARD_WIDTH = width - 32;
+const CARD_HEIGHT = height * 0.75; // Tăng từ 0.62 lên 0.75
 const SWIPE_THRESHOLD = width * 0.25;
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
@@ -277,6 +279,27 @@ const HomeScreen = ({ navigation }: Props) => {
                                 <Icon name="person-outline" size={14} color={colors.white} />
                                 <Text style={styles.ownerText}>Owner: {pet.owner}</Text>
                             </View>
+
+                            {/* Action Buttons on Card */}
+                            {isCurrentCard && (
+                                <View style={styles.cardActions}>
+                                    <TouchableOpacity 
+                                        style={styles.cardActionBtnNope} 
+                                        onPress={handleNope}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Icon name="close" size={36} color="#FF3B30" />
+                                    </TouchableOpacity>
+                                    
+                                    <TouchableOpacity 
+                                        style={styles.cardActionBtnLike} 
+                                        onPress={handleLike}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Icon name="heart" size={36} color="#FF6EA7" />
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
                     </LinearGradient>
                 </View>
@@ -290,6 +313,8 @@ const HomeScreen = ({ navigation }: Props) => {
                 colors={gradients.background}
                 style={styles.container}
             >
+                <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+                <SafeAreaView style={{ flex: 0 }} />
                 {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.headerLeft}>
@@ -351,6 +376,8 @@ const HomeScreen = ({ navigation }: Props) => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
         >
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+            <SafeAreaView style={{ flex: 0 }} />
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
@@ -384,31 +411,6 @@ const HomeScreen = ({ navigation }: Props) => {
             {/* Cards */}
             <View style={styles.cardsContainer}>
                 {pets.map((pet, index) => renderCard(pet, index)).reverse()}
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionBtnLarge} onPress={handleNope}>
-                    <Icon name="close" size={32} color={colors.error} />
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                    style={styles.actionBtnSmall}
-                    onPress={() => navigation.navigate("UserPreference")}
-                >
-                    <Icon name="options-outline" size={26} color={colors.primary} />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.actionBtnHeart} onPress={handleLike}>
-                    <LinearGradient
-                        colors={gradients.primary}
-                        style={styles.heartGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <Icon name="heart" size={36} color={colors.white} />
-                    </LinearGradient>
-                </TouchableOpacity>
             </View>
 
             {/* Match Modal */}
@@ -463,8 +465,8 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingTop: 50,
-        paddingBottom: 16,
+        paddingTop: 16, // Giảm từ 50 xuống 16
+        paddingBottom: 12,
     },
     headerLeft: { 
         flexDirection: "row", 
@@ -523,6 +525,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        marginTop: -20, // Đẩy card lên gần header hơn
     },
     card: {
         position: "absolute",
@@ -644,56 +647,36 @@ const styles = StyleSheet.create({
         color: colors.white,
     },
 
-    // Actions
-    actions: {
-        position: "absolute",
-        bottom: 100,
-        left: 0,
-        right: 0,
+    // Card Actions (X and Heart buttons)
+    cardActions: {
         flexDirection: "row",
         justifyContent: "center",
         alignItems: "center",
-        gap: 20,
-        paddingHorizontal: 40,
+        gap: 24,
+        marginTop: 20,
+        paddingBottom: 16,
     },
-    
-    actionBtnSmall: {
+    cardActionBtnNope: {
         backgroundColor: colors.whiteWarm,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        justifyContent: "center",
-        alignItems: "center",
-        ...shadows.medium,
-    },
-    
-    actionBtnLarge: {
-        backgroundColor: colors.whiteWarm,
-        width: 70,
-        height: 70,
-        borderRadius: 35,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         justifyContent: "center",
         alignItems: "center",
         ...shadows.large,
+        borderWidth: 3,
+        borderColor: "#FF3B30",
     },
-    
-    actionBtnHeart: {
-        width: 70,
-        height: 70,
-        borderRadius: 35,
-        shadowColor: colors.primary,
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 8,
-    },
-    
-    heartGradient: {
-        width: "100%",
-        height: "100%",
-        borderRadius: 35,
+    cardActionBtnLike: {
+        backgroundColor: colors.whiteWarm,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         justifyContent: "center",
         alignItems: "center",
+        ...shadows.large,
+        borderWidth: 3,
+        borderColor: "#FF6EA7",
     },
 
     // No More Cards
