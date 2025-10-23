@@ -1,7 +1,9 @@
 export { apiClient } from './client';
 
-// Export API service modules here as you create them
-// export * from './auth';
-// export * from './pets';
-// export * from './matches';
+// Export API service modules
+export * from './auth';
+export * from './otp';
+export * from './address';
+export * from './attributes';
+export * from './pet';
 

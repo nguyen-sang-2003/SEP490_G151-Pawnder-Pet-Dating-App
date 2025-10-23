@@ -6,9 +6,9 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
 import SignInScreen from "../features/auth/screens/SignInScreen";
 import SignUpScreen from "../features/auth/screens/SignUpScreen";
-import AddPetInfoScreen from "../features/auth/screens/AddPetInfoScreen";
+import AddPetBasicInfoScreen from "../features/auth/screens/AddPetBasicInfoScreen";
+import AddPetCharacteristicsScreen from "../features/auth/screens/AddPetCharacteristicsScreen";
 import AddPetPhotosScreen from "../features/auth/screens/AddPetPhotosScreen";
-import AddPetDetailsScreen from "../features/auth/screens/AddPetDetailsScreen";
 import OTPVerificationScreen from "../features/auth/screens/OTPVerificationScreen";
 import ForgotPasswordScreen from "../features/auth/screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "../features/auth/screens/ResetPasswordScreen";
@@ -45,12 +45,20 @@ export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
   SignUp: undefined;
-  OTPVerification: { email: string };
+  OTPVerification: { 
+    email: string;
+    userData?: {
+      FullName: string;
+      Gender: string;
+      Email: string;
+      Password: string;
+    };
+  };
   ForgotPassword: undefined;
   ResetPassword: { email: string };
-  AddPetInfo: undefined;
-  AddPetPhotos: { isFromProfile?: boolean };
-  AddPetDetails: { photos: string[]; isFromProfile?: boolean };
+  AddPetBasicInfo: { isFromProfile?: boolean };
+  AddPetCharacteristics: { petId: number; isFromProfile?: boolean };
+  AddPetPhotos: { petId: number; isFromProfile?: boolean };
   Home: undefined;
   Chat: undefined;
   ChatDetail: { chatId: string; userName: string; userAvatar?: any };
@@ -81,9 +89,9 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Wrapper component for AddPet to use new flow
+// Wrapper component for AddPet from Profile to use new flow
 const AddPetScreen = (props: any) => {
-  return <AddPetPhotosScreen {...props} route={{ ...props.route, params: { isFromProfile: true } }} />;
+  return <AddPetBasicInfoScreen {...props} route={{ ...props.route, params: { isFromProfile: true } }} />;
 };
 
 const AppNavigator = () => {
@@ -99,9 +107,9 @@ const AppNavigator = () => {
         <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-        <Stack.Screen name="AddPetInfo" component={AddPetInfoScreen} />
+        <Stack.Screen name="AddPetBasicInfo" component={AddPetBasicInfoScreen} />
+        <Stack.Screen name="AddPetCharacteristics" component={AddPetCharacteristicsScreen} />
         <Stack.Screen name="AddPetPhotos" component={AddPetPhotosScreen} />
-        <Stack.Screen name="AddPetDetails" component={AddPetDetailsScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
         <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />

@@ -1,25 +1,45 @@
 import axios from 'axios';
+import * as Keychain from 'react-native-keychain';
+import { getBaseUrl, API_CONFIG } from '../config/api.config';
 
-// Base API URL - update this with your actual backend URL
-const BASE_URL = 'http://localhost:5000/api';
+// Get base URL from config
+const BASE_URL = getBaseUrl();
 
 // Create axios instance with default config
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: API_CONFIG.TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+/**
+ * Get stored auth token
+ */
+const getStoredToken = async (): Promise<string | null> => {
+  try {
+    const credentials = await Keychain.getGenericPassword({
+      service: 'pawnder.auth',
+    });
+    if (credentials) {
+      return credentials.password;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting stored token:', error);
+    return null;
+  }
+};
+
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
-  config => {
-    // Add auth token from storage here if needed
-    // const token = await getStoredToken();
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+  async config => {
+    // Add auth token from storage if available
+    const token = await getStoredToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   error => {
@@ -30,10 +50,18 @@ apiClient.interceptors.request.use(
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   response => response,
-  error => {
+  async error => {
     if (error.response?.status === 401) {
       // Handle unauthorized access (e.g., redirect to login)
-      console.log('Unauthorized access - redirecting to login');
+      console.log('Unauthorized access - clearing token');
+      // Clear invalid token
+      try {
+        await Keychain.resetGenericPassword({
+          service: 'pawnder.auth',
+        });
+      } catch (e) {
+        console.error('Error clearing token:', e);
+      }
     }
     return Promise.reject(error);
   },
