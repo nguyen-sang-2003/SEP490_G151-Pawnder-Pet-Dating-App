@@ -38,6 +38,9 @@ namespace BE.Controllers
 			string url = $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={latStr}&lon={lonStr}";
 
 			string fullAddress;
+			string city = null;
+			string district = null;
+			string ward = null;
 
 			try
 			{
@@ -48,16 +51,61 @@ namespace BE.Controllers
 				if (response.IsSuccessStatusCode)
 				{
 					var json = await response.Content.ReadAsStringAsync();
+					
+					// DEBUG: Log raw JSON response
+					Console.WriteLine("=== OpenStreetMap Response ===");
+					Console.WriteLine(json);
+					Console.WriteLine("==============================");
+					
 					var osmResult = JsonSerializer.Deserialize<OpenStreetMapResponse>(json);
 					fullAddress = osmResult?.display_name;
+
+					// Parse City, District, Ward from address components
+					if (osmResult?.address != null)
+					{
+						var addr = osmResult.address;
+						
+						// DEBUG: Log all address fields
+						Console.WriteLine("=== Address Components ===");
+						Console.WriteLine($"city: {addr.city}");
+						Console.WriteLine($"town: {addr.town}");
+						Console.WriteLine($"province: {addr.province}");
+						Console.WriteLine($"state: {addr.state}");
+						Console.WriteLine($"suburb: {addr.suburb}");
+						Console.WriteLine($"city_district: {addr.city_district}");
+						Console.WriteLine($"state_district: {addr.state_district}");
+						Console.WriteLine($"county: {addr.county}");
+						Console.WriteLine($"quarter: {addr.quarter}");
+						Console.WriteLine($"neighbourhood: {addr.neighbourhood}");
+						Console.WriteLine("=========================");
+						
+						// City: city > town > province > state
+						string rawCity = addr.city ?? addr.town ?? addr.province ?? addr.state;
+						city = CleanVietnameseAddress(rawCity, new[] { "Thành phố", "Tỉnh" });
+						
+						// District: city_district > state_district > county
+						string rawDistrict = addr.city_district ?? addr.state_district ?? addr.county;
+						district = CleanVietnameseAddress(rawDistrict, new[] { "Quận", "Huyện" });
+						
+						// Ward: suburb > quarter > neighbourhood
+						string rawWard = addr.suburb ?? addr.quarter ?? addr.neighbourhood;
+						ward = CleanVietnameseAddress(rawWard, new[] { "Phường", "Xã", "Thị trấn" });
+						
+						Console.WriteLine($"Parsed - City: {city}, District: {district}, Ward: {ward}");
+					}
+					else
+					{
+						Console.WriteLine("WARNING: No address components in response");
+					}
 				}
 				else
 				{
 					fullAddress = null;
 				}
 			}
-			catch
+			catch (Exception ex)
 			{
+				Console.WriteLine($"ERROR parsing address: {ex.Message}");
 				fullAddress = null;
 			}
 
@@ -71,6 +119,9 @@ namespace BE.Controllers
 				Latitude = locationDto.Latitude,
 				Longitude = locationDto.Longitude,
 				FullAddress = fullAddress,
+				City = city,
+				District = district,
+				Ward = ward,
 				CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
 				UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
 			};
@@ -129,6 +180,20 @@ namespace BE.Controllers
 				address.FullAddress = !string.IsNullOrEmpty(osmResult?.display_name)
 					? osmResult.display_name
 					: $"Địa chỉ sai, Lat:{latStr}, Lon:{lonStr}";
+
+				// Parse City, District, Ward
+				if (osmResult?.address != null)
+				{
+					var addr = osmResult.address;
+					string rawCity = addr.city ?? addr.town ?? addr.province ?? addr.state;
+					address.City = CleanVietnameseAddress(rawCity, new[] { "Thành phố", "Tỉnh" });
+					
+					string rawDistrict = addr.city_district ?? addr.state_district ?? addr.county;
+					address.District = CleanVietnameseAddress(rawDistrict, new[] { "Quận", "Huyện" });
+					
+					string rawWard = addr.suburb ?? addr.quarter ?? addr.neighbourhood;
+					address.Ward = CleanVietnameseAddress(rawWard, new[] { "Phường", "Xã", "Thị trấn" });
+				}
 			}
 			else
 			{
@@ -175,6 +240,25 @@ namespace BE.Controllers
 					UpdatedAt = address.UpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss")
 				}
 			});
+		}
+
+		// Helper method to clean Vietnamese address prefixes
+		private string CleanVietnameseAddress(string rawAddress, string[] prefixes)
+		{
+			if (string.IsNullOrEmpty(rawAddress))
+				return null;
+
+			string cleaned = rawAddress.Trim();
+			foreach (var prefix in prefixes)
+			{
+				// Remove prefix (case-insensitive)
+				if (cleaned.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+				{
+					cleaned = cleaned.Substring(prefix.Length).Trim();
+					break;
+				}
+			}
+			return string.IsNullOrEmpty(cleaned) ? null : cleaned;
 		}
 	}
 }

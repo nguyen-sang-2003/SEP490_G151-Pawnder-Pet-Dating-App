@@ -39,6 +39,13 @@ namespace BE.Controllers
             if (!isPasswordValid)
                 return Unauthorized("Sai mật khẩu");
             
+            // Auto-upgrade legacy SHA256 passwords to BCrypt
+            if (_passwordService.IsLegacyHash(user.PasswordHash))
+            {
+                user.PasswordHash = _passwordService.HashPassword(request.Password);
+                // Will save below with token update
+            }
+            
             var token = _tokenService.GenerateToken(user.UserId,user.Role.RoleName);
 
             user.TokenJwt = token;
@@ -48,7 +55,11 @@ namespace BE.Controllers
             return Ok(new
             {
                 Message = "Đăng nhập thành công",
-                Token = token
+                Token = token,
+                UserId = user.UserId,
+                FullName = user.FullName,
+                Email = user.Email,
+                IsProfileComplete = user.IsProfileComplete
             });
         }
 

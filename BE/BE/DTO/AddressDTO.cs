@@ -9,5 +9,20 @@
 	public class OpenStreetMapResponse
 	{
 		public string? display_name { get; set; }
+		public AddressComponents? address { get; set; }
+	}
+
+	public class AddressComponents
+	{
+		public string? city { get; set; }
+		public string? town { get; set; }
+		public string? province { get; set; }
+		public string? state { get; set; }
+		public string? county { get; set; }
+		public string? suburb { get; set; }
+		public string? quarter { get; set; }
+		public string? neighbourhood { get; set; }
+		public string? city_district { get; set; }
+		public string? state_district { get; set; }
 	}
 }

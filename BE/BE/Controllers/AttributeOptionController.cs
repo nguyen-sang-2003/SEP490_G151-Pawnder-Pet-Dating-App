@@ -15,6 +15,27 @@ namespace BE.Controllers
             _context = context;
         }
 
+        // GET /api/attribute-option/{attributeId}
+        [HttpGet("{attributeId}")]
+        public async Task<IActionResult> GetOptionsByAttribute(int attributeId)
+        {
+            var attribute = await _context.Attributes.FindAsync(attributeId);
+            if (attribute == null || attribute.IsDeleted != false)
+                return NotFound(new { message = "Không tìm thấy attribute tương ứng." });
+
+            var options = await _context.AttributeOptions
+                .Where(o => o.AttributeId == attributeId && o.IsDeleted == false)
+                .Select(o => new
+                {
+                    OptionId = o.OptionId,
+                    Name = o.Name,
+                    AttributeId = o.AttributeId
+                })
+                .ToListAsync();
+
+            return Ok(options);
+        }
+
         // POST /attribute-option/{AttributeId}
         [HttpPost("attribute-option/{attributeId}")]
         public async Task<IActionResult> CreateOption(int attributeId, [FromBody] string optionName)

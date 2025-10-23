@@ -1,6 +1,7 @@
 ﻿using System.Net.Mime;
 using BE.DTO;
 using BE.Models;
+using BE.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace BE.Controllers;
 public class UserController : ControllerBase
 {
     private readonly PawnderDatabaseContext _db;
+    private readonly PasswordService _passwordService;
 
     public UserController(PawnderDatabaseContext db)
     {
         _db = db;
+        _passwordService = new PasswordService();
     }
 
     // GET /user?search=&roleId=&statusId=&page=1&pageSize=20&includeDeleted=false
@@ -114,10 +117,8 @@ public class UserController : ControllerBase
         if (emailExists)
             return Conflict(new { message = "Email đã tồn tại" });
 
-        // Hash password – tuỳ thư viện bạn dùng. Ví dụ BCrypt.Net-Next:
-        // var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
-        // Nếu bạn đã hash ở nơi khác, hãy gán trực tiếp PasswordHash.
-        var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
+        // Hash password using PasswordService (SHA256 - same as Login)
+        var hashed = _passwordService.HashPassword(req.Password);
 
         var entity = new BE.Models.User
         {
@@ -138,7 +139,7 @@ public class UserController : ControllerBase
 
         var resp = new UserResponse
         {
-            
+            UserId = entity.UserId,
             RoleId = entity.RoleId,
             UserStatusId = entity.UserStatusId,
             AddressId = entity.AddressId,
@@ -151,7 +152,7 @@ public class UserController : ControllerBase
             UpdatedAt = entity.UpdatedAt
         };
 
-        return CreatedAtAction(nameof(GetUser), new { userId = resp.UserId }, resp);
+        return CreatedAtAction(nameof(GetUser), new { userId = entity.UserId }, resp);
     }
 
     // PUT /user/{userId}
@@ -222,4 +223,31 @@ public class UserController : ControllerBase
 
     //Cap nhat nguoi dung by Admin
 
+    // PATCH /user/{id}/complete-profile
+    [HttpPatch("{id:int}/complete-profile")]
+    public async Task<ActionResult> CompleteProfile(int id, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == id, ct);
+            
+            if (user == null)
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            user.IsProfileComplete = true;
+            user.UpdatedAt = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new { 
+                message = "Đã hoàn thành hồ sơ.",
+                isProfileComplete = true
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Lỗi: {ex.Message}" });
+        }
+    }
 }
+
