@@ -65,8 +65,22 @@ namespace BE.Controllers
                         Unit = a.Unit,
                         IsDeleted = a.IsDeleted,
                         CreatedAt = a.CreatedAt,
-                        UpdatedAt = a.UpdatedAt
-                    })
+                        UpdatedAt = a.UpdatedAt,
+
+                        optionRespones = a.AttributeOptions
+                    .Where(o => includeDeleted || o.IsDeleted == false)
+                    .Select(o => new OptionRespone
+                    {
+                        OptionId = o.OptionId,
+                        AttributeId = o.AttributeId,
+                        Name = o.Name,
+                        IsDeleted = o.IsDeleted
+                    }).ToList()
+
+                    }
+                    
+                    
+                    )
                     .ToListAsync(ct);
 
                 return Ok(new

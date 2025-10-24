@@ -1,4 +1,5 @@
-﻿using BE.Models;
+﻿using BE.DTO;
+using BE.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,23 @@ namespace BE.Controllers
         public AttributeOptionController(PawnderDatabaseContext context)
         {
             _context = context;
+        }
+        // GET /attribute-option
+        [HttpGet("attribute-option")]
+        public async Task<IActionResult> GetAllOptions()
+        {
+            var options = await _context.AttributeOptions
+                .Where(o => o.IsDeleted == false)
+                .Select(o => new OptionResponse
+                {
+                    OptionId = o.OptionId,
+                    AttributeId = o.AttributeId,
+                    Name = o.Name,
+                    IsDeleted = o.IsDeleted
+                })
+                .ToListAsync();
+
+            return Ok(options);
         }
 
         // GET /api/attribute-option/{attributeId}

@@ -38,8 +38,7 @@ namespace BE.Controllers
             if (request.userStatusId.HasValue)
                 entity.UserStatusId = request.userStatusId.Value;
 
-            if (request.RoleId.HasValue)
-                entity.RoleId = request.RoleId.Value;
+   
 
             entity.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);

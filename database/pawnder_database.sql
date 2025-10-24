@@ -13,7 +13,7 @@ CREATE TABLE "Role" (
 );
 
 -- ===========================
--- TABLE: UserStatus
+-- TABLE: UserStatuss
 -- ===========================
 CREATE TABLE "UserStatus" (
     "UserStatusId" SERIAL PRIMARY KEY,
@@ -118,9 +118,13 @@ CREATE TABLE "Pet" (
 -- TABLE: PetPhoto
 -- ===========================
 CREATE TABLE "PetPhoto" (
-    "PhotoId" SERIAL PRIMARY KEY,
-    "PetId" INT REFERENCES "Pet"("PetId"),
-    "ImageUrl" TEXT NOT NULL,
+    "PhotoId"   SERIAL PRIMARY KEY,
+    "PetId"     INT NOT NULL REFERENCES "Pet"("PetId"),
+    "ImageUrl"       TEXT NOT NULL,        -- đổi từ ImageUrl -> Url (khớp EF & code)
+    "PublicId"  TEXT,                 -- để xóa Cloudinary
+    "IsPrimary" BOOLEAN DEFAULT FALSE,
+    "SortOrder" INT DEFAULT 0,
+    "IsDeleted" BOOLEAN DEFAULT FALSE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
