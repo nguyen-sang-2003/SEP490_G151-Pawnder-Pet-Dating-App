@@ -1,14 +1,30 @@
 using BE.Models;
 using BE.Services;
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("Cloudinary"));
+
+builder.Services.AddSingleton<Cloudinary>(sp =>
+{
+    var s = sp.GetRequiredService<IOptions<CloudinarySettings>>().Value;
+    var account = new Account(s.CloudName, s.ApiKey, s.ApiSecret);
+    var cloud = new Cloudinary(account);
+    cloud.Api.Secure = true;
+    return cloud;
+});
+
+// storage abstraction
+builder.Services.AddScoped<IPhotoStorage, CloudinaryPhotoStorage>();
 // Add services to the container.
 //Address service
 builder.Services.AddHttpClient();
@@ -73,3 +89,16 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+public class CloudinarySettings
+{
+    public string CloudName { get; set; } = null!;
+    public string ApiKey { get; set; } = null!;
+    public string ApiSecret { get; set; } = null!;
+    public string Folder { get; set; } = "pawnder/pets";
+}
+
+public interface IPhotoStorage
+{
+    Task<(string Url, string PublicId)> UploadAsync(int petId, IFormFile file, CancellationToken ct = default);
+    Task DeleteAsync(string publicId, CancellationToken ct = default);
+}
