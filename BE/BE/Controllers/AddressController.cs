@@ -10,6 +10,7 @@ using System.Text.Json;
 namespace BE.Controllers
 {
 	[ApiController]
+	[Route("[controller]")]
 	public class AddressController : ControllerBase
 	{
 		private readonly PawnderDatabaseContext _context;
@@ -21,7 +22,7 @@ namespace BE.Controllers
 			_httpClient = httpClientFactory.CreateClient();
 		}
 
-		[HttpPost("address/{userId}")]
+		[HttpPost("{userId}")]
 		public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto)
 		{
 			var user = await _context.Users.FindAsync(userId);
@@ -153,7 +154,7 @@ namespace BE.Controllers
 		}
 
 		// PUT: /address/{addressId}
-		[HttpPut("address/{addressId}")]
+		[HttpPut("{addressId}")]
 		public async Task<IActionResult> UpdateAddress(int addressId, [FromBody] LocationDto locationDto)
 		{
 			var address = await _context.Addresses.FindAsync(addressId);
@@ -217,8 +218,45 @@ namespace BE.Controllers
 			});
 		}
 
+		// PATCH: /address/{addressId}/manual
+		[HttpPatch("{addressId}/manual")]
+		public async Task<IActionResult> UpdateAddressManual(int addressId, [FromBody] ManualAddressDto dto)
+		{
+			var address = await _context.Addresses.FindAsync(addressId);
+			if (address == null)
+				return NotFound(new { message = "Không tìm thấy địa chỉ" });
+
+			// Update fields
+			if (!string.IsNullOrEmpty(dto.City))
+				address.City = dto.City;
+			if (!string.IsNullOrEmpty(dto.District))
+				address.District = dto.District;
+			if (!string.IsNullOrEmpty(dto.Ward))
+				address.Ward = dto.Ward;
+
+			// Update FullAddress
+			address.FullAddress = $"{dto.Ward}, {dto.District}, {dto.City}".Trim(' ', ',');
+			address.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+
+			await _context.SaveChangesAsync();
+
+			return Ok(new
+			{
+				message = "Cập nhật địa chỉ thành công",
+				Address = new
+				{
+					address.AddressId,
+					address.City,
+					address.District,
+					address.Ward,
+					address.FullAddress,
+					address.UpdatedAt
+				}
+			});
+		}
+
 		// GET: /address/{addressId}
-		[HttpGet("address/{addressId}")]
+		[HttpGet("{addressId}")]
 		public async Task<IActionResult> GetAddressById(int addressId)
 		{
 			var address = await _context.Addresses.FindAsync(addressId);

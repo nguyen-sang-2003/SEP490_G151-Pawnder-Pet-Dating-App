@@ -13,6 +13,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { removeAuthToken } from "../../../api/auth";
+import { removeItem } from "../../../utils/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -31,7 +33,7 @@ const SettingsScreen = ({ navigation }: Props) => {
       icon: "person-outline",
       title: "Edit Profile",
       subtitle: "Update your personal information",
-      onPress: () => navigation.navigate("EditProfile"),
+      onPress: () => navigation.navigate("EditProfile", {}),
     },
     {
       icon: "paw-outline",
@@ -117,6 +119,21 @@ const SettingsScreen = ({ navigation }: Props) => {
     },
   ];
 
+  const handleLogout = async () => {
+    try {
+      await removeAuthToken();
+      await removeItem('userId');
+      console.log('🔓 Logged out successfully');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      Alert.alert('Error', 'Failed to logout');
+    }
+  };
+
   const dangerSettings: SettingsItem[] = [
     {
       icon: "log-out-outline",
@@ -130,7 +147,7 @@ const SettingsScreen = ({ navigation }: Props) => {
             {
               text: "Sign Out",
               style: "destructive",
-              onPress: () => navigation.navigate("SignIn"),
+              onPress: handleLogout,
             },
           ]
         );
@@ -169,7 +186,7 @@ const SettingsScreen = ({ navigation }: Props) => {
         <View
           style={[
             styles.settingsIcon,
-            item.iconColor && { backgroundColor: `${item.iconColor}15` },
+            item.iconColor ? { backgroundColor: `${item.iconColor}15` } : {},
           ]}
         >
           <Icon

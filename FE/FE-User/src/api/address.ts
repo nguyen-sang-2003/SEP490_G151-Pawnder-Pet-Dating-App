@@ -86,14 +86,48 @@ export const updateAddress = async (
  */
 export const getAddressById = async (addressId: number): Promise<any> => {
   try {
+    console.log(`📞 Calling: GET /address/${addressId}`);
     const response = await apiClient.get(`/address/${addressId}`);
-    return response.data.Address;
+    console.log('✅ Raw address response:', response.data);
+    
+    // Handle both PascalCase and camelCase
+    const address = response.data.Address || response.data.address || response.data;
+    console.log('✅ Parsed address:', address);
+    
+    return address;
   } catch (error: any) {
     console.error('❌ Get address error:', error.response?.data || error.message);
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
     throw new Error('Không thể lấy thông tin địa chỉ.');
+  }
+};
+
+/**
+ * Update address manually (City, District, Ward)
+ */
+export const updateAddressManual = async (
+  addressId: number,
+  city: string,
+  district: string,
+  ward: string
+): Promise<any> => {
+  try {
+    console.log(`📞 Calling: PATCH /address/${addressId}/manual`);
+    const response = await apiClient.patch(`/address/${addressId}/manual`, {
+      City: city,
+      District: district,
+      Ward: ward,
+    });
+    console.log('✅ Address updated:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Update address error:', error.response?.data || error.message);
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Không thể cập nhật địa chỉ.');
   }
 };
 

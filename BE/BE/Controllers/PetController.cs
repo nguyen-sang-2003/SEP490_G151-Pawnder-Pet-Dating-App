@@ -53,23 +53,46 @@ namespace BE.Controllers
             var pet = await _context.Pets
                 .Include(p => p.PetPhotos)
                 .Include(p => p.PetCharacteristics)
+                .Include(p => p.User)
+                    .ThenInclude(u => u.Address)
                 .Where(p => p.PetId == petId && (p.IsDeleted == false))
-                .Select(p => new PetDto_1
-                {
-                    PetId = p.PetId,
-                    Name = p.Name,
-                    Breed = p.Breed,
-                    Gender = p.Gender,
-                    Age = p.Age,
-                    IsActive = p.IsActive,
-                    Description = p.Description,
-                    UrlImage = p.PetPhotos.Select(photo => photo.ImageUrl).ToList()
-                }).FirstOrDefaultAsync();
+                .FirstOrDefaultAsync();
 
             if (pet == null)
                 return NotFound(new { Message = "Không tìm thấy thú cưng" });
 
-            return Ok(pet);
+            // Build response with owner and address
+            var response = new
+            {
+                PetId = pet.PetId,
+                UserId = pet.UserId,
+                Name = pet.Name,
+                Breed = pet.Breed,
+                Gender = pet.Gender,
+                Age = pet.Age,
+                IsActive = pet.IsActive,
+                Description = pet.Description,
+                UrlImage = pet.PetPhotos.Select(photo => photo.ImageUrl).ToList(),
+                Owner = pet.User != null ? new
+                {
+                    UserId = pet.User.UserId,
+                    FullName = pet.User.FullName,
+                    Email = pet.User.Email,
+                    Gender = pet.User.Gender,
+                    Address = pet.User.Address != null ? new
+                    {
+                        AddressId = pet.User.Address.AddressId,
+                        City = pet.User.Address.City,
+                        District = pet.User.Address.District,
+                        Ward = pet.User.Address.Ward,
+                        FullAddress = pet.User.Address.FullAddress,
+                        Latitude = pet.User.Address.Latitude,
+                        Longitude = pet.User.Address.Longitude
+                    } : null
+                } : null
+            };
+
+            return Ok(response);
         }
 
         // POST /pet

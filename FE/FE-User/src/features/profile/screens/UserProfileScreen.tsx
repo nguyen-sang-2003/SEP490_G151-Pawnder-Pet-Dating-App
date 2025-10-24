@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -17,6 +18,8 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import Icon from "react-native-vector-icons/Ionicons";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
+import { getItem } from "../../../utils/storage";
 
 const { width } = Dimensions.get("window");
 
@@ -34,72 +37,201 @@ interface PetItem {
 
 const UserProfileScreen = ({ navigation }: Props) => {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<UserResponse | null>(null);
+  const [pets, setPets] = useState<PetResponse[]>([]);
+  const [activePet, setActivePet] = useState<PetResponse | null>(null);
+  const [addressData, setAddressData] = useState<any>(null);
+  const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
 
-  // Cat Profile - MAIN FOCUS
-  const myCat = {
-    id: "1",
-    name: "Luna",
-    breed: "Persian Cat",
-    age: "2 years",
-    gender: "female" as "male" | "female",
-    bio: "Cat mom 😺 | Love cozy evenings with my Persian | Looking for playmates for my furry baby!",
-    personality: ["Playful", "Gentle", "Indoor Cat"],
-    vaccinated: true,
-    photos: [
-      require("../../../assets/cat_avatar.png"),
-      require("../../../assets/cat_avatar_signin.png"),
-      require("../../../assets/cat_avatar.png"),
-    ],
+  // Fetch user and pets data
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        setLoading(true);
+        
+        // Get userId from storage
+        const userIdStr = await getItem('userId');
+        if (!userIdStr) {
+          Alert.alert('Error', 'User not found. Please login again.');
+          return;
+        }
+        
+        const userId = parseInt(userIdStr, 10);
+        console.log('📱 Loading profile for userId:', userId);
+
+        // Fetch user data
+        const user = await getUserById(userId);
+        setUserData(user);
+        console.log('👤 User data loaded:', user);
+
+        // Fetch pets data
+        const petsData = await getPetsByUserId(userId);
+        setPets(petsData);
+        console.log('🐾 Pets data loaded:', petsData);
+
+        // Find active pet (IsActive = true)
+        const active = petsData.find(p => p.IsActive === true || p.isActive === true);
+        setActivePet(active || petsData[0] || null);
+        console.log('✅ Active pet:', active);
+
+        // Fetch address data if user has addressId
+        const addressId = user.AddressId || user.addressId;
+        console.log('🔍 User addressId:', addressId);
+        
+        if (addressId) {
+          try {
+            const address = await getAddressById(addressId);
+            console.log('📍 Address data loaded:', address);
+            console.log('📍 Address.City:', address?.City);
+            console.log('📍 Address.District:', address?.District);
+            console.log('📍 Address.FullAddress:', address?.FullAddress);
+            setAddressData(address);
+          } catch (error: any) {
+            console.error('⚠️ No address found for user:', error);
+            setAddressData(null);
+          }
+        } else {
+          console.log('⚠️ User has no addressId');
+          setAddressData(null);
+        }
+        
+      } catch (error: any) {
+        console.error('❌ Error loading profile:', error);
+        Alert.alert('Error', error.response?.data?.message || 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
+
+  // Load characteristics for active pet
+  useEffect(() => {
+    const loadCharacteristics = async () => {
+      if (!activePet) {
+        setCharacteristics([]);
+        return;
+      }
+
+      try {
+        const petId = activePet.PetId || activePet.petId;
+        if (!petId) return;
+
+        const chars = await getPetCharacteristics(petId);
+        setCharacteristics(chars);
+        console.log('🎯 Characteristics loaded:', chars);
+      } catch (error: any) {
+        console.log('⚠️ No characteristics found for pet');
+        setCharacteristics([]);
+      }
+    };
+
+    loadCharacteristics();
+  }, [activePet]);
+
+  // Convert active pet to display format
+  const myCat = activePet ? (() => {
+    // Collect all photo URLs
+    const photoUrls: string[] = [];
+    
+    // Add UrlImage array
+    if (activePet.UrlImage || activePet.urlImage) {
+      photoUrls.push(...(activePet.UrlImage || activePet.urlImage || []));
+    }
+    
+    // Add avatar URL
+    const avatarUrl = activePet.UrlImageAvatar || activePet.urlImageAvatar;
+    if (avatarUrl) {
+      photoUrls.push(avatarUrl);
+    }
+    
+    // Remove duplicates and convert to image source
+    const uniqueUrls = Array.from(new Set(photoUrls));
+    const photos = uniqueUrls.length > 0
+      ? uniqueUrls.slice(0, 3).map(url => ({ uri: url }))
+      : [require("../../../assets/cat_avatar.png")];
+    
+    return {
+      id: (activePet.PetId || activePet.petId || 0).toString(),
+      name: activePet.Name || activePet.name || 'Unknown',
+      breed: activePet.Breed || activePet.breed || 'Unknown breed',
+      age: activePet.Age ? `${activePet.Age} years` : (activePet.age ? `${activePet.age} years` : 'Unknown'),
+      gender: (activePet.Gender || activePet.gender || 'male').toLowerCase() as "male" | "female",
+      bio: activePet.Description || activePet.description || "No description available",
+      photos,
+    };
+  })() : {
+    id: "0",
+    name: "No Pet",
+    breed: "Unknown",
+    age: "0 years",
+    gender: "male" as "male" | "female",
+    bio: "Please add a pet",
+    photos: [require("../../../assets/cat_avatar.png")],
   };
 
-  // Stats data - CAT STATS
+  // Stats data - CAT STATS (mock for now)
   const catStats = {
-    matches: 24,
-    likes: 156,
-    visits: 89,
+    matches: 0, // TODO: Fetch from ChatUser where Status = "Accepted"
+    likes: 0,   // TODO: Fetch from ChatUser where Status = "Pending" and ToUserId = currentUser
+    visits: 0,  // TODO: Add Visit tracking
   };
 
-  // Owner Info - SIMPLE
+  // Parse address data
+  const getAddressField = (field: string) => {
+    if (!addressData) return null;
+    return addressData[field] || addressData[field.toLowerCase()] || null;
+  };
+
+  const city = getAddressField('City');
+  const district = getAddressField('District');
+  const ward = getAddressField('Ward');
+  const fullAddress = getAddressField('FullAddress');
+
+  // Format short location
+  const shortLocation = [district, city].filter(Boolean).join(', ');
+
+  // Owner Info
   const owner = {
-    name: "Sarah Johnson",
-    location: "Ha Noi, Vietnam",
-    isPremium: false, // Set false để hiển thị "Go Premium" card
-    email: "sarah.johnson@gmail.com",
-    phone: "+84 999 999 999",
-    memberSince: "January 2024",
+    name: userData?.FullName || userData?.fullName || "Unknown User",
+    location: shortLocation || 'No location set',
+    fullAddress: fullAddress,
+    isPremium: false, // TODO: Add Premium status to User model
+    email: userData?.Email || userData?.email || "",
+    memberSince: userData?.CreatedAt 
+      ? new Date(userData.CreatedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      : (userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : "Unknown"),
   };
 
-  // My Pets List
-  const [myPets, setMyPets] = useState<PetItem[]>([
-    {
-      id: "1",
-      name: "Luna",
-      breed: "Persian Cat",
-      age: "2 years",
-      gender: "female",
-      image: require("../../../assets/cat_avatar.png"),
-      isActive: true, // Pet mặc định được chọn
-    },
-    {
-      id: "2",
-      name: "Milo",
-      breed: "British Shorthair",
-      age: "1 year",
-      gender: "male",
-      image: require("../../../assets/cat_avatar_signin.png"),
-      isActive: false,
-    },
-  ]);
+  // My Pets List (convert from PetResponse[] to PetItem[])
+  const myPets: PetItem[] = pets.map(pet => ({
+    id: (pet.PetId || pet.petId || 0).toString(),
+    name: pet.Name || pet.name || 'Unknown',
+    breed: pet.Breed || pet.breed || 'Unknown',
+    age: pet.Age ? `${pet.Age} years` : (pet.age ? `${pet.age} years` : 'Unknown'),
+    gender: (pet.Gender || pet.gender || 'male').toLowerCase() as "male" | "female",
+    image: pet.UrlImageAvatar || pet.urlImageAvatar 
+      ? { uri: pet.UrlImageAvatar || pet.urlImageAvatar }
+      : require("../../../assets/cat_avatar.png"),
+    isActive: pet.IsActive === true || pet.isActive === true,
+  }));
 
   const handleEditProfile = () => {
-    navigation.navigate("EditProfile");
+    const userId = userData?.UserId || userData?.userId;
+    if (userId) {
+      navigation.navigate("EditProfile", { userId });
+    } else {
+      Alert.alert('Error', 'User ID not found');
+    }
   };
 
   const handleEditCat = () => {
     navigation.navigate("EditPet", { petId: myCat.id });
   };
 
-  const handleSetActivePet = (petId: string) => {
+  const handleSetActivePet = async (petId: string) => {
     Alert.alert(
       "Set Active Pet",
       "Use this pet for matching and dating?",
@@ -107,14 +239,26 @@ const UserProfileScreen = ({ navigation }: Props) => {
         { text: "Cancel", style: "cancel" },
         {
           text: "Set Active",
-          onPress: () => {
-            setMyPets((prevPets) =>
-              prevPets.map((pet) => ({
+          onPress: async () => {
+            try {
+              // TODO: Call API to update IsActive in DB
+              // For now, just update local state
+              const updatedPets = pets.map((pet) => ({
                 ...pet,
-                isActive: pet.id === petId,
-              }))
-            );
-            Alert.alert("Success", "Active pet updated!");
+                IsActive: (pet.PetId || pet.petId || 0).toString() === petId,
+                isActive: (pet.PetId || pet.petId || 0).toString() === petId,
+              }));
+              
+              setPets(updatedPets);
+              
+              const newActive = updatedPets.find(p => (p.PetId || p.petId || 0).toString() === petId);
+              setActivePet(newActive || null);
+              
+              Alert.alert("Success", "Active pet updated!");
+            } catch (error) {
+              console.error('Error setting active pet:', error);
+              Alert.alert("Error", "Failed to set active pet");
+            }
           },
         },
       ]
@@ -132,6 +276,16 @@ const UserProfileScreen = ({ navigation }: Props) => {
       prev === 0 ? myCat.photos.length - 1 : prev - 1
     );
   };
+
+  // Show loading spinner while fetching data
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading profile...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -265,24 +419,44 @@ const UserProfileScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
-        {/* Cat Personality */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personality</Text>
-          <View style={styles.personalityContainer}>
-            {myCat.personality.map((trait, index) => (
-              <View key={index} style={styles.personalityTag}>
-                <Icon name="paw" size={14} color={colors.primary} />
-                <Text style={styles.personalityText}>{trait}</Text>
-              </View>
-            ))}
-            {myCat.vaccinated && (
-              <View style={styles.vaccinatedTag}>
-                <Icon name="shield-checkmark" size={14} color="#4CAF50" />
-                <Text style={styles.vaccinatedText}>Vaccinated</Text>
-              </View>
-            )}
+        {/* Pet Characteristics */}
+        {characteristics.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Characteristics</Text>
+              <Text style={styles.sectionSubtitle}>{characteristics.length} attributes</Text>
+            </View>
+            <View style={styles.characteristicsGrid}>
+              {characteristics.map((char, index) => (
+                <View key={index} style={styles.characteristicCard}>
+                  <View style={styles.characteristicHeader}>
+                    <Icon 
+                      name={
+                        char.typeValue === 'string' ? 'paw' : 
+                        char.typeValue === 'float' || char.typeValue === 'number' ? 'fitness' : 
+                        'information-circle'
+                      } 
+                      size={18} 
+                      color={colors.primary} 
+                    />
+                    <Text style={styles.characteristicName}>{char.name || 'Unknown'}</Text>
+                  </View>
+                  <View style={styles.characteristicValueContainer}>
+                    {char.optionValue ? (
+                      <Text style={styles.characteristicValue}>{char.optionValue}</Text>
+                    ) : char.value !== null && char.value !== undefined ? (
+                      <Text style={styles.characteristicValue}>
+                        {char.value} {char.unit || ''}
+                      </Text>
+                    ) : (
+                      <Text style={styles.characteristicValueEmpty}>Not set</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* My Pets Section */}
         <View style={styles.section}>
@@ -389,17 +563,35 @@ const UserProfileScreen = ({ navigation }: Props) => {
           <View style={styles.ownerCard}>
             <View style={styles.ownerRow}>
               <Icon name="person-outline" size={20} color={colors.textMedium} />
-              <Text style={styles.ownerText}>{owner.name}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.ownerRow}>
-              <Icon name="location-outline" size={20} color={colors.textMedium} />
-              <Text style={styles.ownerText}>{owner.location}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ownerText}>{owner.name}</Text>
+                <Text style={styles.ownerSubtext}>Member since {owner.memberSince}</Text>
+              </View>
             </View>
             <View style={styles.divider} />
             <View style={styles.ownerRow}>
               <Icon name="mail-outline" size={20} color={colors.textMedium} />
               <Text style={styles.ownerText}>{owner.email}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.ownerRow}>
+              <Icon name="location-outline" size={20} color={colors.textMedium} />
+              <View style={{ flex: 1 }}>
+                {owner.location && owner.location !== 'No location set' ? (
+                  <>
+                    <Text style={styles.ownerText}>{owner.location}</Text>
+                    {owner.fullAddress && (
+                      <Text style={styles.ownerSubtext} numberOfLines={2}>
+                        {owner.fullAddress}
+                      </Text>
+                    )}
+                  </>
+                ) : (
+                  <Text style={[styles.ownerText, { color: '#999', fontStyle: 'italic' }]}>
+                    No location set
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -623,43 +815,48 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
 
-  // Personality Tags
-  personalityContainer: {
+  // Characteristics
+  characteristicsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 12,
   },
-  personalityTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  characteristicCard: {
     backgroundColor: colors.whiteWarm,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    padding: 14,
+    minWidth: "47%",
+    flex: 1,
+    maxWidth: "48%",
+    ...shadows.medium,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
   },
-  personalityText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: "500",
-  },
-  vaccinatedTag: {
+  characteristicHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: "#4CAF50",
+    gap: 8,
+    marginBottom: 8,
   },
-  vaccinatedText: {
+  characteristicName: {
+    fontSize: 13,
+    color: colors.textMedium,
+    fontWeight: "600",
+    textTransform: "capitalize",
+    flex: 1,
+  },
+  characteristicValueContainer: {
+    marginTop: 4,
+  },
+  characteristicValue: {
+    fontSize: 16,
+    color: colors.textDark,
+    fontWeight: "700",
+  },
+  characteristicValueEmpty: {
     fontSize: 14,
-    color: "#4CAF50",
-    fontWeight: "500",
+    color: colors.textLabel,
+    fontStyle: "italic",
   },
 
   // Gender
@@ -811,7 +1008,13 @@ const styles = StyleSheet.create({
   ownerText: {
     fontSize: 15,
     color: colors.textDark,
-    flex: 1,
+    fontWeight: "500",
+  },
+  ownerSubtext: {
+    fontSize: 13,
+    color: colors.textMedium,
+    marginTop: 4,
+    lineHeight: 18,
   },
 
   // Info Card

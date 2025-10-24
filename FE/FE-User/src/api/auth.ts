@@ -121,9 +121,14 @@ export const login = async (
     
     console.log('Login success:', response.data);
     
-    // Store token securely
-    if (response.data.Token) {
-      await storeAuthToken(response.data.Token);
+    // Store token securely (handle both PascalCase and camelCase)
+    const token = response.data.Token || (response.data as any).token;
+    if (token) {
+      console.log('💾 Storing token...');
+      await storeAuthToken(token);
+      console.log('✅ Token stored successfully');
+    } else {
+      console.warn('⚠️ No token received from backend');
     }
     
     return response.data;

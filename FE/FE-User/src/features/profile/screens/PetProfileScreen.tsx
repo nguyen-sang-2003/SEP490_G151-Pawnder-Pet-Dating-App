@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,31 +7,123 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
+import { getPetById, getPetCharacteristics, type PetCharacteristic } from "../../../api";
+import { colors, radius, shadows } from "../../../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PetProfile">;
 
 const PetProfileScreen = ({ navigation, route }: Props) => {
-  // Mock pet data - in production, fetch based on route.params.petId
-  const pet = {
-    id: route.params?.petId || "1",
-    name: "Coco",
-    breed: "British shorthair",
-    age: "2 years",
-    gender: "Female",
-    color: "Grey",
-    weight: "4.5kg",
-    location: "Ha Noi, Viet Nam",
-    personality: "Friendly, playful",
-    avatar: require("../../../assets/cat_avatar.png"),
+  const petIdStr = route.params?.petId || "0";
+  const petId = parseInt(petIdStr, 10);
+
+  const [loading, setLoading] = useState(true);
+  const [petData, setPetData] = useState<any>(null);
+  const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
+
+  useEffect(() => {
+    const loadPetData = async () => {
+      try {
+        setLoading(true);
+
+        if (!petId) {
+          Alert.alert('Error', 'Pet ID not found');
+          navigation.goBack();
+          return;
+        }
+
+        console.log('📱 Loading pet profile for petId:', petId);
+
+        // Load pet data
+        const pet = await getPetById(petId);
+        setPetData(pet);
+        console.log('✅ Pet data loaded:', pet);
+
+        // Load characteristics
+        try {
+          const chars = await getPetCharacteristics(petId);
+          setCharacteristics(chars);
+          console.log('🎯 Characteristics loaded:', chars);
+        } catch (error) {
+          console.log('⚠️ No characteristics found');
+          setCharacteristics([]);
+        }
+
+      } catch (error: any) {
+        console.error('❌ Error loading pet data:', error);
+        Alert.alert('Error', error.response?.data?.message || 'Failed to load pet data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPetData();
+  }, [petId]);
+
+  // Parse owner and address from API response
+  const ownerData = petData?.Owner || petData?.owner;
+  const addressData = ownerData?.Address || ownerData?.address;
+
+  console.log('🔍 PetProfile - ownerData:', ownerData);
+  console.log('🔍 PetProfile - addressData:', addressData);
+
+  // Format location
+  const location = addressData 
+    ? [
+        addressData.Ward || addressData.ward,
+        addressData.District || addressData.district,
+        addressData.City || addressData.city
+      ].filter(Boolean).join(', ') || 'Unknown location'
+    : null;
+
+  const fullAddress = addressData?.FullAddress || addressData?.fullAddress;
+
+  console.log('📍 PetProfile - location:', location);
+  console.log('📍 PetProfile - fullAddress:', fullAddress);
+
+  // Mock pet data for fallback
+  const pet = petData ? {
+    id: petIdStr,
+    name: petData.Name || petData.name || 'Unknown',
+    breed: petData.Breed || petData.breed || 'Unknown breed',
+    age: petData.Age ? `${petData.Age} years` : (petData.age ? `${petData.age} years` : 'Unknown'),
+    gender: petData.Gender || petData.gender || 'Unknown',
+    description: petData.Description || petData.description || 'No description available',
+    avatar: petData.UrlImageAvatar || petData.urlImageAvatar 
+      ? { uri: petData.UrlImageAvatar || petData.urlImageAvatar }
+      : require("../../../assets/cat_avatar.png"),
+    location,
+    fullAddress,
     owner: {
-      name: "LQT",
-      status: "Premium",
+      userId: ownerData?.UserId || ownerData?.userId,
+      name: ownerData?.FullName || ownerData?.fullName || "Unknown Owner",
+      email: ownerData?.Email || ownerData?.email,
+      gender: ownerData?.Gender || ownerData?.gender,
+      status: "Member", // TODO: Premium status
+      avatar: require("../../../assets/cat_avatar_signin.png"), // TODO: User avatar
+    },
+  } : {
+    id: petIdStr,
+    name: "Loading...",
+    breed: "...",
+    age: "...",
+    gender: "...",
+    description: "...",
+    avatar: require("../../../assets/cat_avatar.png"),
+    location: null,
+    fullAddress: null,
+    owner: {
+      userId: null,
+      name: "...",
+      email: null,
+      gender: null,
+      status: "...",
       avatar: require("../../../assets/cat_avatar_signin.png"),
     },
   };
@@ -83,6 +175,21 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     });
   };
 
+  // Show loading
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={["#FFF5F9", "#FDE8EF"]}
+        style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading pet profile...</Text>
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient
       colors={["#FFF5F9", "#FDE8EF"]}
@@ -127,11 +234,11 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
         {/* Pet Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pet informations</Text>
+          <Text style={styles.sectionTitle}>Pet Information</Text>
 
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Bread</Text>
+              <Text style={styles.infoLabel}>Breed</Text>
               <Text style={styles.infoValue}>{pet.breed}</Text>
             </View>
 
@@ -148,51 +255,106 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               <Text style={styles.infoLabel}>Gender</Text>
               <Text style={styles.infoValue}>{pet.gender}</Text>
             </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Color</Text>
-              <Text style={styles.infoValue}>{pet.color}</Text>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Weight</Text>
-              <Text style={styles.infoValue}>{pet.weight}</Text>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Location</Text>
-              <Text style={styles.infoValue}>{pet.location}</Text>
-            </View>
           </View>
 
-          {/* Personality */}
-          <View style={styles.personalityCard}>
-            <Text style={styles.personalityText}>{pet.personality}</Text>
-          </View>
+          {/* Description */}
+          {pet.description && pet.description !== 'No description available' && (
+            <View style={styles.descriptionCard}>
+              <Text style={styles.descriptionText}>{pet.description}</Text>
+            </View>
+          )}
         </View>
+
+        {/* Pet Characteristics */}
+        {characteristics.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Characteristics</Text>
+              <Text style={styles.sectionSubtitle}>{characteristics.length} attributes</Text>
+            </View>
+            <View style={styles.characteristicsGrid}>
+              {characteristics.map((char, index) => (
+                <View key={index} style={styles.characteristicCard}>
+                  <View style={styles.characteristicHeader}>
+                    <Icon 
+                      name={
+                        char.typeValue === 'string' ? 'paw' : 
+                        char.typeValue === 'float' || char.typeValue === 'number' ? 'fitness' : 
+                        'information-circle'
+                      } 
+                      size={16} 
+                      color={colors.primary} 
+                    />
+                    <Text style={styles.characteristicName}>{char.name || 'Unknown'}</Text>
+                  </View>
+                  <View style={styles.characteristicValueContainer}>
+                    {char.optionValue ? (
+                      <Text style={styles.characteristicValue}>{char.optionValue}</Text>
+                    ) : char.value !== null && char.value !== undefined ? (
+                      <Text style={styles.characteristicValue}>
+                        {char.value} {char.unit || ''}
+                      </Text>
+                    ) : (
+                      <Text style={styles.characteristicValueEmpty}>Not set</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Owner Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Owner</Text>
+          <Text style={styles.sectionTitle}>Owner Information</Text>
 
           <View style={styles.ownerCard}>
             <View style={styles.ownerInfo}>
               <Image source={pet.owner.avatar} style={styles.ownerAvatar} />
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.ownerName}>{pet.owner.name}</Text>
                 <Text style={styles.ownerStatus}>{pet.owner.status}</Text>
+                
+                {/* Email */}
+                {pet.owner.email && (
+                  <View style={styles.ownerDetailRow}>
+                    <Icon name="mail-outline" size={14} color={colors.textMedium} />
+                    <Text style={styles.ownerDetailText}>{pet.owner.email}</Text>
+                  </View>
+                )}
+
+                {/* Location - Always show */}
+                <View style={styles.ownerDetailRow}>
+                  <Icon name="location-outline" size={14} color={colors.textMedium} />
+                  <Text style={[styles.ownerDetailText, !pet.location && { color: '#999', fontStyle: 'italic' }]}>
+                    {pet.location || 'No location set'}
+                  </Text>
+                </View>
               </View>
             </View>
-            <TouchableOpacity>
-              <Icon name="chevron-forward" size={24} color="#666" />
-            </TouchableOpacity>
+
+            {pet.owner.userId && (
+              <TouchableOpacity 
+                onPress={() => {
+                  // TODO: Navigate to owner profile
+                  console.log('View owner profile:', pet.owner.userId);
+                }}
+              >
+                <Icon name="chevron-forward" size={24} color={colors.textMedium} />
+              </TouchableOpacity>
+            )}
           </View>
+
+          {/* Full Address Card */}
+          {pet.fullAddress && (
+            <View style={styles.addressCard}>
+              <View style={styles.addressHeader}>
+                <Icon name="location" size={18} color={colors.primary} />
+                <Text style={styles.addressTitle}>Full Address</Text>
+              </View>
+              <Text style={styles.addressText}>{pet.fullAddress}</Text>
+            </View>
+          )}
         </View>
 
         {/* Action Buttons */}
@@ -377,23 +539,75 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#F0F0F0",
   },
-
-  // Personality
-  personalityCard: {
+  descriptionCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 16,
-    alignItems: "center",
+    marginTop: 12,
     shadowColor: "#C8A8D4",
     shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  personalityText: {
-    fontSize: 16,
+  descriptionText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#555",
+  },
+
+  // Characteristics
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: colors.textMedium,
+  },
+  characteristicsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  characteristicCard: {
+    backgroundColor: colors.whiteWarm,
+    borderRadius: radius.lg,
+    padding: 12,
+    minWidth: "47%",
+    flex: 1,
+    maxWidth: "48%",
+    ...shadows.medium,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  characteristicHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  characteristicName: {
+    fontSize: 12,
+    color: colors.textMedium,
     fontWeight: "600",
-    color: "#333",
+    textTransform: "capitalize",
+    flex: 1,
+  },
+  characteristicValueContainer: {
+    marginTop: 2,
+  },
+  characteristicValue: {
+    fontSize: 15,
+    color: colors.textDark,
+    fontWeight: "700",
+  },
+  characteristicValueEmpty: {
+    fontSize: 13,
+    color: colors.textLabel,
+    fontStyle: "italic",
   },
 
   // Owner
@@ -401,29 +615,69 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#F5F0F7",
+    backgroundColor: colors.whiteWarm,
     borderRadius: 16,
     padding: 16,
+    ...shadows.medium,
   },
   ownerInfo: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    flex: 1,
   },
   ownerAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   ownerName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 2,
+    color: colors.textDark,
+    marginBottom: 4,
   },
   ownerStatus: {
+    fontSize: 13,
+    color: colors.textMedium,
+    marginBottom: 8,
+  },
+  ownerDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  ownerDetailText: {
+    fontSize: 13,
+    color: colors.textMedium,
+    flex: 1,
+  },
+  addressCard: {
+    backgroundColor: "#F0F8FF",
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#D0E8FF",
+  },
+  addressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  addressTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textDark,
+  },
+  addressText: {
     fontSize: 14,
-    color: "#666",
+    color: colors.textMedium,
+    lineHeight: 20,
   },
 
   // Action Buttons

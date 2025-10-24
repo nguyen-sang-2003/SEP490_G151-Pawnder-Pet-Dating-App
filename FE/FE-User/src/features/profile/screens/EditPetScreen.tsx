@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,36 +8,129 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
+import { getPetById, updatePet, getUserById, getAddressById } from "../../../api";
+import { colors } from "../../../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EditPet">;
 
 const EditPetScreen = ({ navigation, route }: Props) => {
-  const petId = route.params?.petId || "1";
+  const petIdStr = route.params?.petId || "0";
+  const petId = parseInt(petIdStr, 10);
 
-  const [name, setName] = useState("Coco");
-  const [breed, setBreed] = useState("British shorthair");
-  const [age, setAge] = useState("2");
-  const [gender, setGender] = useState("Female");
-  const [height, setHeight] = useState("30");
-  const [weight, setWeight] = useState("4.5");
-  
-  // Location - 3 fields theo DB
-  const [country, setCountry] = useState("Vietnam");
-  const [province, setProvince] = useState("Ha Noi");
-  const [commune, setCommune] = useState("Cau Giay");
-  
-  const [personality, setPersonality] = useState("Friendly, playful");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    Alert.alert("Success", "Pet profile updated successfully!", [
-      { text: "OK", onPress: () => navigation.goBack() },
-    ]);
+  const [name, setName] = useState("");
+  const [breed, setBreed] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("Male");
+  const [description, setDescription] = useState("");
+  
+  const [city, setCity] = useState("");
+  const [district, setDistrict] = useState("");
+  const [ward, setWard] = useState("");
+
+  // Load pet data
+  useEffect(() => {
+    const loadPetData = async () => {
+      try {
+        setLoading(true);
+        
+        if (!petId) {
+          Alert.alert('Error', 'Pet ID not found');
+          navigation.goBack();
+          return;
+        }
+        
+        console.log('📱 Loading pet data for petId:', petId);
+        
+        // Fetch pet data
+        const petData = await getPetById(petId);
+        console.log('✅ Pet data loaded:', petData);
+        
+        // Fill form
+        setName(petData.Name || petData.name || '');
+        setBreed(petData.Breed || petData.breed || '');
+        setAge(petData.Age?.toString() || petData.age?.toString() || '');
+        setGender(petData.Gender || petData.gender || 'Male');
+        setDescription(petData.Description || petData.description || '');
+        
+        // Load owner's address - giống EditUserProfile
+        const userId = petData.UserId || petData.userId;
+        console.log('👤 Pet UserId:', userId);
+        
+        if (userId) {
+          try {
+            const userData = await getUserById(userId);
+            console.log('✅ User data loaded:', userData);
+            
+            const addressId = userData.AddressId || userData.addressId;
+            console.log('🔍 User addressId:', addressId);
+            
+            if (addressId) {
+              const address = await getAddressById(addressId);
+              console.log('📍 Address loaded:', address);
+              setCity(address?.City || address?.city || '');
+              setDistrict(address?.District || address?.district || '');
+              setWard(address?.Ward || address?.ward || '');
+            }
+          } catch (error) {
+            console.log('⚠️ No address found for user');
+          }
+        }
+        
+      } catch (error: any) {
+        console.error('❌ Error loading pet data:', error);
+        Alert.alert('Error', error.response?.data?.message || 'Failed to load pet data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadPetData();
+  }, [petId]);
+
+  const handleSave = async () => {
+    if (!petId) {
+      Alert.alert('Error', 'Pet ID not found');
+      return;
+    }
+
+    if (!name.trim()) {
+      Alert.alert('Validation Error', 'Pet name is required');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      console.log('💾 Saving pet data...');
+      
+      await updatePet(petId, {
+        Name: name.trim(),
+        Breed: breed.trim() || undefined,
+        Gender: gender,
+        Age: age ? parseInt(age, 10) : undefined,
+        Description: description.trim() || undefined,
+        IsActive: true,
+      });
+      
+      console.log('✅ Pet updated successfully');
+      Alert.alert("Success", "Pet profile updated successfully!", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+    } catch (error: any) {
+      console.error('❌ Error saving pet data:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to save pet profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleBack = () => {
@@ -47,6 +140,21 @@ const EditPetScreen = ({ navigation, route }: Props) => {
   const handleChangePhoto = () => {
     Alert.alert("Change Photo", "Feature coming soon!");
   };
+
+  // Show loading spinner
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={["#FFF5F9", "#FDE8EF"]}
+        style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading...</Text>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
@@ -171,80 +279,37 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             </View>
           </View>
 
-          {/* Physical Attributes */}
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Height (cm)</Text>
-              <TextInput
-                style={styles.input}
-                value={height}
-                onChangeText={setHeight}
-                placeholder="Height"
-                placeholderTextColor="#999"
-                keyboardType="decimal-pad"
-              />
-            </View>
-
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.label}>Weight (kg)</Text>
-              <TextInput
-                style={styles.input}
-                value={weight}
-                onChangeText={setWeight}
-                placeholder="Weight"
-                placeholderTextColor="#999"
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-
-          {/* Location - 3 Fields */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Country</Text>
-            <TextInput
-              style={styles.input}
-              value={country}
-              onChangeText={setCountry}
-              placeholder="Enter country"
-              placeholderTextColor="#999"
-            />
-          </View>
-
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Province/City</Text>
-              <TextInput
-                style={styles.input}
-                value={province}
-                onChangeText={setProvince}
-                placeholder="Province"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.label}>District/Commune</Text>
-              <TextInput
-                style={styles.input}
-                value={commune}
-                onChangeText={setCommune}
-                placeholder="District"
-                placeholderTextColor="#999"
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Personality</Text>
+            <Text style={styles.label}>Description</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              value={personality}
-              onChangeText={setPersonality}
-              placeholder="Describe your pet's personality"
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Describe your pet"
               placeholderTextColor="#999"
               multiline
               numberOfLines={3}
             />
+          </View>
+
+          {/* Owner's Location (Read-only) */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Owner's Location</Text>
+            
+            <View style={styles.readOnlyField}>
+              <Icon name="location-outline" size={16} color="#666" />
+              <Text style={styles.readOnlyText}>
+                {[ward, district, city].filter(Boolean).join(', ') || 'No location set'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Note about location */}
+          <View style={styles.noteCard}>
+            <Icon name="information-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.noteText}>
+              Pet location is inherited from your account. Update your location in your profile settings.
+            </Text>
           </View>
         </View>
 
@@ -253,14 +318,22 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           style={styles.btnShadow}
           activeOpacity={0.8}
           onPress={handleSave}
+          disabled={saving}
         >
           <LinearGradient
-            colors={["#FF6EA7", "#FF9BC0"]}
+            colors={saving ? ["#CCC", "#DDD"] : ["#FF6EA7", "#FF9BC0"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.saveButton}
           >
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+            {saving ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.saveButtonText}>Saving...</Text>
+              </>
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
@@ -436,6 +509,42 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: 0.5,
+  },
+  
+  // Read-only field
+  readOnlyField: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    gap: 10,
+  },
+  readOnlyText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#666",
+  },
+  
+  // Note
+  noteCard: {
+    flexDirection: "row",
+    backgroundColor: "#F0F8FF",
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#D0E8FF",
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#555",
+    lineHeight: 18,
   },
 });
 

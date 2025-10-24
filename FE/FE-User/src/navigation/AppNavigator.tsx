@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { View, ActivityIndicator } from "react-native";
 
 // Import Auth Screens
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
@@ -39,6 +40,7 @@ import BlockedUsersScreen from "../features/settings/screens/BlockedUsersScreen"
 import PaymentHistoryScreen from "../features/settings/screens/PaymentHistoryScreen";
 import PaymentMethodScreen from "../features/settings/screens/PaymentMethodScreen";
 import ChangePasswordScreen from "../features/settings/screens/ChangePasswordScreen";
+import { getAuthToken } from "../api/auth";
 
 
 export type RootStackParamList = {
@@ -68,7 +70,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Notification: undefined;
   PetProfile: { petId: string };
-  EditProfile: undefined;
+  EditProfile: { userId?: number };
   EditPet: { petId: string };
   AddPet: undefined;
   Settings: undefined;
@@ -95,10 +97,44 @@ const AddPetScreen = (props: any) => {
 };
 
 const AppNavigator = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      console.log('🔍 [AppNavigator] Checking authentication...');
+      const token = await getAuthToken();
+      console.log('🔑 [AppNavigator] Token found:', token ? 'YES' : 'NO');
+      if (token) {
+        console.log('✅ [AppNavigator] User authenticated, will show Home');
+      } else {
+        console.log('❌ [AppNavigator] No token, will show Welcome');
+      }
+      setIsAuthenticated(!!token);
+    } catch (error) {
+      console.log('❌ [AppNavigator] Error checking auth:', error);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
+        <ActivityIndicator size="large" color="#FF6EA7" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Welcome"
+        initialRouteName={isAuthenticated ? "Home" : "Welcome"}
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Welcome" component={WelcomeScreen} />

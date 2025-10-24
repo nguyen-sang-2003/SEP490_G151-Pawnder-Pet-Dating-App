@@ -6,6 +6,13 @@
 		public decimal Longitude { get; set; }
 	}
 
+	public class ManualAddressDto
+	{
+		public string? City { get; set; }
+		public string? District { get; set; }
+		public string? Ward { get; set; }
+	}
+
 	public class OpenStreetMapResponse
 	{
 		public string? display_name { get; set; }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,31 +8,128 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
+import { getUserById, updateUser, getAddressById, updateAddressManual } from "../../../api";
+import { getItem } from "../../../utils/storage";
+import { colors } from "../../../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EditProfile">;
 
-const EditUserProfileScreen = ({ navigation }: Props) => {
-  const [name, setName] = useState("John Doe");
-  const [email, setEmail] = useState("johndoe@gmail.com");
-  const [phone, setPhone] = useState("0999999999");
-  const [gender, setGender] = useState("Male");
+const EditUserProfileScreen = ({ navigation, route }: Props) => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [userId, setUserId] = useState<number | undefined>(undefined);
+  const [addressId, setAddressId] = useState<number | undefined>(undefined);
   
-  // Location - 3 fields theo DB
-  const [country, setCountry] = useState("Vietnam");
-  const [province, setProvince] = useState("Ha Noi");
-  const [commune, setCommune] = useState("Cau Giay");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [gender, setGender] = useState("Male");
+  const [city, setCity] = useState("");
+  const [district, setDistrict] = useState("");
+  const [ward, setWard] = useState("");
 
-  const handleSave = () => {
-    // Save logic here
-    Alert.alert("Success", "Profile updated successfully!", [
-      { text: "OK", onPress: () => navigation.goBack() },
-    ]);
+  // Load user data
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        setLoading(true);
+        
+        // Get userId from route params or storage
+        let uid = route.params?.userId;
+        if (!uid) {
+          const userIdStr = await getItem('userId');
+          uid = userIdStr ? parseInt(userIdStr, 10) : undefined;
+        }
+        
+        if (!uid) {
+          Alert.alert('Error', 'User not found');
+          navigation.goBack();
+          return;
+        }
+        
+        setUserId(uid);
+        console.log('📱 Loading user data for userId:', uid);
+        
+        // Fetch user data
+        const userData = await getUserById(uid);
+        console.log('✅ User data loaded:', userData);
+        
+        // Fill form
+        setName(userData.FullName || userData.fullName || '');
+        setEmail(userData.Email || userData.email || '');
+        setGender(userData.Gender || userData.gender || 'Male');
+        
+        // Load address data
+        const addrId = userData.AddressId || userData.addressId;
+        if (addrId) {
+          try {
+            const address = await getAddressById(addrId);
+            console.log('📍 Address loaded in Edit Profile:', address);
+            setAddressId(addrId);
+            setCity(address?.City || address?.city || '');
+            setDistrict(address?.District || address?.district || '');
+            setWard(address?.Ward || address?.ward || '');
+          } catch (error) {
+            console.log('⚠️ No address found');
+          }
+        }
+        
+      } catch (error: any) {
+        console.error('❌ Error loading user data:', error);
+        Alert.alert('Error', error.response?.data?.message || 'Failed to load user data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadUserData();
+  }, [route.params?.userId]);
+
+  const handleSave = async () => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID not found');
+      return;
+    }
+
+    if (!name.trim()) {
+      Alert.alert('Validation Error', 'Name is required');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      console.log('💾 Saving user data...');
+      
+      await updateUser(userId, {
+        RoleId: 2,
+        FullName: name.trim(),
+        Gender: gender,
+        AddressId: undefined,
+        NewPassword: undefined,
+      });
+      
+      // Update address if addressId exists
+      if (addressId && (city.trim() || district.trim() || ward.trim())) {
+        console.log('💾 Updating address...');
+        await updateAddressManual(addressId, city.trim(), district.trim(), ward.trim());
+      }
+      
+      console.log('✅ User updated successfully');
+      Alert.alert("Success", "Profile updated successfully!", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+    } catch (error: any) {
+      console.error('❌ Error saving user data:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleBack = () => {
@@ -43,6 +140,21 @@ const EditUserProfileScreen = ({ navigation }: Props) => {
     // Image picker logic
     Alert.alert("Change Avatar", "Feature coming soon!");
   };
+
+  // Show loading spinner
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={["#FFF5F9", "#FDE8EF"]}
+        style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading...</Text>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
@@ -109,25 +221,14 @@ const EditUserProfileScreen = ({ navigation }: Props) => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, styles.inputDisabled]}
               value={email}
-              onChangeText={setEmail}
               placeholder="Enter your email"
               placeholderTextColor="#999"
               keyboardType="email-address"
+              editable={false}
             />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Enter your phone"
-              placeholderTextColor="#999"
-              keyboardType="phone-pad"
-            />
+            <Text style={styles.helperText}>Email cannot be changed</Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -184,40 +285,40 @@ const EditUserProfileScreen = ({ navigation }: Props) => {
             </View>
           </View>
 
-          {/* Location - 3 Fields */}
+          {/* City */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Country</Text>
+            <Text style={styles.label}>City</Text>
             <TextInput
               style={styles.input}
-              value={country}
-              onChangeText={setCountry}
-              placeholder="Enter country"
+              value={city}
+              onChangeText={setCity}
+              placeholder="Enter city"
               placeholderTextColor="#999"
             />
           </View>
 
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Province/City</Text>
-              <TextInput
-                style={styles.input}
-                value={province}
-                onChangeText={setProvince}
-                placeholder="Province"
-                placeholderTextColor="#999"
-              />
-            </View>
+          {/* District */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>District</Text>
+            <TextInput
+              style={styles.input}
+              value={district}
+              onChangeText={setDistrict}
+              placeholder="Enter district"
+              placeholderTextColor="#999"
+            />
+          </View>
 
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.label}>District/Commune</Text>
-              <TextInput
-                style={styles.input}
-                value={commune}
-                onChangeText={setCommune}
-                placeholder="District"
-                placeholderTextColor="#999"
-              />
-            </View>
+          {/* Ward */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Ward</Text>
+            <TextInput
+              style={styles.input}
+              value={ward}
+              onChangeText={setWard}
+              placeholder="Enter ward"
+              placeholderTextColor="#999"
+            />
           </View>
         </View>
 
@@ -226,14 +327,22 @@ const EditUserProfileScreen = ({ navigation }: Props) => {
           style={styles.btnShadow}
           activeOpacity={0.8}
           onPress={handleSave}
+          disabled={saving}
         >
           <LinearGradient
-            colors={["#FF6EA7", "#FF9BC0"]}
+            colors={saving ? ["#CCC", "#DDD"] : ["#FF6EA7", "#FF9BC0"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.saveButton}
           >
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+            {saving ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.saveButtonText}>Saving...</Text>
+              </>
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
@@ -358,7 +467,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-
+  inputDisabled: {
+    backgroundColor: "#F5F5F5",
+    color: "#999",
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+    fontStyle: "italic",
+  },
   // Gender
   genderContainer: {
     flexDirection: "row",

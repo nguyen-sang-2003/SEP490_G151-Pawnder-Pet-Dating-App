@@ -6,4 +6,5 @@ export * from './otp';
 export * from './address';
 export * from './attributes';
 export * from './pet';
+export * from './user';
 
