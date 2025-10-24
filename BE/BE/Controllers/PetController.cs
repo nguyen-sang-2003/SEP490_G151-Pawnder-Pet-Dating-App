@@ -135,7 +135,7 @@ namespace BE.Controllers
         public async Task<IActionResult> UpdatePet(int petId, [FromBody] PetDto_2 updatedPet)
         {
             var pet = await _context.Pets.FindAsync(petId);
-            if (pet == null || pet.IsDeleted == false)
+            if (pet == null || pet.IsDeleted == true)
                 return NotFound(new { Message = "Không tìm thấy thú cưng" });
 
             pet.Name = updatedPet.Name;
@@ -168,6 +168,27 @@ namespace BE.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Xóa thú cưng thành công"});
+        }
+
+        // PUT /pet/{petId}/set-active - Set pet as active
+        [HttpPut("{petId}/set-active")]
+        public async Task<IActionResult> SetActivePet(int petId)
+        {
+            var pet = await _context.Pets.FindAsync(petId);
+            if (pet == null || pet.IsDeleted == true)
+                return NotFound(new { Message = "Không tìm thấy thú cưng" });
+
+            // Set all other pets of this user to inactive
+            var userId = pet.UserId;
+            var userPets = await _context.Pets.Where(p => p.UserId == userId && p.IsDeleted == false).ToListAsync();
+            foreach (var p in userPets)
+            {
+                p.IsActive = (p.PetId == petId);
+                p.UpdatedAt = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { Message = "Đã đặt thú cưng làm mặc định", PetId = petId });
         }
     }
 }

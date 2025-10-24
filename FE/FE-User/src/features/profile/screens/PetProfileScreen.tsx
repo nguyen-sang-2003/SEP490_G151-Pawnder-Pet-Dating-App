@@ -14,8 +14,9 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getPetById, getPetCharacteristics, type PetCharacteristic } from "../../../api";
+import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic } from "../../../api";
 import { colors, radius, shadows } from "../../../theme";
+import { getItem } from "../../../utils/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PetProfile">;
 
@@ -26,6 +27,9 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(true);
   const [petData, setPetData] = useState<any>(null);
   const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
+  const [petPhotos, setPetPhotos] = useState<any[]>([]);
+  const [isMyPet, setIsMyPet] = useState(false);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
   useEffect(() => {
     const loadPetData = async () => {
@@ -40,10 +44,37 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
         console.log('📱 Loading pet profile for petId:', petId);
 
+        // Get current user ID
+        const userIdStr = await getItem('userId');
+        const currentUserId = userIdStr ? parseInt(userIdStr, 10) : null;
+
         // Load pet data
         const pet = await getPetById(petId);
         setPetData(pet);
         console.log('✅ Pet data loaded:', pet);
+
+        // Check if this is my pet
+        const petUserId = pet.UserId || pet.userId;
+        const isOwner = !!(currentUserId && petUserId === currentUserId);
+        setIsMyPet(isOwner);
+        console.log('🔍 Is my pet:', isOwner);
+
+        // Load photos
+        try {
+          const photos = await getPetPhotos(petId);
+          const sortedPhotos = photos.sort((a: any, b: any) => {
+            if (a.IsPrimary || a.isPrimary) return -1;
+            if (b.IsPrimary || b.isPrimary) return 1;
+            const aSort = a.SortOrder ?? a.sortOrder ?? 0;
+            const bSort = b.SortOrder ?? b.sortOrder ?? 0;
+            return aSort - bSort;
+          });
+          setPetPhotos(sortedPhotos || []);
+          console.log('📸 Pet photos loaded:', sortedPhotos.length);
+        } catch (error) {
+          console.log('⚠️ No photos found');
+          setPetPhotos([]);
+        }
 
         // Load characteristics
         try {
@@ -87,6 +118,19 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   console.log('📍 PetProfile - location:', location);
   console.log('📍 PetProfile - fullAddress:', fullAddress);
 
+  // Prepare photos array
+  let photos;
+  if (petPhotos && petPhotos.length > 0) {
+    photos = petPhotos.map((photo: any) => ({
+      uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url
+    }));
+  } else {
+    const avatarUrl = petData?.UrlImageAvatar || petData?.urlImageAvatar;
+    photos = avatarUrl 
+      ? [{ uri: avatarUrl }]
+      : [require("../../../assets/cat_avatar.png")];
+  }
+
   // Mock pet data for fallback
   const pet = petData ? {
     id: petIdStr,
@@ -95,9 +139,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     age: petData.Age ? `${petData.Age} years` : (petData.age ? `${petData.age} years` : 'Unknown'),
     gender: petData.Gender || petData.gender || 'Unknown',
     description: petData.Description || petData.description || 'No description available',
-    avatar: petData.UrlImageAvatar || petData.urlImageAvatar 
-      ? { uri: petData.UrlImageAvatar || petData.urlImageAvatar }
-      : require("../../../assets/cat_avatar.png"),
+    avatar: photos[0], // Use first photo as avatar
+    photos, // All photos for swipe
     location,
     fullAddress,
     owner: {
@@ -135,6 +178,22 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const handleEdit = () => {
     // Navigate to edit pet screen
     navigation.navigate("EditPet", { petId: pet.id });
+  };
+
+  const handleNextPhoto = () => {
+    setActivePhotoIndex((prev) => 
+      prev === (pet.photos?.length || 1) - 1 ? 0 : prev + 1
+    );
+  };
+
+  const handlePrevPhoto = () => {
+    setActivePhotoIndex((prev) => 
+      prev === 0 ? (pet.photos?.length || 1) - 1 : prev - 1
+    );
+  };
+
+  const handleEditPet = () => {
+    navigation.navigate("EditPet", { petId: petIdStr });
   };
 
   const handleAddToFavorite = () => {
@@ -218,16 +277,51 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               colors={["#C8A8D4", "#E8D5EE"]}
               style={styles.avatarGradient}
             >
-              <Image source={pet.avatar} style={styles.avatar} />
+              <Image source={pet.photos?.[activePhotoIndex] || pet.avatar} style={styles.avatar} />
+              
+              {/* Photo Navigation */}
+              {pet.photos && pet.photos.length > 1 && (
+                <>
+                  <TouchableOpacity 
+                    style={[styles.photoNavBtn, styles.photoNavBtnLeft]}
+                    onPress={handlePrevPhoto}
+                  >
+                    <Icon name="chevron-back" size={24} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.photoNavBtn, styles.photoNavBtnRight]}
+                    onPress={handleNextPhoto}
+                  >
+                    <Icon name="chevron-forward" size={24} color="#fff" />
+                  </TouchableOpacity>
+                  
+                  {/* Photo Indicators */}
+                  <View style={styles.photoIndicators}>
+                    {pet.photos.map((_: any, index: number) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.photoIndicator,
+                          index === activePhotoIndex && styles.photoIndicatorActive
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
             </LinearGradient>
-            <TouchableOpacity style={styles.editIconBtn} onPress={handleEdit}>
-              <LinearGradient
-                colors={["#FF6EA7", "#FF9BC0"]}
-                style={styles.editIconGradient}
-              >
-                <Icon name="pencil" size={16} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
+            
+            {/* Edit button - only show for my pet */}
+            {isMyPet && (
+              <TouchableOpacity style={styles.editIconBtn} onPress={handleEditPet}>
+                <LinearGradient
+                  colors={["#FF6EA7", "#FF9BC0"]}
+                  style={styles.editIconGradient}
+                >
+                  <Icon name="pencil" size={16} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.petName}>{pet.name}</Text>
         </View>
@@ -357,65 +451,69 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           )}
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.btnShadow, styles.actionBtnWrapper]}
-            activeOpacity={0.8}
-            onPress={handleAddToFavorite}
-          >
-            <LinearGradient
-              colors={["#C8A8D4", "#E8D5EE"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.actionBtn}
-            >
-              <Icon name="heart-outline" size={24} color="#fff" />
-              <Text style={styles.actionBtnText}>Add to{"\n"}favorite</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+        {/* Action Buttons - Only show for other people's pets */}
+        {!isMyPet && (
+          <>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.btnShadow, styles.actionBtnWrapper]}
+                activeOpacity={0.8}
+                onPress={handleAddToFavorite}
+              >
+                <LinearGradient
+                  colors={["#C8A8D4", "#E8D5EE"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionBtn}
+                >
+                  <Icon name="heart-outline" size={24} color="#fff" />
+                  <Text style={styles.actionBtnText}>Add to{"\n"}favorite</Text>
+                </LinearGradient>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.btnShadow, styles.actionBtnWrapper]}
-            activeOpacity={0.8}
-            onPress={handleSendMatchRequest}
-          >
-            <LinearGradient
-              colors={["#C8A8D4", "#E8D5EE"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.actionBtn}
-            >
-              <Icon name="paw" size={24} color="#fff" />
-              <Text style={styles.actionBtnText}>Send match{"\n"}request</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity
+                style={[styles.btnShadow, styles.actionBtnWrapper]}
+                activeOpacity={0.8}
+                onPress={handleSendMatchRequest}
+              >
+                <LinearGradient
+                  colors={["#C8A8D4", "#E8D5EE"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionBtn}
+                >
+                  <Icon name="paw" size={24} color="#fff" />
+                  <Text style={styles.actionBtnText}>Send match{"\n"}request</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
 
-        {/* Safety Actions */}
-        <View style={styles.safetyActions}>
-          <TouchableOpacity 
-            style={styles.safetyBtn}
-            onPress={handleReport}
-          >
-            <Icon name="flag-outline" size={20} color="#FF9800" />
-            <Text style={[styles.safetyBtnText, { color: "#FF9800" }]}>
-              Report
-            </Text>
-          </TouchableOpacity>
+            {/* Safety Actions */}
+            <View style={styles.safetyActions}>
+              <TouchableOpacity 
+                style={styles.safetyBtn}
+                onPress={handleReport}
+              >
+                <Icon name="flag-outline" size={20} color="#FF9800" />
+                <Text style={[styles.safetyBtnText, { color: "#FF9800" }]}>
+                  Report
+                </Text>
+              </TouchableOpacity>
 
-          <View style={styles.safetyDivider} />
+              <View style={styles.safetyDivider} />
 
-          <TouchableOpacity 
-            style={styles.safetyBtn}
-            onPress={handleBlock}
-          >
-            <Icon name="ban-outline" size={20} color="#E94D6B" />
-            <Text style={[styles.safetyBtnText, { color: "#E94D6B" }]}>
-              Block User
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity 
+                style={styles.safetyBtn}
+                onPress={handleBlock}
+              >
+                <Icon name="ban-outline" size={20} color="#E94D6B" />
+                <Text style={[styles.safetyBtnText, { color: "#E94D6B" }]}>
+                  Block User
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </ScrollView>
     </LinearGradient>
   );
@@ -464,6 +562,42 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+    position: "relative",
+  },
+  photoNavBtn: {
+    position: "absolute",
+    top: "50%",
+    transform: [{ translateY: -20 }],
+    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  photoNavBtnLeft: {
+    left: -5,
+  },
+  photoNavBtnRight: {
+    right: -5,
+  },
+  photoIndicators: {
+    position: "absolute",
+    bottom: 10,
+    flexDirection: "row",
+    gap: 6,
+    zIndex: 10,
+  },
+  photoIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.5)",
+  },
+  photoIndicatorActive: {
+    backgroundColor: "#fff",
+    width: 16,
   },
   avatar: {
     width: 150,

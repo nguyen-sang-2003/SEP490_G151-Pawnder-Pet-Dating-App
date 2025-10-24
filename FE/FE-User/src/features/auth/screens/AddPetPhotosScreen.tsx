@@ -18,8 +18,9 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
-import { uploadPetPhotosBatch, completeUserProfile } from "../../../api";
+import { uploadPetPhotosMultipart, completeUserProfile } from "../../../api";
 import { getItem } from "../../../utils/storage";
+import { launchImageLibrary, Asset } from 'react-native-image-picker';
 
 const { width } = Dimensions.get("window");
 const PHOTO_SIZE = (width - 60) / 3; // 3 columns with padding
@@ -29,6 +30,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "AddPetPhotos">;
 interface Photo {
   id: string;
   uri: string;
+  fileName?: string;
+  type?: string;
 }
 
 const AddPetPhotosScreen = ({ navigation, route }: Props) => {
@@ -38,31 +41,44 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   const maxPhotos = 6;
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  const handleAddPhoto = () => {
-    // TODO: Implement image picker
-    // For now, show placeholder
+  const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
-      Alert.alert("Limit Reached", `You can only add up to ${maxPhotos} photos`);
+      Alert.alert("Giới hạn ảnh", `Chỉ có thể thêm tối đa ${maxPhotos} ảnh`);
       return;
     }
     
-    Alert.alert(
-      "Add Photo",
-      "Image picker will be implemented here",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Add Sample", 
-          onPress: () => {
-            const newPhoto: Photo = {
-              id: Date.now().toString(),
-              uri: `https://placekitten.com/400/400?image=${photos.length + 1}`,
-            };
-            setPhotos([...photos, newPhoto]);
-          }
-        },
-      ]
-    );
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: maxPhotos - photos.length, // Allow multiple selection up to limit
+      });
+
+      if (result.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      }
+
+      if (result.errorCode) {
+        console.error('ImagePicker Error: ', result.errorMessage);
+        Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const newPhotos: Photo[] = result.assets.map((asset: Asset) => ({
+          id: Date.now().toString() + Math.random().toString(),
+          uri: asset.uri || '',
+          fileName: asset.fileName,
+          type: asset.type,
+        }));
+        
+        setPhotos([...photos, ...newPhotos]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+    }
   };
 
   const handleRemovePhoto = (id: string) => {
@@ -93,9 +109,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     try {
       setUploading(true);
 
-      // Upload photos to backend
-      const imageUrls = photos.map(p => p.uri);
-      await uploadPetPhotosBatch(petId, imageUrls);
+      // Upload photos to backend using multipart/form-data
+      await uploadPetPhotosMultipart(petId, photos);
 
       console.log('✅ Pet photos uploaded successfully');
 

@@ -118,6 +118,40 @@ export const uploadPetPhotosBatch = async (petId: number, imageUrls: string[]) =
 };
 
 /**
+ * Upload pet photos as multipart/form-data (file upload)
+ * POST /api/petphoto
+ */
+export const uploadPetPhotosMultipart = async (petId: number, photos: any[]) => {
+  try {
+    const formData = new FormData();
+    formData.append('petId', petId.toString());
+    
+    photos.forEach((photo, index) => {
+      formData.append('files', {
+        uri: photo.uri,
+        type: photo.type || 'image/jpeg',
+        name: photo.fileName || `pet_photo_${index}.jpg`,
+      } as any);
+    });
+
+    console.log(`📤 Uploading ${photos.length} photos for pet ${petId}`);
+    
+    const response = await client.post('/api/petphoto', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('✅ Photos uploaded successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error uploading photos:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+/**
  * Get pet photos
  * GET /api/petphoto/{petId}
  */
@@ -202,6 +236,23 @@ export const getPetCharacteristics = async (petId: number): Promise<PetCharacter
     return response.data;
   } catch (error: any) {
     console.error('❌ Error fetching pet characteristics:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+/**
+ * Set pet as active
+ * PUT /api/pet/{petId}/set-active
+ */
+export const setActivePet = async (petId: number): Promise<any> => {
+  try {
+    console.log(`📞 Calling: PUT /api/pet/${petId}/set-active`);
+    const response = await client.put(`/api/pet/${petId}/set-active`);
+    console.log('✅ Pet set as active:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error setting active pet:', error);
     console.error('Error response:', error.response?.data);
     throw error;
   }

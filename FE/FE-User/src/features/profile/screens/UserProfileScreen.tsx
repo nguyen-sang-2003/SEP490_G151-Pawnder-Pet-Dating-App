@@ -18,8 +18,10 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import Icon from "react-native-vector-icons/Ionicons";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
+import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
 import { getItem } from "../../../utils/storage";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 const { width } = Dimensions.get("window");
 
@@ -43,6 +45,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [activePet, setActivePet] = useState<PetResponse | null>(null);
   const [addressData, setAddressData] = useState<any>(null);
   const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
+  const [petPhotos, setPetPhotos] = useState<any[]>([]);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Fetch user and pets data
   useEffect(() => {
@@ -107,11 +111,15 @@ const UserProfileScreen = ({ navigation }: Props) => {
     fetchProfileData();
   }, []);
 
-  // Load characteristics for active pet
+  // Load characteristics and photos for active pet
   useEffect(() => {
-    const loadCharacteristics = async () => {
+    const loadPetDetails = async () => {
+      // Reset photo index when pet changes
+      setActivePhotoIndex(0);
+      
       if (!activePet) {
         setCharacteristics([]);
+        setPetPhotos([]);
         return;
       }
 
@@ -119,39 +127,53 @@ const UserProfileScreen = ({ navigation }: Props) => {
         const petId = activePet.PetId || activePet.petId;
         if (!petId) return;
 
+        // Load characteristics
         const chars = await getPetCharacteristics(petId);
         setCharacteristics(chars);
         console.log('🎯 Characteristics loaded:', chars);
+
+        // Load all photos from PetPhotos table
+        const photos = await getPetPhotos(petId);
+        
+        // Sort photos: isPrimary first, then by sortOrder
+        const sortedPhotos = photos.sort((a: any, b: any) => {
+          // Primary photo goes first
+          if (a.IsPrimary || a.isPrimary) return -1;
+          if (b.IsPrimary || b.isPrimary) return 1;
+          // Then sort by sortOrder
+          const aSort = a.SortOrder ?? a.sortOrder ?? 0;
+          const bSort = b.SortOrder ?? b.sortOrder ?? 0;
+          return aSort - bSort;
+        });
+        
+        setPetPhotos(sortedPhotos || []);
+        console.log('📸 Pet photos loaded:', sortedPhotos.length, 'photos');
       } catch (error: any) {
         console.log('⚠️ No characteristics found for pet');
         setCharacteristics([]);
+        setPetPhotos([]);
       }
     };
 
-    loadCharacteristics();
+    loadPetDetails();
   }, [activePet]);
 
   // Convert active pet to display format
   const myCat = activePet ? (() => {
-    // Collect all photo URLs
-    const photoUrls: string[] = [];
-    
-    // Add UrlImage array
-    if (activePet.UrlImage || activePet.urlImage) {
-      photoUrls.push(...(activePet.UrlImage || activePet.urlImage || []));
+    // Use photos from PetPhotos table (already sorted by isPrimary and sortOrder)
+    let photos;
+    if (petPhotos && petPhotos.length > 0) {
+      // Map all photos from PetPhotos table
+      photos = petPhotos.map((photo: any) => ({
+        uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url
+      }));
+    } else {
+      // Fallback to UrlImageAvatar or default
+      const avatarUrl = activePet.UrlImageAvatar || activePet.urlImageAvatar;
+      photos = avatarUrl 
+        ? [{ uri: avatarUrl }]
+        : [require("../../../assets/cat_avatar.png")];
     }
-    
-    // Add avatar URL
-    const avatarUrl = activePet.UrlImageAvatar || activePet.urlImageAvatar;
-    if (avatarUrl) {
-      photoUrls.push(avatarUrl);
-    }
-    
-    // Remove duplicates and convert to image source
-    const uniqueUrls = Array.from(new Set(photoUrls));
-    const photos = uniqueUrls.length > 0
-      ? uniqueUrls.slice(0, 3).map(url => ({ uri: url }))
-      : [require("../../../assets/cat_avatar.png")];
     
     return {
       id: (activePet.PetId || activePet.petId || 0).toString(),
@@ -227,43 +249,78 @@ const UserProfileScreen = ({ navigation }: Props) => {
     }
   };
 
+  const handleSetActivePet = async (petIdStr: string) => {
+    const petId = parseInt(petIdStr, 10);
+    const pet = pets.find(p => (p.PetId || p.petId) === petId);
+    
+    if (!pet) return;
+    
+    // Nếu đã active rồi thì không làm gì
+    if (pet.IsActive === true || pet.isActive === true) {
+      showAlert({
+        type: 'info',
+        title: 'Already Active 🐾',
+        message: `${pet.Name || pet.name} is already your active pet for matching!`,
+        confirmText: 'Got it'
+      });
+      return;
+    }
+    
+    const petName = pet.Name || pet.name || 'This pet';
+    
+    Alert.alert(
+      '🐾 Set Active Pet',
+      `Do you want to set ${petName} as your active pet for matching?`,
+      [
+        { 
+          text: 'Cancel', 
+          style: 'cancel' 
+        },
+        {
+          text: 'Set Active',
+          onPress: async () => {
+            try {
+              // Call API để update DB
+              await setActivePetAPI(petId);
+              
+              // Reload pets data
+              const userIdStr = await getItem('userId');
+              if (userIdStr) {
+                const userId = parseInt(userIdStr, 10);
+                const petsData = await getPetsByUserId(userId);
+                setPets(petsData);
+                
+                // Set new active pet
+                const newActivePet = petsData.find(p => (p.PetId || p.petId) === petId);
+                setActivePet(newActivePet || null);
+              }
+              
+              // Show success message
+              showAlert({
+                type: 'success',
+                title: 'Success! 🎉',
+                message: `${petName} is now your active pet for matching and dating!`,
+                confirmText: 'Awesome!'
+              });
+            } catch (error: any) {
+              console.error('Error setting active pet:', error);
+              showAlert({
+                type: 'error',
+                title: 'Oops! 😿',
+                message: 'Failed to set active pet. Please try again.',
+                confirmText: 'OK'
+              });
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleEditCat = () => {
     navigation.navigate("EditPet", { petId: myCat.id });
   };
 
-  const handleSetActivePet = async (petId: string) => {
-    Alert.alert(
-      "Set Active Pet",
-      "Use this pet for matching and dating?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Set Active",
-          onPress: async () => {
-            try {
-              // TODO: Call API to update IsActive in DB
-              // For now, just update local state
-              const updatedPets = pets.map((pet) => ({
-                ...pet,
-                IsActive: (pet.PetId || pet.petId || 0).toString() === petId,
-                isActive: (pet.PetId || pet.petId || 0).toString() === petId,
-              }));
-              
-              setPets(updatedPets);
-              
-              const newActive = updatedPets.find(p => (p.PetId || p.petId || 0).toString() === petId);
-              setActivePet(newActive || null);
-              
-              Alert.alert("Success", "Active pet updated!");
-            } catch (error) {
-              console.error('Error setting active pet:', error);
-              Alert.alert("Error", "Failed to set active pet");
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const handleNextPhoto = () => {
     setActivePhotoIndex((prev) => 
@@ -601,6 +658,18 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
       {/* Bottom Navigation */}
       <BottomNav active="Profile" />
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+        />
+      )}
     </View>
   );
 };

@@ -9,14 +9,19 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getPetById, updatePet, getUserById, getAddressById } from "../../../api";
+import { getPetById, updatePet, getUserById, getAddressById, getPetPhotos, uploadPetPhotosMultipart } from "../../../api";
 import { colors } from "../../../theme";
+import { launchImageLibrary, Asset } from 'react-native-image-picker';
+
+const { width } = Dimensions.get("window");
+const PHOTO_SIZE = (width - 80) / 3;
 
 type Props = NativeStackScreenProps<RootStackParamList, "EditPet">;
 
@@ -26,6 +31,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
@@ -36,6 +42,9 @@ const EditPetScreen = ({ navigation, route }: Props) => {
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
   const [ward, setWard] = useState("");
+
+  const [photos, setPhotos] = useState<any[]>([]);
+  const maxPhotos = 6;
 
   // Load pet data
   useEffect(() => {
@@ -84,6 +93,16 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           } catch (error) {
             console.log('⚠️ No address found for user');
           }
+        }
+
+        // Load pet photos
+        try {
+          const photosData = await getPetPhotos(petId);
+          console.log('📸 Pet photos loaded:', photosData);
+          setPhotos(photosData || []);
+        } catch (error) {
+          console.log('⚠️ No photos found for pet');
+          setPhotos([]);
         }
         
       } catch (error: any) {
@@ -137,8 +156,60 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     navigation.goBack();
   };
 
+  const handleAddPhoto = async () => {
+    if (photos.length >= maxPhotos) {
+      Alert.alert("Giới hạn ảnh", `Chỉ có thể thêm tối đa ${maxPhotos} ảnh`);
+      return;
+    }
+
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: maxPhotos - photos.length,
+      });
+
+      if (result.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      }
+
+      if (result.errorCode) {
+        console.error('ImagePicker Error: ', result.errorMessage);
+        Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        setUploading(true);
+        
+        // Prepare photos for upload
+        const newPhotos = result.assets.map((asset: Asset) => ({
+          uri: asset.uri || '',
+          type: asset.type,
+          fileName: asset.fileName,
+        }));
+
+        // Upload to server
+        const response = await uploadPetPhotosMultipart(petId, newPhotos);
+        console.log('✅ Photos uploaded:', response);
+
+        // Reload photos
+        const photosData = await getPetPhotos(petId);
+        setPhotos(photosData || []);
+        
+        Alert.alert('Thành công', 'Đã thêm ảnh mới!');
+      }
+    } catch (error: any) {
+      console.error('Error uploading photos:', error);
+      Alert.alert('Lỗi', 'Không thể upload ảnh. Vui lòng thử lại.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleChangePhoto = () => {
-    Alert.alert("Change Photo", "Feature coming soon!");
+    handleAddPhoto();
   };
 
   // Show loading spinner
@@ -201,6 +272,48 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             </TouchableOpacity>
           </View>
           <Text style={styles.changePhotoText}>Change pet photo</Text>
+        </View>
+
+        {/* Photos Grid */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Pet Photos ({photos.length}/{maxPhotos})</Text>
+            <TouchableOpacity 
+              onPress={handleAddPhoto}
+              disabled={uploading || photos.length >= maxPhotos}
+              style={[styles.addPhotoBtn, (uploading || photos.length >= maxPhotos) && styles.addPhotoBtnDisabled]}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="#FF6EA7" />
+              ) : (
+                <Icon name="add" size={20} color={photos.length >= maxPhotos ? "#CCC" : "#FF6EA7"} />
+              )}
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.photosGrid}>
+            {photos.map((photo: any, index: number) => (
+              <View key={photo.PhotoId || photo.photoId || index} style={styles.photoItem}>
+                <Image
+                  source={{ uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url }}
+                  style={styles.photoImage}
+                  resizeMode="cover"
+                />
+                {photo.IsPrimary || photo.isPrimary ? (
+                  <View style={styles.primaryBadge}>
+                    <Text style={styles.primaryText}>Main</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+            
+            {/* Empty slots */}
+            {Array.from({ length: maxPhotos - photos.length }).map((_, index) => (
+              <View key={`empty-${index}`} style={[styles.photoItem, styles.emptyPhotoSlot]}>
+                <Icon name="image-outline" size={30} color="#DDD" />
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Form */}
@@ -429,6 +542,64 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
     marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  addPhotoBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFF",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FF6EA7",
+  },
+  addPhotoBtnDisabled: {
+    borderColor: "#DDD",
+  },
+  photosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  photoItem: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: 12,
+    marginBottom: 10,
+    overflow: "hidden",
+    position: "relative",
+  },
+  photoImage: {
+    width: "100%",
+    height: "100%",
+  },
+  emptyPhotoSlot: {
+    backgroundColor: "#F5F5F5",
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  primaryBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "#FF6EA7",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  primaryText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "bold",
   },
 
   // Input
