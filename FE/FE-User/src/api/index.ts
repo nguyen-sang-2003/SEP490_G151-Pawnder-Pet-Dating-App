@@ -7,4 +7,5 @@ export * from './address';
 export * from './attributes';
 export * from './pet';
 export * from './user';
+export * from './match';
 

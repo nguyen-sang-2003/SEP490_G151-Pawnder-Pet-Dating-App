@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     PanResponder,
     SafeAreaView,
     StatusBar,
+    ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -18,6 +19,9 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getPetsForMatching, PetForMatching } from "../../../api/pet";
+import { sendLike } from "../../../api/match";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
@@ -37,64 +41,16 @@ interface PetProfile {
   image: any;
   personality: string[];
   owner: string;
+  ownerId: number; // Add ownerId for API calls
 }
-
-const MOCK_PETS: PetProfile[] = [
-  {
-        id: "1",
-    name: "Luna",
-    age: "2 years",
-    breed: "Persian Cat",
-    gender: "female",
-    distance: "2 km away",
-    bio: "Playful and loves cuddles! 🐱",
-    image: require("../../../assets/cat_avatar.png"),
-    personality: ["Playful", "Gentle", "Curious"],
-    owner: "Sarah",
-  },
-  {
-    id: "2",
-    name: "Max",
-    age: "3 years",
-    breed: "Golden Retriever",
-    gender: "male",
-    distance: "5 km away",
-    bio: "Energetic boy who loves to run! 🎾",
-    image: require("../../../assets/cat_avatar_signin.png"),
-    personality: ["Energetic", "Friendly", "Loyal"],
-    owner: "John",
-  },
-  {
-    id: "3",
-        name: "Mimi",
-    age: "1.5 years",
-    breed: "British Shorthair",
-        gender: "female",
-    distance: "1 km away",
-    bio: "Sweet and calm, loves naps ☀️",
-        image: require("../../../assets/cat_avatar.png"),
-    personality: ["Calm", "Affectionate", "Lazy"],
-    owner: "Emma",
-  },
-  {
-    id: "4",
-    name: "Charlie",
-    age: "4 years",
-    breed: "Beagle",
-    gender: "male",
-    distance: "3 km away",
-    bio: "Adventure seeker! 🏃‍♂️",
-    image: require("../../../assets/cat_avatar_signin.png"),
-    personality: ["Active", "Curious", "Friendly"],
-    owner: "Mike",
-  },
-];
 
 const HomeScreen = ({ navigation }: Props) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [pets] = useState<PetProfile[]>(MOCK_PETS);
+    const [pets, setPets] = useState<PetProfile[]>([]);
+    const [loading, setLoading] = useState(true);
     const [showMatchModal, setShowMatchModal] = useState(false);
     const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
     const position = useRef(new Animated.ValueXY()).current;
     const rotate = position.x.interpolate({
@@ -145,51 +101,133 @@ const HomeScreen = ({ navigation }: Props) => {
         }).start(() => onSwipeComplete(direction));
     };
 
-    const onSwipeComplete = (direction: "left" | "right") => {
+    const onSwipeComplete = async (direction: "left" | "right") => {
         const currentPet = pets[currentIndex];
         
+        // Safety check
+        if (!currentPet || !currentPet.id || !currentUserId) {
+            console.log("⚠️ No valid pet at index:", currentIndex);
+            position.setValue({ x: 0, y: 0 });
+            setCurrentIndex(prev => prev + 1);
+            return;
+        }
+        
         if (direction === "right") {
-            // TODO: API call - Save like to database
-            console.log("Liked pet:", currentPet.id);
-            
-            // TODO: API call - Check if other pet already liked us
-            // If yes (mutual like) -> create match
-            const didTheyLikeUs = checkIfMutualLike(currentPet.id); // Mock function
-            
-            if (didTheyLikeUs) {
-                // It's a match! Show modal
-                setMatchedPet(currentPet);
-                setShowMatchModal(true);
-                // Auto hide after 4 seconds if user doesn't interact
-                setTimeout(() => {
-                    if (showMatchModal) {
+            // Send like via API
+            try {
+                console.log("❤️ Liked pet:", currentPet.id, "Owner:", currentPet.owner);
+                
+                const response = await sendLike({
+                    fromUserId: currentUserId,
+                    toUserId: currentPet.ownerId
+                });
+                
+                console.log("✅ Like response:", response);
+                
+                // Check if it's a match
+                if (response.isMatch) {
+                    setMatchedPet(currentPet);
+                    setShowMatchModal(true);
+                    // Auto hide after 4 seconds
+                    setTimeout(() => {
                         setShowMatchModal(false);
                         setMatchedPet(null);
-                    }
-                }, 4000);
+                    }, 4000);
+                }
+            } catch (error) {
+                console.error("❌ Error sending like:", error);
             }
-            // If not matched, just save the like silently
         } else if (direction === "left") {
-            // TODO: API call - Save "pass/nope" to database
-            console.log("Passed pet:", currentPet.id);
+            // Just pass - no need to save to database
+            console.log("👎 Passed pet:", currentPet.id);
         }
         
         position.setValue({ x: 0, y: 0 });
         setCurrentIndex(prev => prev + 1);
     };
 
-    // Mock function - Replace with actual API call
-    const checkIfMutualLike = (petId: string): boolean => {
-        // TODO: Call API to check if the other pet already liked us
-        // For demo: 30% chance of mutual like
-        return Math.random() > 0.7;
+    // Load pets from API
+    useEffect(() => {
+        loadPets();
+    }, []);
+
+    const loadPets = async () => {
+        try {
+            setLoading(true);
+            // Get current user ID from storage
+            const userIdStr = await AsyncStorage.getItem('userId');
+            if (!userIdStr) {
+                console.log('❌ No userId found in storage');
+                setLoading(false);
+                return;
+            }
+
+            const userId = parseInt(userIdStr);
+            
+            if (!userId || isNaN(userId)) {
+                console.log('❌ Invalid userId');
+                setLoading(false);
+                return;
+            }
+
+            console.log('👤 Current userId:', userId);
+            setCurrentUserId(userId); // Save for later use
+            
+            // Fetch pets for matching
+            const matchingPets = await getPetsForMatching(userId);
+            console.log('📦 Fetched pets:', matchingPets.length);
+
+            // Convert API data to PetProfile format
+            const formattedPets: PetProfile[] = matchingPets
+                .filter((pet: PetForMatching) => pet && pet.petId && pet.name) // Filter out invalid pets
+                .map((pet: PetForMatching) => ({
+                    id: pet.petId.toString(),
+                    name: pet.name,
+                    age: pet.age ? `${pet.age} years` : 'N/A',
+                    breed: pet.breed || 'Unknown',
+                    gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
+                    distance: pet.owner?.address ? calculateDistance(pet.owner.address) : 'N/A',
+                    bio: pet.description || 'No description',
+                    image: pet.photos && pet.photos.length > 0 
+                        ? { uri: pet.photos[0] } 
+                        : require("../../../assets/cat_avatar.png"),
+                    personality: [], // TODO: Add from pet characteristics
+                    owner: pet.owner?.fullName || 'Unknown',
+                    ownerId: pet.userId, // Store owner ID for API calls
+                }));
+
+            console.log('✅ Formatted pets:', formattedPets.length);
+            setPets(formattedPets);
+        } catch (error) {
+            console.error('❌ Error loading pets:', error);
+            setPets([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Calculate distance from address (placeholder logic)
+    const calculateDistance = (address: any): string => {
+        if (address && (address.City || address.city)) {
+            return `${address.City || address.city}`;
+        }
+        if (address && (address.District || address.district)) {
+            return `${address.District || address.district}`;
+        }
+        return 'Location unknown';
     };
 
     const handleLike = () => forceSwipe("right");
     const handleNope = () => forceSwipe("left");
+    
+    const handleViewPetDetail = (petId: string) => {
+        console.log('📱 Opening pet detail:', petId);
+        navigation.navigate("PetProfile", { petId });
+    };
 
     const renderCard = (pet: PetProfile, index: number) => {
         if (index < currentIndex) return null;
+        if (!pet || !pet.id) return null; // Safety check
         
         const isCurrentCard = index === currentIndex;
         const cardStyle = isCurrentCard
@@ -210,7 +248,20 @@ const HomeScreen = ({ navigation }: Props) => {
                 {...(isCurrentCard ? panResponder.panHandlers : {})}
             >
                 <View style={styles.cardContent}>
-                    <Image source={pet.image} style={styles.petImage} />
+                    <TouchableOpacity 
+                        activeOpacity={0.9}
+                        onPress={() => handleViewPetDetail(pet.id)}
+                        style={styles.imageContainer}
+                    >
+                        <Image source={pet.image} style={styles.petImage} />
+                        
+                        {/* Info Button Overlay */}
+                        <View style={styles.infoButtonOverlay}>
+                            <View style={styles.infoButton}>
+                                <Icon name="information-circle" size={24} color={colors.white} />
+                            </View>
+                        </View>
+                    </TouchableOpacity>
                     
                     {/* Swipe Indicators */}
                     {isCurrentCard && (
@@ -307,6 +358,24 @@ const HomeScreen = ({ navigation }: Props) => {
         );
     };
 
+    // Show loading state
+    if (loading) {
+        return (
+            <LinearGradient
+                colors={gradients.background}
+                style={styles.container}
+            >
+                <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+                <SafeAreaView style={{ flex: 0 }} />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>Loading pets...</Text>
+                </View>
+                <BottomNav active="Home" />
+            </LinearGradient>
+        );
+    }
+
     if (currentIndex >= pets.length) {
         return (
             <LinearGradient
@@ -353,14 +422,17 @@ const HomeScreen = ({ navigation }: Props) => {
                     </Text>
                     <TouchableOpacity
                         style={styles.resetButton}
-                        onPress={() => setCurrentIndex(0)}
+                        onPress={() => {
+                            setCurrentIndex(0);
+                            loadPets(); // Reload pets from API
+                        }}
                     >
                         <LinearGradient
                             colors={gradients.primary}
                             style={styles.resetGradient}
                         >
                             <Icon name="refresh" size={24} color={colors.white} />
-                            <Text style={styles.resetText}>Start Over</Text>
+                            <Text style={styles.resetText}>Reload Pets</Text>
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -410,7 +482,10 @@ const HomeScreen = ({ navigation }: Props) => {
 
             {/* Cards */}
             <View style={styles.cardsContainer}>
-                {pets.map((pet, index) => renderCard(pet, index)).reverse()}
+                {pets
+                    .map((pet, index) => renderCard(pet, index))
+                    .filter(card => card !== null)
+                    .reverse()}
             </View>
 
             {/* Match Modal */}
@@ -539,10 +614,30 @@ const styles = StyleSheet.create({
         backgroundColor: colors.whiteWarm,
         ...shadows.large,
     },
+    imageContainer: {
+        width: "100%",
+        height: "100%",
+        position: "relative",
+    },
     petImage: {
         width: "100%",
         height: "100%",
         resizeMode: "cover",
+    },
+    infoButtonOverlay: {
+        position: "absolute",
+        top: 16,
+        right: 16,
+        zIndex: 5,
+    },
+    infoButton: {
+        backgroundColor: "rgba(0,0,0,0.5)",
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: "center",
+        alignItems: "center",
+        ...shadows.medium,
     },
 
     // Swipe Labels
@@ -765,6 +860,20 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: colors.white,
+    },
+
+    // Loading
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingBottom: 100,
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: colors.textMedium,
+        fontWeight: "600",
     },
 });
 

@@ -45,6 +45,44 @@ namespace BE.Controllers
             return Ok(pets);
         }
 
+        // GET /pet/match/{userId} - Get all pets for matching (exclude current user's pets)
+        [HttpGet("match/{userId}")]
+        public async Task<IActionResult> GetPetsForMatching(int userId)
+        {
+            var pets = await _context.Pets
+                .Include(p => p.PetPhotos)
+                .Include(p => p.User)
+                    .ThenInclude(u => u.Address)
+                .Where(p => p.UserId != userId && p.IsDeleted == false && p.IsActive == true)
+                .Select(p => new
+                {
+                    PetId = p.PetId,
+                    UserId = p.UserId,
+                    Name = p.Name,
+                    Breed = p.Breed,
+                    Gender = p.Gender,
+                    Age = p.Age,
+                    Description = p.Description,
+                    Photos = p.PetPhotos.Select(photo => photo.ImageUrl).ToList(),
+                    Owner = p.User != null ? new
+                    {
+                        UserId = p.User.UserId,
+                        FullName = p.User.FullName,
+                        Gender = p.User.Gender,
+                        Address = p.User.Address != null ? new
+                        {
+                            City = p.User.Address.City,
+                            District = p.User.Address.District,
+                            Latitude = p.User.Address.Latitude,
+                            Longitude = p.User.Address.Longitude
+                        } : null
+                    } : null
+                })
+                .ToListAsync();
+
+            return Ok(pets);
+        }
+
         // GET /pet/{petId}
         //[Authorize(Roles = "Admin,User")]
         [HttpGet("{petId}")]

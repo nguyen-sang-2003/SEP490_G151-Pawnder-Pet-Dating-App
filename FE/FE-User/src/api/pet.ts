@@ -257,3 +257,42 @@ export const setActivePet = async (petId: number): Promise<any> => {
     throw error;
   }
 };
+
+export interface PetForMatching {
+  petId: number;
+  userId: number;
+  name: string;
+  breed?: string;
+  gender: string;
+  age?: number;
+  description?: string;
+  photos: string[];
+  owner?: {
+    userId: number;
+    fullName: string;
+    gender?: string;
+    address?: {
+      city: string;
+      district: string;
+      latitude?: number;
+      longitude?: number;
+    };
+  };
+}
+
+/**
+ * Get pets for matching (exclude current user's pets)
+ * GET /api/pet/match/{userId}
+ */
+export const getPetsForMatching = async (userId: number): Promise<PetForMatching[]> => {
+  try {
+    console.log(`📞 Calling: GET /api/pet/match/${userId}`);
+    const response = await client.get(`/api/pet/match/${userId}`);
+    console.log('✅ Matching pets data:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error fetching matching pets:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
