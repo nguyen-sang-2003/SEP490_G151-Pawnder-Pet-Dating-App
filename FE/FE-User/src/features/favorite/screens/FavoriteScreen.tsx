@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -14,6 +15,8 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getLikesReceived, respondToLike, LikeReceivedItem } from "../../../api/match";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Favorite">;
 
@@ -29,84 +32,141 @@ interface LikeCat {
   isMatch: boolean;
 }
 
-const likedCats: LikeCat[] = [
-  {
-    id: "1",
-    catName: "Milu",
-    ownerName: "Nguyễn Văn A",
-    gender: "female",
-    age: "2 years",
-    breed: "Persian Cat",
-    image: require("../../../assets/cat_avatar.png"),
-    likedAt: "2 hours ago",
-    isMatch: true,
-  },
-  {
-    id: "2",
-    catName: "Simba",
-    ownerName: "Trần Thị B",
-    gender: "male",
-    age: "1 year",
-    breed: "British Shorthair",
-    image: require("../../../assets/cat_avatar.png"),
-    likedAt: "5 hours ago",
-    isMatch: false,
-  },
-  {
-    id: "3",
-    catName: "Bella",
-    ownerName: "Lê Văn C",
-    gender: "female",
-    age: "3 years",
-    breed: "Maine Coon",
-    image: require("../../../assets/cat_avatar.png"),
-    likedAt: "Yesterday",
-    isMatch: true,
-  },
-];
-
 const FavoriteScreen = ({ navigation }: Props) => {
-  const [pets, setPets] = React.useState<LikeCat[]>(likedCats);
+  const [pets, setPets] = React.useState<LikeCat[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [showMatchModal, setShowMatchModal] = React.useState(false);
   const [matchedPet, setMatchedPet] = React.useState<LikeCat | null>(null);
 
-  const handleMatch = (petId: string) => {
+  // Load likes when screen mounts
+  useEffect(() => {
+    loadLikes();
+  }, []);
+
+  const loadLikes = async () => {
+    try {
+      setLoading(true);
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        console.log('❌ No userId found');
+        setLoading(false);
+        return;
+      }
+
+      const userId = parseInt(userIdStr);
+      console.log('📞 Loading likes for user:', userId);
+      
+      const likesData = await getLikesReceived(userId);
+      console.log('✅ Received likes:', likesData);
+
+      // Convert API data to LikeCat format
+      const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => ({
+        id: item.matchId.toString(),
+        catName: item.pet?.name || 'Unknown',
+        ownerName: item.owner?.fullName || 'Unknown',
+        gender: item.pet?.gender?.toLowerCase() === 'male' ? 'male' : 'female',
+        age: item.pet?.age ? `${item.pet.age} years` : 'N/A',
+        breed: item.pet?.breed || 'Unknown',
+        image: item.petPhotos && item.petPhotos.length > 0
+          ? { uri: item.petPhotos[0] }
+          : require("../../../assets/cat_avatar.png"),
+        likedAt: getTimeAgo(item.createdAt),
+        isMatch: item.isMatch,
+      }));
+
+      setPets(formattedPets);
+    } catch (error) {
+      console.error('❌ Error loading likes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper to format time ago
+  const getTimeAgo = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays === 1) return 'Yesterday';
+    return `${diffDays} days ago`;
+  };
+
+  const handleMatch = async (petId: string) => {
     const pet = pets.find(p => p.id === petId);
     if (!pet) return;
 
-    // Update UI immediately - change to matched
-    setPets(prevPets =>
-      prevPets.map(p =>
-        p.id === petId ? { ...p, isMatch: true } : p
-      )
-    );
+    try {
+      console.log('💘 Matching with:', petId);
+      
+      // Call API to accept the match
+      const response = await respondToLike({
+        matchId: parseInt(petId),
+        action: 'match'
+      });
 
-    // Show match modal
-    setMatchedPet(pet);
-    setShowMatchModal(true);
+      console.log('✅ Match response:', response);
 
-    // Hide modal after 3 seconds
-    setTimeout(() => {
-      setShowMatchModal(false);
-      setMatchedPet(null);
-    }, 3000);
+      // Update UI immediately - change to matched
+      setPets(prevPets =>
+        prevPets.map(p =>
+          p.id === petId ? { ...p, isMatch: true } : p
+        )
+      );
 
-    // TODO: API call to create match
-    console.log("Match with pet:", petId);
+      // Show match modal
+      setMatchedPet(pet);
+      setShowMatchModal(true);
+
+      // Hide modal after 3 seconds
+      setTimeout(() => {
+        setShowMatchModal(false);
+        setMatchedPet(null);
+      }, 3000);
+    } catch (error) {
+      console.error('❌ Error matching:', error);
+    }
   };
 
-  const handlePass = (petId: string) => {
-    // Remove from list immediately
-    setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
-    // TODO: API call to remove from favorites/reject
-    console.log("Pass pet:", petId);
+  const handlePass = async (petId: string) => {
+    try {
+      console.log('👎 Passing on:', petId);
+      
+      // Call API to reject/pass
+      await respondToLike({
+        matchId: parseInt(petId),
+        action: 'pass'
+      });
+
+      // Remove from list immediately
+      setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
+      console.log('✅ Passed successfully');
+    } catch (error) {
+      console.error('❌ Error passing:', error);
+    }
   };
 
-  const handleUnmatch = (petId: string) => {
-    // Remove from list immediately
-    setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
-    // TODO: API call to unmatch
-    console.log("Unmatch with pet:", petId);
+  const handleUnmatch = async (petId: string) => {
+    try {
+      console.log('💔 Unmatching:', petId);
+      
+      // Call API to unmatch (pass on already matched)
+      await respondToLike({
+        matchId: parseInt(petId),
+        action: 'pass'
+      });
+
+      // Remove from list immediately
+      setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
+      console.log('✅ Unmatched successfully');
+    } catch (error) {
+      console.error('❌ Error unmatching:', error);
+    }
   };
 
   const handleViewProfile = (petId: string) => {
@@ -199,6 +259,30 @@ const FavoriteScreen = ({ navigation }: Props) => {
       </View>
     </TouchableOpacity>
   );
+
+  // Show loading state
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={gradients.background}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Favorites</Text>
+            <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+          </View>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading likes...</Text>
+        </View>
+        <BottomNav active="Favorite" />
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
@@ -561,6 +645,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.white,
+  },
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 120,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textMedium,
+    fontWeight: "600",
   },
 });
 
