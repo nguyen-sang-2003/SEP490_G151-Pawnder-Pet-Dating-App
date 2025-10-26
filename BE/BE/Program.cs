@@ -11,6 +11,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//Cloundinary config
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("Cloudinary"));
 
@@ -66,6 +67,8 @@ builder.Services.AddAuthentication(options =>
     };
 });
 builder.Services.AddAuthorization();
+//Gemini AI Service
+builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 
 // Register Email Service 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
