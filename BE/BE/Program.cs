@@ -54,6 +54,14 @@ builder.Services.AddAuthorization();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddTransient<EmailService>();
 
+// setup save data 
+builder.Services.AddMemoryCache();
+
+// setup verifi email
+builder.Services.Configure<KickboxSettings>(builder.Configuration.GetSection("KickboxSettings"));
+builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
