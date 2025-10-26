@@ -13,7 +13,7 @@ CREATE TABLE "Role" (
 );
 
 -- ===========================
--- TABLE: UserStatus
+-- TABLE: UserStatuss
 -- ===========================
 CREATE TABLE "UserStatus" (
     "UserStatusId" SERIAL PRIMARY KEY,
@@ -55,6 +55,8 @@ CREATE TABLE "User" (
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE "User"
+  ADD COLUMN "IsProfileComplete" BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- ===========================
 -- TABLE: Attribute
@@ -116,9 +118,13 @@ CREATE TABLE "Pet" (
 -- TABLE: PetPhoto
 -- ===========================
 CREATE TABLE "PetPhoto" (
-    "PhotoId" SERIAL PRIMARY KEY,
-    "PetId" INT REFERENCES "Pet"("PetId"),
-    "ImageUrl" TEXT NOT NULL,
+    "PhotoId"   SERIAL PRIMARY KEY,
+    "PetId"     INT NOT NULL REFERENCES "Pet"("PetId"),
+    "ImageUrl"       TEXT NOT NULL,        -- đổi từ ImageUrl -> Url (khớp EF & code)
+    "PublicId"  TEXT,                 -- để xóa Cloudinary
+    "IsPrimary" BOOLEAN DEFAULT FALSE,
+    "SortOrder" INT DEFAULT 0,
+    "IsDeleted" BOOLEAN DEFAULT FALSE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
@@ -295,31 +301,53 @@ VALUES
 -- ===========================
 -- BẢNG User
 -- ===========================
-INSERT INTO "User" ("RoleId", "UserStatusId", "AddressId", "FullName", "Gender", "Email", "PasswordHash", "ProviderLogin")
+-- ===========================
+-- BẢNG User
+-- ===========================
+INSERT INTO "User" (
+    "RoleId", 
+    "UserStatusId", 
+    "AddressId", 
+    "FullName", 
+    "Gender", 
+    "Email", 
+    "PasswordHash", 
+    "ProviderLogin",
+    "IsProfileComplete"
+)
 VALUES
-((SELECT "RoleId" FROM "Role" WHERE "RoleName"='Admin'),
+(
+ (SELECT "RoleId" FROM "Role" WHERE "RoleName"='Admin'),
  (SELECT "UserStatusId" FROM "UserStatus" WHERE "UserStatusName"='Tài khoản thường'),
  (SELECT "AddressId" FROM "Address" WHERE "City"='Hồ Chí Minh' LIMIT 1),
  'Nguyễn Văn A', 'Nam', 'admin@pawnder.com',
- '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local'),
-
-((SELECT "RoleId" FROM "Role" WHERE "RoleName"='Expert'),
+ '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local',
+ TRUE
+),
+(
+ (SELECT "RoleId" FROM "Role" WHERE "RoleName"='Expert'),
  (SELECT "UserStatusId" FROM "UserStatus" WHERE "UserStatusName"='Tài khoản thường'),
  (SELECT "AddressId" FROM "Address" WHERE "City"='Cần Thơ' LIMIT 1),
  'Trần Thị B', 'Nữ', 'expert@pawnder.com',
- '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local'),
-
-((SELECT "RoleId" FROM "Role" WHERE "RoleName"='User'),
+ '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local',
+ TRUE
+),
+(
+ (SELECT "RoleId" FROM "Role" WHERE "RoleName"='User'),
  (SELECT "UserStatusId" FROM "UserStatus" WHERE "UserStatusName"='Tài khoản thường'),
  (SELECT "AddressId" FROM "Address" WHERE "City"='Hồ Chí Minh' LIMIT 1),
  'Lê Minh C', 'Nam', 'user1@pawnder.com',
- '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local'),
-
-((SELECT "RoleId" FROM "Role" WHERE "RoleName"='User'),
+ '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local',
+ TRUE
+),
+(
+ (SELECT "RoleId" FROM "Role" WHERE "RoleName"='User'),
  (SELECT "UserStatusId" FROM "UserStatus" WHERE "UserStatusName"='Tài khoản thường'),
  (SELECT "AddressId" FROM "Address" WHERE "City"='Hồ Chí Minh' LIMIT 1),
  'Lê Minh D', 'Nam', 'user2@pawnder.com',
- '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local');
+ '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'local',
+ TRUE
+);
 
 -- ===========================
 -- BẢNG Pet
@@ -420,3 +448,4 @@ VALUES
  'Chào mừng bạn đến với Pawnder!', 'Bạn đã đăng ký tài khoản thành công.'),
 ((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
  'Có yêu cầu tư vấn mới', 'Người dùng đã gửi yêu cầu tư vấn AI.');
+
