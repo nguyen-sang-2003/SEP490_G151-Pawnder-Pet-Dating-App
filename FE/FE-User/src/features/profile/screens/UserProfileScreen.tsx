@@ -18,7 +18,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import Icon from "react-native-vector-icons/Ionicons";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
+import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, getMatchStats, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
 import { getItem } from "../../../utils/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -46,6 +46,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [addressData, setAddressData] = useState<any>(null);
   const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
   const [petPhotos, setPetPhotos] = useState<any[]>([]);
+  const [stats, setStats] = useState({ matches: 0, likes: 0 });
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Fetch user and pets data
@@ -68,6 +69,16 @@ const UserProfileScreen = ({ navigation }: Props) => {
         const user = await getUserById(userId);
         setUserData(user);
         console.log('👤 User data loaded:', user);
+
+        // Fetch stats
+        try {
+          const statsData = await getMatchStats(userId);
+          setStats(statsData);
+          console.log('📊 Stats loaded:', statsData);
+        } catch (error) {
+          console.error('⚠️ Error loading stats:', error);
+          setStats({ matches: 0, likes: 0 });
+        }
 
         // Fetch pets data
         const petsData = await getPetsByUserId(userId);
@@ -194,11 +205,10 @@ const UserProfileScreen = ({ navigation }: Props) => {
     photos: [require("../../../assets/cat_avatar.png")],
   };
 
-  // Stats data - CAT STATS (mock for now)
+  // Stats data - CAT STATS (loaded from API)
   const catStats = {
-    matches: 0, // TODO: Fetch from ChatUser where Status = "Accepted"
-    likes: 0,   // TODO: Fetch from ChatUser where Status = "Pending" and ToUserId = currentUser
-    visits: 0,  // TODO: Add Visit tracking
+    matches: stats.matches,
+    likes: stats.likes,
   };
 
   // Parse address data
@@ -455,15 +465,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
             >
               <Text style={styles.statNumber}>{catStats.likes}</Text>
               <Text style={styles.statLabel}>Likes</Text>
-            </LinearGradient>
-          </View>
-          <View style={styles.statCard}>
-            <LinearGradient
-              colors={["#FF9800", "#FFB74D"]}
-              style={styles.statGradient}
-            >
-              <Text style={styles.statNumber}>{catStats.visits}</Text>
-              <Text style={styles.statLabel}>Visits</Text>
             </LinearGradient>
           </View>
         </View>

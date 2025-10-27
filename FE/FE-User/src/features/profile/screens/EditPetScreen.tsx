@@ -16,7 +16,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getPetById, updatePet, getUserById, getAddressById, getPetPhotos, uploadPetPhotosMultipart } from "../../../api";
+import { getPetById, updatePet, getUserById, getAddressById, getPetPhotos, uploadPetPhotosMultipart, setPrimaryPhoto, deletePetPhoto } from "../../../api";
 import { colors } from "../../../theme";
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 
@@ -212,6 +212,99 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     handleAddPhoto();
   };
 
+  const handleSetPrimaryPhoto = async (photo: any) => {
+    const photoId = photo.PhotoId || photo.photoId;
+    const isPrimary = photo.IsPrimary || photo.isPrimary;
+
+    if (isPrimary) {
+      Alert.alert('Thông báo', 'Đây đã là ảnh đại diện rồi!');
+      return;
+    }
+
+    Alert.alert(
+      'Đặt ảnh đại diện',
+      'Bạn muốn đặt ảnh này làm ảnh đại diện?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đồng ý',
+          onPress: async () => {
+            try {
+              console.log('🖼️ Setting primary photo:', photoId);
+              await setPrimaryPhoto(photoId);
+              
+              // Reload photos to see updated primary
+              const photosData = await getPetPhotos(petId);
+              setPhotos(photosData || []);
+              
+              Alert.alert('Thành công', 'Đã đặt ảnh đại diện!');
+            } catch (error: any) {
+              console.error('Error setting primary photo:', error);
+              Alert.alert('Lỗi', 'Không thể đặt ảnh đại diện. Vui lòng thử lại.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeletePhoto = async (photo: any) => {
+    const photoId = photo.PhotoId || photo.photoId;
+    const isPrimary = photo.IsPrimary || photo.isPrimary;
+
+    // Không cho xóa nếu chỉ còn 1 ảnh duy nhất
+    if (photos.length <= 1) {
+      Alert.alert('Không thể xóa', 'Phải có ít nhất 1 ảnh cho pet.');
+      return;
+    }
+
+    const message = isPrimary 
+      ? 'Bạn có chắc muốn xóa ảnh đại diện? Ảnh khác sẽ tự động trở thành ảnh đại diện.'
+      : 'Bạn có chắc muốn xóa ảnh này?';
+
+    Alert.alert(
+      'Xóa ảnh',
+      message,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🗑️ Deleting photo:', photoId, 'isPrimary:', isPrimary);
+              
+              // Delete the photo
+              await deletePetPhoto(photoId);
+              
+              // Reload photos
+              const photosData = await getPetPhotos(petId);
+              
+              // If we deleted primary and there are photos left, set first one as primary
+              if (isPrimary && photosData && photosData.length > 0) {
+                const firstPhoto = photosData[0];
+                const firstPhotoId = firstPhoto.PhotoId || firstPhoto.photoId;
+                console.log('📸 Setting new primary photo:', firstPhotoId);
+                await setPrimaryPhoto(firstPhotoId);
+                
+                // Reload again to get updated primary status
+                const updatedPhotos = await getPetPhotos(petId);
+                setPhotos(updatedPhotos || []);
+                Alert.alert('Thành công', 'Đã xóa ảnh và đặt ảnh mới làm ảnh đại diện!');
+              } else {
+                setPhotos(photosData || []);
+                Alert.alert('Thành công', 'Đã xóa ảnh!');
+              }
+            } catch (error: any) {
+              console.error('Error deleting photo:', error);
+              Alert.alert('Lỗi', 'Không thể xóa ảnh. Vui lòng thử lại.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Show loading spinner
   if (loading) {
     return (
@@ -293,17 +386,37 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           
           <View style={styles.photosGrid}>
             {photos.map((photo: any, index: number) => (
-              <View key={photo.PhotoId || photo.photoId || index} style={styles.photoItem}>
-                <Image
-                  source={{ uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url }}
-                  style={styles.photoImage}
-                  resizeMode="cover"
-                />
-                {photo.IsPrimary || photo.isPrimary ? (
+              <View 
+                key={photo.PhotoId || photo.photoId || index} 
+                style={styles.photoItem}
+              >
+                <TouchableOpacity 
+                  onPress={() => handleSetPrimaryPhoto(photo)}
+                  activeOpacity={0.7}
+                  style={styles.photoImageContainer}
+                >
+                  <Image
+                    source={{ uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url }}
+                    style={styles.photoImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+                
+                {/* Primary star badge - bottom left */}
+                {(photo.IsPrimary || photo.isPrimary) && (
                   <View style={styles.primaryBadge}>
-                    <Text style={styles.primaryText}>Main</Text>
+                    <Icon name="star" size={18} color="#FFD700" />
                   </View>
-                ) : null}
+                )}
+                
+                {/* Delete button - bottom right */}
+                <TouchableOpacity
+                  style={styles.deletePhotoBtn}
+                  onPress={() => handleDeletePhoto(photo)}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="trash" size={16} color="#FFF" />
+                </TouchableOpacity>
               </View>
             ))}
             
@@ -575,6 +688,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
+  photoImageContainer: {
+    width: "100%",
+    height: "100%",
+  },
   photoImage: {
     width: "100%",
     height: "100%",
@@ -589,17 +706,44 @@ const styles = StyleSheet.create({
   },
   primaryBadge: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    backgroundColor: "#FF6EA7",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    bottom: 6,
+    left: 6,
+    backgroundColor: "rgba(255, 110, 167, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 5,
   },
-  primaryText: {
+  setPrimaryOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  setPrimaryText: {
     color: "#FFF",
     fontSize: 10,
-    fontWeight: "bold",
+    fontWeight: "600",
+  },
+  deletePhotoBtn: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    backgroundColor: "rgba(255, 0, 0, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 5,
   },
 
   // Input

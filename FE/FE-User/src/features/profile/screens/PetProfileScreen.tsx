@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
@@ -33,71 +34,75 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [sendingMatchRequest, setSendingMatchRequest] = useState(false);
 
-  useEffect(() => {
-    const loadPetData = async () => {
-      try {
-        setLoading(true);
+  const loadPetData = async () => {
+    try {
+      setLoading(true);
 
-        if (!petId) {
-          Alert.alert('Error', 'Pet ID not found');
-          navigation.goBack();
-          return;
-        }
-
-        console.log('📱 Loading pet profile for petId:', petId);
-
-        // Get current user ID
-        const userIdStr = await getItem('userId');
-        const currentUserId = userIdStr ? parseInt(userIdStr, 10) : null;
-
-        // Load pet data
-        const pet = await getPetById(petId);
-        setPetData(pet);
-        console.log('✅ Pet data loaded:', pet);
-
-        // Check if this is my pet
-        const petUserId = pet.UserId || pet.userId;
-        const isOwner = !!(currentUserId && petUserId === currentUserId);
-        setIsMyPet(isOwner);
-        console.log('🔍 Is my pet:', isOwner);
-
-        // Load photos
-        try {
-          const photos = await getPetPhotos(petId);
-          const sortedPhotos = photos.sort((a: any, b: any) => {
-            if (a.IsPrimary || a.isPrimary) return -1;
-            if (b.IsPrimary || b.isPrimary) return 1;
-            const aSort = a.SortOrder ?? a.sortOrder ?? 0;
-            const bSort = b.SortOrder ?? b.sortOrder ?? 0;
-            return aSort - bSort;
-          });
-          setPetPhotos(sortedPhotos || []);
-          console.log('📸 Pet photos loaded:', sortedPhotos.length);
-        } catch (error) {
-          console.log('⚠️ No photos found');
-          setPetPhotos([]);
-        }
-
-        // Load characteristics
-        try {
-          const chars = await getPetCharacteristics(petId);
-          setCharacteristics(chars);
-          console.log('🎯 Characteristics loaded:', chars);
-        } catch (error) {
-          console.log('⚠️ No characteristics found');
-          setCharacteristics([]);
-        }
-
-      } catch (error: any) {
-        console.error('❌ Error loading pet data:', error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to load pet data');
-      } finally {
-        setLoading(false);
+      if (!petId) {
+        Alert.alert('Error', 'Pet ID not found');
+        navigation.goBack();
+        return;
       }
-    };
 
-    loadPetData();
-  }, [petId]);
+      console.log('📱 Loading pet profile for petId:', petId);
+
+      // Get current user ID
+      const userIdStr = await getItem('userId');
+      const currentUserId = userIdStr ? parseInt(userIdStr, 10) : null;
+
+      // Load pet data
+      const pet = await getPetById(petId);
+      setPetData(pet);
+      console.log('✅ Pet data loaded:', pet);
+
+      // Check if this is my pet
+      const petUserId = pet.UserId || pet.userId;
+      const isOwner = !!(currentUserId && petUserId === currentUserId);
+      setIsMyPet(isOwner);
+      console.log('🔍 Is my pet:', isOwner);
+
+      // Load photos
+      try {
+        const photos = await getPetPhotos(petId);
+        const sortedPhotos = photos.sort((a: any, b: any) => {
+          if (a.IsPrimary || a.isPrimary) return -1;
+          if (b.IsPrimary || b.isPrimary) return 1;
+          const aSort = a.SortOrder ?? a.sortOrder ?? 0;
+          const bSort = b.SortOrder ?? b.sortOrder ?? 0;
+          return aSort - bSort;
+        });
+        setPetPhotos(sortedPhotos || []);
+        console.log('📸 Pet photos loaded:', sortedPhotos.length);
+      } catch (error) {
+        console.log('⚠️ No photos found');
+        setPetPhotos([]);
+      }
+
+      // Load characteristics
+      try {
+        const chars = await getPetCharacteristics(petId);
+        setCharacteristics(chars);
+        console.log('🎯 Characteristics loaded:', chars);
+      } catch (error) {
+        console.log('⚠️ No characteristics found');
+        setCharacteristics([]);
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error loading pet data:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to load pet data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto reload when screen comes back into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 PetProfileScreen focused - reloading data');
+      loadPetData();
+    }, [petId])
+  );
 
   // Parse owner and address from API response
   const ownerData = petData?.Owner || petData?.owner;
@@ -179,11 +184,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     navigation.goBack();
   };
 
-  const handleEdit = () => {
-    // Navigate to edit pet screen
-    navigation.navigate("EditPet", { petId: pet.id });
-  };
-
   const handleNextPhoto = () => {
     setActivePhotoIndex((prev) => 
       prev === (pet.photos?.length || 1) - 1 ? 0 : prev + 1
@@ -262,13 +262,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             { 
               text: 'Go to Chat', 
               onPress: () => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Home' }],
-                });
-                setTimeout(() => {
-                  navigation.navigate('Chat');
-                }, 100);
+                // Navigate to Chat screen
+                navigation.navigate('Chat', {});
               }
             },
             { 
@@ -335,7 +330,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
           {/* Edit button - only show for my pet */}
           {isMyPet && (
-            <TouchableOpacity onPress={handleEdit}>
+            <TouchableOpacity onPress={handleEditPet}>
               <Icon name="pencil" size={24} color="#FF6EA7" />
             </TouchableOpacity>
           )}
@@ -874,40 +869,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMedium,
     lineHeight: 20,
-  },
-
-  // Action Buttons
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  actionBtnWrapper: {
-    flex: 1,
-    marginHorizontal: 6,
-  },
-  btnShadow: {
-    borderRadius: 20,
-    shadowColor: "#C8A8D4",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 20,
-    gap: 10,
-  },
-  actionBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-    textAlign: "center",
-    lineHeight: 18,
   },
 
   // Safety Actions
