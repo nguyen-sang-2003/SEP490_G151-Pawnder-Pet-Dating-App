@@ -14,9 +14,10 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic } from "../../../api";
+import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike } from "../../../api";
 import { colors, radius, shadows } from "../../../theme";
 import { getItem } from "../../../utils/storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PetProfile">;
 
@@ -30,6 +31,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [petPhotos, setPetPhotos] = useState<any[]>([]);
   const [isMyPet, setIsMyPet] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [sendingMatchRequest, setSendingMatchRequest] = useState(false);
 
   useEffect(() => {
     const loadPetData = async () => {
@@ -104,13 +106,15 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   console.log('🔍 PetProfile - ownerData:', ownerData);
   console.log('🔍 PetProfile - addressData:', addressData);
 
-  // Format location
+  // Format location - Only show city for other people's pets for privacy
+  const city = addressData?.City || addressData?.city;
+  const district = addressData?.District || addressData?.district;
+  const ward = addressData?.Ward || addressData?.ward;
+  
   const location = addressData 
-    ? [
-        addressData.Ward || addressData.ward,
-        addressData.District || addressData.district,
-        addressData.City || addressData.city
-      ].filter(Boolean).join(', ') || 'Unknown location'
+    ? (isMyPet 
+        ? [ward, district, city].filter(Boolean).join(', ') || 'Unknown location'
+        : city || 'Unknown location')
     : null;
 
   const fullAddress = addressData?.FullAddress || addressData?.fullAddress;
@@ -196,16 +200,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     navigation.navigate("EditPet", { petId: petIdStr });
   };
 
-  const handleAddToFavorite = () => {
-    // Add to favorite logic
-    console.log("Added to favorite");
-  };
-
-  const handleSendMatchRequest = () => {
-    // Send match request logic
-    console.log("Match request sent");
-  };
-
   const handleBlock = () => {
     Alert.alert(
       "Block User",
@@ -232,6 +226,80 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       userId: pet.id, 
       userName: pet.owner.name 
     });
+  };
+
+  const handleSendMatchRequest = async () => {
+    try {
+      setSendingMatchRequest(true);
+      console.log('💘 Sending match request...');
+      
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        Alert.alert('Error', 'Please login first');
+        return;
+      }
+      
+      const currentUserId = parseInt(userIdStr);
+      const ownerUserId = petData?.Owner?.UserId || petData?.Owner?.userId || ownerData?.UserId || ownerData?.userId;
+      
+      if (!ownerUserId) {
+        Alert.alert('Error', 'Owner information not found');
+        return;
+      }
+      
+      const response = await sendLike({
+        fromUserId: currentUserId,
+        toUserId: ownerUserId
+      });
+      
+      console.log('✅ Match request sent:', response);
+      
+      if (response.isMatch) {
+        Alert.alert(
+          "It's a Match! 🎉",
+          `You matched with ${pet.owner.name}! You can now chat with them.`,
+          [
+            { 
+              text: 'Go to Chat', 
+              onPress: () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }],
+                });
+                setTimeout(() => {
+                  navigation.navigate('Chat');
+                }, 100);
+              }
+            },
+            { 
+              text: 'Continue', 
+              onPress: () => {
+                navigation.goBack();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Match Request Sent! 💌',
+          `Your match request has been sent to ${pet.owner.name}. They will see it in their Favorites.`,
+          [
+            { 
+              text: 'OK', 
+              onPress: () => {
+                navigation.goBack();
+              }
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.error('❌ Error sending match request:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to send match request';
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setSendingMatchRequest(false);
+    }
   };
 
   // Show loading
@@ -265,9 +333,12 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Icon name="arrow-back" size={26} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleEdit}>
-            <Icon name="pencil" size={24} color="#FF6EA7" />
-          </TouchableOpacity>
+          {/* Edit button - only show for my pet */}
+          {isMyPet && (
+            <TouchableOpacity onPress={handleEdit}>
+              <Icon name="pencil" size={24} color="#FF6EA7" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Avatar Section */}
@@ -409,8 +480,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.ownerName}>{pet.owner.name}</Text>
                 <Text style={styles.ownerStatus}>{pet.owner.status}</Text>
                 
-                {/* Email */}
-                {pet.owner.email && (
+                {/* Email - Only show for my pet */}
+                {isMyPet && pet.owner.email && (
                   <View style={styles.ownerDetailRow}>
                     <Icon name="mail-outline" size={14} color={colors.textMedium} />
                     <Text style={styles.ownerDetailText}>{pet.owner.email}</Text>
@@ -439,8 +510,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             )}
           </View>
 
-          {/* Full Address Card */}
-          {pet.fullAddress && (
+          {/* Full Address Card - Only show for my pet */}
+          {isMyPet && pet.fullAddress && (
             <View style={styles.addressCard}>
               <View style={styles.addressHeader}>
                 <Icon name="location" size={18} color={colors.primary} />
@@ -451,39 +522,30 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           )}
         </View>
 
-        {/* Action Buttons - Only show for other people's pets */}
+        {/* Send Match Request Button - Only show for other people's pets */}
         {!isMyPet && (
           <>
-            <View style={styles.actionButtons}>
+            <View style={styles.matchRequestSection}>
               <TouchableOpacity
-                style={[styles.btnShadow, styles.actionBtnWrapper]}
-                activeOpacity={0.8}
-                onPress={handleAddToFavorite}
-              >
-                <LinearGradient
-                  colors={["#C8A8D4", "#E8D5EE"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.actionBtn}
-                >
-                  <Icon name="heart-outline" size={24} color="#fff" />
-                  <Text style={styles.actionBtnText}>Add to{"\n"}favorite</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.btnShadow, styles.actionBtnWrapper]}
+                style={styles.matchRequestButton}
                 activeOpacity={0.8}
                 onPress={handleSendMatchRequest}
+                disabled={sendingMatchRequest}
               >
                 <LinearGradient
-                  colors={["#C8A8D4", "#E8D5EE"]}
+                  colors={sendingMatchRequest ? ["#CCC", "#DDD"] : ["#FF6EA7", "#FF9BC0"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.actionBtn}
+                  style={styles.matchRequestGradient}
                 >
-                  <Icon name="paw" size={24} color="#fff" />
-                  <Text style={styles.actionBtnText}>Send match{"\n"}request</Text>
+                  {sendingMatchRequest ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Icon name="heart" size={24} color="#fff" />
+                  )}
+                  <Text style={styles.matchRequestText}>
+                    {sendingMatchRequest ? 'Sending...' : 'Send Match Request'}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -878,6 +940,32 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: "#E0E0E0",
+  },
+
+  // Match Request Button
+  matchRequestSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: colors.whiteWarm,
+  },
+  matchRequestButton: {
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    ...shadows.large,
+  },
+  matchRequestGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  matchRequestText: {
+    fontSize: 17,
+    fontWeight: "bold",
+    color: "#fff",
   },
 });
 

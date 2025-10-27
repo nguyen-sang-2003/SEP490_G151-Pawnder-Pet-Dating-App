@@ -49,11 +49,33 @@ namespace BE.Controllers
         [HttpGet("match/{userId}")]
         public async Task<IActionResult> GetPetsForMatching(int userId)
         {
+            // Get list of users that have any match relationship with current user
+            // This includes:
+            // 1. Users that current user sent match requests to (FromUserId = userId)
+            // 2. Users that sent match requests to current user (ToUserId = userId)
+            var sentToUsers = await _context.ChatUsers
+                .Where(c => c.FromUserId == userId && c.IsDeleted == false)
+                .Select(c => c.ToUserId)
+                .ToListAsync();
+
+            var receivedFromUsers = await _context.ChatUsers
+                .Where(c => c.ToUserId == userId && c.IsDeleted == false)
+                .Select(c => c.FromUserId)
+                .ToListAsync();
+
+            // Combine both lists and remove duplicates
+            var alreadyMatchedUserIds = sentToUsers.Union(receivedFromUsers).ToList();
+
+            Console.WriteLine($"[PetController] User {userId} has match relationship with {alreadyMatchedUserIds.Count} users (sent: {sentToUsers.Count}, received: {receivedFromUsers.Count})");
+
             var pets = await _context.Pets
                 .Include(p => p.PetPhotos)
                 .Include(p => p.User)
                     .ThenInclude(u => u.Address)
-                .Where(p => p.UserId != userId && p.IsDeleted == false && p.IsActive == true)
+                .Where(p => p.UserId != userId 
+                         && p.IsDeleted == false 
+                         && p.IsActive == true
+                         && !alreadyMatchedUserIds.Contains(p.UserId)) // Exclude pets whose owners already received match request
                 .Select(p => new
                 {
                     PetId = p.PetId,
@@ -80,6 +102,7 @@ namespace BE.Controllers
                 })
                 .ToListAsync();
 
+            Console.WriteLine($"[PetController] Returning {pets.Count} available pets for matching");
             return Ok(pets);
         }
 

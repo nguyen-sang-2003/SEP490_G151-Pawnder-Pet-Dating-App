@@ -201,11 +201,20 @@ namespace BE.Controllers
         {
             try
             {
-                var chatUser = await _context.ChatUsers
-                    .FirstOrDefaultAsync(c => c.MatchId == request.MatchId && c.Status == "Pending");
+                Console.WriteLine($"[MatchController] Responding to like: matchId={request.MatchId}, action={request.Action}");
+                
+                // For "pass" action, allow both Pending and Accepted status (for unmatch)
+                var chatUser = request.Action.ToLower() == "pass"
+                    ? await _context.ChatUsers.FirstOrDefaultAsync(c => c.MatchId == request.MatchId && c.IsDeleted == false)
+                    : await _context.ChatUsers.FirstOrDefaultAsync(c => c.MatchId == request.MatchId && c.Status == "Pending");
 
                 if (chatUser == null)
+                {
+                    Console.WriteLine($"[MatchController] ChatUser not found for matchId={request.MatchId}");
                     return NotFound(new { message = "Like request not found" });
+                }
+
+                Console.WriteLine($"[MatchController] Found ChatUser: Status={chatUser.Status}, FromUserId={chatUser.FromUserId}, ToUserId={chatUser.ToUserId}");
 
                 if (request.Action.ToLower() == "match")
                 {
@@ -218,6 +227,8 @@ namespace BE.Controllers
                     // Create notification
                     await CreateMatchNotification(chatUser.FromUserId!.Value, chatUser.ToUserId!.Value, chatUser.MatchId);
 
+                    Console.WriteLine($"[MatchController] Match accepted!");
+
                     return Ok(new
                     {
                         matchId = chatUser.MatchId,
@@ -228,11 +239,14 @@ namespace BE.Controllers
                 }
                 else if (request.Action.ToLower() == "pass")
                 {
-                    // Reject - delete the request
+                    // Reject/Unmatch - delete the request completely
+                    // This allows the pet to appear again in Home screen
+                    Console.WriteLine($"[MatchController] Passing/Unmatching - removing ChatUser entry (Status={chatUser.Status})");
                     _context.ChatUsers.Remove(chatUser);
                     await _context.SaveChangesAsync();
 
-                    return Ok(new { message = "Passed" });
+                    Console.WriteLine($"[MatchController] ChatUser removed successfully");
+                    return Ok(new { message = chatUser.Status == "Accepted" ? "Unmatched" : "Passed" });
                 }
                 else
                 {

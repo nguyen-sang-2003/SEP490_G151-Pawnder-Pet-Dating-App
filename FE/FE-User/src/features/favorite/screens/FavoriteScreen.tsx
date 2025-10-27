@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -21,7 +22,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 type Props = NativeStackScreenProps<RootStackParamList, "Favorite">;
 
 interface LikeCat {
-  id: string;
+  id: string;          // matchId for actions
+  petId: string;       // actual petId for navigation
   catName: string;
   ownerName: string;
   gender: "male" | "female";
@@ -38,10 +40,13 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const [showMatchModal, setShowMatchModal] = React.useState(false);
   const [matchedPet, setMatchedPet] = React.useState<LikeCat | null>(null);
 
-  // Load likes when screen mounts
-  useEffect(() => {
-    loadLikes();
-  }, []);
+  // Reload likes when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Favorite screen focused - reloading likes...');
+      loadLikes();
+    }, [])
+  );
 
   const loadLikes = async () => {
     try {
@@ -61,7 +66,8 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       // Convert API data to LikeCat format
       const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => ({
-        id: item.matchId.toString(),
+        id: item.matchId.toString(),                      // matchId for match/unmatch actions
+        petId: item.pet?.petId?.toString() || '0',        // actual petId for navigation
         catName: item.pet?.name || 'Unknown',
         ownerName: item.owner?.fullName || 'Unknown',
         gender: item.pet?.gender?.toLowerCase() === 'male' ? 'male' : 'female',
@@ -169,14 +175,21 @@ const FavoriteScreen = ({ navigation }: Props) => {
     }
   };
 
+  const handleChat = (petId: string) => {
+    console.log('💬 Opening chat with matchId:', petId);
+    // TODO: Navigate to Chat screen with matchId
+    navigation.navigate('Chat' as any, { matchId: petId });
+  };
+
   const handleViewProfile = (petId: string) => {
+    console.log('🐾 Opening pet profile:', petId);
     navigation.navigate("PetProfile", { petId });
   };
 
   const renderLikeItem = ({ item }: { item: LikeCat }) => (
     <TouchableOpacity 
       style={styles.card}
-      onPress={() => handleViewProfile(item.id)}
+      onPress={() => handleViewProfile(item.petId)}  // Use petId instead of matchId
       activeOpacity={0.9}
     >
       <Image source={item.image} style={styles.catImage} />
@@ -213,17 +226,35 @@ const FavoriteScreen = ({ navigation }: Props) => {
         {/* Action Buttons */}
         <View style={styles.actions}>
           {item.isMatch ? (
-            // Already matched - show Unmatch only
-            <TouchableOpacity 
-              style={styles.actionBtnDanger}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleUnmatch(item.id);
-              }}
-            >
-              <Icon name="close-circle" size={20} color={colors.error} />
-              <Text style={styles.actionTextDanger}>Unmatch</Text>
-            </TouchableOpacity>
+            // Already matched - show Chat and Unmatch
+            <>
+              <TouchableOpacity 
+                style={styles.actionBtnPrimary}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleChat(item.id);
+                }}
+              >
+                <LinearGradient
+                  colors={gradients.primary}
+                  style={styles.actionGradient}
+                >
+                  <Icon name="chatbubble" size={20} color={colors.white} />
+                  <Text style={styles.actionTextWhite}>Chat</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.actionBtnSecondary}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleUnmatch(item.id);
+                }}
+              >
+                <Icon name="close-circle" size={20} color={colors.error} />
+                <Text style={styles.actionTextDanger}>Unmatch</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             // Not matched yet - show Pass and Match
             <>

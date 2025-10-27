@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -16,6 +16,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -52,6 +53,24 @@ const HomeScreen = ({ navigation }: Props) => {
     const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
+    // Use refs to access latest values in PanResponder callbacks
+    const petsRef = useRef<PetProfile[]>([]);
+    const currentUserIdRef = useRef<number | null>(null);
+    const currentIndexRef = useRef(0);
+
+    // Update refs when state changes
+    useEffect(() => {
+        petsRef.current = pets;
+    }, [pets]);
+
+    useEffect(() => {
+        currentUserIdRef.current = currentUserId;
+    }, [currentUserId]);
+
+    useEffect(() => {
+        currentIndexRef.current = currentIndex;
+    }, [currentIndex]);
+
     const position = useRef(new Animated.ValueXY()).current;
     const rotate = position.x.interpolate({
         inputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
@@ -78,11 +97,24 @@ const HomeScreen = ({ navigation }: Props) => {
                 position.setValue({ x: gesture.dx, y: gesture.dy });
             },
             onPanResponderRelease: (_, gesture) => {
+                console.log("👆 Gesture released:", {
+                    dx: gesture.dx,
+                    threshold: SWIPE_THRESHOLD,
+                    willSwipeRight: gesture.dx > SWIPE_THRESHOLD,
+                    willSwipeLeft: gesture.dx < -SWIPE_THRESHOLD,
+                    currentIndex: currentIndexRef.current,
+                    petsLength: petsRef.current.length,
+                    hasPets: petsRef.current.length > 0
+                });
+                
                 if (gesture.dx > SWIPE_THRESHOLD) {
+                    console.log("➡️ Triggering RIGHT swipe");
                     forceSwipe("right");
                 } else if (gesture.dx < -SWIPE_THRESHOLD) {
+                    console.log("⬅️ Triggering LEFT swipe");
                     forceSwipe("left");
                 } else {
+                    console.log("🔙 Gesture too small, returning to center");
                     Animated.spring(position, {
                         toValue: { x: 0, y: 0 },
                         useNativeDriver: false,
@@ -93,20 +125,57 @@ const HomeScreen = ({ navigation }: Props) => {
     ).current;
 
     const forceSwipe = (direction: "left" | "right") => {
+        // Use refs to get latest values
+        const latestPets = petsRef.current;
+        const latestIndex = currentIndexRef.current;
+        const latestUserId = currentUserIdRef.current;
+        
+        console.log("💨 Force swipe called:", {
+            direction,
+            currentIndex: latestIndex,
+            petsLength: latestPets.length,
+            currentPet: latestPets[latestIndex]?.name,
+            currentUserId: latestUserId,
+            ownerId: latestPets[latestIndex]?.ownerId
+        });
+        
         const x = direction === "right" ? width + 100 : -width - 100;
         Animated.timing(position, {
             toValue: { x, y: 0 },
             duration: 250,
             useNativeDriver: false,
-        }).start(() => onSwipeComplete(direction));
+        }).start(() => {
+            console.log("✨ Animation complete, calling onSwipeComplete");
+            onSwipeComplete(direction);
+        });
     };
 
     const onSwipeComplete = async (direction: "left" | "right") => {
-        const currentPet = pets[currentIndex];
+        // Use refs to get latest values
+        const latestPets = petsRef.current;
+        const latestIndex = currentIndexRef.current;
+        const latestUserId = currentUserIdRef.current;
+        const currentPet = latestPets[latestIndex];
+        
+        console.log("🔄 Swipe complete:", {
+            direction,
+            currentIndex: latestIndex,
+            petId: currentPet?.id,
+            ownerId: currentPet?.ownerId,
+            currentUserId: latestUserId,
+            hasPet: !!currentPet
+        });
         
         // Safety check
-        if (!currentPet || !currentPet.id || !currentUserId) {
-            console.log("⚠️ No valid pet at index:", currentIndex);
+        if (!currentPet || !currentPet.id) {
+            console.log("⚠️ No valid pet at index:", latestIndex);
+            position.setValue({ x: 0, y: 0 });
+            setCurrentIndex(prev => prev + 1);
+            return;
+        }
+        
+        if (!latestUserId) {
+            console.error("❌ No currentUserId - cannot send like");
             position.setValue({ x: 0, y: 0 });
             setCurrentIndex(prev => prev + 1);
             return;
@@ -115,14 +184,26 @@ const HomeScreen = ({ navigation }: Props) => {
         if (direction === "right") {
             // Send like via API
             try {
-                console.log("❤️ Liked pet:", currentPet.id, "Owner:", currentPet.owner);
+                console.log("❤️ Sending like for pet:", {
+                    petId: currentPet.id,
+                    petName: currentPet.name,
+                    ownerId: currentPet.ownerId,
+                    fromUserId: latestUserId
+                });
+                
+                if (!currentPet.ownerId) {
+                    console.error("❌ Pet has no ownerId - cannot send like");
+                    position.setValue({ x: 0, y: 0 });
+                    setCurrentIndex(prev => prev + 1);
+                    return;
+                }
                 
                 const response = await sendLike({
-                    fromUserId: currentUserId,
+                    fromUserId: latestUserId,
                     toUserId: currentPet.ownerId
                 });
                 
-                console.log("✅ Like response:", response);
+                console.log("✅ Like sent successfully:", response);
                 
                 // Check if it's a match
                 if (response.isMatch) {
@@ -147,13 +228,11 @@ const HomeScreen = ({ navigation }: Props) => {
     };
 
     // Load pets from API
-    useEffect(() => {
-        loadPets();
-    }, []);
-
     const loadPets = async () => {
         try {
             setLoading(true);
+            console.log('🔄 Loading pets...');
+            
             // Get current user ID from storage
             const userIdStr = await AsyncStorage.getItem('userId');
             if (!userIdStr) {
@@ -180,24 +259,43 @@ const HomeScreen = ({ navigation }: Props) => {
             // Convert API data to PetProfile format
             const formattedPets: PetProfile[] = matchingPets
                 .filter((pet: PetForMatching) => pet && pet.petId && pet.name) // Filter out invalid pets
-                .map((pet: PetForMatching) => ({
-                    id: pet.petId.toString(),
-                    name: pet.name,
-                    age: pet.age ? `${pet.age} years` : 'N/A',
-                    breed: pet.breed || 'Unknown',
-                    gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
-                    distance: pet.owner?.address ? calculateDistance(pet.owner.address) : 'N/A',
-                    bio: pet.description || 'No description',
-                    image: pet.photos && pet.photos.length > 0 
-                        ? { uri: pet.photos[0] } 
-                        : require("../../../assets/cat_avatar.png"),
-                    personality: [], // TODO: Add from pet characteristics
-                    owner: pet.owner?.fullName || 'Unknown',
-                    ownerId: pet.userId, // Store owner ID for API calls
-                }));
+                .map((pet: PetForMatching) => {
+                    const petAny = pet as any;
+                    const ownerAny = pet.owner as any;
+                    const ownerId = pet.userId || petAny.UserId || pet.owner?.userId || ownerAny?.UserId;
+                    console.log('🔍 Pet mapping:', {
+                        petId: pet.petId,
+                        name: pet.name,
+                        userId: pet.userId,
+                        UserId: petAny.UserId,
+                        ownerUserId: pet.owner?.userId,
+                        ownerUserIdCap: ownerAny?.UserId,
+                        finalOwnerId: ownerId
+                    });
+                    
+                    return {
+                        id: pet.petId.toString(),
+                        name: pet.name,
+                        age: pet.age ? `${pet.age} years` : 'N/A',
+                        breed: pet.breed || 'Unknown',
+                        gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
+                        distance: pet.owner?.address ? calculateDistance(pet.owner.address) : 'N/A',
+                        bio: pet.description || 'No description',
+                        image: pet.photos && pet.photos.length > 0 
+                            ? { uri: pet.photos[0] } 
+                            : require("../../../assets/cat_avatar.png"),
+                        personality: [], // TODO: Add from pet characteristics
+                        owner: pet.owner?.fullName || 'Unknown',
+                        ownerId: ownerId, // Store owner ID for API calls (handle both cases)
+                    };
+                });
 
             console.log('✅ Formatted pets:', formattedPets.length);
+            if (formattedPets.length > 0) {
+                console.log('📋 Sample pet:', formattedPets[0]);
+            }
             setPets(formattedPets);
+            setCurrentIndex(0); // Reset index when reloading
         } catch (error) {
             console.error('❌ Error loading pets:', error);
             setPets([]);
@@ -205,6 +303,14 @@ const HomeScreen = ({ navigation }: Props) => {
             setLoading(false);
         }
     };
+
+    // Reload pets when screen comes into focus (e.g., after sending match request from PetProfile)
+    useFocusEffect(
+        useCallback(() => {
+            console.log('🔄 Home screen focused - reloading pets...');
+            loadPets();
+        }, [])
+    );
 
     // Calculate distance from address (placeholder logic)
     const calculateDistance = (address: any): string => {
@@ -248,20 +354,20 @@ const HomeScreen = ({ navigation }: Props) => {
                 {...(isCurrentCard ? panResponder.panHandlers : {})}
             >
                 <View style={styles.cardContent}>
-                    <TouchableOpacity 
-                        activeOpacity={0.9}
-                        onPress={() => handleViewPetDetail(pet.id)}
-                        style={styles.imageContainer}
-                    >
+                    <View style={styles.imageContainer}>
                         <Image source={pet.image} style={styles.petImage} />
                         
-                        {/* Info Button Overlay */}
+                        {/* Info Button Overlay - Only button is clickable */}
                         <View style={styles.infoButtonOverlay}>
-                            <View style={styles.infoButton}>
-                                <Icon name="information-circle" size={24} color={colors.white} />
-                            </View>
+                            <TouchableOpacity 
+                                style={styles.infoButton}
+                                activeOpacity={0.8}
+                                onPress={() => handleViewPetDetail(pet.id)}
+                            >
+                                <Icon name="information-circle" size={28} color={colors.white} />
+                            </TouchableOpacity>
                         </View>
-                    </TouchableOpacity>
+                    </View>
                     
                     {/* Swipe Indicators */}
                     {isCurrentCard && (
@@ -631,13 +737,15 @@ const styles = StyleSheet.create({
         zIndex: 5,
     },
     infoButton: {
-        backgroundColor: "rgba(0,0,0,0.5)",
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         justifyContent: "center",
         alignItems: "center",
         ...shadows.medium,
+        borderWidth: 2,
+        borderColor: "rgba(255,255,255,0.3)",
     },
 
     // Swipe Labels
