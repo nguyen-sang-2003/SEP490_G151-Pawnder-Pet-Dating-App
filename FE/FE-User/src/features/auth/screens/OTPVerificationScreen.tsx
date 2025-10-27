@@ -31,8 +31,6 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
   const [canResend, setCanResend] = useState(false);
   const [isOtpExpired, setIsOtpExpired] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [expectedOtp, setExpectedOtp] = useState<string | undefined>();
-  const [userId, setUserId] = useState<number | undefined>();
   const inputRefs = useRef<Array<TextInput | null>>([]);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
@@ -106,31 +104,23 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
       return;
     }
 
-    // TEMPORARILY DISABLED: Skip OTP expiration check for testing
-    // if (isOtpExpired) {
-    //   showAlert({
-    //     type: 'error',
-    //     title: 'OTP đã hết hạn ⏰',
-    //     message: 'Mã OTP đã hết hiệu lực. Vui lòng gửi lại mã mới.',
-    //   });
-    //   return;
-    // }
+    if (isOtpExpired) {
+      showAlert({
+        type: 'error',
+        title: 'OTP đã hết hạn ⏰',
+        message: 'Mã OTP đã hết hiệu lực. Vui lòng gửi lại mã mới.',
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      // Step 1: Verify OTP (TEMPORARILY DISABLED FOR TESTING)
-      // const isValid = await verifyOtp(email, otpCode, expectedOtp);
-      // 
-      // if (!isValid) {
-      //   showAlert({
-      //     type: 'error',
-      //     title: 'OTP không đúng ❌',
-      //     message: 'Mã OTP không chính xác. Vui lòng kiểm tra lại.',
-      //   });
-      //   return;
-      // }
+      // Step 1: Verify OTP with backend
+      console.log('🔐 Verifying OTP...');
+      await verifyOtp(email, otpCode);
+      console.log('✅ OTP verified successfully');
 
-      // Step 2: Create account in database (skip OTP verification for now)
+      // Step 2: Create account in database
       if (userData) {
         console.log('OTP verified successfully. Creating account...');
         const registerResponse = await register(userData);
@@ -141,7 +131,6 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
         }
         
         console.log('✅ Account created. UserId:', newUserId);
-        setUserId(newUserId);
         
         // Save userId to AsyncStorage for later use
         await setItem('userId', newUserId.toString());
@@ -243,16 +232,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
     setLoading(true);
     try {
-      // TEMPORARILY DISABLED: Don't send OTP email
-      // const response = await sendOtp(email);
-      // 
-      // // Store OTP for verification (development only)
-      // if (__DEV__ && response.otp) {
-      //   setExpectedOtp(response.otp);
-      //   console.log('New OTP:', response.otp);
-      // }
+      console.log('📧 Resending OTP to:', email);
+      await sendOtp(email);
       
-      // Reset timers without sending email
       setResendTimer(60);
       setOtpValidTimer(300); // Reset to 5 minutes
       setCanResend(false);
@@ -262,14 +244,14 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
       
       showAlert({
         type: 'success',
-        title: 'Đã reset! 🔄',
-        message: 'Nhập bất kỳ 6 số nào để tiếp tục (đã tắt gửi OTP).',
+        title: 'Đã gửi lại! 📧',
+        message: 'Mã OTP mới đã được gửi đến email của bạn.',
       });
     } catch (error: any) {
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+        title: 'Lỗi gửi OTP',
+        message: error.message || 'Không thể gửi lại OTP. Vui lòng thử lại.',
       });
     } finally {
       setLoading(false);

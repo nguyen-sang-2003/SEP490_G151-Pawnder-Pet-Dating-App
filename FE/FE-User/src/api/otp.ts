@@ -26,30 +26,30 @@ export const sendOtp = async (email: string): Promise<SendOtpResponse> => {
 };
 
 /**
- * Verify OTP code
- * Note: Backend doesn't have verify endpoint yet, so we compare locally in dev
+ * Verify OTP code with backend
  */
 export const verifyOtp = async (
   email: string,
-  otpCode: string,
-  expectedOtp?: string
+  otpCode: string
 ): Promise<boolean> => {
   try {
-    // TODO: Replace with actual API call when backend implements verify endpoint
-    // const response = await apiClient.post('/api/verify-otp', { email, otp: otpCode });
+    console.log('🔐 Verifying OTP with backend:', { email, otpCode });
     
-    // For now, verify locally (development only)
-    if (__DEV__ && expectedOtp) {
-      console.log('Verifying OTP locally:', { otpCode, expectedOtp });
-      return otpCode === expectedOtp;
-    }
+    const response = await apiClient.post('/api/check-otp', {
+      email,
+      otp: otpCode
+    });
     
-    // In production, always return true for now (until backend adds verify endpoint)
-    // TODO: Remove this when backend implements verify-otp endpoint
+    console.log('✅ OTP verified:', response.data);
     return true;
   } catch (error: any) {
-    console.error('Verify OTP error:', error);
-    throw error;
+    console.error('❌ Verify OTP error:', error);
+    
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    
+    throw new Error('Mã OTP không đúng hoặc đã hết hạn');
   }
 };
 

@@ -8,4 +8,5 @@ export * from './attributes';
 export * from './pet';
 export * from './user';
 export * from './match';
+export * from './chat';
 

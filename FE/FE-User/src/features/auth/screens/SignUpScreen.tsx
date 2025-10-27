@@ -118,14 +118,13 @@ const SignUpScreen = ({ navigation }: Props) => {
 
       console.log('Sending OTP to:', email.trim());
 
-      // Send OTP to email (TEMPORARILY DISABLED FOR TESTING)
-      // await sendOtp(email.trim());
+      // Send OTP to email
+      await sendOtp(email.trim());
 
-      // Skip sending email, go directly to OTP screen
       showAlert({
         type: 'success',
-        title: 'Tiếp tục đăng ký 📝',
-        message: 'Nhập bất kỳ 6 số nào để tiếp tục (đã tắt gửi OTP tạm thời).',
+        title: 'Kiểm tra email! 📧',
+        message: 'Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và nhập mã xác thực.',
         confirmText: 'Xác thực ngay',
         onClose: () => navigation.navigate("OTPVerification", { 
           email: email.trim(),
