@@ -53,6 +53,27 @@ export interface LikeReceivedItem {
   petPhotos: string[];
 }
 
+export interface MatchStats {
+  matches: number;
+  likes: number;
+}
+
+/**
+ * Get user stats (matches and likes count)
+ * GET /api/match/stats/{userId}
+ */
+export const getMatchStats = async (userId: number): Promise<MatchStats> => {
+  try {
+    console.log(`📊 Getting stats for userId: ${userId}`);
+    const response = await client.get(`/api/match/stats/${userId}`);
+    console.log('✅ Stats received:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error fetching stats:', error);
+    throw error;
+  }
+};
+
 /**
  * Send a like to another user
  * POST /api/match/like

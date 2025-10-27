@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,13 +13,17 @@ import {
   Alert,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getChatMessages, sendMessage, deleteChat, ChatMessage } from "../../../api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -34,87 +38,130 @@ interface Message {
 }
 
 const ChatDetailScreen = ({ navigation, route }: Props) => {
-  const { chatId, userName, userAvatar } = route.params;
+  const { matchId, otherUserId, userName, userAvatar } = route.params;
   
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "Hi! Your pet is so adorable! 🐱",
-      isMe: false,
-      timestamp: new Date(Date.now() - 3600000),
-      status: "read",
-    },
-    {
-      id: "2",
-      text: "Thank you so much! Your furry friend looks amazing too! 😊",
-      isMe: true,
-      timestamp: new Date(Date.now() - 3500000),
-      status: "read",
-    },
-    {
-      id: "3",
-      text: "Would you like to arrange a playdate for them?",
-      isMe: false,
-      timestamp: new Date(Date.now() - 1800000),
-      status: "read",
-    },
-    {
-      id: "4",
-      text: "That sounds wonderful! When are you available?",
-      isMe: true,
-      timestamp: new Date(Date.now() - 900000),
-      status: "read",
-    },
-  ]);
-  
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
-
-  useEffect(() => {
-    // Simulate other user typing
-    const typingTimer = setTimeout(() => {
-      setIsTyping(false);
-    }, 3000);
-
-    return () => clearTimeout(typingTimer);
-  }, [isTyping]);
-
-  const handleSend = () => {
-    if (inputText.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        text: inputText.trim(),
-        isMe: true,
-        timestamp: new Date(),
-        status: "sending",
-      };
+  
+  // Load messages when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadMessages();
+    }, [matchId])
+  );
+  
+  const loadMessages = async () => {
+    try {
+      setLoading(true);
       
-      setMessages(prev => [...prev, newMessage]);
-      setInputText("");
+      // Get current user ID
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        console.log('❌ No userId found');
+        return;
+      }
       
-      // Scroll to bottom
+      const userId = parseInt(userIdStr);
+      setCurrentUserId(userId);
+      console.log('👤 Current user:', userId);
+      console.log('💬 Loading messages for matchId:', matchId);
+      
+      // Load messages from API
+      const chatMessages = await getChatMessages(matchId);
+      console.log('✅ Loaded messages:', chatMessages.length);
+      
+      // Convert API messages to UI format
+      const formattedMessages: Message[] = chatMessages.map((msg) => ({
+        id: msg.contentId.toString(),
+        text: msg.message,
+        isMe: msg.fromUserId === userId,
+        timestamp: new Date(msg.createdAt),
+        status: "read" as const,
+      }));
+      
+      setMessages(formattedMessages);
+      
+      // Scroll to bottom after loading
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        flatListRef.current?.scrollToEnd({ animated: false });
       }, 100);
+      
+    } catch (error: any) {
+      console.error('❌ Error loading messages:', error);
+      Alert.alert('Lỗi', 'Không thể tải tin nhắn. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Simulate message sent
-      setTimeout(() => {
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === newMessage.id 
-              ? { ...msg, status: "sent" as const }
-              : msg
-          )
-        );
-      }, 1000);
-
-      // Simulate other user typing
-      setTimeout(() => {
-        setIsTyping(true);
-      }, 2000);
+  const handleSend = async () => {
+    if (!inputText.trim() || !currentUserId || sending) return;
+    
+    const messageText = inputText.trim();
+    const tempId = Date.now().toString();
+    
+    // Optimistic UI update
+    const newMessage: Message = {
+      id: tempId,
+      text: messageText,
+      isMe: true,
+      timestamp: new Date(),
+      status: "sending",
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
+    setInputText("");
+    
+    // Scroll to bottom
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+    
+    try {
+      setSending(true);
+      console.log('📤 Sending message:', { matchId, currentUserId, messageText });
+      
+      // Send message to API
+      await sendMessage(matchId, currentUserId, messageText);
+      
+      // Update status to sent
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === tempId 
+            ? { ...msg, status: "sent" as const }
+            : msg
+        )
+      );
+      
+      console.log('✅ Message sent successfully');
+      
+    } catch (error: any) {
+      console.error('❌ Error sending message:', error);
+      
+      // Remove failed message
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+      
+      Alert.alert(
+        'Lỗi gửi tin nhắn',
+        error.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.',
+        [
+          {
+            text: 'Thử lại',
+            onPress: () => {
+              setInputText(messageText);
+            }
+          },
+          { text: 'Hủy', style: 'cancel' }
+        ]
+      );
+    } finally {
+      setSending(false);
     }
   };
 
@@ -128,25 +175,41 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleViewProfile = () => {
     closeMenu();
-    // Navigate to user's pet profile
-    navigation.navigate("PetProfile", { petId: chatId });
+    // Note: We need petId, not userId. This might need adjustment based on your data structure
+    // For now, navigate to Chat screen
+    console.log('ℹ️ View profile - need to get petId for otherUserId:', otherUserId);
+    Alert.alert('Thông báo', 'Chức năng xem profile đang được phát triển');
   };
 
-  const handleUnmatch = () => {
+  const handleUnmatch = async () => {
     closeMenu();
     Alert.alert(
-      "Unmatch",
-      `Are you sure you want to unmatch with ${userName}? This will delete the conversation and you won't be able to message each other.`,
+      "Hủy kết nối",
+      `Bạn có chắc muốn hủy kết nối với ${userName}? Cuộc trò chuyện sẽ bị xóa và bạn không thể nhắn tin với nhau nữa.`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Hủy", style: "cancel" },
         {
-          text: "Unmatch",
+          text: "Xác nhận",
           style: "destructive",
-          onPress: () => {
-            // TODO: Call Unmatch API - DELETE /chatuser/chat/{matchId}
-            console.log("Unmatched:", chatId);
-            Alert.alert("Unmatched", `You've unmatched with ${userName}`);
-            navigation.goBack();
+          onPress: async () => {
+            try {
+              console.log("🗑️ Unmatching matchId:", matchId);
+              await deleteChat(matchId);
+              
+              Alert.alert(
+                "Đã hủy kết nối", 
+                `Bạn đã hủy kết nối với ${userName}`,
+                [
+                  {
+                    text: "OK",
+                    onPress: () => navigation.navigate("Chat", { matchId: undefined })
+                  }
+                ]
+              );
+            } catch (error: any) {
+              console.error('❌ Error unmatching:', error);
+              Alert.alert('Lỗi', error.message || 'Không thể hủy kết nối. Vui lòng thử lại.');
+            }
           },
         },
       ]
@@ -157,7 +220,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     closeMenu();
     // Navigate to Report screen
     navigation.navigate("Report" as any, { 
-      userId: chatId, 
+      userId: otherUserId.toString(), 
       userName: userName 
     });
   };
@@ -165,18 +228,23 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const handleBlock = () => {
     closeMenu();
     Alert.alert(
-      "Block User",
-      `Are you sure you want to block ${userName}? You won't be able to message each other.`,
+      "Chặn người dùng",
+      `Bạn có chắc muốn chặn ${userName}? Bạn sẽ không thể nhắn tin với nhau.`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Hủy", style: "cancel" },
         {
-          text: "Block",
+          text: "Chặn",
           style: "destructive",
-          onPress: () => {
-            // TODO: Call Block API - POST /block/{fromUserId}/{toUserId}
-            console.log("Blocked user:", chatId);
-            Alert.alert("Blocked", `${userName} has been blocked.`);
-            navigation.goBack();
+          onPress: async () => {
+            try {
+              // TODO: Implement block API when available
+              console.log("🚫 Blocking user:", otherUserId);
+              Alert.alert("Đã chặn", `${userName} đã bị chặn.`);
+              navigation.goBack();
+            } catch (error: any) {
+              console.error('❌ Error blocking user:', error);
+              Alert.alert('Lỗi', 'Không thể chặn người dùng. Vui lòng thử lại.');
+            }
           },
         },
       ]
@@ -186,19 +254,18 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const handleDeleteChat = () => {
     closeMenu();
     Alert.alert(
-      "Delete Conversation",
-      `Delete your conversation with ${userName}? You will still be matched and can start a new chat. To remove the match completely, use Unmatch instead.`,
+      "Xóa cuộc trò chuyện",
+      `Xóa cuộc trò chuyện với ${userName}? Bạn vẫn còn kết nối và có thể bắt đầu chat mới. Để xóa kết nối hoàn toàn, hãy dùng "Hủy kết nối".`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Hủy", style: "cancel" },
         {
-          text: "Delete",
+          text: "Xóa",
           style: "destructive",
           onPress: () => {
-            // TODO: Call Delete Chat API - DELETE /chat-user-content/{matchId}
-            console.log("Deleted conversation:", chatId);
+            // Clear messages locally (backend doesn't have delete all messages endpoint)
+            console.log("🗑️ Clearing conversation locally");
             setMessages([]);
-            Alert.alert("Deleted", "Conversation has been deleted. You're still matched.");
-            navigation.goBack();
+            Alert.alert("Đã xóa", "Cuộc trò chuyện đã được xóa. Bạn vẫn còn kết nối.");
           },
         },
       ]
@@ -318,16 +385,30 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         style={styles.keyboardView}
         keyboardVerticalOffset={0}
       >
-        {/* Messages */}
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-          showsVerticalScrollIndicator={false}
-        />
+        {/* Loading */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Đang tải tin nhắn...</Text>
+          </View>
+        ) : messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
+            <Text style={styles.emptyTitle}>Chưa có tin nhắn</Text>
+            <Text style={styles.emptyText}>Hãy bắt đầu cuộc trò chuyện!</Text>
+          </View>
+        ) : (
+          /* Messages */
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messagesList}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
 
         {/* Typing Indicator */}
         {isTyping && (
@@ -361,17 +442,21 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             <TouchableOpacity
               style={styles.sendButton}
               onPress={handleSend}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || sending}
             >
               <LinearGradient
-                colors={inputText.trim() ? gradients.primary : ["#DDD", "#CCC"]}
+                colors={inputText.trim() && !sending ? gradients.primary : ["#DDD", "#CCC"]}
                 style={styles.sendGradient}
               >
-                <Icon
-                  name="send"
-                  size={20}
-                  color={inputText.trim() ? colors.white : colors.textLabel}
-                />
+                {sending ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Icon
+                    name="send"
+                    size={20}
+                    color={inputText.trim() ? colors.white : colors.textLabel}
+                  />
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -421,8 +506,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="heart-dislike-outline" size={22} color="#FFA726" />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={styles.menuOptionTitle}>Unmatch</Text>
-                  <Text style={styles.menuOptionDesc}>Remove this match</Text>
+                  <Text style={styles.menuOptionTitle}>Hủy kết nối</Text>
+                  <Text style={styles.menuOptionDesc}>Xóa kết nối này</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -433,8 +518,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="flag-outline" size={22} color="#FF9800" />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={styles.menuOptionTitle}>Report</Text>
-                  <Text style={styles.menuOptionDesc}>Report inappropriate behavior</Text>
+                  <Text style={styles.menuOptionTitle}>Báo cáo</Text>
+                  <Text style={styles.menuOptionDesc}>Báo cáo hành vi không phù hợp</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -445,8 +530,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="ban-outline" size={22} color="#E94D6B" />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>Block</Text>
-                  <Text style={styles.menuOptionDesc}>Block this user</Text>
+                  <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>Chặn</Text>
+                  <Text style={styles.menuOptionDesc}>Chặn người dùng này</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -459,8 +544,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="trash-outline" size={22} color={colors.error} />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={[styles.menuOptionTitle, { color: colors.error }]}>Delete Conversation</Text>
-                  <Text style={styles.menuOptionDesc}>Clear all messages</Text>
+                  <Text style={[styles.menuOptionTitle, { color: colors.error }]}>Xóa cuộc trò chuyện</Text>
+                  <Text style={styles.menuOptionDesc}>Xóa tất cả tin nhắn</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -677,6 +762,38 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  // Loading & Empty States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textMedium,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: colors.textDark,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textMedium,
+    textAlign: "center",
   },
 
   // Menu Modal

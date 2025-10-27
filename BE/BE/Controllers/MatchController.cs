@@ -103,6 +103,46 @@ namespace BE.Controllers
         }
 
         /// <summary>
+        /// Get user stats (matches and likes count)
+        /// GET /api/match/stats/{userId}
+        /// </summary>
+        [HttpGet("stats/{userId}")]
+        public async Task<IActionResult> GetStats(int userId)
+        {
+            try
+            {
+                Console.WriteLine($"[MatchController] Getting stats for userId: {userId}");
+                
+                // Count matches (Accepted status where user is involved)
+                var matchesCount = await _context.ChatUsers
+                    .Where(c => c.IsDeleted == false 
+                               && c.Status == "Accepted" 
+                               && (c.FromUserId == userId || c.ToUserId == userId))
+                    .CountAsync();
+                
+                // Count likes received (Pending status where user is recipient)
+                var likesCount = await _context.ChatUsers
+                    .Where(c => c.IsDeleted == false 
+                               && c.Status == "Pending" 
+                               && c.ToUserId == userId)
+                    .CountAsync();
+                
+                Console.WriteLine($"[MatchController] Stats - Matches: {matchesCount}, Likes: {likesCount}");
+                
+                return Ok(new
+                {
+                    matches = matchesCount,
+                    likes = likesCount
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MatchController] Error getting stats: {ex.Message}");
+                return StatusCode(500, new { message = "Error fetching stats", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Send a like (create match request)
         /// POST /api/match/like
         /// Body: { fromUserId, toUserId }

@@ -62,8 +62,13 @@ export type RootStackParamList = {
   AddPetCharacteristics: { petId: number; isFromProfile?: boolean };
   AddPetPhotos: { petId: number; isFromProfile?: boolean };
   Home: undefined;
-  Chat: undefined;
-  ChatDetail: { chatId: string; userName: string; userAvatar?: any };
+  Chat: { matchId?: number }; // Optional matchId để navigate từ Favorite
+  ChatDetail: { 
+    matchId: number;
+    otherUserId: number;
+    userName: string;
+    userAvatar?: any;
+  };
   AIChatList: undefined;
   AIChat: { chatId?: string };
   Favorite: undefined;

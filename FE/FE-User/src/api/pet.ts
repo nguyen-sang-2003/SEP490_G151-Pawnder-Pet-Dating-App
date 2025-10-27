@@ -296,3 +296,33 @@ export const getPetsForMatching = async (userId: number): Promise<PetForMatching
     throw error;
   }
 };
+
+/**
+ * Set primary photo for pet
+ * PUT /api/petphoto/{photoId}/primary
+ */
+export const setPrimaryPhoto = async (photoId: number): Promise<void> => {
+  try {
+    console.log('📸 Setting primary photo:', photoId);
+    const response = await client.put(`/api/petphoto/${photoId}/primary`);
+    console.log('✅ Primary photo set:', response.data);
+  } catch (error: any) {
+    console.error('❌ Error setting primary photo:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a pet photo
+ * DELETE /api/petphoto/{photoId}
+ */
+export const deletePetPhoto = async (photoId: number): Promise<void> => {
+  try {
+    console.log('🗑️ Deleting photo:', photoId);
+    const response = await client.delete(`/api/petphoto/${photoId}`);
+    console.log('✅ Photo deleted:', response.data);
+  } catch (error: any) {
+    console.error('❌ Error deleting photo:', error);
+    throw error;
+  }
+};

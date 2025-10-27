@@ -24,6 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Favorite">;
 interface LikeCat {
   id: string;          // matchId for actions
   petId: string;       // actual petId for navigation
+  ownerId: number;     // owner userId for chat
   catName: string;
   ownerName: string;
   gender: "male" | "female";
@@ -68,6 +69,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
       const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => ({
         id: item.matchId.toString(),                      // matchId for match/unmatch actions
         petId: item.pet?.petId?.toString() || '0',        // actual petId for navigation
+        ownerId: item.owner?.userId || item.fromUserId,   // owner userId for chat
         catName: item.pet?.name || 'Unknown',
         ownerName: item.owner?.fullName || 'Unknown',
         gender: item.pet?.gender?.toLowerCase() === 'male' ? 'male' : 'female',
@@ -175,10 +177,14 @@ const FavoriteScreen = ({ navigation }: Props) => {
     }
   };
 
-  const handleChat = (petId: string) => {
-    console.log('💬 Opening chat with matchId:', petId);
-    // TODO: Navigate to Chat screen with matchId
-    navigation.navigate('Chat' as any, { matchId: petId });
+  const handleChat = (matchId: string, ownerId: number, ownerName: string) => {
+    console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
+    navigation.navigate('ChatDetail', { 
+      matchId: parseInt(matchId),
+      otherUserId: ownerId,
+      userName: ownerName,
+      userAvatar: require("../../../assets/cat_avatar.png"),
+    });
   };
 
   const handleViewProfile = (petId: string) => {
@@ -232,7 +238,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 style={styles.actionBtnPrimary}
                 onPress={(e) => {
                   e.stopPropagation();
-                  handleChat(item.id);
+                  handleChat(item.id, item.ownerId, item.ownerName);
                 }}
               >
                 <LinearGradient
@@ -385,9 +391,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
             <TouchableOpacity
               style={styles.sendMessageButton}
               onPress={() => {
+                if (matchedPet) {
+                  handleChat(matchedPet.id, matchedPet.ownerId, matchedPet.ownerName);
+                }
                 setShowMatchModal(false);
                 setMatchedPet(null);
-                navigation.navigate("Chat");
               }}
             >
               <Text style={styles.sendMessageText}>Send Message</Text>

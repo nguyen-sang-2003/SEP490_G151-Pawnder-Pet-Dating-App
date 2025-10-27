@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,25 @@ import {
   FlatList,
   Image,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from "../../../api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
 interface ChatItem {
-  id: string;
+  id: string;            // matchId
+  matchId: number;       // actual matchId number
+  otherUserId: number;   // ID of the other user
   name: string;
   lastMessage: string;
   time: string;
@@ -28,36 +34,114 @@ interface ChatItem {
   isAI?: boolean;
 }
 
-const chatData: ChatItem[] = [
-  {
-    id: "ai",
-    name: "AI Assistant",
-    lastMessage: "Tôi có thể giúp gì cho bạn?",
-    time: "Online",
-    unread: 0,
-    avatar: require("../../../assets/cat_avatar_signin.png"),
-    isAI: true,
-  },
-  {
-    id: "1",
-    name: "Nguyễn Văn A",
-    lastMessage: "Thú cưng của bạn rất dễ thương!",
-    time: "10:30",
-    unread: 2,
-    avatar: require("../../../assets/cat_avatar.png"),
-  },
-  {
-    id: "2",
-    name: "Trần Thị B",
-    lastMessage: "Cảm ơn bạn đã quan tâm 😊",
-    time: "Yesterday",
-    unread: 0,
-    avatar: require("../../../assets/cat_avatar.png"),
-  },
-];
-
 const ChatScreen = ({ navigation }: Props) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [chatData, setChatData] = useState<ChatItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
+  // Load chats when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadChats();
+    }, [])
+  );
+
+  const loadChats = async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user ID
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        console.log('❌ No userId found');
+        setLoading(false);
+        return;
+      }
+      
+      const userId = parseInt(userIdStr);
+      setCurrentUserId(userId);
+      console.log('👤 Current user:', userId);
+      
+      // Get accepted matches (chats)
+      const chats = await getChats(userId);
+      console.log('💬 Got chats:', chats);
+      
+      // For each chat, get the other user's info and last message
+      const chatItems = await Promise.all(
+        chats.map(async (chat) => {
+          // Determine the other user ID
+          const otherUserId = chat.fromUserId === userId ? chat.toUserId : chat.fromUserId;
+          
+          try {
+            // Get other user's info
+            const otherUser = await getUserById(otherUserId);
+            
+            // Get last message
+            let lastMessage = "Start chatting!";
+            let lastMessageTime = chat.createdAt;
+            
+            try {
+              const messages = await getChatMessages(chat.matchId);
+              if (messages && messages.length > 0) {
+                const last = messages[messages.length - 1];
+                lastMessage = last.message;
+                lastMessageTime = last.createdAt;
+              }
+            } catch (error) {
+              console.log('No messages yet for match:', chat.matchId);
+            }
+            
+            return {
+              id: chat.matchId.toString(),
+              matchId: chat.matchId,
+              otherUserId: otherUserId,
+              name: otherUser.fullName || 'Unknown',
+              lastMessage: lastMessage,
+              time: formatTime(lastMessageTime),
+              unread: 0, // TODO: Implement unread count
+              avatar: require("../../../assets/cat_avatar.png"), // TODO: Use user's actual avatar
+            } as ChatItem;
+          } catch (error) {
+            console.error('Error loading user/messages for chat:', chat.matchId, error);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out null values and set state
+      const validChats = chatItems.filter((item): item is ChatItem => item !== null);
+      setChatData(validChats);
+      
+    } catch (error: any) {
+      console.error('❌ Error loading chats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) {
+      return diffDays === 1 ? 'Yesterday' : `${diffDays}d ago`;
+    }
+    
+    if (diffHours > 0) {
+      return `${diffHours}h ago`;
+    }
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins > 0) {
+      return `${diffMins}m ago`;
+    }
+    
+    return 'Just now';
+  };
 
   const filteredChats = chatData.filter(chat =>
     chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -68,8 +152,10 @@ const ChatScreen = ({ navigation }: Props) => {
     if (item.isAI) {
       navigation.navigate("AIChatList");
     } else {
+      console.log('🗨️ Opening chat:', item);
       navigation.navigate("ChatDetail", {
-        chatId: item.id,
+        matchId: item.matchId,
+        otherUserId: item.otherUserId,
         userName: item.name,
         userAvatar: item.avatar,
       });
@@ -174,24 +260,41 @@ const ChatScreen = ({ navigation }: Props) => {
         <Text style={styles.sectionTitle}>Recent Chats</Text>
       </View>
 
-      <FlatList
-        data={filteredChats}
-        keyExtractor={(item) => item.id}
-        renderItem={renderChatItem}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          searchQuery.length > 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading chats...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredChats}
+          keyExtractor={(item) => item.id}
+          renderItem={renderChatItem}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Icon name="search-outline" size={64} color={colors.textLabel} />
-              <Text style={styles.emptyTitle}>No results found</Text>
-              <Text style={styles.emptyText}>
-                Try searching for a different name or message
-              </Text>
+              {searchQuery.length > 0 ? (
+                <>
+                  <Icon name="search-outline" size={64} color={colors.textLabel} />
+                  <Text style={styles.emptyTitle}>No results found</Text>
+                  <Text style={styles.emptyText}>
+                    Try searching for a different name or message
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
+                  <Text style={styles.emptyTitle}>No chats yet</Text>
+                  <Text style={styles.emptyText}>
+                    Match with other pet owners to start chatting!
+                  </Text>
+                </>
+              )}
             </View>
-          ) : null
-        }
-      />
+          }
+        />
+      )}
 
       {/* Bottom Navigation */}
       <BottomNav active="Chat" />
@@ -376,6 +479,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: colors.white,
+  },
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textMedium,
+    marginTop: 12,
   },
 
   // Empty State
