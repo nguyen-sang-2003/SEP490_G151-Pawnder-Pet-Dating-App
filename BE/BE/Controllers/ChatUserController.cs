@@ -151,14 +151,28 @@ namespace BE.Controllers
         [HttpDelete("chat/{matchId}")]
         public async Task<IActionResult> DeleteChat(int matchId)
         {
-            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.Status == "Accepted");
+            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.IsDeleted == false);
             if (chatUser == null)
                 return NotFound(new { message = "Không tìm thấy đoạn chat." });
 
-            chatUser.IsDeleted = true;
-            _context.ChatUsers.Update(chatUser);
+            Console.WriteLine($"[ChatUserController] Deleting chat matchId: {matchId}, Status: {chatUser.Status}");
+
+            // Hard delete all chat messages first
+            var chatMessages = await _context.ChatUserContents
+                .Where(m => m.MatchId == matchId)
+                .ToListAsync();
+            
+            if (chatMessages.Any())
+            {
+                _context.ChatUserContents.RemoveRange(chatMessages);
+                Console.WriteLine($"[ChatUserController] Deleted {chatMessages.Count} messages");
+            }
+
+            // Hard delete the ChatUser entry (unmatch completely)
+            _context.ChatUsers.Remove(chatUser);
             await _context.SaveChangesAsync();
 
+            Console.WriteLine($"[ChatUserController] Chat deleted completely");
             return Ok(new { message = "Đã xóa yêu đoạn chat." });
         }
     }

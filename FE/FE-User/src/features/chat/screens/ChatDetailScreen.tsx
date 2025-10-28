@@ -10,7 +10,6 @@ import {
   Platform,
   Image,
   Dimensions,
-  Alert,
   Modal,
   Pressable,
   ActivityIndicator,
@@ -22,8 +21,10 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatMessages, sendMessage, deleteChat, ChatMessage } from "../../../api";
+import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 const { width, height } = Dimensions.get("window");
 
@@ -48,6 +49,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   
   // Load messages when screen comes into focus
   useFocusEffect(
@@ -94,7 +96,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       
     } catch (error: any) {
       console.error('❌ Error loading messages:', error);
-      Alert.alert('Lỗi', 'Không thể tải tin nhắn. Vui lòng thử lại.');
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải tin nhắn. Vui lòng thử lại.' });
     } finally {
       setLoading(false);
     }
@@ -147,19 +149,14 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       // Remove failed message
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       
-      Alert.alert(
-        'Lỗi gửi tin nhắn',
-        error.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.',
-        [
-          {
-            text: 'Thử lại',
-            onPress: () => {
-              setInputText(messageText);
-            }
-          },
-          { text: 'Hủy', style: 'cancel' }
-        ]
-      );
+      showAlert({
+        type: 'error',
+        title: 'Lỗi gửi tin nhắn',
+        message: error.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.',
+        showCancel: true,
+        confirmText: 'Thử lại',
+        onConfirm: () => setInputText(messageText),
+      });
     } finally {
       setSending(false);
     }
@@ -178,42 +175,34 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     // Note: We need petId, not userId. This might need adjustment based on your data structure
     // For now, navigate to Chat screen
     console.log('ℹ️ View profile - need to get petId for otherUserId:', otherUserId);
-    Alert.alert('Thông báo', 'Chức năng xem profile đang được phát triển');
+    showAlert({ type: 'info', title: 'Thông báo', message: 'Chức năng xem profile đang được phát triển' });
   };
 
   const handleUnmatch = async () => {
     closeMenu();
-    Alert.alert(
-      "Hủy kết nối",
-      `Bạn có chắc muốn hủy kết nối với ${userName}? Cuộc trò chuyện sẽ bị xóa và bạn không thể nhắn tin với nhau nữa.`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Xác nhận",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              console.log("🗑️ Unmatching matchId:", matchId);
-              await deleteChat(matchId);
-              
-              Alert.alert(
-                "Đã hủy kết nối", 
-                `Bạn đã hủy kết nối với ${userName}`,
-                [
-                  {
-                    text: "OK",
-                    onPress: () => navigation.navigate("Chat", { matchId: undefined })
-                  }
-                ]
-              );
-            } catch (error: any) {
-              console.error('❌ Error unmatching:', error);
-              Alert.alert('Lỗi', error.message || 'Không thể hủy kết nối. Vui lòng thử lại.');
-            }
-          },
-        },
-      ]
-    );
+    showAlert({
+      type: 'warning',
+      title: "Hủy kết nối",
+      message: `Bạn có chắc muốn hủy kết nối với ${userName}? Cuộc trò chuyện sẽ bị xóa và bạn không thể nhắn tin với nhau nữa.`,
+      showCancel: true,
+      confirmText: "Xác nhận",
+      onConfirm: async () => {
+        try {
+          console.log("🗑️ Unmatching matchId:", matchId);
+          await deleteChat(matchId);
+          
+          showAlert({
+            type: 'success',
+            title: "Đã hủy kết nối",
+            message: `Bạn đã hủy kết nối với ${userName}`,
+            onClose: () => navigation.navigate("Chat", { matchId: undefined })
+          });
+        } catch (error: any) {
+          console.error('❌ Error unmatching:', error);
+          showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể hủy kết nối. Vui lòng thử lại.' });
+        }
+      },
+    });
   };
 
   const handleReport = () => {
@@ -227,49 +216,55 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleBlock = () => {
     closeMenu();
-    Alert.alert(
-      "Chặn người dùng",
-      `Bạn có chắc muốn chặn ${userName}? Bạn sẽ không thể nhắn tin với nhau.`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Chặn",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // TODO: Implement block API when available
-              console.log("🚫 Blocking user:", otherUserId);
-              Alert.alert("Đã chặn", `${userName} đã bị chặn.`);
-              navigation.goBack();
-            } catch (error: any) {
-              console.error('❌ Error blocking user:', error);
-              Alert.alert('Lỗi', 'Không thể chặn người dùng. Vui lòng thử lại.');
-            }
-          },
-        },
-      ]
-    );
+    showAlert({
+      type: 'warning',
+      title: "Chặn người dùng",
+      message: `Bạn có chắc muốn chặn ${userName}? Bạn sẽ không thể nhắn tin với nhau nữa và match sẽ bị hủy.`,
+      showCancel: true,
+      confirmText: "Chặn",
+      onConfirm: async () => {
+        try {
+          const currentUserIdStr = await AsyncStorage.getItem('userId');
+          if (!currentUserIdStr) {
+            showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+            return;
+          }
+          const currentUserId = parseInt(currentUserIdStr, 10);
+
+          console.log("🚫 Blocking user:", currentUserId, "->", otherUserId);
+          
+          // Block user (backend will auto-delete chat)
+          await blockUser(currentUserId, otherUserId);
+          
+          showAlert({
+            type: 'success',
+            title: "Đã chặn",
+            message: `${userName} đã bị chặn và unmatch.`,
+            onClose: () => navigation.navigate('Chat', {}),
+          });
+        } catch (error: any) {
+          console.error('❌ Error blocking user:', error);
+          showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chặn người dùng. Vui lòng thử lại.' });
+        }
+      },
+    });
   };
 
   const handleDeleteChat = () => {
     closeMenu();
-    Alert.alert(
-      "Xóa cuộc trò chuyện",
-      `Xóa cuộc trò chuyện với ${userName}? Bạn vẫn còn kết nối và có thể bắt đầu chat mới. Để xóa kết nối hoàn toàn, hãy dùng "Hủy kết nối".`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Xóa",
-          style: "destructive",
-          onPress: () => {
-            // Clear messages locally (backend doesn't have delete all messages endpoint)
-            console.log("🗑️ Clearing conversation locally");
-            setMessages([]);
-            Alert.alert("Đã xóa", "Cuộc trò chuyện đã được xóa. Bạn vẫn còn kết nối.");
-          },
-        },
-      ]
-    );
+    showAlert({
+      type: 'warning',
+      title: "Xóa cuộc trò chuyện",
+      message: `Xóa cuộc trò chuyện với ${userName}? Bạn vẫn còn kết nối và có thể bắt đầu chat mới. Để xóa kết nối hoàn toàn, hãy dùng "Hủy kết nối".`,
+      showCancel: true,
+      confirmText: "Xóa",
+      onConfirm: () => {
+        // Clear messages locally (backend doesn't have delete all messages endpoint)
+        console.log("🗑️ Clearing conversation locally");
+        setMessages([]);
+        showAlert({ type: 'success', title: "Đã xóa", message: "Cuộc trò chuyện đã được xóa. Bạn vẫn còn kết nối." });
+      },
+    });
   };
 
   const formatTime = (date: Date) => {
@@ -553,6 +548,21 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

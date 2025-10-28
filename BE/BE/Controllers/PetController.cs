@@ -35,7 +35,12 @@ namespace BE.Controllers
                     Age = p.Age,
                     IsActive = p.IsActive,
                     Description = p.Description,
-                    UrlImageAvatar = p.PetPhotos.Select(photo => photo.ImageUrl).FirstOrDefault()
+                    UrlImageAvatar = p.PetPhotos
+                        .Where(photo => photo.IsDeleted == false)
+                        .OrderByDescending(photo => photo.IsPrimary)
+                        .ThenBy(photo => photo.SortOrder)
+                        .Select(photo => photo.ImageUrl)
+                        .FirstOrDefault()
                 })
                 .ToListAsync();
 
@@ -66,16 +71,25 @@ namespace BE.Controllers
             // Combine both lists and remove duplicates
             var alreadyMatchedUserIds = sentToUsers.Union(receivedFromUsers).ToList();
 
+            // Get list of users that current user has blocked
+            var blockedUserIds = await _context.Blocks
+                .Where(b => b.FromUserId == userId)
+                .Select(b => b.ToUserId)
+                .ToListAsync();
+
             Console.WriteLine($"[PetController] User {userId} has match relationship with {alreadyMatchedUserIds.Count} users (sent: {sentToUsers.Count}, received: {receivedFromUsers.Count})");
+            Console.WriteLine($"[PetController] User {userId} has blocked {blockedUserIds.Count} users");
 
             var pets = await _context.Pets
                 .Include(p => p.PetPhotos)
                 .Include(p => p.User)
                     .ThenInclude(u => u.Address)
-                .Where(p => p.UserId != userId 
+                .Where(p => p.UserId != null
+                         && p.UserId != userId 
                          && p.IsDeleted == false 
                          && p.IsActive == true
-                         && !alreadyMatchedUserIds.Contains(p.UserId)) // Exclude pets whose owners already received match request
+                         && !alreadyMatchedUserIds.Contains(p.UserId.Value) // Exclude pets whose owners already received match request
+                         && !blockedUserIds.Contains(p.UserId.Value)) // Exclude pets whose owners are blocked by current user
                 .Select(p => new
                 {
                     PetId = p.PetId,
@@ -85,7 +99,12 @@ namespace BE.Controllers
                     Gender = p.Gender,
                     Age = p.Age,
                     Description = p.Description,
-                    Photos = p.PetPhotos.Select(photo => photo.ImageUrl).ToList(),
+                    Photos = p.PetPhotos
+                        .Where(photo => photo.IsDeleted == false)
+                        .OrderByDescending(photo => photo.IsPrimary)
+                        .ThenBy(photo => photo.SortOrder)
+                        .Select(photo => photo.ImageUrl)
+                        .ToList(),
                     Owner = p.User != null ? new
                     {
                         UserId = p.User.UserId,
@@ -133,7 +152,12 @@ namespace BE.Controllers
                 Age = pet.Age,
                 IsActive = pet.IsActive,
                 Description = pet.Description,
-                UrlImage = pet.PetPhotos.Select(photo => photo.ImageUrl).ToList(),
+                UrlImage = pet.PetPhotos
+                    .Where(photo => photo.IsDeleted == false)
+                    .OrderByDescending(photo => photo.IsPrimary)
+                    .ThenBy(photo => photo.SortOrder)
+                    .Select(photo => photo.ImageUrl)
+                    .ToList(),
                 Owner = pet.User != null ? new
                 {
                     UserId = pet.User.UserId,

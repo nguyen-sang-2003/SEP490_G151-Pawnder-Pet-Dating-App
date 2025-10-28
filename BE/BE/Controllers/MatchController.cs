@@ -26,7 +26,22 @@ namespace BE.Controllers
             {
                 Console.WriteLine($"[MatchController] Getting likes for userId: {userId}");
                 
-                // Get all match requests (both pending and accepted)
+                // Get blocked users (both directions)
+                var blockedByMe = await _context.Blocks
+                    .Where(b => b.FromUserId == userId)
+                    .Select(b => b.ToUserId)
+                    .ToListAsync();
+                
+                var blockedMe = await _context.Blocks
+                    .Where(b => b.ToUserId == userId)
+                    .Select(b => b.FromUserId)
+                    .ToListAsync();
+                
+                var allBlockedUserIds = blockedByMe.Union(blockedMe).ToList();
+                
+                Console.WriteLine($"[MatchController] User {userId} has {allBlockedUserIds.Count} blocked relationships");
+                
+                // Get all match requests (both pending and accepted) excluding blocked users
                 var allMatchRequests = await _context.ChatUsers
                     .Include(c => c.FromUser)
                         .ThenInclude(u => u!.Address)
@@ -42,10 +57,13 @@ namespace BE.Controllers
                                (
                                    (c.ToUserId == userId && c.Status == "Pending") || 
                                    ((c.FromUserId == userId || c.ToUserId == userId) && c.Status == "Accepted")
-                               ))
+                               ) &&
+                               c.FromUserId != null && c.ToUserId != null &&
+                               !allBlockedUserIds.Contains(c.FromUserId.Value) &&
+                               !allBlockedUserIds.Contains(c.ToUserId.Value))
                     .ToListAsync();
                 
-                Console.WriteLine($"[MatchController] Found {allMatchRequests.Count} match requests");
+                Console.WriteLine($"[MatchController] Found {allMatchRequests.Count} match requests (after blocking filter)");
 
                 var result = allMatchRequests.Select(c =>
                 {
@@ -88,7 +106,8 @@ namespace BE.Controllers
                         } : null,
                         petPhotos = otherUserPet?.PetPhotos?
                             .Where(photo => photo.IsDeleted == false)
-                            .OrderBy(photo => photo.SortOrder)
+                            .OrderByDescending(photo => photo.IsPrimary)
+                            .ThenBy(photo => photo.SortOrder)
                             .Select(photo => photo.ImageUrl)
                             .ToList() ?? new List<string>()
                     };
@@ -156,6 +175,25 @@ namespace BE.Controllers
                 
                 if (request.FromUserId == request.ToUserId)
                     return BadRequest(new { message = "Cannot like yourself" });
+
+                // Check if blocked by target user (silent reject)
+                var isBlocked = await _context.Blocks
+                    .AnyAsync(b => b.FromUserId == request.ToUserId && b.ToUserId == request.FromUserId);
+                
+                if (isBlocked)
+                {
+                    Console.WriteLine($"[MatchController] User {request.FromUserId} is blocked by user {request.ToUserId} - silent reject");
+                    // Return success but don't create anything (user doesn't know they're blocked)
+                    return Ok(new
+                    {
+                        matchId = 0,
+                        fromUserId = request.FromUserId,
+                        toUserId = request.ToUserId,
+                        status = "Rejected",
+                        isMatch = false,
+                        message = "Request processed"
+                    });
+                }
 
                 // Check if already exists (sent by current user)
                 var existingLike = await _context.ChatUsers
@@ -282,6 +320,21 @@ namespace BE.Controllers
                     // Reject/Unmatch - delete the request completely
                     // This allows the pet to appear again in Home screen
                     Console.WriteLine($"[MatchController] Passing/Unmatching - removing ChatUser entry (Status={chatUser.Status})");
+                    
+                    // If it's an unmatch (status was Accepted), also delete all chat messages
+                    if (chatUser.Status == "Accepted")
+                    {
+                        var chatMessages = await _context.ChatUserContents
+                            .Where(m => m.MatchId == chatUser.MatchId)
+                            .ToListAsync();
+                        
+                        if (chatMessages.Any())
+                        {
+                            _context.ChatUserContents.RemoveRange(chatMessages);
+                            Console.WriteLine($"[MatchController] Deleted {chatMessages.Count} messages");
+                        }
+                    }
+                    
                     _context.ChatUsers.Remove(chatUser);
                     await _context.SaveChangesAsync();
 

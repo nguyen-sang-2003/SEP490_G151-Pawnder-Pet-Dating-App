@@ -6,78 +6,130 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getBlockedUsers, unblockUser } from "../../../api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "BlockedUsers">;
 
 interface BlockedUser {
-  id: string;
-  name: string;
-  avatar: any;
-  blockedAt: string;
+  toUserId: number;
+  toUserFullName: string;
+  toUserEmail: string;
+  createdAt: string;
 }
 
-const MOCK_BLOCKED_USERS: BlockedUser[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    avatar: require("../../../assets/cat_avatar.png"),
-    blockedAt: "2 days ago",
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    avatar: require("../../../assets/cat_avatar_signin.png"),
-    blockedAt: "1 week ago",
-  },
-];
-
 const BlockedUsersScreen = ({ navigation }: Props) => {
-  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>(
-    MOCK_BLOCKED_USERS
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+
+  // Load blocked users when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      loadBlockedUsers();
+    }, [])
   );
 
-  const handleUnblock = (userId: string, userName: string) => {
-    Alert.alert(
-      "Unblock User",
-      `Are you sure you want to unblock ${userName}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Unblock",
-          onPress: () => {
-            // TODO: API call to unblock user
-            console.log("Unblocking user:", userId);
+  const loadBlockedUsers = async () => {
+    try {
+      setLoading(true);
+      const currentUserIdStr = await AsyncStorage.getItem('userId');
+      if (!currentUserIdStr) {
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        return;
+      }
+      const currentUserId = parseInt(currentUserIdStr, 10);
+      
+      console.log('📋 Loading blocked users for:', currentUserId);
+      const users = await getBlockedUsers(currentUserId);
+      console.log('✅ Loaded blocked users:', users.length);
+      setBlockedUsers(users);
+    } catch (error: any) {
+      console.error('❌ Error loading blocked users:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải danh sách người dùng đã chặn' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnblock = async (toUserId: number, userName: string) => {
+    try {
+      const currentUserIdStr = await AsyncStorage.getItem('userId');
+      if (!currentUserIdStr) {
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        return;
+      }
+      const currentUserId = parseInt(currentUserIdStr, 10);
+
+      showAlert({
+        type: 'warning',
+        title: "Bỏ chặn người dùng",
+        message: `Bạn có chắc muốn bỏ chặn ${userName}?`,
+        showCancel: true,
+        confirmText: "Bỏ chặn",
+        onConfirm: async () => {
+          try {
+            console.log("✅ Unblocking user:", currentUserId, "->", toUserId);
+            await unblockUser(currentUserId, toUserId);
+            
+            // Remove from list
             setBlockedUsers((prev) =>
-              prev.filter((user) => user.id !== userId)
+              prev.filter((user) => user.toUserId !== toUserId)
             );
-          },
+            
+            showAlert({ type: 'success', title: "Đã bỏ chặn", message: `${userName} đã được bỏ chặn.` });
+          } catch (error: any) {
+            console.error('❌ Error unblocking user:', error);
+            showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể bỏ chặn người dùng' });
+          }
         },
-      ]
-    );
+      });
+    } catch (error) {
+      console.error('❌ Error:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Đã xảy ra lỗi' });
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Hôm nay";
+    if (diffDays === 1) return "Hôm qua";
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
+    return `${Math.floor(diffDays / 30)} tháng trước`;
   };
 
   const renderBlockedUser = ({ item }: { item: BlockedUser }) => (
     <View style={styles.userCard}>
       <View style={styles.userInfo}>
-        <Image source={item.avatar} style={styles.avatar} />
+        <View style={styles.avatarPlaceholder}>
+          <Icon name="person" size={24} color={colors.textMedium} />
+        </View>
         <View style={styles.userDetails}>
-          <Text style={styles.userName}>{item.name}</Text>
-          <Text style={styles.blockedTime}>Blocked {item.blockedAt}</Text>
+          <Text style={styles.userName}>{item.toUserFullName}</Text>
+          <Text style={styles.blockedTime}>Chặn {formatDate(item.createdAt)}</Text>
         </View>
       </View>
       <TouchableOpacity
         style={styles.unblockButton}
-        onPress={() => handleUnblock(item.id, item.name)}
+        onPress={() => handleUnblock(item.toUserId, item.toUserFullName)}
       >
-        <Text style={styles.unblockText}>Unblock</Text>
+        <Text style={styles.unblockText}>Bỏ chặn</Text>
       </TouchableOpacity>
     </View>
   );
@@ -87,12 +139,38 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
       <View style={styles.emptyIconContainer}>
         <Icon name="ban-outline" size={64} color={colors.textLabel} />
       </View>
-      <Text style={styles.emptyTitle}>No Blocked Users</Text>
+      <Text style={styles.emptyTitle}>Không có người dùng bị chặn</Text>
       <Text style={styles.emptyText}>
-        You haven't blocked anyone yet. Blocked users will appear here.
+        Bạn chưa chặn ai. Danh sách người dùng bị chặn sẽ hiển thị ở đây.
       </Text>
     </View>
   );
+
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={gradients.background}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={colors.textDark} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Người dùng đã chặn</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Đang tải...</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
@@ -109,7 +187,7 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Blocked Users</Text>
+        <Text style={styles.headerTitle}>Người dùng đã chặn</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -121,14 +199,14 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
           color={colors.primary}
         />
         <Text style={styles.infoText}>
-          Blocked users cannot see your profile or contact you
+          Người dùng bị chặn sẽ không thấy hồ sơ của bạn trên HomeScreen
         </Text>
       </View>
 
       {/* List */}
       <FlatList
         data={blockedUsers}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.toUserId.toString()}
         renderItem={renderBlockedUser}
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={[
@@ -137,6 +215,21 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
         ]}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };
@@ -208,11 +301,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
-  avatar: {
+  avatarPlaceholder: {
     width: 50,
     height: 50,
     borderRadius: 25,
     marginRight: 14,
+    backgroundColor: colors.cardBackgroundLight,
+    justifyContent: "center",
+    alignItems: "center",
   },
   userDetails: {
     flex: 1,
@@ -266,6 +362,16 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     textAlign: "center",
     lineHeight: 22,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textMedium,
   },
 });
 

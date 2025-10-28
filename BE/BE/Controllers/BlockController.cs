@@ -66,23 +66,51 @@ namespace BE.Controllers
 					return NotFound(new { Message = "Người dùng không tồn tại." });
 				}
 
-				var existingBlock = await _context.Blocks
-					.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
+			var existingBlock = await _context.Blocks
+				.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
 
-				if (existingBlock != null)
+			if (existingBlock != null)
+			{
+				return Conflict(new { Message = "Người dùng này đã bị chặn trước đó." });
+			}
+
+			// Check if there's an existing match/chat between these users (any direction)
+			var existingChat = await _context.ChatUsers
+				.FirstOrDefaultAsync(c => 
+					c.IsDeleted == false &&
+					((c.FromUserId == fromUserId && c.ToUserId == toUserId) ||
+					(c.FromUserId == toUserId && c.ToUserId == fromUserId)));
+
+			if (existingChat != null)
+			{
+				Console.WriteLine($"[BlockController] Found existing chat (MatchId: {existingChat.MatchId}), deleting...");
+				
+				// Delete all chat messages first
+				var chatMessages = await _context.ChatUserContents
+					.Where(m => m.MatchId == existingChat.MatchId)
+					.ToListAsync();
+				
+				if (chatMessages.Any())
 				{
-					return Conflict(new { Message = "Người dùng này đã bị chặn trước đó." });
+					_context.ChatUserContents.RemoveRange(chatMessages);
+					Console.WriteLine($"[BlockController] Deleted {chatMessages.Count} messages");
 				}
+				
+				// Delete the ChatUser entry (unmatch)
+				_context.ChatUsers.Remove(existingChat);
+				Console.WriteLine($"[BlockController] Deleted ChatUser entry");
+			}
 
-				var block = new Block
-				{
-					FromUserId = fromUserId,
-					ToUserId = toUserId,
-					CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-				};
+			// Create the block
+			var block = new Block
+			{
+				FromUserId = fromUserId,
+				ToUserId = toUserId,
+				CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+			};
 
-				_context.Blocks.Add(block);
-				await _context.SaveChangesAsync();
+			_context.Blocks.Add(block);
+			await _context.SaveChangesAsync();
 
 				return Ok(new
 				{
