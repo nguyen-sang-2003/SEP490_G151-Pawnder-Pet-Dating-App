@@ -1,0 +1,323 @@
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import './PetDetail.css';
+
+const PetDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Dữ liệu thú cưng mẫu (trong thực tế sẽ fetch từ API)
+  const pets = [
+    {
+      id: 1,
+      name: 'Buddy',
+      species: 'Dog',
+      breed: 'Golden Retriever',
+      age: 3,
+      gender: 'Male',
+      weight: 25.5,
+      color: 'Golden',
+      description: 'Friendly and energetic dog who loves playing fetch. Buddy is very social and gets along well with other dogs and children. He enjoys long walks in the park and playing with his favorite tennis ball.',
+      ownerId: 1,
+      ownerName: 'John Doe',
+      ownerEmail: 'john.doe@email.com',
+      ownerPhone: '+84 123 456 789',
+      status: 'active',
+      isVaccinated: true,
+      isNeutered: false,
+      createdAt: '2024-01-20T10:30:00Z',
+      updatedAt: '2024-10-28T14:20:00Z',
+      photos: [
+        'https://via.placeholder.com/600x400/FFD700/000000?text=Buddy+1',
+        'https://via.placeholder.com/600x400/FFA500/000000?text=Buddy+2'
+      ],
+      totalMatches: 5,
+      totalLikes: 12
+    },
+    {
+      id: 2,
+      name: 'Luna',
+      species: 'Cat',
+      breed: 'Persian',
+      age: 2,
+      gender: 'Female',
+      weight: 4.2,
+      color: 'White',
+      description: 'Calm and elegant cat, perfect for apartment living. Luna is very gentle and loves to be pampered. She enjoys sitting by the window watching birds and curling up in warm spots.',
+      ownerId: 2,
+      ownerName: 'Alice Wonder',
+      ownerEmail: 'alice.wonder@email.com',
+      ownerPhone: '+84 987 654 321',
+      status: 'active',
+      isVaccinated: true,
+      isNeutered: true,
+      createdAt: '2024-02-15T14:20:00Z',
+      updatedAt: '2024-10-27T16:45:00Z',
+      photos: [
+        'https://via.placeholder.com/600x400/FFFFFF/000000?text=Luna+1'
+      ],
+      totalMatches: 3,
+      totalLikes: 8
+    },
+    {
+      id: 3,
+      name: 'Max',
+      species: 'Dog',
+      breed: 'German Shepherd',
+      age: 5,
+      gender: 'Male',
+      weight: 32.0,
+      color: 'Black and Tan',
+      description: 'Loyal and protective, great with families. Max is a trained guard dog who is very protective of his family but gentle with children. He needs regular exercise and mental stimulation.',
+      ownerId: 3,
+      ownerName: 'Bob Smith',
+      ownerEmail: 'bob.smith@email.com',
+      ownerPhone: '+84 555 123 456',
+      status: 'inactive',
+      isVaccinated: false,
+      isNeutered: true,
+      createdAt: '2024-03-10T09:15:00Z',
+      updatedAt: '2024-10-20T09:10:00Z',
+      photos: [
+        'https://via.placeholder.com/600x400/000000/FFFFFF?text=Max+1',
+        'https://via.placeholder.com/600x400/8B4513/FFFFFF?text=Max+2',
+        'https://via.placeholder.com/600x400/654321/FFFFFF?text=Max+3'
+      ],
+      totalMatches: 0,
+      totalLikes: 2
+    }
+  ];
+
+  const pet = pets.find(p => p.id === parseInt(id));
+
+  if (!pet) {
+    return (
+      <div className="pet-detail-page">
+        <div className="error-message">
+          <h2>Không tìm thấy thú cưng</h2>
+          <p>Thú cưng với ID {id} không tồn tại.</p>
+          <button onClick={() => navigate('/pets')} className="back-btn">
+            Quay lại danh sách
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? pet.photos.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === pet.photos.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('vi-VN');
+  };
+
+  const getSpeciesIcon = (species) => {
+    return species === 'Dog' ? '🐕' : '🐱';
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      active: { color: '#27ae60', text: 'Hoạt động' },
+      inactive: { color: '#f39c12', text: 'Không hoạt động' },
+      banned: { color: '#e74c3c', text: 'Bị cấm' }
+    };
+    
+    const config = statusConfig[status] || { color: '#95a5a6', text: 'Không xác định' };
+    
+    return (
+      <span 
+        className="status-badge" 
+        style={{ backgroundColor: config.color }}
+      >
+        {config.text}
+      </span>
+    );
+  };
+
+  return (
+    <div className="pet-detail-page">
+      <div className="page-header">
+        <button onClick={() => navigate('/pets')} className="back-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Quay lại danh sách
+        </button>
+        <h1>Chi tiết thú cưng</h1>
+      </div>
+
+      <div className="pet-detail-content">
+        {/* Pet Photos Section */}
+        <div className="photos-section">
+          <h2>Ảnh của {pet.name}</h2>
+          <div className="photo-gallery">
+            <div className="main-photo-container">
+              <button 
+                className="nav-btn prev-btn"
+                onClick={handlePrevImage}
+                disabled={pet.photos.length <= 1}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 18l-6-6 6-6"/>
+                </svg>
+              </button>
+              
+              <div className="main-photo">
+                <img 
+                  src={pet.photos[currentImageIndex]} 
+                  alt={`${pet.name} - Ảnh ${currentImageIndex + 1}`}
+                />
+                <div className="photo-counter">
+                  {currentImageIndex + 1} / {pet.photos.length}
+                </div>
+              </div>
+              
+              <button 
+                className="nav-btn next-btn"
+                onClick={handleNextImage}
+                disabled={pet.photos.length <= 1}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </button>
+            </div>
+            
+            {pet.photos.length > 1 && (
+              <div className="thumbnail-gallery">
+                {pet.photos.map((photo, index) => (
+                  <div
+                    key={index}
+                    className={`thumbnail-item ${index === currentImageIndex ? 'active' : ''}`}
+                    onClick={() => setCurrentImageIndex(index)}
+                  >
+                    <img src={photo} alt={`${pet.name} ${index + 1}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pet Information Section */}
+        <div className="info-section">
+          <div className="pet-basic-info">
+            <h2>
+              {getSpeciesIcon(pet.species)} {pet.name}
+            </h2>
+            <div className="pet-status">
+              {getStatusBadge(pet.status)}
+            </div>
+          </div>
+
+          <div className="info-grid">
+            <div className="info-card">
+              <h3>Thông tin cơ bản</h3>
+              <div className="info-item">
+                <span className="label">Giống:</span>
+                <span className="value">{pet.breed}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Tuổi:</span>
+                <span className="value">{pet.age} tuổi</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Giới tính:</span>
+                <span className="value">{pet.gender}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Cân nặng:</span>
+                <span className="value">{pet.weight} kg</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Màu sắc:</span>
+                <span className="value">{pet.color}</span>
+              </div>
+            </div>
+
+            <div className="info-card">
+              <h3>Sức khỏe</h3>
+              <div className="info-item">
+                <span className="label">Tiêm phòng:</span>
+                <span className={`value ${pet.isVaccinated ? 'vaccinated' : 'unvaccinated'}`}>
+                  {pet.isVaccinated ? '✓ Đã tiêm phòng' : '✗ Chưa tiêm phòng'}
+                </span>
+              </div>
+              <div className="info-item">
+                <span className="label">Triệt sản:</span>
+                <span className={`value ${pet.isNeutered ? 'neutered' : 'not-neutered'}`}>
+                  {pet.isNeutered ? '✓ Đã triệt sản' : '✗ Chưa triệt sản'}
+                </span>
+              </div>
+            </div>
+
+            <div className="info-card">
+              <h3>Chủ sở hữu</h3>
+              <div className="info-item">
+                <span className="label">Tên:</span>
+                <span className="value">{pet.ownerName}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Email:</span>
+                <span className="value">{pet.ownerEmail}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Số điện thoại:</span>
+                <span className="value">{pet.ownerPhone}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">ID:</span>
+                <span className="value">{pet.ownerId}</span>
+              </div>
+            </div>
+
+            <div className="info-card">
+              <h3>Thống kê</h3>
+              <div className="info-item">
+                <span className="label">Ghép đôi:</span>
+                <span className="value">{pet.totalMatches}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Lượt thích:</span>
+                <span className="value">{pet.totalLikes}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Số ảnh:</span>
+                <span className="value">{pet.photos.length}</span>
+              </div>
+            </div>
+
+            <div className="info-card">
+              <h3>Thời gian</h3>
+              <div className="info-item">
+                <span className="label">Ngày tạo:</span>
+                <span className="value">{formatDate(pet.createdAt)}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Cập nhật cuối:</span>
+                <span className="value">{formatDate(pet.updatedAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="description-card">
+            <h3>Mô tả</h3>
+            <p>{pet.description}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PetDetail;
