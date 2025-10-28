@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -16,6 +15,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ChangePassword">;
 
@@ -23,6 +24,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -30,27 +32,27 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
 
   const validatePassword = () => {
     if (!currentPassword) {
-      Alert.alert("Error", "Please enter your current password");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu hiện tại" });
       return false;
     }
 
     if (!newPassword) {
-      Alert.alert("Error", "Please enter a new password");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu mới" });
       return false;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải có ít nhất 6 ký tự" });
       return false;
     }
 
     if (newPassword === currentPassword) {
-      Alert.alert("Error", "New password must be different from current password");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu mới phải khác mật khẩu hiện tại" });
       return false;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu không khớp" });
       return false;
     }
 
@@ -69,18 +71,14 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
       // Mock delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      Alert.alert(
-        "Success",
-        "Your password has been changed successfully!",
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      showAlert({
+        type: 'success',
+        title: "Thành công",
+        message: "Đã thay đổi mật khẩu thành công!",
+        onClose: () => navigation.goBack(),
+      });
     } catch (error) {
-      Alert.alert("Error", "Failed to change password. Please try again.");
+      showAlert({ type: 'error', title: "Lỗi", message: "Không thể thay đổi mật khẩu. Vui lòng thử lại." });
     } finally {
       setLoading(false);
     }
@@ -310,6 +308,21 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

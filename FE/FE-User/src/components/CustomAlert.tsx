@@ -18,6 +18,9 @@ interface CustomAlertProps {
   message: string;
   onClose: () => void;
   confirmText?: string;
+  onConfirm?: () => void; // For confirmation dialogs
+  cancelText?: string; // For confirmation dialogs
+  showCancel?: boolean; // Show cancel button
 }
 
 const CustomAlert: React.FC<CustomAlertProps> = ({
@@ -27,6 +30,9 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   message,
   onClose,
   confirmText = 'OK',
+  onConfirm,
+  cancelText = 'Hủy',
+  showCancel = false,
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -104,19 +110,37 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
             <Text style={styles.message}>{message}</Text>
           </View>
 
-          {/* Button */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={onClose}
-            style={styles.buttonShadow}>
-            <LinearGradient
-              colors={['#FF6EA7', '#FF9BC0']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.button}>
-              <Text style={styles.buttonText}>{confirmText}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          {/* Buttons */}
+          <View style={styles.buttonContainer}>
+            {showCancel && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={onClose}
+                style={[styles.buttonShadow, styles.cancelButtonShadow]}>
+                <View style={styles.cancelButton}>
+                  <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                if (onConfirm) {
+                  onConfirm();
+                }
+                onClose();
+              }}
+              style={[styles.buttonShadow, showCancel && styles.confirmButtonFlex]}>
+              <LinearGradient
+                colors={['#FF6EA7', '#FF9BC0']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.button}>
+                <Text style={styles.buttonText}>{confirmText}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </Animated.View>
     </Modal>
@@ -171,6 +195,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
   buttonShadow: {
     borderRadius: 28,
     shadowColor: '#FF6EA7',
@@ -178,16 +207,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+    flex: 1,
+  },
+  cancelButtonShadow: {
+    shadowColor: '#999',
+  },
+  confirmButtonFlex: {
+    flex: 1,
   },
   button: {
     paddingVertical: 14,
-    paddingHorizontal: 60,
+    paddingHorizontal: 20,
     borderRadius: 28,
-    minWidth: 140,
     alignItems: 'center',
   },
   buttonText: {
     color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  cancelButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 28,
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#DDD',
+  },
+  cancelButtonText: {
+    color: '#666',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,

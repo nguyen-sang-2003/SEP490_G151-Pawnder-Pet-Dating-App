@@ -7,7 +7,6 @@ import {
   ScrollView,
   TextInput,
   Linking,
-  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -15,6 +14,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "HelpAndSupport">;
 
@@ -60,6 +61,7 @@ const faqs: FAQ[] = [
 const HelpAndSupportScreen = ({ navigation }: Props) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const toggleFAQ = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -69,7 +71,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
     if (message.trim()) {
       console.log("Support message:", message);
       setMessage("");
-      Alert.alert("Success", "Message sent! We'll get back to you soon.");
+      showAlert({ type: 'success', title: "Thành công", message: "Tin nhắn đã được gửi! Chúng tôi sẽ phản hồi sớm." });
     }
   };
 
@@ -373,6 +375,20 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

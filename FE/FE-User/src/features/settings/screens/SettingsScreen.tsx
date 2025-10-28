@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -15,6 +14,8 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { removeAuthToken } from "../../../api/auth";
 import { removeItem } from "../../../utils/storage";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -28,6 +29,8 @@ interface SettingsItem {
 }
 
 const SettingsScreen = ({ navigation }: Props) => {
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+  
   const accountSettings: SettingsItem[] = [
     {
       icon: "person-outline",
@@ -78,7 +81,7 @@ const SettingsScreen = ({ navigation }: Props) => {
       icon: "notifications-outline",
       title: "Notifications",
       subtitle: "Configure notification preferences",
-      onPress: () => Alert.alert("Coming Soon", "This feature is under development"),
+      onPress: () => showAlert({ type: 'info', title: "Coming Soon", message: "This feature is under development" }),
     },
   ];
 
@@ -130,7 +133,7 @@ const SettingsScreen = ({ navigation }: Props) => {
       });
     } catch (error) {
       console.error('❌ Logout error:', error);
-      Alert.alert('Error', 'Failed to logout');
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể đăng xuất' });
     }
   };
 
@@ -139,18 +142,14 @@ const SettingsScreen = ({ navigation }: Props) => {
       icon: "log-out-outline",
       title: "Sign Out",
       onPress: () => {
-        Alert.alert(
-          "Sign Out",
-          "Are you sure you want to sign out?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Sign Out",
-              style: "destructive",
-              onPress: handleLogout,
-            },
-          ]
-        );
+        showAlert({
+          type: 'warning',
+          title: "Sign Out",
+          message: "Are you sure you want to sign out?",
+          showCancel: true,
+          confirmText: "Sign Out",
+          onConfirm: handleLogout,
+        });
       },
       iconColor: colors.error,
     },
@@ -158,18 +157,14 @@ const SettingsScreen = ({ navigation }: Props) => {
       icon: "trash-outline",
       title: "Delete Account",
       onPress: () => {
-        Alert.alert(
-          "Delete Account",
-          "This action cannot be undone. All your data will be permanently deleted.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () => console.log("Delete account"),
-            },
-          ]
-        );
+        showAlert({
+          type: 'error',
+          title: "Delete Account",
+          message: "This action cannot be undone. All your data will be permanently deleted.",
+          showCancel: true,
+          confirmText: "Delete",
+          onConfirm: () => console.log("Delete account"),
+        });
       },
       iconColor: colors.error,
     },
@@ -258,6 +253,21 @@ const SettingsScreen = ({ navigation }: Props) => {
         {/* Version */}
         <Text style={styles.version}>Version 1.0.0</Text>
       </ScrollView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

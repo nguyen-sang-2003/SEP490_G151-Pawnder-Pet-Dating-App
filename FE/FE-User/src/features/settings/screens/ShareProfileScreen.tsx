@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Share,
-  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { colors, gradients, radius, shadows } from "../../../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ShareProfile">;
@@ -20,6 +21,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "ShareProfile">;
 const ShareProfileScreen = ({ navigation }: Props) => {
   const profileUrl = "https://pawnder.app/cat/luna-12345";
   const catName = "Luna";
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleShare = async (platform: string) => {
     try {
@@ -41,11 +43,11 @@ const ShareProfileScreen = ({ navigation }: Props) => {
 
   const handleCopyLink = () => {
     // In real app, use Clipboard.setString(profileUrl)
-    Alert.alert("Link Copied!", "Profile link copied to clipboard");
+    showAlert({ type: 'success', title: "Link Copied!", message: "Profile link copied to clipboard" });
   };
 
   const handleDownloadQR = () => {
-    Alert.alert("QR Code", "QR code will be saved to your gallery");
+    showAlert({ type: 'info', title: "QR Code", message: "QR code will be saved to your gallery" });
   };
 
   return (
@@ -243,6 +245,20 @@ const ShareProfileScreen = ({ navigation }: Props) => {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

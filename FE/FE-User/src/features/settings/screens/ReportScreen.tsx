@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -14,6 +13,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Report">;
 
@@ -38,15 +39,16 @@ const ReportScreen = ({ navigation, route }: Props) => {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleSubmit = async () => {
     if (!selectedReason) {
-      Alert.alert("Select a Reason", "Please select why you're reporting this user.");
+      showAlert({ type: 'warning', title: "Chọn lý do", message: "Vui lòng chọn lý do báo cáo người dùng này." });
       return;
     }
 
     if (!description.trim()) {
-      Alert.alert("Add Details", "Please provide more information about the issue.");
+      showAlert({ type: 'warning', title: "Thêm chi tiết", message: "Vui lòng cung cấp thêm thông tin về vấn đề." });
       return;
     }
 
@@ -56,16 +58,12 @@ const ReportScreen = ({ navigation, route }: Props) => {
     // Simulate API call
     setTimeout(() => {
       setIsSubmitting(false);
-      Alert.alert(
-        "Report Submitted",
-        "Thank you for your report. We'll review it and take appropriate action.",
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      showAlert({
+        type: 'success',
+        title: "Đã gửi báo cáo",
+        message: "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét và xử lý phù hợp.",
+        onClose: () => navigation.goBack(),
+      });
     }, 1500);
   };
 
@@ -223,6 +221,20 @@ const ReportScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         </View>
       </LinearGradient>
+
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </View>
   );
 };

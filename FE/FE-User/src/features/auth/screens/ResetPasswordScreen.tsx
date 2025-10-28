@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ScrollView,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
@@ -16,6 +15,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ResetPassword">;
 
@@ -23,6 +24,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
   const { email } = route.params;
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -30,22 +32,22 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
 
   const handleResetPassword = async () => {
     if (!otp.trim()) {
-      Alert.alert("Error", "Please enter the OTP code");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mã OTP" });
       return;
     }
 
     if (!newPassword.trim()) {
-      Alert.alert("Error", "Please enter new password");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu mới" });
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải có ít nhất 6 ký tự" });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu không khớp" });
       return;
     }
 
@@ -58,18 +60,14 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
       // Mock delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      Alert.alert(
-        "Success",
-        "Your password has been reset successfully!",
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.navigate("SignIn"),
-          },
-        ]
-      );
+      showAlert({
+        type: 'success',
+        title: "Thành công",
+        message: "Đã đặt lại mật khẩu thành công!",
+        onClose: () => navigation.navigate("SignIn"),
+      });
     } catch (error) {
-      Alert.alert("Error", "Failed to reset password. Please try again.");
+      showAlert({ type: 'error', title: "Lỗi", message: "Không thể đặt lại mật khẩu. Vui lòng thử lại." });
     } finally {
       setLoading(false);
     }
@@ -261,6 +259,21 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

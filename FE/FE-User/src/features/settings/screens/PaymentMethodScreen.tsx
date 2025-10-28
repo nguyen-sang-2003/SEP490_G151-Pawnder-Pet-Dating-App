@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -13,6 +12,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PaymentMethod">;
 
@@ -47,6 +48,7 @@ const MOCK_METHODS: PaymentMethod[] = [
 const PaymentMethodScreen = ({ navigation }: Props) => {
   const [paymentMethods, setPaymentMethods] =
     useState<PaymentMethod[]>(MOCK_METHODS);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleSetDefault = (methodId: string) => {
     setPaymentMethods((prev) =>
@@ -55,34 +57,29 @@ const PaymentMethodScreen = ({ navigation }: Props) => {
         isDefault: method.id === methodId,
       }))
     );
-    Alert.alert("Success", "Default payment method updated");
+    showAlert({ type: 'success', title: "Thành công", message: "Đã cập nhật phương thức thanh toán mặc định" });
   };
 
   const handleRemoveMethod = (methodId: string, methodName: string) => {
-    Alert.alert(
-      "Remove Payment Method",
-      `Are you sure you want to remove ${methodName}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => {
-            setPaymentMethods((prev) =>
-              prev.filter((method) => method.id !== methodId)
-            );
-          },
-        },
-      ]
-    );
+    showAlert({
+      type: 'warning',
+      title: "Xóa phương thức thanh toán",
+      message: `Bạn có chắc muốn xóa ${methodName}?`,
+      showCancel: true,
+      confirmText: "Xóa",
+      onConfirm: () => {
+        setPaymentMethods((prev) => prev.filter((m) => m.id !== methodId));
+        showAlert({ type: 'success', title: "Đã xóa", message: `${methodName} đã bị xóa` });
+      },
+    });
   };
 
   const handleAddMethod = () => {
-    Alert.alert(
-      "Add Payment Method",
-      "This will open payment method setup",
-      [{ text: "OK" }]
-    );
+    showAlert({
+      type: 'info',
+      title: "Thêm phương thức thanh toán",
+      message: "Tính năng đang phát triển",
+    });
   };
 
   const renderPaymentMethod = (method: PaymentMethod) => (
@@ -200,6 +197,20 @@ const PaymentMethodScreen = ({ navigation }: Props) => {
           </View>
         </View>
       </ScrollView>
+
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

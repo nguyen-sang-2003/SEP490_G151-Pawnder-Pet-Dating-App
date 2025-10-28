@@ -6,6 +6,9 @@ interface AlertConfig {
   message: string;
   confirmText?: string;
   onClose?: () => void;
+  onConfirm?: () => void;
+  cancelText?: string;
+  showCancel?: boolean;
 }
 
 export const useCustomAlert = () => {

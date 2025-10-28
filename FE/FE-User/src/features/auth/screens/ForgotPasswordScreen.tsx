@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -15,22 +14,25 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ForgotPassword">;
 
 const ForgotPasswordScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleSendOTP = async () => {
     if (!email.trim()) {
-      Alert.alert("Error", "Please enter your email address");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập email" });
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address");
+      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập email hợp lệ" });
       return;
     }
 
@@ -43,19 +45,14 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
       // Mock delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      Alert.alert(
-        "Success",
-        "Password reset code has been sent to your email",
-        [
-          {
-            text: "OK",
-            onPress: () =>
-              navigation.navigate("ResetPassword", { email }),
-          },
-        ]
-      );
+      showAlert({
+        type: 'success',
+        title: "Thành công",
+        message: "Mã đặt lại mật khẩu đã được gửi đến email của bạn",
+        onClose: () => navigation.navigate("ResetPassword", { email }),
+      });
     } catch (error) {
-      Alert.alert("Error", "Failed to send reset code. Please try again.");
+      showAlert({ type: 'error', title: "Lỗi", message: "Không thể gửi mã. Vui lòng thử lại." });
     } finally {
       setLoading(false);
     }
@@ -146,6 +143,21 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

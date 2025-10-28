@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   Dimensions,
   ActivityIndicator,
 } from "react-native";
@@ -43,7 +42,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
   const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
-      Alert.alert("Giới hạn ảnh", `Chỉ có thể thêm tối đa ${maxPhotos} ảnh`);
+      showAlert({ type: 'warning', title: "Giới hạn ảnh", message: `Chỉ có thể thêm tối đa ${maxPhotos} ảnh` });
       return;
     }
     
@@ -61,7 +60,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
       if (result.errorCode) {
         console.error('ImagePicker Error: ', result.errorMessage);
-        Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
         return;
       }
 
@@ -77,23 +76,19 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
     }
   };
 
   const handleRemovePhoto = (id: string) => {
-    Alert.alert(
-      "Remove Photo",
-      "Are you sure you want to remove this photo?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => setPhotos(photos.filter(p => p.id !== id)),
-        },
-      ]
-    );
+    showAlert({
+      type: 'warning',
+      title: "Remove Photo",
+      message: "Are you sure you want to remove this photo?",
+      showCancel: true,
+      confirmText: "Remove",
+      onConfirm: () => setPhotos((prev) => prev.filter((photo) => photo.id !== id)),
+    });
   };
 
   const handleNext = async () => {
