@@ -39,7 +39,8 @@ interface PetProfile {
   gender: "male" | "female";
   distance: string;
   bio: string;
-  image: any;
+  image: any; // First image for backward compatibility
+  images: any[]; // All images for carousel
   personality: string[];
   owner: string;
   ownerId: number; // Add ownerId for API calls
@@ -48,6 +49,7 @@ interface PetProfile {
 const HomeScreen = ({ navigation }: Props) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [pets, setPets] = useState<PetProfile[]>([]);
+    const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
     const [loading, setLoading] = useState(true);
     const [showMatchModal, setShowMatchModal] = useState(false);
     const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
@@ -273,6 +275,10 @@ const HomeScreen = ({ navigation }: Props) => {
                         finalOwnerId: ownerId
                     });
                     
+                    const photos = pet.photos && pet.photos.length > 0
+                        ? pet.photos.map((url: string) => ({ uri: url }))
+                        : [require("../../../assets/cat_avatar.png")];
+                    
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
@@ -281,9 +287,8 @@ const HomeScreen = ({ navigation }: Props) => {
                         gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
                         distance: pet.owner?.address ? calculateDistance(pet.owner.address) : 'N/A',
                         bio: pet.description || 'No description',
-                        image: pet.photos && pet.photos.length > 0 
-                            ? { uri: pet.photos[0] } 
-                            : require("../../../assets/cat_avatar.png"),
+                        image: photos[0], // First image for backward compatibility
+                        images: photos, // All images for carousel
                         personality: [], // TODO: Add from pet characteristics
                         owner: pet.owner?.fullName || 'Unknown',
                         ownerId: ownerId, // Store owner ID for API calls (handle both cases)
@@ -296,6 +301,7 @@ const HomeScreen = ({ navigation }: Props) => {
             }
             setPets(formattedPets);
             setCurrentIndex(0); // Reset index when reloading
+            setCurrentPhotoIndices({}); // Reset photo indices
         } catch (error) {
             console.error('❌ Error loading pets:', error);
             setPets([]);
@@ -355,7 +361,53 @@ const HomeScreen = ({ navigation }: Props) => {
             >
                 <View style={styles.cardContent}>
                     <View style={styles.imageContainer}>
-                        <Image source={pet.image} style={styles.petImage} />
+                        {/* Current Photo */}
+                        <Image 
+                            source={pet.images[currentPhotoIndices[pet.id] || 0]} 
+                            style={styles.petImage} 
+                        />
+                        
+                        {/* Photo Navigation Tap Areas */}
+                        {pet.images.length > 1 && (
+                            <>
+                                {/* Left tap area - Previous photo */}
+                                <TouchableOpacity
+                                    style={styles.photoTapAreaLeft}
+                                    activeOpacity={1}
+                                    onPress={() => {
+                                        const currentIdx = currentPhotoIndices[pet.id] || 0;
+                                        const newIdx = currentIdx > 0 ? currentIdx - 1 : pet.images.length - 1;
+                                        setCurrentPhotoIndices(prev => ({...prev, [pet.id]: newIdx}));
+                                    }}
+                                />
+                                
+                                {/* Right tap area - Next photo */}
+                                <TouchableOpacity
+                                    style={styles.photoTapAreaRight}
+                                    activeOpacity={1}
+                                    onPress={() => {
+                                        const currentIdx = currentPhotoIndices[pet.id] || 0;
+                                        const newIdx = (currentIdx + 1) % pet.images.length;
+                                        setCurrentPhotoIndices(prev => ({...prev, [pet.id]: newIdx}));
+                                    }}
+                                />
+                            </>
+                        )}
+                        
+                        {/* Photo Pagination Dots */}
+                        {pet.images.length > 1 && (
+                            <View style={styles.paginationDots}>
+                                {pet.images.map((_, idx) => (
+                                    <View
+                                        key={idx}
+                                        style={[
+                                            styles.dot,
+                                            idx === (currentPhotoIndices[pet.id] || 0) && styles.dotActive
+                                        ]}
+                                    />
+                                ))}
+                            </View>
+                        )}
                         
                         {/* Info Button Overlay - Only button is clickable */}
                         <View style={styles.infoButtonOverlay}>
@@ -746,6 +798,44 @@ const styles = StyleSheet.create({
         ...shadows.medium,
         borderWidth: 2,
         borderColor: "rgba(255,255,255,0.3)",
+    },
+    
+    // Photo Navigation
+    photoTapAreaLeft: {
+        position: "absolute",
+        left: 0,
+        top: 0,
+        height: "35%", // Chỉ chiếm 35% chiều cao phía trên
+        width: "40%",
+        zIndex: 2,
+    },
+    photoTapAreaRight: {
+        position: "absolute",
+        right: 0,
+        top: 0,
+        height: "35%", // Chỉ chiếm 35% chiều cao phía trên
+        width: "40%",
+        zIndex: 2,
+    },
+    paginationDots: {
+        position: "absolute",
+        top: 12,
+        left: 0,
+        right: 0,
+        flexDirection: "row",
+        justifyContent: "center",
+        gap: 6,
+        zIndex: 3,
+    },
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: "rgba(255,255,255,0.5)",
+    },
+    dotActive: {
+        backgroundColor: colors.white,
+        width: 20,
     },
 
     // Swipe Labels
