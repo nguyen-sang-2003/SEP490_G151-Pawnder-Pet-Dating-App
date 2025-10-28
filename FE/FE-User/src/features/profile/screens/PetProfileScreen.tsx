@@ -6,7 +6,6 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
@@ -15,10 +14,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike } from "../../../api";
+import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser } from "../../../api";
 import { colors, radius, shadows } from "../../../theme";
 import { getItem } from "../../../utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PetProfile">;
 
@@ -33,14 +34,14 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [isMyPet, setIsMyPet] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [sendingMatchRequest, setSendingMatchRequest] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const loadPetData = async () => {
     try {
       setLoading(true);
 
       if (!petId) {
-        Alert.alert('Error', 'Pet ID not found');
-        navigation.goBack();
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin pet', onClose: () => navigation.goBack() });
         return;
       }
 
@@ -90,7 +91,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
     } catch (error: any) {
       console.error('❌ Error loading pet data:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load pet data');
+      showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin pet' });
     } finally {
       setLoading(false);
     }
@@ -200,24 +201,40 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     navigation.navigate("EditPet", { petId: petIdStr });
   };
 
-  const handleBlock = () => {
-    Alert.alert(
-      "Block User",
-      `Are you sure you want to block ${pet.owner.name}? You won't see their pets anymore.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Block",
-          style: "destructive",
-          onPress: () => {
-            // TODO: Call Block API - POST /block/{fromUserId}/{toUserId}
-            console.log("Blocked user");
-            Alert.alert("Blocked", `${pet.owner.name} has been blocked.`);
-            navigation.goBack();
-          },
+  const handleBlock = async () => {
+    try {
+      const currentUserIdStr = await AsyncStorage.getItem('userId');
+      if (!currentUserIdStr) {
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        return;
+      }
+      const currentUserId = parseInt(currentUserIdStr, 10);
+
+      showAlert({
+        type: 'warning',
+        title: "Chặn người dùng",
+        message: `Bạn có chắc muốn chặn ${pet.owner.name}? Bạn sẽ không thấy thú cưng của họ nữa.`,
+        showCancel: true,
+        confirmText: "Chặn",
+        onConfirm: async () => {
+          try {
+            await blockUser(currentUserId, pet.owner.userId);
+            showAlert({
+              type: 'success',
+              title: "Đã chặn",
+              message: `${pet.owner.name} đã bị chặn.`,
+              onClose: () => navigation.navigate('Home'),
+            });
+          } catch (error: any) {
+            console.error('❌ Block error:', error);
+            showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể chặn người dùng' });
+          }
         },
-      ]
-    );
+      });
+    } catch (error) {
+      console.error('❌ Error:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Đã xảy ra lỗi' });
+    }
   };
 
   const handleReport = () => {
@@ -235,7 +252,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        Alert.alert('Error', 'Please login first');
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Vui lòng đăng nhập trước' });
         return;
       }
       
@@ -243,7 +260,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       const ownerUserId = petData?.Owner?.UserId || petData?.Owner?.userId || ownerData?.UserId || ownerData?.userId;
       
       if (!ownerUserId) {
-        Alert.alert('Error', 'Owner information not found');
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin chủ pet' });
         return;
       }
       
@@ -255,43 +272,25 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       console.log('✅ Match request sent:', response);
       
       if (response.isMatch) {
-        Alert.alert(
-          "It's a Match! 🎉",
-          `You matched with ${pet.owner.name}! You can now chat with them.`,
-          [
-            { 
-              text: 'Go to Chat', 
-              onPress: () => {
-                // Navigate to Chat screen
-                navigation.navigate('Chat', {});
-              }
-            },
-            { 
-              text: 'Continue', 
-              onPress: () => {
-                navigation.goBack();
-              }
-            }
-          ]
-        );
+        showAlert({
+          type: 'success',
+          title: "It's a Match! 🎉",
+          message: `You matched with ${pet.owner.name}! You can now chat with them.`,
+          confirmText: 'Go to Chat',
+          onConfirm: () => navigation.navigate('Chat', {}),
+        });
       } else {
-        Alert.alert(
-          'Match Request Sent! 💌',
-          `Your match request has been sent to ${pet.owner.name}. They will see it in their Favorites.`,
-          [
-            { 
-              text: 'OK', 
-              onPress: () => {
-                navigation.goBack();
-              }
-            }
-          ]
-        );
+        showAlert({
+          type: 'success',
+          title: 'Match Request Sent! 💌',
+          message: `Your match request has been sent to ${pet.owner.name}. They will see it in their Favorites.`,
+          onClose: () => navigation.goBack(),
+        });
       }
     } catch (error: any) {
       console.error('❌ Error sending match request:', error);
       const errorMsg = error.response?.data?.message || error.message || 'Failed to send match request';
-      Alert.alert('Error', errorMsg);
+      showAlert({ type: 'error', title: 'Lỗi', message: errorMsg });
     } finally {
       setSendingMatchRequest(false);
     }
@@ -572,6 +571,21 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           </>
         )}
       </ScrollView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
@@ -15,9 +14,12 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getUserById, updateUser, getAddressById, updateAddressManual } from "../../../api";
+import { getUserById, updateUser, getAddressById, updateAddressManual, createAddressForUser, updateAddress } from "../../../api";
 import { getItem } from "../../../utils/storage";
 import { colors } from "../../../theme";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { requestLocationAndGetCoordinates } from "../../../services/location.service";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EditProfile">;
 
@@ -33,6 +35,9 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
   const [ward, setWard] = useState("");
+  const [locationMode, setLocationMode] = useState<'manual' | 'gps'>('manual'); // Toggle between manual and GPS
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Load user data
   useEffect(() => {
@@ -48,8 +53,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         }
         
         if (!uid) {
-          Alert.alert('Error', 'User not found');
-          navigation.goBack();
+          showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy người dùng', onClose: () => navigation.goBack() });
           return;
         }
         
@@ -82,7 +86,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         
       } catch (error: any) {
         console.error('❌ Error loading user data:', error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to load user data');
+        showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin người dùng' });
       } finally {
         setLoading(false);
       }
@@ -93,12 +97,12 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
   const handleSave = async () => {
     if (!userId) {
-      Alert.alert('Error', 'User ID not found');
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy ID người dùng' });
       return;
     }
 
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Name is required');
+      showAlert({ type: 'warning', title: 'Lỗi nhập liệu', message: 'Tên không được để trống' });
       return;
     }
 
@@ -121,12 +125,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       }
       
       console.log('✅ User updated successfully');
-      Alert.alert("Success", "Profile updated successfully!", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      showAlert({ type: 'success', title: 'Thành công', message: 'Đã cập nhật thông tin!', onClose: () => navigation.goBack() });
     } catch (error: any) {
       console.error('❌ Error saving user data:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to save profile');
+      showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể lưu thông tin' });
     } finally {
       setSaving(false);
     }
@@ -138,7 +140,64 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
   const handleChangeAvatar = () => {
     // Image picker logic
-    Alert.alert("Change Avatar", "Feature coming soon!");
+    showAlert({ type: 'info', title: 'Thay đổi ảnh đại diện', message: 'Tính năng sắp ra mắt!' });
+  };
+
+  const handleGetGPSLocation = async () => {
+    try {
+      setGettingLocation(true);
+      
+      // Get GPS coordinates
+      console.log('📍 Requesting location permission...');
+      const coordinates = await requestLocationAndGetCoordinates();
+      
+      if (!coordinates) {
+        showAlert({
+          type: 'warning',
+          title: 'Không thể lấy vị trí',
+          message: 'Bạn đã từ chối quyền truy cập vị trí. Vui lòng bật GPS trong cài đặt.',
+        });
+        return;
+      }
+      
+      // Update address with GPS coordinates
+      if (userId) {
+        console.log('📍 Updating address with coordinates:', coordinates);
+        
+        // If user already has addressId, use PUT (update), else use POST (create)
+        if (addressId) {
+          await updateAddress(addressId, coordinates.latitude, coordinates.longitude);
+        } else {
+          await createAddressForUser(userId, coordinates.latitude, coordinates.longitude);
+        }
+        
+        // Reload address data
+        const user = await getUserById(userId);
+        const addrId = user.AddressId || user.addressId;
+        if (addrId) {
+          const address = await getAddressById(addrId);
+          setAddressId(addrId);
+          setCity(address?.City || address?.city || '');
+          setDistrict(address?.District || address?.district || '');
+          setWard(address?.Ward || address?.ward || '');
+        }
+        
+        showAlert({
+          type: 'success',
+          title: 'Thành công! 📍',
+          message: 'Đã cập nhật vị trí từ GPS.',
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ GPS error:', error);
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.message || 'Không thể lấy vị trí GPS. Vui lòng thử lại.',
+      });
+    } finally {
+      setGettingLocation(false);
+    }
   };
 
   // Show loading spinner
@@ -285,41 +344,124 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             </View>
           </View>
 
-          {/* City */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>City</Text>
-            <TextInput
-              style={styles.input}
-              value={city}
-              onChangeText={setCity}
-              placeholder="Enter city"
-              placeholderTextColor="#999"
-            />
+          {/* Location Mode Toggle */}
+          <View style={styles.locationModeToggle}>
+            <TouchableOpacity
+              style={[styles.modeButton, locationMode === 'manual' && styles.modeButtonActive]}
+              onPress={() => setLocationMode('manual')}
+            >
+              <Icon 
+                name="create-outline" 
+                size={18} 
+                color={locationMode === 'manual' ? '#fff' : colors.textMedium} 
+              />
+              <Text style={[styles.modeButtonText, locationMode === 'manual' && styles.modeButtonTextActive]}>
+                Nhập thủ công
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeButton, locationMode === 'gps' && styles.modeButtonActive]}
+              onPress={() => setLocationMode('gps')}
+            >
+              <Icon 
+                name="location" 
+                size={18} 
+                color={locationMode === 'gps' ? '#fff' : colors.textMedium} 
+              />
+              <Text style={[styles.modeButtonText, locationMode === 'gps' && styles.modeButtonTextActive]}>
+                Dùng GPS
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* District */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>District</Text>
-            <TextInput
-              style={styles.input}
-              value={district}
-              onChangeText={setDistrict}
-              placeholder="Enter district"
-              placeholderTextColor="#999"
-            />
-          </View>
+          {/* Manual Mode */}
+          {locationMode === 'manual' ? (
+            <>
+              {/* City */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>City</Text>
+                <TextInput
+                  style={styles.input}
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="Enter city"
+                  placeholderTextColor="#999"
+                />
+              </View>
 
-          {/* Ward */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Ward</Text>
-            <TextInput
-              style={styles.input}
-              value={ward}
-              onChangeText={setWard}
-              placeholder="Enter ward"
-              placeholderTextColor="#999"
-            />
-          </View>
+              {/* District */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>District</Text>
+                <TextInput
+                  style={styles.input}
+                  value={district}
+                  onChangeText={setDistrict}
+                  placeholder="Enter district"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              {/* Ward */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Ward</Text>
+                <TextInput
+                  style={styles.input}
+                  value={ward}
+                  onChangeText={setWard}
+                  placeholder="Enter ward"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </>
+          ) : (
+            /* GPS Mode */
+            <>
+              <View style={styles.gpsInfoBox}>
+                <Icon name="information-circle" size={20} color={colors.primary} />
+                <Text style={styles.gpsInfoText}>
+                  Nhấn nút bên dưới để tự động lấy vị trí từ GPS của bạn
+                </Text>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.gpsButton}
+                onPress={handleGetGPSLocation}
+                disabled={gettingLocation}
+              >
+                <LinearGradient
+                  colors={gettingLocation ? ["#CCC", "#DDD"] : ["#FF6EA7", "#FF9BC0"]}
+                  style={styles.gpsButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  {gettingLocation ? (
+                    <>
+                      <ActivityIndicator size="small" color="#fff" />
+                      <Text style={styles.gpsButtonText}>Đang lấy vị trí...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="navigate" size={20} color="#fff" />
+                      <Text style={styles.gpsButtonText}>Lấy vị trí GPS</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Show current location */}
+              {(city || district || ward) && (
+                <View style={styles.currentLocationBox}>
+                  <Icon name="location" size={18} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.currentLocationLabel}>Vị trí hiện tại:</Text>
+                    <Text style={styles.currentLocationText}>
+                      {[ward, district, city].filter(Boolean).join(', ') || 'Chưa có'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </>
+          )}
         </View>
 
         {/* Save Button */}
@@ -346,6 +488,21 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };
@@ -502,6 +659,95 @@ const styles = StyleSheet.create({
   },
   genderTextActive: {
     color: "#FF6EA7",
+  },
+
+  // Location Mode Toggle
+  locationModeToggle: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  modeButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F5F5F5",
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+    gap: 6,
+  },
+  modeButtonActive: {
+    backgroundColor: "#FF6EA7",
+    borderColor: "#FF6EA7",
+  },
+  modeButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#999",
+  },
+  modeButtonTextActive: {
+    color: "#fff",
+  },
+
+  // GPS Mode
+  gpsInfoBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF5F9",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+    gap: 10,
+  },
+  gpsInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#666",
+    lineHeight: 18,
+  },
+  gpsButton: {
+    marginBottom: 16,
+  },
+  gpsButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#FF6EA7",
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  gpsButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  currentLocationBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 10,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#FFE8F0",
+  },
+  currentLocationLabel: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 4,
+  },
+  currentLocationText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "600",
   },
 
   // Button

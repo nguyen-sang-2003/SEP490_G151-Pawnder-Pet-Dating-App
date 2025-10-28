@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
   Dimensions,
 } from "react-native";
@@ -19,6 +18,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { getPetById, updatePet, getUserById, getAddressById, getPetPhotos, uploadPetPhotosMultipart, setPrimaryPhoto, deletePetPhoto } from "../../../api";
 import { colors } from "../../../theme";
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 const { width } = Dimensions.get("window");
 const PHOTO_SIZE = (width - 80) / 3;
@@ -46,6 +47,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
   const [photos, setPhotos] = useState<any[]>([]);
   const maxPhotos = 6;
 
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+
   // Load pet data
   useEffect(() => {
     const loadPetData = async () => {
@@ -53,8 +56,12 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         setLoading(true);
         
         if (!petId) {
-          Alert.alert('Error', 'Pet ID not found');
-          navigation.goBack();
+          showAlert({
+            type: 'error',
+            title: 'Lỗi',
+            message: 'Không tìm thấy thông tin pet',
+            onClose: () => navigation.goBack(),
+          });
           return;
         }
         
@@ -107,7 +114,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         
       } catch (error: any) {
         console.error('❌ Error loading pet data:', error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to load pet data');
+        showAlert({
+          type: 'error',
+          title: 'Lỗi',
+          message: error.response?.data?.message || 'Không thể tải thông tin pet',
+        });
       } finally {
         setLoading(false);
       }
@@ -118,12 +129,20 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
   const handleSave = async () => {
     if (!petId) {
-      Alert.alert('Error', 'Pet ID not found');
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Không tìm thấy thông tin pet',
+      });
       return;
     }
-
+    
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Pet name is required');
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng nhập tên pet',
+      });
       return;
     }
 
@@ -141,12 +160,19 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       });
       
       console.log('✅ Pet updated successfully');
-      Alert.alert("Success", "Pet profile updated successfully!", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      showAlert({
+        type: 'success',
+        title: 'Thành công',
+        message: 'Đã cập nhật thông tin pet!',
+        onClose: () => navigation.goBack(),
+      });
     } catch (error: any) {
       console.error('❌ Error saving pet data:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to save pet profile');
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.response?.data?.message || 'Không thể lưu thông tin pet',
+      });
     } finally {
       setSaving(false);
     }
@@ -158,7 +184,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
   const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
-      Alert.alert("Giới hạn ảnh", `Chỉ có thể thêm tối đa ${maxPhotos} ảnh`);
+      showAlert({
+        type: 'warning',
+        title: 'Giới hạn ảnh',
+        message: `Chỉ có thể thêm tối đa ${maxPhotos} ảnh`,
+      });
       return;
     }
 
@@ -176,7 +206,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
       if (result.errorCode) {
         console.error('ImagePicker Error: ', result.errorMessage);
-        Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+        showAlert({
+          type: 'error',
+          title: 'Lỗi',
+          message: 'Không thể chọn ảnh. Vui lòng thử lại.',
+        });
         return;
       }
 
@@ -198,11 +232,19 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         const photosData = await getPetPhotos(petId);
         setPhotos(photosData || []);
         
-        Alert.alert('Thành công', 'Đã thêm ảnh mới!');
+        showAlert({
+          type: 'success',
+          title: 'Thành công',
+          message: 'Đã thêm ảnh mới!',
+        });
       }
     } catch (error: any) {
       console.error('Error uploading photos:', error);
-      Alert.alert('Lỗi', 'Không thể upload ảnh. Vui lòng thử lại.');
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Không thể upload ảnh. Vui lòng thử lại.',
+      });
     } finally {
       setUploading(false);
     }
@@ -215,37 +257,46 @@ const EditPetScreen = ({ navigation, route }: Props) => {
   const handleSetPrimaryPhoto = async (photo: any) => {
     const photoId = photo.PhotoId || photo.photoId;
     const isPrimary = photo.IsPrimary || photo.isPrimary;
-
+    
     if (isPrimary) {
-      Alert.alert('Thông báo', 'Đây đã là ảnh đại diện rồi!');
+      showAlert({
+        type: 'info',
+        title: 'Thông báo',
+        message: 'Đây đã là ảnh đại diện rồi!',
+      });
       return;
     }
 
-    Alert.alert(
-      'Đặt ảnh đại diện',
-      'Bạn muốn đặt ảnh này làm ảnh đại diện?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đồng ý',
-          onPress: async () => {
-            try {
-              console.log('🖼️ Setting primary photo:', photoId);
-              await setPrimaryPhoto(photoId);
-              
-              // Reload photos to see updated primary
-              const photosData = await getPetPhotos(petId);
-              setPhotos(photosData || []);
-              
-              Alert.alert('Thành công', 'Đã đặt ảnh đại diện!');
-            } catch (error: any) {
-              console.error('Error setting primary photo:', error);
-              Alert.alert('Lỗi', 'Không thể đặt ảnh đại diện. Vui lòng thử lại.');
-            }
-          },
-        },
-      ]
-    );
+    showAlert({
+      type: 'info',
+      title: 'Đặt ảnh đại diện',
+      message: 'Bạn muốn đặt ảnh này làm ảnh đại diện?',
+      showCancel: true,
+      confirmText: 'Đồng ý',
+      onConfirm: async () => {
+        try {
+          console.log('🖼️ Setting primary photo:', photoId);
+          await setPrimaryPhoto(photoId);
+          
+          // Reload photos to see updated primary
+          const photosData = await getPetPhotos(petId);
+          setPhotos(photosData || []);
+          
+          showAlert({
+            type: 'success',
+            title: 'Thành công',
+            message: 'Đã đặt ảnh đại diện!',
+          });
+        } catch (error: any) {
+          console.error('Error setting primary photo:', error);
+          showAlert({
+            type: 'error',
+            title: 'Lỗi',
+            message: 'Không thể đặt ảnh đại diện. Vui lòng thử lại.',
+          });
+        }
+      },
+    });
   };
 
   const handleDeletePhoto = async (photo: any) => {
@@ -254,7 +305,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
     // Không cho xóa nếu chỉ còn 1 ảnh duy nhất
     if (photos.length <= 1) {
-      Alert.alert('Không thể xóa', 'Phải có ít nhất 1 ảnh cho pet.');
+      showAlert({
+        type: 'warning',
+        title: 'Không thể xóa',
+        message: 'Phải có ít nhất 1 ảnh cho pet.',
+      });
       return;
     }
 
@@ -262,47 +317,55 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       ? 'Bạn có chắc muốn xóa ảnh đại diện? Ảnh khác sẽ tự động trở thành ảnh đại diện.'
       : 'Bạn có chắc muốn xóa ảnh này?';
 
-    Alert.alert(
-      'Xóa ảnh',
-      message,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🗑️ Deleting photo:', photoId, 'isPrimary:', isPrimary);
-              
-              // Delete the photo
-              await deletePetPhoto(photoId);
-              
-              // Reload photos
-              const photosData = await getPetPhotos(petId);
-              
-              // If we deleted primary and there are photos left, set first one as primary
-              if (isPrimary && photosData && photosData.length > 0) {
-                const firstPhoto = photosData[0];
-                const firstPhotoId = firstPhoto.PhotoId || firstPhoto.photoId;
-                console.log('📸 Setting new primary photo:', firstPhotoId);
-                await setPrimaryPhoto(firstPhotoId);
-                
-                // Reload again to get updated primary status
-                const updatedPhotos = await getPetPhotos(petId);
-                setPhotos(updatedPhotos || []);
-                Alert.alert('Thành công', 'Đã xóa ảnh và đặt ảnh mới làm ảnh đại diện!');
-              } else {
-                setPhotos(photosData || []);
-                Alert.alert('Thành công', 'Đã xóa ảnh!');
-              }
-            } catch (error: any) {
-              console.error('Error deleting photo:', error);
-              Alert.alert('Lỗi', 'Không thể xóa ảnh. Vui lòng thử lại.');
-            }
-          },
-        },
-      ]
-    );
+    showAlert({
+      type: 'warning',
+      title: 'Xóa ảnh',
+      message: message,
+      showCancel: true,
+      confirmText: 'Xóa',
+      onConfirm: async () => {
+        try {
+          console.log('🗑️ Deleting photo:', photoId, 'isPrimary:', isPrimary);
+          
+          // Delete the photo
+          await deletePetPhoto(photoId);
+          
+          // Reload photos
+          const photosData = await getPetPhotos(petId);
+          
+          // If we deleted primary and there are photos left, set first one as primary
+          if (isPrimary && photosData && photosData.length > 0) {
+            const firstPhoto = photosData[0];
+            const firstPhotoId = firstPhoto.PhotoId || firstPhoto.photoId;
+            console.log('📸 Setting new primary photo:', firstPhotoId);
+            await setPrimaryPhoto(firstPhotoId);
+            
+            // Reload again to get updated primary status
+            const updatedPhotos = await getPetPhotos(petId);
+            setPhotos(updatedPhotos || []);
+            showAlert({
+              type: 'success',
+              title: 'Thành công',
+              message: 'Đã xóa ảnh và đặt ảnh mới làm ảnh đại diện!',
+            });
+          } else {
+            setPhotos(photosData || []);
+            showAlert({
+              type: 'success',
+              title: 'Thành công',
+              message: 'Đã xóa ảnh!',
+            });
+          }
+        } catch (error: any) {
+          console.error('Error deleting photo:', error);
+          showAlert({
+            type: 'error',
+            title: 'Lỗi',
+            message: 'Không thể xóa ảnh. Vui lòng thử lại.',
+          });
+        }
+      },
+    });
   };
 
   // Show loading spinner
@@ -563,6 +626,21 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </LinearGradient>
   );
 };

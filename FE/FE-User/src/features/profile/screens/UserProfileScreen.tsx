@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,13 +6,13 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Dimensions,
   Pressable,
   ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
@@ -49,78 +49,81 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [stats, setStats] = useState({ matches: 0, likes: 0 });
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  // Fetch user and pets data
-  useEffect(() => {
-    const fetchProfileData = async () => {
+  // Fetch user and pets data - wrapped in useCallback
+  const fetchProfileData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Get userId from storage
+      const userIdStr = await getItem('userId');
+      if (!userIdStr) {
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.' });
+        return;
+      }
+      
+      const userId = parseInt(userIdStr, 10);
+      console.log('📱 Loading profile for userId:', userId);
+
+      // Fetch user data
+      const user = await getUserById(userId);
+      setUserData(user);
+      console.log('👤 User data loaded:', user);
+
+      // Fetch stats
       try {
-        setLoading(true);
-        
-        // Get userId from storage
-        const userIdStr = await getItem('userId');
-        if (!userIdStr) {
-          Alert.alert('Error', 'User not found. Please login again.');
-          return;
-        }
-        
-        const userId = parseInt(userIdStr, 10);
-        console.log('📱 Loading profile for userId:', userId);
+        const statsData = await getMatchStats(userId);
+        setStats(statsData);
+        console.log('📊 Stats loaded:', statsData);
+      } catch (error) {
+        console.error('⚠️ Error loading stats:', error);
+        setStats({ matches: 0, likes: 0 });
+      }
 
-        // Fetch user data
-        const user = await getUserById(userId);
-        setUserData(user);
-        console.log('👤 User data loaded:', user);
+      // Fetch pets data
+      const petsData = await getPetsByUserId(userId);
+      setPets(petsData);
+      console.log('🐾 Pets data loaded:', petsData);
 
-        // Fetch stats
+      // Find active pet (IsActive = true)
+      const active = petsData.find(p => p.IsActive === true || p.isActive === true);
+      setActivePet(active || petsData[0] || null);
+      console.log('✅ Active pet:', active);
+
+      // Fetch address data if user has addressId
+      const addressId = user.AddressId || user.addressId;
+      console.log('🔍 User addressId:', addressId);
+      
+      if (addressId) {
         try {
-          const statsData = await getMatchStats(userId);
-          setStats(statsData);
-          console.log('📊 Stats loaded:', statsData);
-        } catch (error) {
-          console.error('⚠️ Error loading stats:', error);
-          setStats({ matches: 0, likes: 0 });
-        }
-
-        // Fetch pets data
-        const petsData = await getPetsByUserId(userId);
-        setPets(petsData);
-        console.log('🐾 Pets data loaded:', petsData);
-
-        // Find active pet (IsActive = true)
-        const active = petsData.find(p => p.IsActive === true || p.isActive === true);
-        setActivePet(active || petsData[0] || null);
-        console.log('✅ Active pet:', active);
-
-        // Fetch address data if user has addressId
-        const addressId = user.AddressId || user.addressId;
-        console.log('🔍 User addressId:', addressId);
-        
-        if (addressId) {
-          try {
-            const address = await getAddressById(addressId);
-            console.log('📍 Address data loaded:', address);
-            console.log('📍 Address.City:', address?.City);
-            console.log('📍 Address.District:', address?.District);
-            console.log('📍 Address.FullAddress:', address?.FullAddress);
-            setAddressData(address);
-          } catch (error: any) {
-            console.error('⚠️ No address found for user:', error);
-            setAddressData(null);
-          }
-        } else {
-          console.log('⚠️ User has no addressId');
+          const address = await getAddressById(addressId);
+          console.log('📍 Address data loaded:', address);
+          console.log('📍 Address.City:', address?.City);
+          console.log('📍 Address.District:', address?.District);
+          console.log('📍 Address.FullAddress:', address?.FullAddress);
+          setAddressData(address);
+        } catch (error: any) {
+          console.error('⚠️ No address found for user:', error);
           setAddressData(null);
         }
-        
-      } catch (error: any) {
-        console.error('❌ Error loading profile:', error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to load profile');
-      } finally {
-        setLoading(false);
+      } else {
+        console.log('⚠️ User has no addressId');
+        setAddressData(null);
       }
-    };
-
-    fetchProfileData();
+      
+    } catch (error: any) {
+      console.error('❌ Error loading profile:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin profile' });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfileData();
+    }, [fetchProfileData])
+  );
 
   // Load characteristics and photos for active pet
   useEffect(() => {
@@ -255,7 +258,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
     if (userId) {
       navigation.navigate("EditProfile", { userId });
     } else {
-      Alert.alert('Error', 'User ID not found');
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
     }
   };
 
@@ -278,53 +281,45 @@ const UserProfileScreen = ({ navigation }: Props) => {
     
     const petName = pet.Name || pet.name || 'This pet';
     
-    Alert.alert(
-      '🐾 Set Active Pet',
-      `Do you want to set ${petName} as your active pet for matching?`,
-      [
-        { 
-          text: 'Cancel', 
-          style: 'cancel' 
-        },
-        {
-          text: 'Set Active',
-          onPress: async () => {
-            try {
-              // Call API để update DB
-              await setActivePetAPI(petId);
-              
-              // Reload pets data
-              const userIdStr = await getItem('userId');
-              if (userIdStr) {
-                const userId = parseInt(userIdStr, 10);
-                const petsData = await getPetsByUserId(userId);
-                setPets(petsData);
-                
-                // Set new active pet
-                const newActivePet = petsData.find(p => (p.PetId || p.petId) === petId);
-                setActivePet(newActivePet || null);
-              }
-              
-              // Show success message
-              showAlert({
-                type: 'success',
-                title: 'Success! 🎉',
-                message: `${petName} is now your active pet for matching and dating!`,
-                confirmText: 'Awesome!'
-              });
-            } catch (error: any) {
-              console.error('Error setting active pet:', error);
-              showAlert({
-                type: 'error',
-                title: 'Oops! 😿',
-                message: 'Failed to set active pet. Please try again.',
-                confirmText: 'OK'
-              });
-            }
+    showAlert({
+      type: 'info',
+      title: '🐾 Đặt pet hoạt động',
+      message: `Bạn muốn đặt ${petName} làm pet hoạt động để matching?`,
+      showCancel: true,
+      confirmText: 'Đồng ý',
+      onConfirm: async () => {
+        try {
+          // Call API để update DB
+          await setActivePetAPI(petId);
+          
+          // Reload pets data
+          const userIdStr = await getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr, 10);
+            const petsData = await getPetsByUserId(userId);
+            setPets(petsData);
+            
+            // Set new active pet
+            const newActivePet = petsData.find(p => (p.PetId || p.petId) === petId);
+            setActivePet(newActivePet || null);
           }
+              
+          // Show success message
+          showAlert({
+            type: 'success',
+            title: 'Thành công! 🎉',
+            message: `${petName} giờ là pet hoạt động của bạn!`,
+          });
+        } catch (error: any) {
+          console.error('Error setting active pet:', error);
+          showAlert({
+            type: 'error',
+            title: 'Lỗi 😿',
+            message: 'Không thể đặt pet hoạt động. Vui lòng thử lại.',
+          });
         }
-      ]
-    );
+      },
+    });
   };
 
   const handleEditCat = () => {
@@ -669,6 +664,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
           message={alertConfig.message}
           confirmText={alertConfig.confirmText}
           onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
         />
       )}
     </View>
