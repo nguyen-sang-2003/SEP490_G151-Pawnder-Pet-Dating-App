@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
-
 	[ApiController]
+	[Route("api")]
 	public class ReportController : ControllerBase
 	{
 		private readonly PawnderDatabaseContext _context;
@@ -183,73 +183,119 @@ namespace BE.Controllers
 			}
 		}
 
-		//// GET: api/report/user/{userReportId}
-		[HttpPost("report/{userReportId}/{contentId}")]
-		public async Task<IActionResult> CreateReport(int userReportId, int contentId, [FromBody] ReportCreateDTO dto)
+	//// POST: api/report/{userReportId}/{contentId}
+	[HttpPost("report/{userReportId}/{contentId}")]
+	public async Task<IActionResult> CreateReport(int userReportId, int contentId, [FromBody] ReportCreateDTO dto)
+	{
+		if (string.IsNullOrWhiteSpace(dto.Reason))
 		{
-			if (string.IsNullOrWhiteSpace(dto.Reason))
+			return BadRequest(new
 			{
-				return BadRequest(new
-				{
-					success = false,
-					message = "Reason is required."
-				});
-			}
-
-			// Kiểm tra User tồn tại
-			var user = await _context.Users.FindAsync(userReportId);
-			if (user == null)
-				return NotFound(new { success = false, message = $"User with ID {userReportId} not found." });
-
-			// Kiểm tra Content tồn tại
-			var content = await _context.ChatUserContents.FindAsync(contentId);
-			if (content == null)
-				return NotFound(new { success = false, message = $"Content with ID {contentId} not found." });
-
-			// Tạo Report mới với DateTimeKind.Unspecified
-			var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-			var report = new Report
-			{
-				UserReportId = userReportId,
-				ContentId = contentId,
-				Reason = dto.Reason,
-				Status = "Pending",
-				CreatedAt = now,
-				UpdatedAt = now
-			};
-
-			_context.Reports.Add(report);
-			await _context.SaveChangesAsync();
-
-			// Tạo DTO trả về
-			var reportDto = new ReportDto
-			{
-				ReportId = report.ReportId,
-				Reason = report.Reason,
-				Status = report.Status,
-				Resolution = report.Resolution,
-				CreatedAt = report.CreatedAt,
-				UpdatedAt = report.UpdatedAt,
-				UserReport = new UserReportDto
-				{
-					UserId = user.UserId,
-					FullName = user.FullName,
-					Email = user.Email
-				},
-				//Content = new ContentDto
-				//{
-				//	ContentId = content.ContentId,
-				//	Message = content.Message
-				//}
-			};
-
-			return CreatedAtAction(nameof(GetReportById), new { reportId = report.ReportId }, new
-			{
-				success = true,
-				message = "Tạo báo cáo thành công.",
-				data = reportDto
+				success = false,
+				message = "Reason is required."
 			});
 		}
+
+		// Kiểm tra User tồn tại
+		var user = await _context.Users.FindAsync(userReportId);
+		if (user == null)
+			return NotFound(new { success = false, message = $"User with ID {userReportId} not found." });
+
+		// Kiểm tra Content tồn tại
+		var content = await _context.ChatUserContents.FindAsync(contentId);
+		if (content == null)
+			return NotFound(new { success = false, message = $"Content with ID {contentId} not found." });
+
+		// Get the reported user (sender of the message)
+		if (!content.FromUserId.HasValue)
+			return BadRequest(new { success = false, message = "Invalid message sender." });
+		
+		int reportedUserId = content.FromUserId.Value;
+		
+		if (userReportId == reportedUserId)
+		{
+			return BadRequest(new { success = false, message = "Cannot report yourself." });
+		}
+
+		// Tạo Report mới với DateTimeKind.Unspecified
+		var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+		var report = new Report
+		{
+			UserReportId = userReportId,
+			ContentId = contentId,
+			Reason = dto.Reason,
+			Status = "Pending",
+			CreatedAt = now,
+			UpdatedAt = now
+		};
+
+		_context.Reports.Add(report);
+
+		// AUTO BLOCK: Check if user is already blocked
+		var existingBlock = await _context.Blocks
+			.FirstOrDefaultAsync(b => b.FromUserId == userReportId && b.ToUserId == reportedUserId);
+
+		if (existingBlock == null)
+		{
+			Console.WriteLine($"[ReportController] Auto-blocking user {reportedUserId}");
+			var block = new Block
+			{
+				FromUserId = userReportId,
+				ToUserId = reportedUserId,
+				CreatedAt = now
+			};
+			_context.Blocks.Add(block);
+		}
+
+		// SOFT DELETE CHAT: Hide chat from UI but keep in DB for admin review
+		var existingChat = await _context.ChatUsers
+			.FirstOrDefaultAsync(c =>
+				c.IsDeleted == false &&
+				((c.FromUserId == userReportId && c.ToUserId == reportedUserId) ||
+				(c.FromUserId == reportedUserId && c.ToUserId == userReportId)));
+
+		if (existingChat != null)
+		{
+			Console.WriteLine($"[ReportController] Found existing chat (MatchId: {existingChat.MatchId}), soft deleting...");
+
+			// Soft delete the ChatUser entry (keeps messages in DB for admin review)
+			existingChat.IsDeleted = true;
+			existingChat.UpdatedAt = now;
+			
+			Console.WriteLine($"[ReportController] Soft deleted ChatUser entry (unmatch)");
+		}
+
+		await _context.SaveChangesAsync();
+
+		// Tạo DTO trả về
+		var reportDto = new ReportDto
+		{
+			ReportId = report.ReportId,
+			Reason = report.Reason,
+			Status = report.Status,
+			Resolution = report.Resolution,
+			CreatedAt = report.CreatedAt,
+			UpdatedAt = report.UpdatedAt,
+			UserReport = new UserReportDto
+			{
+				UserId = user.UserId,
+				FullName = user.FullName,
+				Email = user.Email
+			},
+			//Content = new ContentDto
+			//{
+			//	ContentId = content.ContentId,
+			//	Message = content.Message
+			//}
+		};
+
+		return CreatedAtAction(nameof(GetReportById), new { reportId = report.ReportId }, new
+		{
+			success = true,
+			message = "Đã báo cáo tin nhắn, chặn người dùng và ẩn cuộc trò chuyện thành công.",
+			data = reportDto
+		});
+	}
 
 		//// PUT: api/report/{reportId}
 		[HttpPut("report/{reportId}")]

@@ -21,7 +21,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser } from "../../../api";
+import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser, reportMessage } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -36,6 +36,7 @@ interface Message {
   isMe: boolean;
   timestamp: Date;
   status?: "sending" | "sent" | "read";
+  contentId?: number; // Backend ID for reporting
 }
 
 const ChatDetailScreen = ({ navigation, route }: Props) => {
@@ -48,6 +49,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [showMessageMenu, setShowMessageMenu] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   
@@ -85,6 +88,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         isMe: msg.fromUserId === userId,
         timestamp: new Date(msg.createdAt),
         status: "read" as const,
+        contentId: msg.contentId, // Store contentId for reporting
       }));
       
       setMessages(formattedMessages);
@@ -183,7 +187,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     showAlert({
       type: 'warning',
       title: "Hủy kết nối",
-      message: `Bạn có chắc muốn hủy kết nối với ${userName}? Cuộc trò chuyện sẽ bị xóa và bạn không thể nhắn tin với nhau nữa.`,
+      message: `Bạn có chắc muốn hủy kết nối với ${userName}? Cuộc trò chuyện sẽ bị ẩn và bạn không thể nhắn tin với nhau nữa.`,
       showCancel: true,
       confirmText: "Xác nhận",
       onConfirm: async () => {
@@ -194,8 +198,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           showAlert({
             type: 'success',
             title: "Đã hủy kết nối",
-            message: `Bạn đã hủy kết nối với ${userName}`,
-            onClose: () => navigation.navigate("Chat", { matchId: undefined })
+            message: `Bạn đã hủy kết nối với ${userName}. Cuộc trò chuyện đã bị ẩn.`,
+            onClose: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Chat' }],
+              });
+            },
           });
         } catch (error: any) {
           console.error('❌ Error unmatching:', error);
@@ -207,10 +216,46 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleReport = () => {
     closeMenu();
-    // Navigate to Report screen
+    // Navigate to Report screen (user report)
     navigation.navigate("Report" as any, { 
       userId: otherUserId.toString(), 
       userName: userName 
+    });
+  };
+
+  const handleReportMessage = () => {
+    if (!selectedMessage || !selectedMessage.contentId || !currentUserId) return;
+    
+    setShowMessageMenu(false);
+    showAlert({
+      type: 'warning',
+      title: "Báo cáo tin nhắn",
+      message: `Báo cáo tin nhắn này từ ${userName}? Sau khi báo cáo, người dùng này sẽ bị chặn và cuộc trò chuyện sẽ bị ẩn.`,
+      showCancel: true,
+      confirmText: "Báo cáo",
+      onConfirm: async () => {
+        try {
+          console.log(`🚨 Reporting message: contentId=${selectedMessage.contentId}`);
+          
+          // Report the message (backend will auto-block and delete chat)
+          await reportMessage(currentUserId, selectedMessage.contentId!, "Nội dung không phù hợp");
+          
+          showAlert({
+            type: 'success',
+            title: "Đã báo cáo",
+            message: `Đã báo cáo tin nhắn và chặn ${userName}. Cuộc trò chuyện đã bị ẩn.`,
+            onClose: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Chat' }],
+              });
+            },
+          });
+        } catch (error: any) {
+          console.error('❌ Error reporting message:', error);
+          showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể gửi báo cáo. Vui lòng thử lại.' });
+        }
+      },
     });
   };
 
@@ -239,8 +284,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           showAlert({
             type: 'success',
             title: "Đã chặn",
-            message: `${userName} đã bị chặn và unmatch.`,
-            onClose: () => navigation.navigate('Chat', {}),
+            message: `${userName} đã bị chặn. Cuộc trò chuyện đã bị ẩn.`,
+            onClose: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Chat' }],
+              });
+            },
           });
         } catch (error: any) {
           console.error('❌ Error blocking user:', error);
@@ -333,9 +383,15 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 )}
               </LinearGradient>
             ) : (
-              <View style={styles.theirBubbleContent}>
+              <Pressable
+                onLongPress={() => {
+                  setSelectedMessage(item);
+                  setShowMessageMenu(true);
+                }}
+                style={styles.theirBubbleContent}
+              >
                 <Text style={styles.theirMessageText}>{item.text}</Text>
-              </View>
+              </Pressable>
             )}
           </View>
         </View>
@@ -502,7 +558,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 </View>
                 <View style={styles.menuOptionText}>
                   <Text style={styles.menuOptionTitle}>Hủy kết nối</Text>
-                  <Text style={styles.menuOptionDesc}>Xóa kết nối này</Text>
+                  <Text style={styles.menuOptionDesc}>Ẩn kết nối này</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -545,6 +601,28 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Message Menu Modal - For reporting messages */}
+      <Modal
+        visible={showMessageMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMessageMenu(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowMessageMenu(false)}>
+          <Pressable style={styles.messageMenuModal} onPress={(e) => e.stopPropagation()}>
+            <TouchableOpacity style={styles.menuOption} onPress={handleReportMessage}>
+              <View style={[styles.menuIconContainer, { backgroundColor: "#FFEBEE" }]}>
+                <Icon name="flag" size={22} color="#E94D6B" />
+              </View>
+              <View style={styles.menuOptionText}>
+                <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>Báo cáo tin nhắn</Text>
+                <Text style={styles.menuOptionDesc}>Báo cáo nội dung không phù hợp</Text>
+              </View>
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
@@ -818,6 +896,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.xl,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
     maxHeight: Dimensions.get("window").height * 0.75,
+  },
+  messageMenuModal: {
+    backgroundColor: colors.whiteWarm,
+    borderRadius: radius.lg,
+    marginHorizontal: 20,
+    padding: 8,
+    ...shadows.large,
   },
   menuHeader: {
     flexDirection: "row",

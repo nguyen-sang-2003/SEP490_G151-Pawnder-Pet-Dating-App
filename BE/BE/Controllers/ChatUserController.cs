@@ -40,7 +40,7 @@ namespace BE.Controllers
         {
             var invites = await _context.ChatUsers
                 .Include(c => c.FromUser)
-                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted")
+                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted" && c.IsDeleted == false)
                 .Select(c => new
                 {
                     matchId = c.MatchId,
@@ -155,25 +155,16 @@ namespace BE.Controllers
             if (chatUser == null)
                 return NotFound(new { message = "Không tìm thấy đoạn chat." });
 
-            Console.WriteLine($"[ChatUserController] Deleting chat matchId: {matchId}, Status: {chatUser.Status}");
+            Console.WriteLine($"[ChatUserController] Soft deleting chat matchId: {matchId}, Status: {chatUser.Status}");
 
-            // Hard delete all chat messages first
-            var chatMessages = await _context.ChatUserContents
-                .Where(m => m.MatchId == matchId)
-                .ToListAsync();
+            // Soft delete the ChatUser entry (keeps messages in DB for review)
+            chatUser.IsDeleted = true;
+            chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             
-            if (chatMessages.Any())
-            {
-                _context.ChatUserContents.RemoveRange(chatMessages);
-                Console.WriteLine($"[ChatUserController] Deleted {chatMessages.Count} messages");
-            }
-
-            // Hard delete the ChatUser entry (unmatch completely)
-            _context.ChatUsers.Remove(chatUser);
             await _context.SaveChangesAsync();
 
-            Console.WriteLine($"[ChatUserController] Chat deleted completely");
-            return Ok(new { message = "Đã xóa yêu đoạn chat." });
+            Console.WriteLine($"[ChatUserController] Chat soft deleted successfully");
+            return Ok(new { message = "Đã ẩn đoạn chat." });
         }
     }
 }

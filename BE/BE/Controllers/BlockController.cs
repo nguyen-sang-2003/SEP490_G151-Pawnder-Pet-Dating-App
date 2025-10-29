@@ -74,32 +74,23 @@ namespace BE.Controllers
 				return Conflict(new { Message = "Người dùng này đã bị chặn trước đó." });
 			}
 
-			// Check if there's an existing match/chat between these users (any direction)
-			var existingChat = await _context.ChatUsers
-				.FirstOrDefaultAsync(c => 
-					c.IsDeleted == false &&
-					((c.FromUserId == fromUserId && c.ToUserId == toUserId) ||
-					(c.FromUserId == toUserId && c.ToUserId == fromUserId)));
+		// Check if there's an existing match/chat between these users (any direction)
+		var existingChat = await _context.ChatUsers
+			.FirstOrDefaultAsync(c => 
+				c.IsDeleted == false &&
+				((c.FromUserId == fromUserId && c.ToUserId == toUserId) ||
+				(c.FromUserId == toUserId && c.ToUserId == fromUserId)));
 
-			if (existingChat != null)
-			{
-				Console.WriteLine($"[BlockController] Found existing chat (MatchId: {existingChat.MatchId}), deleting...");
-				
-				// Delete all chat messages first
-				var chatMessages = await _context.ChatUserContents
-					.Where(m => m.MatchId == existingChat.MatchId)
-					.ToListAsync();
-				
-				if (chatMessages.Any())
-				{
-					_context.ChatUserContents.RemoveRange(chatMessages);
-					Console.WriteLine($"[BlockController] Deleted {chatMessages.Count} messages");
-				}
-				
-				// Delete the ChatUser entry (unmatch)
-				_context.ChatUsers.Remove(existingChat);
-				Console.WriteLine($"[BlockController] Deleted ChatUser entry");
-			}
+		if (existingChat != null)
+		{
+			Console.WriteLine($"[BlockController] Found existing chat (MatchId: {existingChat.MatchId}), soft deleting...");
+			
+			// Soft delete the ChatUser entry (keeps messages in DB)
+			existingChat.IsDeleted = true;
+			existingChat.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+			
+			Console.WriteLine($"[BlockController] Soft deleted ChatUser entry (unmatch)");
+		}
 
 			// Create the block
 			var block = new Block
