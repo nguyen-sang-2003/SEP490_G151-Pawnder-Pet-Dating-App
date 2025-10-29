@@ -96,6 +96,29 @@ export const createPetCharacteristic = async (
 };
 
 /**
+ * Update pet characteristic
+ * PUT /api/petcharacteristic/pet-characteristic/{petId}/{attributeId}
+ */
+export const updatePetCharacteristic = async (
+  petId: number,
+  attributeId: number,
+  data: PetCharacteristicRequest
+): Promise<any> => {
+  try {
+    console.log(`📝 Updating characteristic: petId=${petId}, attributeId=${attributeId}`, data);
+    const response = await client.put(
+      `/api/petcharacteristic/pet-characteristic/${petId}/${attributeId}`,
+      data
+    );
+    console.log('✅ Characteristic updated:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error updating characteristic:', error);
+    throw error;
+  }
+};
+
+/**
  * Upload single pet photo
  * POST /api/petphoto/{petId}
  */
@@ -298,21 +321,6 @@ export const getPetsForMatching = async (userId: number): Promise<PetForMatching
 };
 
 /**
- * Set primary photo for pet
- * PUT /api/petphoto/{photoId}/primary
- */
-export const setPrimaryPhoto = async (photoId: number): Promise<void> => {
-  try {
-    console.log('📸 Setting primary photo:', photoId);
-    const response = await client.put(`/api/petphoto/${photoId}/primary`);
-    console.log('✅ Primary photo set:', response.data);
-  } catch (error: any) {
-    console.error('❌ Error setting primary photo:', error);
-    throw error;
-  }
-};
-
-/**
  * Delete a pet photo
  * DELETE /api/petphoto/{photoId}
  */
@@ -323,6 +331,21 @@ export const deletePetPhoto = async (photoId: number): Promise<void> => {
     console.log('✅ Photo deleted:', response.data);
   } catch (error: any) {
     console.error('❌ Error deleting photo:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reorder pet photos
+ * PUT /api/petphoto/reorder
+ */
+export const reorderPetPhotos = async (photos: { photoId: number; sortOrder: number }[]): Promise<void> => {
+  try {
+    console.log('🔄 Reordering photos:', photos);
+    const response = await client.put('/api/petphoto/reorder', photos);
+    console.log('✅ Photos reordered:', response.data);
+  } catch (error: any) {
+    console.error('❌ Error reordering photos:', error);
     throw error;
   }
 };

@@ -16,7 +16,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
-import { getAttributes, getAttributeOptions, createPetCharacteristic, Attribute, AttributeOption } from "../../../api";
+import { getAttributes, getAttributeOptions, createPetCharacteristic, updatePetCharacteristic, getPetCharacteristics, Attribute, AttributeOption } from "../../../api";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetCharacteristics">;
 
@@ -66,6 +66,36 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         optionsMap[attr.AttributeId] = options;
       }
       setAttributeOptions(optionsMap);
+
+      // If editing from profile, load existing characteristics
+      if (isFromProfile) {
+        try {
+          const existingChars = await getPetCharacteristics(petId);
+          console.log('📝 Loaded existing characteristics:', existingChars);
+          
+          const tempSelectedOptions: Record<number, number> = {};
+          const tempNumericValues: Record<number, string> = {};
+          
+          existingChars.forEach((char: any) => {
+            if (char.optionValue && char.attributeId) {
+              // Find the option by name
+              const options = optionsMap[char.attributeId];
+              const option = options?.find(opt => opt.Name === char.optionValue);
+              if (option?.OptionId) {
+                tempSelectedOptions[char.attributeId] = option.OptionId;
+              }
+            }
+            if (char.value != null && char.attributeId) {
+              tempNumericValues[char.attributeId] = char.value.toString();
+            }
+          });
+          
+          setSelectedOptions(tempSelectedOptions);
+          setNumericValues(tempNumericValues);
+        } catch (error) {
+          console.log('⚠️ No existing characteristics or error loading:', error);
+        }
+      }
     } catch (error: any) {
       console.error('Error loading attributes:', error);
       showAlert({
@@ -83,12 +113,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       setSaving(true);
 
       const savePromises: Promise<any>[] = [];
+      const apiFunction = isFromProfile ? updatePetCharacteristic : createPetCharacteristic;
 
       // Save selected options (string types)
       Object.entries(selectedOptions).forEach(([attributeId, optionId]) => {
-        console.log(`Saving option: attributeId=${attributeId}, optionId=${optionId}`);
+        console.log(`${isFromProfile ? 'Updating' : 'Creating'} option: attributeId=${attributeId}, optionId=${optionId}`);
         savePromises.push(
-          createPetCharacteristic(petId, parseInt(attributeId, 10), { OptionId: optionId })
+          apiFunction(petId, parseInt(attributeId, 10), { OptionId: optionId })
         );
       });
 
@@ -97,9 +128,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         if (value && value.trim()) {
           const numValue = parseFloat(value);
           if (!isNaN(numValue)) {
-            console.log(`Saving numeric: attributeId=${attributeId}, value=${numValue}`);
+            console.log(`${isFromProfile ? 'Updating' : 'Creating'} numeric: attributeId=${attributeId}, value=${numValue}`);
             savePromises.push(
-              createPetCharacteristic(petId, parseInt(attributeId, 10), { Value: numValue })
+              apiFunction(petId, parseInt(attributeId, 10), { Value: numValue })
             );
           }
         }
@@ -108,17 +139,28 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       console.log(`Total promises: ${savePromises.length}`);
       await Promise.all(savePromises);
 
-      console.log('✅ Pet characteristics saved successfully');
+      console.log(`✅ Pet characteristics ${isFromProfile ? 'updated' : 'saved'} successfully`);
 
-      showAlert({
-        type: 'success',
-        title: 'Thành công! 🎉',
-        message: 'Đặc điểm thú cưng đã được lưu. Bây giờ hãy thêm ảnh!',
-        confirmText: 'Tiếp tục',
-        onClose: () => {
-          navigation.navigate("AddPetPhotos", { petId, isFromProfile });
-        },
-      });
+      if (isFromProfile) {
+        // Navigate back to EditPet if editing from profile
+        showAlert({
+          type: 'success',
+          title: 'Thành công! 🎉',
+          message: 'Đã cập nhật đặc điểm thú cưng!',
+          onClose: () => navigation.goBack(),
+        });
+      } else {
+        // Navigate to AddPetPhotos if creating new pet
+        showAlert({
+          type: 'success',
+          title: 'Thành công! 🎉',
+          message: 'Đặc điểm thú cưng đã được lưu. Bây giờ hãy thêm ảnh!',
+          confirmText: 'Tiếp tục',
+          onClose: () => {
+            navigation.navigate("AddPetPhotos", { petId, isFromProfile });
+          },
+        });
+      }
     } catch (error: any) {
       console.error('Error saving characteristics:', error);
       console.error('Error response:', error.response?.data);
@@ -181,10 +223,12 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.stepText}>Step 2 of 3</Text>
-          <Text style={styles.title}>Pet Characteristics 🎨</Text>
+          {!isFromProfile && <Text style={styles.stepText}>Step 2 of 3</Text>}
+          <Text style={styles.title}>
+            {isFromProfile ? 'Edit Pet Characteristics 🎨' : 'Pet Characteristics 🎨'}
+          </Text>
           <Text style={styles.subtitle}>
-            Help others know more about your pet
+            {isFromProfile ? 'Update your pet\'s characteristics' : 'Help others know more about your pet'}
           </Text>
         </View>
 

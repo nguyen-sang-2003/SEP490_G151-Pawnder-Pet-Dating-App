@@ -29,7 +29,7 @@ namespace BE.Controllers
 
             var photos = await _context.PetPhotos
                 .Where(p => p.PetId == petId && p.IsDeleted == false)
-                .OrderByDescending(p => p.IsPrimary).ThenBy(p => p.SortOrder).ThenBy(p => p.PhotoId)
+                .OrderBy(p => p.SortOrder).ThenBy(p => p.PhotoId)
                 .Select(p => new PetPhotoResponse
                 {
                     PhotoId = p.PhotoId,
@@ -73,7 +73,7 @@ namespace BE.Controllers
                     PetId = petId,
                     ImageUrl = url,
                     PublicId = publicId,
-                    IsPrimary = existingCount == 0 && saved.Count == 0,
+                    IsPrimary = false, // Not used anymore - SortOrder determines primary
                     SortOrder = maxSort + 1,
                     IsDeleted = false,
                     CreatedAt = DateTime.Now,
@@ -94,35 +94,6 @@ namespace BE.Controllers
             }
 
             return Ok(new { message = "Tải ảnh thành công.", photos = saved });
-        }
-
-        // PUT /api/petphoto/{photoId}/primary
-        [HttpPut("{photoId:int}/primary")]
-        public async Task<IActionResult> SetPrimary(int photoId, CancellationToken ct)
-        {
-            var photo = await _context.PetPhotos.FindAsync([photoId], ct);
-            if (photo == null || photo.IsDeleted)
-                return NotFound(new { message = "Không tìm thấy ảnh." });
-
-            var petId = photo.PetId;
-            var others = await _context.PetPhotos
-                .Where(p => p.PetId == petId && p.PhotoId != photoId && p.IsDeleted == false)
-                .ToListAsync(ct);
-
-            foreach (var p in others)
-            {
-                if (p.IsPrimary)
-                {
-                    p.IsPrimary = false;
-                    p.UpdatedAt = DateTime.Now;
-                }
-            }
-
-            photo.IsPrimary = true;
-            photo.UpdatedAt = DateTime.Now;
-            await _context.SaveChangesAsync(ct);
-
-            return Ok(new { message = "Đặt ảnh đại diện thành công." });
         }
 
         // PUT /api/petphoto/reorder

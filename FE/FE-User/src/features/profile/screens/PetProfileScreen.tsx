@@ -66,8 +66,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       try {
         const photos = await getPetPhotos(petId);
         const sortedPhotos = photos.sort((a: any, b: any) => {
-          if (a.IsPrimary || a.isPrimary) return -1;
-          if (b.IsPrimary || b.isPrimary) return 1;
           const aSort = a.SortOrder ?? a.sortOrder ?? 0;
           const bSort = b.SortOrder ?? b.sortOrder ?? 0;
           return aSort - bSort;

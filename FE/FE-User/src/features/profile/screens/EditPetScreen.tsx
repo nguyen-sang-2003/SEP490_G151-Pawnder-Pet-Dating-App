@@ -15,8 +15,8 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getPetById, updatePet, getUserById, getAddressById, getPetPhotos, uploadPetPhotosMultipart, setPrimaryPhoto, deletePetPhoto } from "../../../api";
-import { colors } from "../../../theme";
+import { getPetById, updatePet, getUserById, getAddressById, getPetPhotos, uploadPetPhotosMultipart, deletePetPhoto, reorderPetPhotos } from "../../../api";
+import { colors, gradients } from "../../../theme";
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -254,54 +254,44 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     handleAddPhoto();
   };
 
-  const handleSetPrimaryPhoto = async (photo: any) => {
-    const photoId = photo.PhotoId || photo.photoId;
-    const isPrimary = photo.IsPrimary || photo.isPrimary;
-    
-    if (isPrimary) {
-      showAlert({
-        type: 'info',
-        title: 'Thông báo',
-        message: 'Đây đã là ảnh đại diện rồi!',
-      });
-      return;
-    }
+  const handleMovePhoto = async (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= photos.length) return;
 
-    showAlert({
-      type: 'info',
-      title: 'Đặt ảnh đại diện',
-      message: 'Bạn muốn đặt ảnh này làm ảnh đại diện?',
-      showCancel: true,
-      confirmText: 'Đồng ý',
-      onConfirm: async () => {
-        try {
-          console.log('🖼️ Setting primary photo:', photoId);
-          await setPrimaryPhoto(photoId);
-          
-          // Reload photos to see updated primary
-          const photosData = await getPetPhotos(petId);
-          setPhotos(photosData || []);
-          
-          showAlert({
-            type: 'success',
-            title: 'Thành công',
-            message: 'Đã đặt ảnh đại diện!',
-          });
-        } catch (error: any) {
-          console.error('Error setting primary photo:', error);
-          showAlert({
-            type: 'error',
-            title: 'Lỗi',
-            message: 'Không thể đặt ảnh đại diện. Vui lòng thử lại.',
-          });
-        }
-      },
-    });
+    // Create new array with swapped positions
+    const newPhotos = [...photos];
+    const [movedItem] = newPhotos.splice(fromIndex, 1);
+    newPhotos.splice(toIndex, 0, movedItem);
+    
+    // Update sortOrder for all photos
+    const reorderData = newPhotos.map((photo, index) => ({
+      photoId: photo.PhotoId || photo.photoId,
+      sortOrder: index,
+    }));
+
+    try {
+      // Optimistically update UI
+      setPhotos(newPhotos);
+      
+      // Call API
+      await reorderPetPhotos(reorderData);
+      
+      console.log('✅ Photos reordered successfully');
+    } catch (error: any) {
+      console.error('❌ Error reordering photos:', error);
+      
+      // Revert on error
+      setPhotos(photos);
+      
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Không thể sắp xếp lại ảnh. Vui lòng thử lại.'
+      });
+    }
   };
 
   const handleDeletePhoto = async (photo: any) => {
     const photoId = photo.PhotoId || photo.photoId;
-    const isPrimary = photo.IsPrimary || photo.isPrimary;
 
     // Không cho xóa nếu chỉ còn 1 ảnh duy nhất
     if (photos.length <= 1) {
@@ -313,49 +303,28 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       return;
     }
 
-    const message = isPrimary 
-      ? 'Bạn có chắc muốn xóa ảnh đại diện? Ảnh khác sẽ tự động trở thành ảnh đại diện.'
-      : 'Bạn có chắc muốn xóa ảnh này?';
-
     showAlert({
       type: 'warning',
       title: 'Xóa ảnh',
-      message: message,
+      message: 'Bạn có chắc muốn xóa ảnh này?',
       showCancel: true,
       confirmText: 'Xóa',
       onConfirm: async () => {
         try {
-          console.log('🗑️ Deleting photo:', photoId, 'isPrimary:', isPrimary);
+          console.log('🗑️ Deleting photo:', photoId);
           
           // Delete the photo
           await deletePetPhoto(photoId);
           
-          // Reload photos
+          // Reload photos (backend will auto-reorder by SortOrder)
           const photosData = await getPetPhotos(petId);
+          setPhotos(photosData || []);
           
-          // If we deleted primary and there are photos left, set first one as primary
-          if (isPrimary && photosData && photosData.length > 0) {
-            const firstPhoto = photosData[0];
-            const firstPhotoId = firstPhoto.PhotoId || firstPhoto.photoId;
-            console.log('📸 Setting new primary photo:', firstPhotoId);
-            await setPrimaryPhoto(firstPhotoId);
-            
-            // Reload again to get updated primary status
-            const updatedPhotos = await getPetPhotos(petId);
-            setPhotos(updatedPhotos || []);
-            showAlert({
-              type: 'success',
-              title: 'Thành công',
-              message: 'Đã xóa ảnh và đặt ảnh mới làm ảnh đại diện!',
-            });
-          } else {
-            setPhotos(photosData || []);
-            showAlert({
-              type: 'success',
-              title: 'Thành công',
-              message: 'Đã xóa ảnh!',
-            });
-          }
+          showAlert({
+            type: 'success',
+            title: 'Thành công',
+            message: 'Đã xóa ảnh!',
+          });
         } catch (error: any) {
           console.error('Error deleting photo:', error);
           showAlert({
@@ -453,24 +422,40 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                 key={photo.PhotoId || photo.photoId || index} 
                 style={styles.photoItem}
               >
-                <TouchableOpacity 
-                  onPress={() => handleSetPrimaryPhoto(photo)}
-                  activeOpacity={0.7}
-                  style={styles.photoImageContainer}
-                >
+                <View style={styles.photoImageContainer}>
                   <Image
                     source={{ uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url }}
                     style={styles.photoImage}
                     resizeMode="cover"
                   />
-                </TouchableOpacity>
+                </View>
                 
-                {/* Primary star badge - bottom left */}
-                {(photo.IsPrimary || photo.isPrimary) && (
+                {/* Primary star badge - bottom left (first photo only) */}
+                {index === 0 && (
                   <View style={styles.primaryBadge}>
                     <Icon name="star" size={18} color="#FFD700" />
                   </View>
                 )}
+                
+                {/* Reorder arrows - top center */}
+                <View style={styles.reorderButtons}>
+                  <TouchableOpacity
+                    style={[styles.reorderBtn, index === 0 && styles.reorderBtnDisabled]}
+                    onPress={() => handleMovePhoto(index, index - 1)}
+                    activeOpacity={0.7}
+                    disabled={index === 0}
+                  >
+                    <Icon name="chevron-back" size={14} color={index === 0 ? "#666" : "#FFF"} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.reorderBtn, index === photos.length - 1 && styles.reorderBtnDisabled]}
+                    onPress={() => handleMovePhoto(index, index + 1)}
+                    activeOpacity={0.7}
+                    disabled={index === photos.length - 1}
+                  >
+                    <Icon name="chevron-forward" size={14} color={index === photos.length - 1 ? "#666" : "#FFF"} />
+                  </TouchableOpacity>
+                </View>
                 
                 {/* Delete button - bottom right */}
                 <TouchableOpacity
@@ -580,6 +565,21 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               numberOfLines={3}
             />
           </View>
+
+          {/* Edit Characteristics Button */}
+          <TouchableOpacity
+            style={styles.editCharacteristicsBtn}
+            onPress={() => navigation.navigate('AddPetCharacteristics', { petId, isFromProfile: true })}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={gradients.primary}
+              style={styles.editCharacteristicsBtnGradient}
+            >
+              <Icon name="create-outline" size={20} color="#FFF" />
+              <Text style={styles.editCharacteristicsBtnText}>Edit Characteristics</Text>
+            </LinearGradient>
+          </TouchableOpacity>
 
           {/* Owner's Location (Read-only) */}
           <View style={styles.inputGroup}>
@@ -794,23 +794,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 5,
   },
-  setPrimaryOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingVertical: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  setPrimaryText: {
-    color: "#FFF",
-    fontSize: 10,
-    fontWeight: "600",
-  },
   deletePhotoBtn: {
     position: "absolute",
     bottom: 6,
@@ -822,6 +805,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 5,
+  },
+  reorderButtons: {
+    position: "absolute",
+    top: 6,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 4,
+    zIndex: 5,
+  },
+  reorderBtn: {
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  reorderBtnDisabled: {
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
 
   // Input
@@ -891,6 +895,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+  editCharacteristicsBtn: {
+    marginBottom: 24,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  editCharacteristicsBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  editCharacteristicsBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   saveButton: {
     paddingVertical: 16,

@@ -112,15 +112,15 @@ namespace BE.Controllers
             else petChar.Value = null;
 
             string? optionValueString = null;
-            if (dto.OptionId != 0)
+            if (dto.OptionId.HasValue && dto.OptionId.Value != 0)
             {
-                var exitOptionAttribute = await _context.AttributeOptions.FirstOrDefaultAsync(op => op.OptionId == dto.OptionId && op.IsDeleted == false);
+                var exitOptionAttribute = await _context.AttributeOptions.FirstOrDefaultAsync(op => op.OptionId == dto.OptionId.Value && op.IsDeleted == false);
                 if (exitOptionAttribute == null)
                 {
                     return BadRequest(new { message = "Option không tồn tại hoặc đã bị xóa." });
                 }
                 optionValueString = exitOptionAttribute.Name;
-                petChar.OptionId = dto.OptionId;
+                petChar.OptionId = dto.OptionId.Value;
             }
             else petChar.OptionId = null;
 

@@ -106,8 +106,7 @@ namespace BE.Controllers
                         } : null,
                         petPhotos = otherUserPet?.PetPhotos?
                             .Where(photo => photo.IsDeleted == false)
-                            .OrderByDescending(photo => photo.IsPrimary)
-                            .ThenBy(photo => photo.SortOrder)
+                            .OrderBy(photo => photo.SortOrder)
                             .Select(photo => photo.ImageUrl)
                             .ToList() ?? new List<string>()
                     };
@@ -317,28 +316,16 @@ namespace BE.Controllers
                 }
                 else if (request.Action.ToLower() == "pass")
                 {
-                    // Reject/Unmatch - delete the request completely
-                    // This allows the pet to appear again in Home screen
-                    Console.WriteLine($"[MatchController] Passing/Unmatching - removing ChatUser entry (Status={chatUser.Status})");
+                    // Reject/Unmatch - soft delete to keep data for review
+                    Console.WriteLine($"[MatchController] Passing/Unmatching - soft deleting ChatUser entry (Status={chatUser.Status})");
                     
-                    // If it's an unmatch (status was Accepted), also delete all chat messages
-                    if (chatUser.Status == "Accepted")
-                    {
-                        var chatMessages = await _context.ChatUserContents
-                            .Where(m => m.MatchId == chatUser.MatchId)
-                            .ToListAsync();
-                        
-                        if (chatMessages.Any())
-                        {
-                            _context.ChatUserContents.RemoveRange(chatMessages);
-                            Console.WriteLine($"[MatchController] Deleted {chatMessages.Count} messages");
-                        }
-                    }
+                    // Soft delete the ChatUser entry (keeps messages in DB)
+                    chatUser.IsDeleted = true;
+                    chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
                     
-                    _context.ChatUsers.Remove(chatUser);
                     await _context.SaveChangesAsync();
 
-                    Console.WriteLine($"[MatchController] ChatUser removed successfully");
+                    Console.WriteLine($"[MatchController] ChatUser soft deleted successfully");
                     return Ok(new { message = chatUser.Status == "Accepted" ? "Unmatched" : "Passed" });
                 }
                 else

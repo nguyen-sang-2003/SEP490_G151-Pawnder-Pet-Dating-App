@@ -37,8 +37,7 @@ namespace BE.Controllers
                     Description = p.Description,
                     UrlImageAvatar = p.PetPhotos
                         .Where(photo => photo.IsDeleted == false)
-                        .OrderByDescending(photo => photo.IsPrimary)
-                        .ThenBy(photo => photo.SortOrder)
+                        .OrderBy(photo => photo.SortOrder)
                         .Select(photo => photo.ImageUrl)
                         .FirstOrDefault()
                 })
@@ -101,8 +100,7 @@ namespace BE.Controllers
                     Description = p.Description,
                     Photos = p.PetPhotos
                         .Where(photo => photo.IsDeleted == false)
-                        .OrderByDescending(photo => photo.IsPrimary)
-                        .ThenBy(photo => photo.SortOrder)
+                        .OrderBy(photo => photo.SortOrder)
                         .Select(photo => photo.ImageUrl)
                         .ToList(),
                     Owner = p.User != null ? new
@@ -154,8 +152,7 @@ namespace BE.Controllers
                 Description = pet.Description,
                 UrlImage = pet.PetPhotos
                     .Where(photo => photo.IsDeleted == false)
-                    .OrderByDescending(photo => photo.IsPrimary)
-                    .ThenBy(photo => photo.SortOrder)
+                    .OrderBy(photo => photo.SortOrder)
                     .Select(photo => photo.ImageUrl)
                     .ToList(),
                 Owner = pet.User != null ? new

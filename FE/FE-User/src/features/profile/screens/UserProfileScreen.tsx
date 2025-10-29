@@ -149,12 +149,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
         // Load all photos from PetPhotos table
         const photos = await getPetPhotos(petId);
         
-        // Sort photos: isPrimary first, then by sortOrder
+        // Sort photos by sortOrder (first photo = primary/avatar)
         const sortedPhotos = photos.sort((a: any, b: any) => {
-          // Primary photo goes first
-          if (a.IsPrimary || a.isPrimary) return -1;
-          if (b.IsPrimary || b.isPrimary) return 1;
-          // Then sort by sortOrder
           const aSort = a.SortOrder ?? a.sortOrder ?? 0;
           const bSort = b.SortOrder ?? b.sortOrder ?? 0;
           return aSort - bSort;
