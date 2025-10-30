@@ -3,6 +3,7 @@ using BE.Models;
 using BE.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
@@ -22,17 +23,25 @@ namespace BE.Controllers
 			_httpClient = httpClientFactory.CreateClient();
 		}
 
-		[HttpPost("{userId}")]
-		public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto)
+	[HttpPost("{userId}")]
+	public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto)
+	{
+		Console.WriteLine($"🏠 CREATE ADDRESS - Start for userId: {userId}");
+		
+		var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+		if (user == null)
 		{
-			var user = await _context.Users.FindAsync(userId);
-			if (user == null)
-				return NotFound(new { message = "Không tìm thấy người dùng" });
+			Console.WriteLine($"❌ User {userId} not found");
+			return NotFound(new { message = "Không tìm thấy người dùng" });
+		}
 
-			if (user.AddressId.HasValue)
-			{
-				return BadRequest(new { message = "User đã có địa chỉ, không thể tạo mới" });
-			}
+		Console.WriteLine($"👤 User found: {user.FullName}, Current AddressId: {user.AddressId}");
+
+		if (user.AddressId.HasValue)
+		{
+			Console.WriteLine($"⚠️ User already has AddressId: {user.AddressId}");
+			return BadRequest(new { message = "User đã có địa chỉ, không thể tạo mới. Hãy dùng PUT để update." });
+		}
 
 			string latStr = locationDto.Latitude.ToString(CultureInfo.InvariantCulture);
 			string lonStr = locationDto.Longitude.ToString(CultureInfo.InvariantCulture);
@@ -115,42 +124,53 @@ namespace BE.Controllers
 				return BadRequest(new { message = $"Không tìm thấy địa chỉ hợp lệ tại Lat:{latStr}, Lon:{lonStr}" });
 			}
 
-			var address = new Address
+		var address = new Address
+		{
+			Latitude = locationDto.Latitude,
+			Longitude = locationDto.Longitude,
+			FullAddress = fullAddress,
+			City = city,
+			District = district,
+			Ward = ward,
+			CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+			UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+		};
+
+		Console.WriteLine($"📍 Creating new address: {fullAddress}");
+		_context.Addresses.Add(address);
+		await _context.SaveChangesAsync(); 
+		Console.WriteLine($"✅ Address created with ID: {address.AddressId}");
+
+		Console.WriteLine($"🔗 Linking User {userId} to AddressId {address.AddressId}");
+		user.AddressId = address.AddressId;
+		user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+		
+		// Ensure entity is tracked
+		_context.Entry(user).State = EntityState.Modified;
+		
+		await _context.SaveChangesAsync();
+		Console.WriteLine($"✅ User.AddressId updated successfully: {user.AddressId}");
+
+		return Ok(new
+		{
+			User = new
 			{
-				Latitude = locationDto.Latitude,
-				Longitude = locationDto.Longitude,
-				FullAddress = fullAddress,
-				City = city,
-				District = district,
-				Ward = ward,
-				CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-				UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-			};
-
-			_context.Addresses.Add(address);
-			await _context.SaveChangesAsync(); 
-
-			user.AddressId = address.AddressId;
-			user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-			await _context.SaveChangesAsync();
-
-			return Ok(new
+				user.UserId,
+				user.FullName,
+				user.Email,
+				user.AddressId
+			},
+			Address = new
 			{
-				User = new
-				{
-					user.UserId,
-					user.FullName,
-					user.Email,
-					user.AddressId
-				},
-				Address = new
-				{
-					address.AddressId,
-					address.Latitude,
-					address.Longitude,
-					address.FullAddress
-				}
-			});
+				address.AddressId,
+				address.Latitude,
+				address.Longitude,
+				address.FullAddress,
+				address.City,
+				address.District,
+				address.Ward
+			}
+		});
 		}
 
 		// PUT: /address/{addressId}

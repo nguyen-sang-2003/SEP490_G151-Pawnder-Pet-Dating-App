@@ -5,6 +5,7 @@ export * from './auth';
 export * from './otp';
 export * from './address';
 export * from './attributes';
+export * from './preferences';
 export * from './pet';
 export * from './user';
 export * from './match';

@@ -320,6 +320,47 @@ export const getPetsForMatching = async (userId: number): Promise<PetForMatching
   }
 };
 
+export interface RecommendedPet {
+  petId: number;
+  userId: number;
+  name: string;
+  breed?: string;
+  gender?: string;
+  age?: number;
+  description?: string;
+  matchPercent: number;
+  matchScore: number;
+  totalAttributes: number;
+  distanceKm?: number | null;
+  photos: string[];
+  owner?: {
+    userId: number;
+    fullName?: string;
+    gender?: string;
+    address?: {
+      city?: string;
+      district?: string;
+    };
+  };
+}
+
+/**
+ * Get recommended pets based on user preferences
+ * GET /api/PetRecommendation/{userId}
+ */
+export const getRecommendedPets = async (userId: number): Promise<RecommendedPet[]> => {
+  try {
+    console.log(`📞 Calling: GET /api/PetRecommendation/${userId}`);
+    const response = await client.get(`/api/PetRecommendation/${userId}`);
+    console.log('✅ Recommended pets:', response.data);
+    return response.data.data || response.data || [];
+  } catch (error: any) {
+    console.error('❌ Error fetching recommended pets:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
 /**
  * Delete a pet photo
  * DELETE /api/petphoto/{photoId}

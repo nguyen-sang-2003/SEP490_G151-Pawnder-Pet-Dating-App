@@ -20,7 +20,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getPetsForMatching, PetForMatching } from "../../../api/pet";
+import { getPetsForMatching, PetForMatching, getRecommendedPets, RecommendedPet } from "../../../api/pet";
 import { sendLike } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -44,6 +44,7 @@ interface PetProfile {
   personality: string[];
   owner: string;
   ownerId: number; // Add ownerId for API calls
+  matchPercent?: number; // For recommended pets
 }
 
 const HomeScreen = ({ navigation }: Props) => {
@@ -54,6 +55,7 @@ const HomeScreen = ({ navigation }: Props) => {
     const [showMatchModal, setShowMatchModal] = useState(false);
     const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    
 
     // Use refs to access latest values in PanResponder callbacks
     const petsRef = useRef<PetProfile[]>([]);
@@ -229,11 +231,12 @@ const HomeScreen = ({ navigation }: Props) => {
         setCurrentIndex(prev => prev + 1);
     };
 
-    // Load pets from API
+
+    // Load pets from API - Luôn dùng recommendation API (với optional filter)
     const loadPets = async () => {
         try {
             setLoading(true);
-            console.log('🔄 Loading pets...');
+            console.log('🔄 Loading pets with smart recommendations...');
             
             // Get current user ID from storage
             const userIdStr = await AsyncStorage.getItem('userId');
@@ -252,29 +255,18 @@ const HomeScreen = ({ navigation }: Props) => {
             }
 
             console.log('👤 Current userId:', userId);
-            setCurrentUserId(userId); // Save for later use
+            setCurrentUserId(userId);
             
-            // Fetch pets for matching
-            const matchingPets = await getPetsForMatching(userId);
-            console.log('📦 Fetched pets:', matchingPets.length);
+            // Luôn dùng recommendation API
+            // Nếu chưa có filter → trả về tất cả pets (matchPercent = 0)
+            // Nếu có filter → sắp xếp theo matchPercent
+            const recommendedPets = await getRecommendedPets(userId);
+            console.log('🎯 Fetched pets:', recommendedPets.length);
 
-            // Convert API data to PetProfile format
-            const formattedPets: PetProfile[] = matchingPets
-                .filter((pet: PetForMatching) => pet && pet.petId && pet.name) // Filter out invalid pets
-                .map((pet: PetForMatching) => {
-                    const petAny = pet as any;
-                    const ownerAny = pet.owner as any;
-                    const ownerId = pet.userId || petAny.UserId || pet.owner?.userId || ownerAny?.UserId;
-                    console.log('🔍 Pet mapping:', {
-                        petId: pet.petId,
-                        name: pet.name,
-                        userId: pet.userId,
-                        UserId: petAny.UserId,
-                        ownerUserId: pet.owner?.userId,
-                        ownerUserIdCap: ownerAny?.UserId,
-                        finalOwnerId: ownerId
-                    });
-                    
+            // Convert recommended pets to PetProfile format
+            const formattedPets: PetProfile[] = recommendedPets
+                .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
+                .map((pet: RecommendedPet) => {
                     const photos = pet.photos && pet.photos.length > 0
                         ? pet.photos.map((url: string) => ({ uri: url }))
                         : [require("../../../assets/cat_avatar.png")];
@@ -285,13 +277,14 @@ const HomeScreen = ({ navigation }: Props) => {
                         age: pet.age ? `${pet.age} years` : 'N/A',
                         breed: pet.breed || 'Unknown',
                         gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
-                        distance: pet.owner?.address ? calculateDistance(pet.owner.address) : 'N/A',
+                        distance: pet.distanceKm ? `${pet.distanceKm} km` : (pet.owner?.address ? `${pet.owner.address.city || pet.owner.address.district || ''}` : 'N/A'),
                         bio: pet.description || 'No description',
-                        image: photos[0], // First image for backward compatibility
-                        images: photos, // All images for carousel
-                        personality: [], // TODO: Add from pet characteristics
+                        image: photos[0],
+                        images: photos,
+                        personality: [],
                         owner: pet.owner?.fullName || 'Unknown',
-                        ownerId: ownerId, // Store owner ID for API calls (handle both cases)
+                        ownerId: pet.userId,
+                        matchPercent: pet.matchPercent,
                     };
                 });
 
@@ -300,8 +293,8 @@ const HomeScreen = ({ navigation }: Props) => {
                 console.log('📋 Sample pet:', formattedPets[0]);
             }
             setPets(formattedPets);
-            setCurrentIndex(0); // Reset index when reloading
-            setCurrentPhotoIndices({}); // Reset photo indices
+            setCurrentIndex(0);
+            setCurrentPhotoIndices({});
         } catch (error) {
             console.error('❌ Error loading pets:', error);
             setPets([]);
@@ -457,13 +450,21 @@ const HomeScreen = ({ navigation }: Props) => {
                     >
                         <View style={styles.petInfo}>
                             <View style={styles.petHeader}>
-                                <View>
-                                    <Text style={styles.petName}>
-                                        {pet.name}{" "}
-                                        <Text style={pet.gender === "male" ? styles.male : styles.female}>
-                                            {pet.gender === "male" ? "♂" : "♀"}
+                                <View style={{ flex: 1 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Text style={styles.petName}>
+                                            {pet.name}{" "}
+                                            <Text style={pet.gender === "male" ? styles.male : styles.female}>
+                                                {pet.gender === "male" ? "♂" : "♀"}
+                                            </Text>
                                         </Text>
-                                    </Text>
+                                        {pet.matchPercent !== undefined && pet.matchPercent > 0 && (
+                                            <View style={styles.matchBadge}>
+                                                <Icon name="star" size={12} color={colors.primary} />
+                                                <Text style={styles.matchBadgeText}>{pet.matchPercent}%</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     <Text style={styles.petMeta}>
                                         {pet.age} • {pet.breed}
                                     </Text>
@@ -584,7 +585,7 @@ const HomeScreen = ({ navigation }: Props) => {
                     <View style={styles.headerRight}>
                         <TouchableOpacity 
                             style={styles.iconButton}
-                            onPress={() => {/* TODO: Open filter */}}
+                            onPress={() => (navigation as any).navigate("FilterScreen")}
                         >
                             <Icon name="options-outline" size={26} color={colors.textDark} />
                         </TouchableOpacity>
@@ -643,7 +644,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 <View style={styles.headerRight}>
                     <TouchableOpacity 
                         style={styles.iconButton}
-                        onPress={() => {/* TODO: Open filter */}}
+                        onPress={() => (navigation as any).navigate("FilterScreen")}
                     >
                         <Icon name="options-outline" size={26} color={colors.textDark} />
                     </TouchableOpacity>
@@ -657,7 +658,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             <Text style={styles.notificationBadgeText}>2</Text>
                         </View>
                     </TouchableOpacity>
-                    </View>
+                </View>
                 </View>
             </LinearGradient>
 
@@ -772,6 +773,25 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 4,
         position: "relative",
+    },
+    iconButtonActive: {
+        backgroundColor: colors.primaryPastel,
+        borderColor: colors.primary,
+    },
+    modeIndicator: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        marginTop: 8,
+        alignSelf: "center",
+    },
+    modeText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: colors.primary,
     },
     notificationBadge: {
         position: "absolute",
@@ -1122,6 +1142,22 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: colors.white,
+    },
+
+    // Match Badge
+    matchBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        gap: 4,
+    },
+    matchBadgeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.primary,
     },
 
     // Loading

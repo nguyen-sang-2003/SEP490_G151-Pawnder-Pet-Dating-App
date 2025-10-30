@@ -16,6 +16,7 @@ import ResetPasswordScreen from "../features/auth/screens/ResetPasswordScreen";
 
 // Import Other Screens
 import HomeScreen from "../features/home/screens/HomeScreen";
+import FilterScreen from "../features/home/screens/FilterScreen";
 import ChatScreen from "../features/chat/screens/ChatScreen";
 import ChatDetailScreen from "../features/chat/screens/ChatDetailScreen";
 import AIChatScreen from "../features/chat/screens/AIChatScreen";
@@ -62,6 +63,7 @@ export type RootStackParamList = {
   AddPetCharacteristics: { petId: number; isFromProfile?: boolean };
   AddPetPhotos: { petId: number; isFromProfile?: boolean };
   Home: undefined;
+  FilterScreen: undefined;
   Chat: { matchId?: number }; // Optional matchId để navigate từ Favorite
   ChatDetail: { 
     matchId: number;
@@ -152,6 +154,11 @@ const AppNavigator = () => {
         <Stack.Screen name="AddPetCharacteristics" component={AddPetCharacteristicsScreen} />
         <Stack.Screen name="AddPetPhotos" component={AddPetPhotosScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen 
+          name="FilterScreen" 
+          component={FilterScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="Chat" component={ChatScreen} />
         <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
         <Stack.Screen name="AIChatList" component={AIChatListScreen} />

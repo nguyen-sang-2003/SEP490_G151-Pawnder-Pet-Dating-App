@@ -169,7 +169,13 @@ public class UserController : ControllerBase
 
         u.RoleId = req.RoleId;
       
-        u.AddressId = req.AddressId;
+        // IMPORTANT: Only update AddressId if explicitly provided
+        // Address is managed separately via Address API (GPS/manual)
+        if (req.AddressId.HasValue)
+        {
+            u.AddressId = req.AddressId;
+        }
+        
         u.FullName = req.FullName;
         u.Gender = req.Gender;
   

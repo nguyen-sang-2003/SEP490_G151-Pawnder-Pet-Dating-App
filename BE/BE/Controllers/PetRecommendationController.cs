@@ -24,88 +24,178 @@ namespace BE.Controllers
             var user = await _context.Users
                 .Include(u => u.UserPreferences)
                 .ThenInclude(p => p.Attribute)
+                .Include(u => u.Address)
                 .FirstOrDefaultAsync(u => u.UserId == userId);
 
             if (user == null)
-                return NotFound("Không tìm thấy người dùng.");
+                return NotFound(new { message = "Không tìm thấy người dùng." });
 
-            var preferences = user.UserPreferences;
-            if (preferences == null || preferences.Count == 0)
-                return BadRequest("Người dùng chưa có sở thích.");
-
-            // Lấy khoảng cách từ Attribute "Distance"
-            var distancePref = preferences
+            var preferences = user.UserPreferences.ToList();
+            
+            // Nếu chưa có preferences, vẫn return all pets (score = 0 for all)
+            // Đây là optional filter - không bắt buộc phải set
+            
+            // Lấy khoảng cách từ Attribute "Khoảng cách"
+            var distancePref = preferences?
                 .FirstOrDefault(p => p.Attribute.Name.ToLower() == "khoảng cách");
 
             double? maxDistance = distancePref?.MaxValue;
+            
+            Console.WriteLine($"📍 Distance Filter: maxDistance = {maxDistance} km (distancePref found: {distancePref != null})");
 
+            // Get list of users already matched (to exclude them)
+            var sentToUsers = await _context.ChatUsers
+                .Where(c => c.FromUserId == userId && c.IsDeleted == false)
+                .Select(c => c.ToUserId)
+                .ToListAsync();
+
+            var receivedFromUsers = await _context.ChatUsers
+                .Where(c => c.ToUserId == userId && c.IsDeleted == false)
+                .Select(c => c.FromUserId)
+                .ToListAsync();
+
+            var alreadyMatchedUserIds = sentToUsers.Union(receivedFromUsers).ToHashSet();
+
+            // Get blocked users
+            var blockedUserIds = (await _context.Blocks
+                .Where(b => b.FromUserId == userId)
+                .Select(b => b.ToUserId)
+                .ToListAsync()).ToHashSet();
+
+            // Load all active pets with their characteristics
             var pets = await _context.Pets
                 .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Attribute)
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Option)
                 .Include(p => p.User)
-                .ThenInclude(u => u.Address)
+                    .ThenInclude(u => u.Address)
+                .Include(p => p.PetPhotos.Where(photo => photo.IsDeleted == false))
+                .Where(p => p.UserId != null
+                         && p.UserId != userId
+                         && p.IsDeleted == false
+                         && p.IsActive == true
+                         && !alreadyMatchedUserIds.Contains(p.UserId.Value)
+                         && !blockedUserIds.Contains(p.UserId.Value))
                 .ToListAsync();
 
             var matchedPets = new List<(Pet Pet, double Score, double TotalPref, double? Distance)>();
 
+            // Filter preferences, excluding distance
+            var attributePreferences = (preferences ?? new List<UserPreference>())
+                .Where(p => p.Attribute.Name.ToLower() != "khoảng cách")
+                .ToList();
+
             foreach (var pet in pets)
             {
                 double score = 0;
-                double totalPref = preferences.Count;
+                double totalPref = attributePreferences.Count;
 
-                foreach (var pref in preferences)
+                // Scoring system - không bắt buộc match all
+                foreach (var pref in attributePreferences)
                 {
-                    // bỏ qua attribute Distance, xử lý riêng bên ngoài
-                    if (pref.Attribute.Name.ToLower() == "khoảng cách")
-                        continue;
-
                     var petChar = pet.PetCharacteristics.FirstOrDefault(pc =>
-                        pc.AttributeId == pref.AttributeId &&
-                        (
-                            (pref.OptionId != null && pc.OptionId == pref.OptionId)
-                            ||
-                            (pref.OptionId == null && pc.Value != null &&
-                             pref.MinValue != null && pref.MaxValue != null &&
-                             pc.Value >= pref.MinValue && pc.Value <= pref.MaxValue)
-                        ));
+                        pc.AttributeId == pref.AttributeId);
 
-                    if (petChar != null)
-                        score++;
+                    if (petChar == null)
+                    {
+                        // Pet không có attribute này -> skip, không tính điểm
+                        continue;
+                    }
+
+                    // Check if it matches based on type
+                    bool isMatch = false;
+
+                    // For option-based attributes (string type)
+                    if (pref.OptionId != null && petChar.OptionId != null)
+                    {
+                        isMatch = petChar.OptionId == pref.OptionId;
+                    }
+                    // For range-based attributes (float/number type)
+                    else if (pref.MinValue != null && pref.MaxValue != null && petChar.Value != null)
+                    {
+                        isMatch = petChar.Value >= pref.MinValue && petChar.Value <= pref.MaxValue;
+                    }
+
+                    if (isMatch)
+                    {
+                        score++; // Cộng điểm nếu match
+                    }
                 }
 
-                if (score == 0)
-                    continue; // không khớp gì thì bỏ qua
+                // Show all pets, even with 0 matches (if no preferences, all pets shown)
+                // Pets will be sorted by score later
 
                 // Xử lý lọc theo khoảng cách nếu có
                 double? distance = null;
                 if (maxDistance != null)
                 {
                     distance = await _distanceService.GetDistanceBetweenUsersAsync(userId, pet.UserId);
-                    if (distance == null || distance > maxDistance)
-                        continue;
-                    else
+                    Console.WriteLine($"🗺️ Pet {pet.Name} (Owner UserId: {pet.UserId}): Distance = {distance} km, MaxDistance = {maxDistance} km");
+                    
+                    if (distance == null)
                     {
-                        totalPref = totalPref - 1;
+                        Console.WriteLine($"⚠️ Skipping pet {pet.Name} - No address data for user or pet owner");
+                        continue; // Skip if no address data
                     }
+                    
+                    if (distance > maxDistance)
+                    {
+                        Console.WriteLine($"❌ Skipping pet {pet.Name} - Too far ({distance} km > {maxDistance} km)");
+                        continue; // Skip if too far
+                    }
+                    
+                    Console.WriteLine($"✅ Pet {pet.Name} is within range ({distance} km <= {maxDistance} km)");
                 }
 
-                matchedPets.Add((pet, score, totalPref, distance));
+                matchedPets.Add((Pet: pet, Score: score, TotalPref: totalPref, Distance: distance));
             }
 
             var result = matchedPets
-                .OrderByDescending(p => p.Score / p.TotalPref)
+                .OrderByDescending(p => p.TotalPref > 0 ? p.Score / p.TotalPref : 0)
                 .ThenBy(p => p.Distance ?? double.MaxValue)
                 .Take(20)
                 .Select(p => new
                 {
                     PetId = p.Pet.PetId,
-                    Name = p.Pet.Name,
                     UserId = p.Pet.UserId,
-                    MatchPercent = Math.Round((p.Score / p.TotalPref) * 100, 1),
-                    DistanceKm = p.Distance,
-                    Score = p.Score
-                });
+                    Name = p.Pet.Name,
+                    Breed = p.Pet.Breed,
+                    Gender = p.Pet.Gender,
+                    Age = p.Pet.Age,
+                    Description = p.Pet.Description,
+                    MatchPercent = p.TotalPref > 0 ? Math.Round((p.Score / p.TotalPref) * 100, 1) : 0,
+                    MatchScore = p.Score,
+                    TotalAttributes = p.TotalPref,
+                    DistanceKm = p.Distance != null ? Math.Round(p.Distance.Value, 2) : (double?)null,
+                    Photos = p.Pet.PetPhotos
+                        .OrderBy(photo => photo.SortOrder)
+                        .Select(photo => photo.ImageUrl)
+                        .ToList(),
+                    Owner = p.Pet.User != null ? new
+                    {
+                        UserId = p.Pet.User.UserId,
+                        FullName = p.Pet.User.FullName,
+                        Gender = p.Pet.User.Gender,
+                        Address = p.Pet.User.Address != null ? new
+                        {
+                            City = p.Pet.User.Address.City,
+                            District = p.Pet.User.Address.District
+                        } : null
+                    } : null
+                })
+                .ToList();
 
-            return Ok(result);
+            var hasPreferences = attributePreferences.Count > 0;
+            return Ok(new
+            {
+                message = hasPreferences 
+                    ? $"Tìm thấy {result.Count} thú cưng (sorted by {attributePreferences.Count} preferences)."
+                    : $"Hiển thị {result.Count} thú cưng (chưa có filter).",
+                totalPreferences = attributePreferences.Count,
+                hasPreferences = hasPreferences,
+                data = result
+            });
         }
     }
 }
