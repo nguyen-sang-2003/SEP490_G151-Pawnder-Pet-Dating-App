@@ -7,6 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
+  Animated,
+  StatusBar,
+  Pressable,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -15,11 +19,14 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser } from "../../../api";
-import { colors, radius, shadows } from "../../../theme";
+import { colors, gradients, radius, shadows } from "../../../theme";
 import { getItem } from "../../../utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+
+const { width, height } = Dimensions.get("window");
+const IMAGE_HEIGHT = height * 0.55;
 
 type Props = NativeStackScreenProps<RootStackParamList, "PetProfile">;
 
@@ -297,162 +304,181 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   // Show loading
   if (loading) {
     return (
-      <LinearGradient
-        colors={["#FFF5F9", "#FDE8EF"]}
-        style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading pet profile...</Text>
-      </LinearGradient>
+      </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={["#FFF5F9", "#FDE8EF"]}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        bounces={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Icon name="arrow-back" size={26} color="#333" />
-          </TouchableOpacity>
-          {/* Edit button - only show for my pet */}
-          {isMyPet && (
-            <TouchableOpacity onPress={handleEditPet}>
-              <Icon name="pencil" size={24} color="#FF6EA7" />
-            </TouchableOpacity>
+        {/* Hero Image Section with Carousel */}
+        <View style={styles.heroSection}>
+          {/* Tap Zones for Photo Navigation */}
+          {pet.photos && pet.photos.length > 1 && (
+            <>
+              <Pressable 
+                style={styles.tapZoneLeft}
+                onPress={handlePrevPhoto}
+              />
+              <Pressable 
+                style={styles.tapZoneRight}
+                onPress={handleNextPhoto}
+              />
+            </>
           )}
-        </View>
-
-        {/* Avatar Section */}
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarWrapper}>
-            <LinearGradient
-              colors={["#C8A8D4", "#E8D5EE"]}
-              style={styles.avatarGradient}
-            >
-              <Image source={pet.photos?.[activePhotoIndex] || pet.avatar} style={styles.avatar} />
-              
-              {/* Photo Navigation */}
-              {pet.photos && pet.photos.length > 1 && (
-                <>
-                  <TouchableOpacity 
-                    style={[styles.photoNavBtn, styles.photoNavBtnLeft]}
-                    onPress={handlePrevPhoto}
-                  >
-                    <Icon name="chevron-back" size={24} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.photoNavBtn, styles.photoNavBtnRight]}
-                    onPress={handleNextPhoto}
-                  >
-                    <Icon name="chevron-forward" size={24} color="#fff" />
-                  </TouchableOpacity>
-                  
-                  {/* Photo Indicators */}
-                  <View style={styles.photoIndicators}>
-                    {pet.photos.map((_: any, index: number) => (
-                      <View
-                        key={index}
-                        style={[
-                          styles.photoIndicator,
-                          index === activePhotoIndex && styles.photoIndicatorActive
-                        ]}
-                      />
-                    ))}
-                  </View>
-                </>
-              )}
-            </LinearGradient>
+          
+          {/* Hero Image */}
+          <Image 
+            source={pet.photos?.[activePhotoIndex] || pet.avatar} 
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+          
+          {/* Dark Gradient Overlay */}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.8)"]}
+            style={styles.heroGradient}
+          />
+          
+          {/* Header Buttons Overlay */}
+          <View style={styles.headerOverlay}>
+            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+              <Icon name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
             
-            {/* Edit button - only show for my pet */}
             {isMyPet && (
-              <TouchableOpacity style={styles.editIconBtn} onPress={handleEditPet}>
-                <LinearGradient
-                  colors={["#FF6EA7", "#FF9BC0"]}
-                  style={styles.editIconGradient}
-                >
-                  <Icon name="pencil" size={16} color="#fff" />
-                </LinearGradient>
+              <TouchableOpacity onPress={handleEditPet} style={styles.editHeaderBtn}>
+                <Icon name="pencil" size={22} color="#fff" />
               </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.petName}>{pet.name}</Text>
+          
+          {/* Photo Indicators */}
+          {pet.photos && pet.photos.length > 1 && (
+            <View style={styles.photoDotsContainer}>
+              {pet.photos.map((_: any, index: number) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.photoDot,
+                    index === activePhotoIndex && styles.photoDotActive
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+          
+          {/* Pet Info on Image */}
+          <View style={styles.heroInfo}>
+            <View style={styles.heroNameRow}>
+              <Text style={styles.heroName}>
+                {pet.name}
+                <Text style={pet.gender === "male" ? styles.maleSymbol : styles.femaleSymbol}>
+                  {" "}{pet.gender === "male" ? "♂" : "♀"}
+                </Text>
+              </Text>
+            </View>
+            <View style={styles.heroMetaRow}>
+              <Icon name="paw" size={16} color="#fff" />
+              <Text style={styles.heroMeta}>{pet.breed} • {pet.age}</Text>
+            </View>
+            {pet.location && (
+              <View style={styles.heroLocationRow}>
+                <Icon name="location" size={16} color="#fff" />
+                <Text style={styles.heroLocation}>{pet.location}</Text>
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* Pet Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pet Information</Text>
-
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Breed</Text>
-              <Text style={styles.infoValue}>{pet.breed}</Text>
+        {/* Content Container - Modern Cards */}
+        <View style={styles.contentContainer}>
+          
+          {/* Quick Stats Cards */}
+          <View style={styles.quickStatsRow}>
+            <View style={styles.quickStatCard}>
+              <View style={styles.quickStatIconBg}>
+                <Icon name="paw" size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.quickStatValue}>{pet.breed}</Text>
+              <Text style={styles.quickStatLabel}>Breed</Text>
             </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Age</Text>
-              <Text style={styles.infoValue}>{pet.age}</Text>
+            
+            <View style={styles.quickStatCard}>
+              <View style={styles.quickStatIconBg}>
+                <Icon name="calendar-outline" size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.quickStatValue}>{pet.age}</Text>
+              <Text style={styles.quickStatLabel}>Age</Text>
             </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Gender</Text>
-              <Text style={styles.infoValue}>{pet.gender}</Text>
+            
+            <View style={styles.quickStatCard}>
+              <View style={styles.quickStatIconBg}>
+                <Icon 
+                  name={pet.gender === "male" ? "male" : "female"} 
+                  size={20} 
+                  color={pet.gender === "male" ? colors.male : colors.female} 
+                />
+              </View>
+              <Text style={styles.quickStatValue}>{pet.gender}</Text>
+              <Text style={styles.quickStatLabel}>Gender</Text>
             </View>
           </View>
 
-          {/* Description */}
+          {/* About Section */}
           {pet.description && pet.description !== 'No description available' && (
-            <View style={styles.descriptionCard}>
-              <Text style={styles.descriptionText}>{pet.description}</Text>
+            <View style={styles.aboutSection}>
+              <Text style={styles.sectionTitleModern}>About {pet.name}</Text>
+              <View style={styles.aboutCard}>
+                <Text style={styles.aboutText}>{pet.description}</Text>
+              </View>
             </View>
           )}
         </View>
 
         {/* Pet Characteristics */}
         {characteristics.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Characteristics</Text>
-              <Text style={styles.sectionSubtitle}>{characteristics.length} attributes</Text>
+          <View style={styles.contentContainer}>
+            <View style={styles.sectionHeaderModern}>
+              <Text style={styles.sectionTitleModern}>Characteristics</Text>
+              <View style={styles.badgeCount}>
+                <Text style={styles.badgeCountText}>{characteristics.length}</Text>
+              </View>
             </View>
             <View style={styles.characteristicsGrid}>
               {characteristics.map((char, index) => (
-                <View key={index} style={styles.characteristicCard}>
-                  <View style={styles.characteristicHeader}>
+                <View key={index} style={styles.charCard}>
+                  <View style={styles.charIconCircle}>
                     <Icon 
                       name={
                         char.typeValue === 'string' ? 'paw' : 
                         char.typeValue === 'float' || char.typeValue === 'number' ? 'fitness' : 
                         'information-circle'
                       } 
-                      size={16} 
-                      color={colors.primary} 
+                      size={18} 
+                      color={colors.white} 
                     />
-                    <Text style={styles.characteristicName}>{char.name || 'Unknown'}</Text>
                   </View>
-                  <View style={styles.characteristicValueContainer}>
+                  <Text style={styles.charName}>{char.name || 'Unknown'}</Text>
+                  <View style={styles.charValueContainer}>
                     {char.optionValue ? (
-                      <Text style={styles.characteristicValue}>{char.optionValue}</Text>
+                      <Text style={styles.charValue}>{char.optionValue}</Text>
                     ) : char.value !== null && char.value !== undefined ? (
-                      <Text style={styles.characteristicValue}>
+                      <Text style={styles.charValue}>
                         {char.value} {char.unit || ''}
                       </Text>
                     ) : (
-                      <Text style={styles.characteristicValueEmpty}>Not set</Text>
+                      <Text style={styles.charValueEmpty}>Not set</Text>
                     )}
                   </View>
                 </View>
@@ -462,112 +488,112 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         )}
 
         {/* Owner Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Owner Information</Text>
+        <View style={styles.contentContainer}>
+          <Text style={styles.sectionTitleModern}>Owner</Text>
 
-          <View style={styles.ownerCard}>
-            <View style={styles.ownerInfo}>
-              <Image source={pet.owner.avatar} style={styles.ownerAvatar} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.ownerName}>{pet.owner.name}</Text>
-                <Text style={styles.ownerStatus}>{pet.owner.status}</Text>
-                
-                {/* Email - Only show for my pet */}
-                {isMyPet && pet.owner.email && (
-                  <View style={styles.ownerDetailRow}>
-                    <Icon name="mail-outline" size={14} color={colors.textMedium} />
-                    <Text style={styles.ownerDetailText}>{pet.owner.email}</Text>
-                  </View>
-                )}
-
-                {/* Location - Always show */}
-                <View style={styles.ownerDetailRow}>
-                  <Icon name="location-outline" size={14} color={colors.textMedium} />
-                  <Text style={[styles.ownerDetailText, !pet.location && { color: '#999', fontStyle: 'italic' }]}>
-                    {pet.location || 'No location set'}
-                  </Text>
+          <View style={styles.ownerCardModern}>
+            <Image source={pet.owner.avatar} style={styles.ownerAvatarModern} />
+            <View style={styles.ownerInfoContainer}>
+              <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>
+              <Text style={styles.ownerStatusModern}>{pet.owner.status}</Text>
+              
+              {/* Email - Only show for my pet */}
+              {isMyPet && pet.owner.email && (
+                <View style={styles.ownerDetailRowModern}>
+                  <Icon name="mail" size={14} color={colors.primary} />
+                  <Text style={styles.ownerDetailTextModern}>{pet.owner.email}</Text>
                 </View>
-              </View>
-            </View>
+              )}
 
-            {pet.owner.userId && (
+              {/* Location - Always show */}
+              {pet.location && (
+                <View style={styles.ownerDetailRowModern}>
+                  <Icon name="location" size={14} color={colors.primary} />
+                  <Text style={styles.ownerDetailTextModern}>{pet.location}</Text>
+                </View>
+              )}
+            </View>
+            
+            {pet.owner.userId && !isMyPet && (
               <TouchableOpacity 
+                style={styles.viewProfileBtn}
                 onPress={() => {
-                  // TODO: Navigate to owner profile
                   console.log('View owner profile:', pet.owner.userId);
                 }}
               >
-                <Icon name="chevron-forward" size={24} color={colors.textMedium} />
+                <Icon name="arrow-forward" size={20} color={colors.primary} />
               </TouchableOpacity>
             )}
           </View>
 
           {/* Full Address Card - Only show for my pet */}
           {isMyPet && pet.fullAddress && (
-            <View style={styles.addressCard}>
-              <View style={styles.addressHeader}>
-                <Icon name="location" size={18} color={colors.primary} />
-                <Text style={styles.addressTitle}>Full Address</Text>
+            <View style={styles.addressCardModern}>
+              <Icon name="map" size={20} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.addressTitleModern}>Full Address</Text>
+                <Text style={styles.addressTextModern}>{pet.fullAddress}</Text>
               </View>
-              <Text style={styles.addressText}>{pet.fullAddress}</Text>
             </View>
           )}
         </View>
 
-        {/* Send Match Request Button - Only show for other people's pets */}
+        {/* Action Buttons - Only show for other people's pets */}
         {!isMyPet && (
-          <>
-            <View style={styles.matchRequestSection}>
-              <TouchableOpacity
-                style={styles.matchRequestButton}
-                activeOpacity={0.8}
-                onPress={handleSendMatchRequest}
-                disabled={sendingMatchRequest}
+          <View style={styles.actionsContainer}>
+            {/* Main Action Button */}
+            <TouchableOpacity
+              style={styles.matchButton}
+              activeOpacity={0.9}
+              onPress={handleSendMatchRequest}
+              disabled={sendingMatchRequest}
+            >
+              <LinearGradient
+                colors={sendingMatchRequest ? ["#CCC", "#DDD"] : gradients.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.matchButtonGradient}
               >
-                <LinearGradient
-                  colors={sendingMatchRequest ? ["#CCC", "#DDD"] : ["#FF6EA7", "#FF9BC0"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.matchRequestGradient}
-                >
-                  {sendingMatchRequest ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Icon name="heart" size={24} color="#fff" />
-                  )}
-                  <Text style={styles.matchRequestText}>
-                    {sendingMatchRequest ? 'Sending...' : 'Send Match Request'}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+                {sendingMatchRequest ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Icon name="heart" size={24} color="#fff" />
+                )}
+                <Text style={styles.matchButtonText}>
+                  {sendingMatchRequest ? 'Sending...' : 'Send Match Request'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
-            {/* Safety Actions */}
-            <View style={styles.safetyActions}>
+            {/* Safety Actions Row */}
+            <View style={styles.safetyRow}>
               <TouchableOpacity 
-                style={styles.safetyBtn}
+                style={styles.safetyButton}
                 onPress={handleReport}
+                activeOpacity={0.7}
               >
-                <Icon name="flag-outline" size={20} color="#FF9800" />
-                <Text style={[styles.safetyBtnText, { color: "#FF9800" }]}>
-                  Report
-                </Text>
+                <View style={styles.safetyIconBg}>
+                  <Icon name="flag" size={18} color="#FF9800" />
+                </View>
+                <Text style={styles.safetyButtonText}>Report</Text>
               </TouchableOpacity>
-
-              <View style={styles.safetyDivider} />
 
               <TouchableOpacity 
-                style={styles.safetyBtn}
+                style={styles.safetyButton}
                 onPress={handleBlock}
+                activeOpacity={0.7}
               >
-                <Icon name="ban-outline" size={20} color="#E94D6B" />
-                <Text style={[styles.safetyBtnText, { color: "#E94D6B" }]}>
-                  Block User
-                </Text>
+                <View style={styles.safetyIconBg}>
+                  <Icon name="ban" size={18} color="#E94D6B" />
+                </View>
+                <Text style={styles.safetyButtonText}>Block</Text>
               </TouchableOpacity>
             </View>
-          </>
+          </View>
         )}
+        
+        {/* Bottom Spacing */}
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Custom Alert */}
@@ -584,361 +610,419 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           showCancel={alertConfig.showCancel}
         />
       )}
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#FAFBFC",
   },
   scrollContent: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
 
-  // Header
-  header: {
+  // Hero Section
+  heroSection: {
+    position: "relative",
+    height: IMAGE_HEIGHT,
+    backgroundColor: "#000",
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  heroGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "60%",
+  },
+  tapZoneLeft: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: "35%",
+    zIndex: 5,
+  },
+  tapZoneRight: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: "35%",
+    zIndex: 5,
+  },
+  
+  // Header Overlay
+  headerOverlay: {
+    position: "absolute",
+    top: StatusBar.currentHeight || 40,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 30,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-  },
-
-  // Avatar Section
-  avatarSection: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
-  avatarWrapper: {
-    position: "relative",
-    marginBottom: 12,
-  },
-  avatarGradient: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#C8A8D4",
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-    position: "relative",
-  },
-  photoNavBtn: {
-    position: "absolute",
-    top: "50%",
-    transform: [{ translateY: -20 }],
-    backgroundColor: "rgba(0,0,0,0.5)",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: 16,
     zIndex: 10,
   },
-  photoNavBtnLeft: {
-    left: -5,
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    ...shadows.medium,
   },
-  photoNavBtnRight: {
-    right: -5,
+  editHeaderBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    ...shadows.medium,
   },
-  photoIndicators: {
+  
+  // Photo Dots
+  photoDotsContainer: {
     position: "absolute",
-    bottom: 10,
+    top: (StatusBar.currentHeight || 40) + 60,
+    left: 20,
+    right: 20,
     flexDirection: "row",
     gap: 6,
     zIndex: 10,
   },
-  photoIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.5)",
+  photoDot: {
+    flex: 1,
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.4)",
+    borderRadius: 2,
   },
-  photoIndicatorActive: {
+  photoDotActive: {
     backgroundColor: "#fff",
-    width: 16,
   },
-  avatar: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  editIconBtn: {
+  
+  // Hero Info
+  heroInfo: {
     position: "absolute",
-    bottom: 5,
-    right: 5,
+    bottom: 24,
+    left: 20,
+    right: 20,
+    zIndex: 10,
   },
-  editIconGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
+  heroNameRow: {
+    flexDirection: "row",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFF",
-    shadowColor: "#FF6EA7",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    marginBottom: 8,
   },
-  petName: {
-    fontSize: 32,
+  heroName: {
+    fontSize: 34,
     fontWeight: "bold",
-    color: "#333",
+    color: "#fff",
+    textShadowColor: "rgba(0,0,0,0.7)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
   },
-
-  // Section
-  section: {
-    marginBottom: 24,
+  maleSymbol: {
+    color: "#64B5F6",
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 12,
+  femaleSymbol: {
+    color: "#FF9BC0",
   },
-
-  // Info Card
-  infoCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#C8A8D4",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-  },
-  infoLabel: {
-    fontSize: 15,
-    color: "#666",
-    fontWeight: "500",
-  },
-  infoValue: {
-    fontSize: 15,
-    color: "#333",
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "right",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#F0F0F0",
-  },
-  descriptionCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 12,
-    shadowColor: "#C8A8D4",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  descriptionText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#555",
-  },
-
-  // Characteristics
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: colors.textMedium,
-  },
-  characteristicsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  characteristicCard: {
-    backgroundColor: colors.whiteWarm,
-    borderRadius: radius.lg,
-    padding: 12,
-    minWidth: "47%",
-    flex: 1,
-    maxWidth: "48%",
-    ...shadows.medium,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  characteristicHeader: {
+  heroMetaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     marginBottom: 6,
   },
-  characteristicName: {
-    fontSize: 12,
-    color: colors.textMedium,
-    fontWeight: "600",
-    textTransform: "capitalize",
-    flex: 1,
+  heroMeta: {
+    fontSize: 17,
+    color: "#fff",
+    fontWeight: "500",
+    textShadowColor: "rgba(0,0,0,0.7)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
-  characteristicValueContainer: {
-    marginTop: 2,
+  heroLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
-  characteristicValue: {
+  heroLocation: {
     fontSize: 15,
-    color: colors.textDark,
-    fontWeight: "700",
-  },
-  characteristicValueEmpty: {
-    fontSize: 13,
-    color: colors.textLabel,
-    fontStyle: "italic",
+    color: "#fff",
+    fontWeight: "500",
+    textShadowColor: "rgba(0,0,0,0.7)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
 
-  // Owner
-  ownerCard: {
+  // Content Container
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  
+  // Quick Stats Row
+  quickStatsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  quickStatCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: 16,
+    alignItems: "center",
+    ...shadows.medium,
+  },
+  quickStatIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFF0F7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  quickStatValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.textDark,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: colors.textMedium,
+    fontWeight: "500",
+  },
+  
+  // Section Titles
+  sectionTitleModern: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: colors.textDark,
+    marginBottom: 16,
+  },
+  sectionHeaderModern: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.whiteWarm,
-    borderRadius: 16,
+    marginBottom: 16,
+  },
+  badgeCount: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  badgeCountText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: colors.white,
+  },
+  
+  // About Section
+  aboutSection: {
+    marginBottom: 24,
+  },
+  aboutCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: 20,
+    ...shadows.small,
+  },
+  aboutText: {
+    fontSize: 16,
+    lineHeight: 26,
+    color: colors.textDark,
+  },
+  
+  // Characteristics Grid
+  characteristicsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  charCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: 16,
+    minWidth: "47%",
+    flex: 1,
+    maxWidth: "48%",
+    ...shadows.medium,
+    alignItems: "center",
+  },
+  charIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+    ...shadows.button,
+  },
+  charName: {
+    fontSize: 13,
+    color: colors.textMedium,
+    fontWeight: "600",
+    textTransform: "capitalize",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  charValueContainer: {
+    alignItems: "center",
+  },
+  charValue: {
+    fontSize: 17,
+    color: colors.textDark,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  charValueEmpty: {
+    fontSize: 14,
+    color: colors.textLabel,
+    fontStyle: "italic",
+  },
+  
+  // Owner Card Modern
+  ownerCardModern: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
     padding: 16,
     ...shadows.medium,
   },
-  ownerInfo: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    flex: 1,
-  },
-  ownerAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginRight: 12,
-    borderWidth: 2,
+  ownerAvatarModern: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: 14,
+    borderWidth: 3,
     borderColor: colors.primary,
   },
-  ownerName: {
-    fontSize: 17,
+  ownerInfoContainer: {
+    flex: 1,
+  },
+  ownerNameModern: {
+    fontSize: 18,
     fontWeight: "bold",
     color: colors.textDark,
     marginBottom: 4,
   },
-  ownerStatus: {
+  ownerStatusModern: {
     fontSize: 13,
     color: colors.textMedium,
     marginBottom: 8,
   },
-  ownerDetailRow: {
+  ownerDetailRowModern: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     marginTop: 4,
   },
-  ownerDetailText: {
+  ownerDetailTextModern: {
     fontSize: 13,
     color: colors.textMedium,
     flex: 1,
   },
-  addressCard: {
+  viewProfileBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFF0F7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addressCardModern: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     backgroundColor: "#F0F8FF",
-    borderRadius: 14,
+    borderRadius: radius.lg,
     padding: 16,
     marginTop: 12,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#D0E8FF",
   },
-  addressHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  addressTitle: {
+  addressTitleModern: {
     fontSize: 15,
     fontWeight: "600",
     color: colors.textDark,
+    marginBottom: 6,
   },
-  addressText: {
+  addressTextModern: {
     fontSize: 14,
     color: colors.textMedium,
     lineHeight: 20,
   },
-
-  // Safety Actions
-  safetyActions: {
-    flexDirection: "row",
-    backgroundColor: "#FFF8FB",
-    borderRadius: 16,
-    marginTop: 16,
-    padding: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#FF6EA7",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  safetyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
+  
+  // Actions Container
+  actionsContainer: {
     paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
-  safetyBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  safetyDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: "#E0E0E0",
-  },
-
-  // Match Request Button
-  matchRequestSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    backgroundColor: colors.whiteWarm,
-  },
-  matchRequestButton: {
-    borderRadius: radius.lg,
+  matchButton: {
+    borderRadius: radius.xl,
     overflow: "hidden",
     ...shadows.large,
+    marginBottom: 16,
   },
-  matchRequestGradient: {
+  matchButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    gap: 12,
+    paddingVertical: 18,
   },
-  matchRequestText: {
-    fontSize: 17,
+  matchButtonText: {
+    fontSize: 18,
     fontWeight: "bold",
     color: "#fff",
+    letterSpacing: 0.5,
+  },
+  
+  // Safety Row
+  safetyRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  safetyButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.white,
+    paddingVertical: 14,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    ...shadows.small,
+  },
+  safetyIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFF8FB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  safetyButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textDark,
   },
 });
 
