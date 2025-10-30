@@ -45,12 +45,6 @@ const SettingsScreen = ({ navigation }: Props) => {
       onPress: () => navigation.navigate("Profile"),
     },
     {
-      icon: "heart-outline",
-      title: "Preferences",
-      subtitle: "Set your matching preferences",
-      onPress: () => navigation.navigate("UserPreference"),
-    },
-    {
       icon: "key-outline",
       title: "Change Password",
       subtitle: "Update your password",

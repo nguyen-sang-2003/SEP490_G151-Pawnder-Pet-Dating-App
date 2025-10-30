@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Switch,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -13,68 +14,308 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { 
+  getAttributesForFilter, 
+  getUserPreferences, 
+  saveUserPreferencesBatch,
+  AttributeForFilter,
+  UserPreference,
+  UserPreferenceBatchRequest
+} from "../../../api";
+import { getItem } from "../../../utils/storage";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "UserPreference">;
 
-interface RangePreference {
-  min: number;
-  max: number;
+interface PreferenceValue {
+  attributeId: number;
+  optionId?: number | null;
+  minValue?: number | null;
+  maxValue?: number | null;
 }
 
 const UserPreferenceScreen = ({ navigation }: Props) => {
-  // Preferences State
-  const [showMe, setShowMe] = useState<"all" | "male" | "female">("all");
-  const [ageRange, setAgeRange] = useState<RangePreference>({ min: 1, max: 10 });
-  const [maxDistance, setMaxDistance] = useState(25);
-  const [personality, setPersonality] = useState<string[]>(["playful", "gentle"]);
-  const [breeds, setBreeds] = useState<string[]>([]);
-  const [onlyPremium, setOnlyPremium] = useState(false);
-  const [onlyWithPhotos, setOnlyWithPhotos] = useState(true);
-  const [onlyVaccinated, setOnlyVaccinated] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [attributes, setAttributes] = useState<AttributeForFilter[]>([]);
+  const [preferences, setPreferences] = useState<Map<number, PreferenceValue>>(new Map());
 
-  const DISTANCES = [5, 10, 15, 25, 50, 100];
-  const PERSONALITIES = [
-    "Playful",
-    "Gentle",
-    "Energetic",
-    "Calm",
-    "Friendly",
-    "Shy",
-    "Curious",
-    "Lazy",
-  ];
-  const CAT_BREEDS = [
-    "Persian",
-    "British Shorthair",
-    "Maine Coon",
-    "Siamese",
-    "Bengal",
-    "Scottish Fold",
-    "Ragdoll",
-    "Munchkin",
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const togglePersonality = (trait: string) => {
-    setPersonality(prev =>
-      prev.includes(trait.toLowerCase())
-        ? prev.filter(t => t !== trait.toLowerCase())
-        : [...prev, trait.toLowerCase()]
-    );
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get userId from storage
+      const userIdStr = await getItem('userId');
+      if (!userIdStr) {
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        return;
+      }
+      const uid = parseInt(userIdStr, 10);
+      setUserId(uid);
+
+      // Load attributes
+      const attrs = await getAttributesForFilter();
+      setAttributes(attrs);
+      console.log('📋 Loaded attributes:', attrs);
+
+      // Load existing preferences
+      try {
+        const existingPrefs = await getUserPreferences(uid);
+        console.log('💾 Existing preferences:', existingPrefs);
+        
+        const prefsMap = new Map<number, PreferenceValue>();
+        existingPrefs.forEach((pref: UserPreference) => {
+          prefsMap.set(pref.AttributeId, {
+            attributeId: pref.AttributeId,
+            optionId: pref.OptionId,
+            minValue: pref.MinValue,
+            maxValue: pref.MaxValue,
+          });
+        });
+        setPreferences(prefsMap);
+      } catch (error: any) {
+        // It's ok if there are no preferences yet
+        console.log('ℹ️ No existing preferences or error loading them:', error.message);
+      }
+    } catch (error: any) {
+      console.error('❌ Error loading data:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải dữ liệu' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleBreed = (breed: string) => {
-    setBreeds(prev =>
-      prev.includes(breed)
-        ? prev.filter(b => b !== breed)
-        : [...prev, breed]
-    );
+  const updatePreference = (attributeId: number, value: Partial<PreferenceValue>) => {
+    setPreferences(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(attributeId) || { attributeId };
+      newMap.set(attributeId, { ...existing, ...value });
+      return newMap;
+    });
   };
 
-  const handleSave = () => {
-    // TODO: Save preferences to API
-    // POST /user-preference/{userId}/{attributeId}
+  const handleSave = async () => {
+    if (!userId) {
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      // Convert preferences map to array
+      const prefsArray: UserPreferenceBatchRequest[] = Array.from(preferences.values())
+        .filter(pref => 
+          // Only include preferences that have some value set
+          pref.optionId != null || (pref.minValue != null && pref.maxValue != null)
+        )
+        .map(pref => ({
+          AttributeId: pref.attributeId,
+          OptionId: pref.optionId,
+          MinValue: pref.minValue,
+          MaxValue: pref.maxValue,
+        }));
+
+      if (prefsArray.length === 0) {
+        showAlert({ type: 'warning', title: 'Cảnh báo', message: 'Vui lòng chọn ít nhất một sở thích' });
+        return;
+      }
+
+      console.log('💾 Saving preferences:', prefsArray);
+      const result = await saveUserPreferencesBatch(userId, prefsArray);
+      console.log('✅ Saved:', result);
+      
+      showAlert({ 
+        type: 'success', 
+        title: 'Thành công', 
+        message: `Đã lưu sở thích (${result.created} mới, ${result.updated} cập nhật)`,
+        onConfirm: () => {
+          hideAlert();
     navigation.goBack();
+        }
+      });
+    } catch (error: any) {
+      console.error('❌ Error saving preferences:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể lưu sở thích' });
+    } finally {
+      setSaving(false);
+    }
   };
+
+  // Render attribute input based on type
+  const renderAttributeInput = (attr: AttributeForFilter) => {
+    const pref = preferences.get(attr.AttributeId);
+    const isDistanceAttr = attr.Name.toLowerCase() === 'khoảng cách';
+
+    // For "string" type with options - render as chips/buttons
+    if (attr.TypeValue === 'string' && attr.Options && attr.Options.length > 0) {
+      return (
+        <View key={attr.AttributeId} style={styles.section}>
+          <Text style={styles.sectionTitle}>{attr.Name}</Text>
+          <View style={styles.personalityTags}>
+            {attr.Options.map((option) => (
+              <TouchableOpacity
+                key={option.OptionId}
+                style={[
+                  styles.personalityTag,
+                  pref?.optionId === option.OptionId && styles.personalityTagActive,
+                ]}
+                onPress={() => updatePreference(attr.AttributeId, { optionId: option.OptionId, minValue: null, maxValue: null })}
+              >
+                <Text
+                  style={[
+                    styles.personalityTagText,
+                    pref?.optionId === option.OptionId && styles.personalityTagTextActive,
+                  ]}
+                >
+                  {option.Name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    // For "float" type - render as range input
+    if (attr.TypeValue === 'float') {
+      // Special handling for distance - only max value
+      if (isDistanceAttr) {
+        const distances = [5, 10, 15, 25, 50, 100];
+        return (
+          <View key={attr.AttributeId} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{attr.Name}</Text>
+              <Text style={styles.sectionValue}>
+                {pref?.maxValue || 0} {attr.Unit || 'km'}
+              </Text>
+            </View>
+            <View style={styles.distanceOptions}>
+              {distances.map((distance) => (
+                <TouchableOpacity
+                  key={distance}
+                  style={[
+                    styles.distanceChip,
+                    pref?.maxValue === distance && styles.distanceChipActive,
+                  ]}
+                  onPress={() => updatePreference(attr.AttributeId, { maxValue: distance, optionId: null })}
+                >
+                  <Text
+                    style={[
+                      styles.distanceText,
+                      pref?.maxValue === distance && styles.distanceTextActive,
+                    ]}
+                  >
+                    {distance} {attr.Unit || 'km'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+      }
+
+      // Normal range input (min/max)
+      return (
+        <View key={attr.AttributeId} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{attr.Name}</Text>
+            <Text style={styles.sectionValue}>
+              {pref?.minValue || 0} - {pref?.maxValue || 0} {attr.Unit || ''}
+            </Text>
+          </View>
+          <View style={styles.rangeControls}>
+            <View style={styles.rangeControl}>
+              <Text style={styles.rangeLabel}>Min</Text>
+              <View style={styles.rangeButtons}>
+                <TouchableOpacity
+                  style={styles.rangeButton}
+                  onPress={() => {
+                    const newMin = Math.max(0, (pref?.minValue || 0) - 1);
+                    updatePreference(attr.AttributeId, { 
+                      minValue: newMin,
+                      maxValue: pref?.maxValue || newMin + 1,
+                      optionId: null 
+                    });
+                  }}
+                >
+                  <Icon name="remove" size={20} color={colors.primary} />
+                </TouchableOpacity>
+                <Text style={styles.rangeValue}>{pref?.minValue || 0}</Text>
+                <TouchableOpacity
+                  style={styles.rangeButton}
+                  onPress={() => {
+                    const newMin = Math.min((pref?.maxValue || 1) - 1, (pref?.minValue || 0) + 1);
+                    updatePreference(attr.AttributeId, { 
+                      minValue: newMin,
+                      maxValue: pref?.maxValue || newMin + 1,
+                      optionId: null 
+                    });
+                  }}
+                >
+                  <Icon name="add" size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.rangeControl}>
+              <Text style={styles.rangeLabel}>Max</Text>
+              <View style={styles.rangeButtons}>
+                <TouchableOpacity
+                  style={styles.rangeButton}
+                  onPress={() => {
+                    const newMax = Math.max((pref?.minValue || 0) + 1, (pref?.maxValue || 1) - 1);
+                    updatePreference(attr.AttributeId, { 
+                      maxValue: newMax,
+                      minValue: pref?.minValue || 0,
+                      optionId: null 
+                    });
+                  }}
+                >
+                  <Icon name="remove" size={20} color={colors.primary} />
+                </TouchableOpacity>
+                <Text style={styles.rangeValue}>{pref?.maxValue || 0}</Text>
+                <TouchableOpacity
+                  style={styles.rangeButton}
+                  onPress={() => {
+                    updatePreference(attr.AttributeId, { 
+                      maxValue: (pref?.maxValue || 0) + 1,
+                      minValue: pref?.minValue || 0,
+                      optionId: null 
+                    });
+                  }}
+                >
+                  <Icon name="add" size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={gradients.background} style={styles.gradient}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Đang tải...</Text>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -90,7 +331,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Discovery Settings</Text>
+          <Text style={styles.headerTitle}>Sở thích</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -99,248 +340,14 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Show Me - Cat Gender */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Looking for</Text>
-            <View style={styles.optionsRow}>
-              {[
-                { value: "all", label: "All Cats", icon: "paw" },
-                { value: "male", label: "Male", icon: "male" },
-                { value: "female", label: "Female", icon: "female" },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={styles.genderOption}
-                  onPress={() => setShowMe(option.value as any)}
-                >
-                  {showMe === option.value ? (
-                    <LinearGradient
-                      colors={gradients.primary}
-                      style={styles.genderOptionGradient}
-                    >
-                      <Icon
-                        name={option.icon}
-                        size={24}
-                        color={colors.white}
-                      />
-                      <Text style={styles.genderTextActive}>
-                        {option.label}
-                      </Text>
-                    </LinearGradient>
-                  ) : (
-                    <>
-                      <Icon
-                        name={`${option.icon}-outline`}
-                        size={24}
-                        color={colors.textMedium}
-                      />
-                      <Text style={styles.genderText}>
-                        {option.label}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              ))}
+          {attributes.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Icon name="heart-dislike-outline" size={64} color={colors.textLabel} />
+              <Text style={styles.emptyText}>Không có thuộc tính nào</Text>
             </View>
-          </View>
-
-          {/* Age Range */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Age Range</Text>
-              <Text style={styles.sectionValue}>
-                {ageRange.min} - {ageRange.max} years
-              </Text>
-            </View>
-            <View style={styles.rangeControls}>
-              <View style={styles.rangeControl}>
-                <Text style={styles.rangeLabel}>Min</Text>
-                <View style={styles.rangeButtons}>
-                  <TouchableOpacity
-                    style={styles.rangeButton}
-                    onPress={() =>
-                      setAgeRange(prev => ({
-                        ...prev,
-                        min: Math.max(0, prev.min - 1),
-                      }))
-                    }
-                  >
-                    <Icon name="remove" size={20} color={colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.rangeValue}>{ageRange.min}</Text>
-                  <TouchableOpacity
-                    style={styles.rangeButton}
-                    onPress={() =>
-                      setAgeRange(prev => ({
-                        ...prev,
-                        min: Math.min(prev.max - 1, prev.min + 1),
-                      }))
-                    }
-                  >
-                    <Icon name="add" size={20} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.rangeControl}>
-                <Text style={styles.rangeLabel}>Max</Text>
-                <View style={styles.rangeButtons}>
-                  <TouchableOpacity
-                    style={styles.rangeButton}
-                    onPress={() =>
-                      setAgeRange(prev => ({
-                        ...prev,
-                        max: Math.max(prev.min + 1, prev.max - 1),
-                      }))
-                    }
-                  >
-                    <Icon name="remove" size={20} color={colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.rangeValue}>{ageRange.max}</Text>
-                  <TouchableOpacity
-                    style={styles.rangeButton}
-                    onPress={() =>
-                      setAgeRange(prev => ({
-                        ...prev,
-                        max: Math.min(20, prev.max + 1),
-                      }))
-                    }
-                  >
-                    <Icon name="add" size={20} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Maximum Distance */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Maximum Distance</Text>
-              <Text style={styles.sectionValue}>{maxDistance} km</Text>
-            </View>
-            <View style={styles.distanceOptions}>
-              {DISTANCES.map((distance) => (
-                <TouchableOpacity
-                  key={distance}
-                  style={[
-                    styles.distanceChip,
-                    maxDistance === distance && styles.distanceChipActive,
-                  ]}
-                  onPress={() => setMaxDistance(distance)}
-                >
-                  <Text
-                    style={[
-                      styles.distanceText,
-                      maxDistance === distance && styles.distanceTextActive,
-                    ]}
-                  >
-                    {distance} km
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Cat Breeds */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Preferred Breeds</Text>
-            <Text style={styles.sectionSubtitle}>
-              Select cat breeds you're interested in (leave empty for all)
-            </Text>
-            <View style={styles.personalityTags}>
-              {CAT_BREEDS.map((breed) => (
-                <TouchableOpacity
-                  key={breed}
-                  style={[
-                    styles.personalityTag,
-                    breeds.includes(breed) && styles.personalityTagActive,
-                  ]}
-                  onPress={() => toggleBreed(breed)}
-                >
-                  <Text
-                    style={[
-                      styles.personalityTagText,
-                      breeds.includes(breed) && styles.personalityTagTextActive,
-                    ]}
-                  >
-                    {breed}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Cat Personality */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Preferred Personality</Text>
-            <Text style={styles.sectionSubtitle}>
-              Select the traits you'd like in your cat match
-            </Text>
-            <View style={styles.personalityTags}>
-              {PERSONALITIES.map((trait) => (
-                <TouchableOpacity
-                  key={trait}
-                  style={[
-                    styles.personalityTag,
-                    personality.includes(trait.toLowerCase()) &&
-                      styles.personalityTagActive,
-                  ]}
-                  onPress={() => togglePersonality(trait)}
-                >
-                  <Text
-                    style={[
-                      styles.personalityTagText,
-                      personality.includes(trait.toLowerCase()) &&
-                        styles.personalityTagTextActive,
-                    ]}
-                  >
-                    {trait}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Additional Filters */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Filters</Text>
-            
-            <View style={styles.switchRow}>
-              <View style={styles.switchLeft}>
-                <Icon name="star-outline" size={24} color="#FFD700" />
-                <View style={styles.switchTextContainer}>
-                  <Text style={styles.switchTitle}>Premium Members Only</Text>
-                  <Text style={styles.switchSubtitle}>
-                    Show only VIP cat owners
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={onlyPremium}
-                onValueChange={setOnlyPremium}
-                trackColor={{ false: "#D1D1D1", true: "#FFE4B5" }}
-                thumbColor={onlyPremium ? "#FFD700" : "#f4f3f4"}
-              />
-            </View>
-
-            <View style={styles.switchRow}>
-              <View style={styles.switchLeft}>
-                <Icon name="image-outline" size={24} color={colors.primary} />
-                <View style={styles.switchTextContainer}>
-                  <Text style={styles.switchTitle}>With Photos Only</Text>
-                  <Text style={styles.switchSubtitle}>
-                    Show cats with profile photos
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={onlyWithPhotos}
-                onValueChange={setOnlyWithPhotos}
-                trackColor={{ false: "#D1D1D1", true: colors.primaryLight }}
-                thumbColor={onlyWithPhotos ? colors.primary : "#f4f3f4"}
-              />
-            </View>
-          </View>
+          ) : (
+            attributes.map(attr => renderAttributeInput(attr))
+          )}
 
           {/* Bottom Spacing */}
           <View style={{ height: 120 }} />
@@ -348,17 +355,45 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
 
         {/* Save Button - Fixed at bottom */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <TouchableOpacity 
+            style={styles.saveButton} 
+            onPress={handleSave}
+            disabled={saving}
+          >
             <LinearGradient
               colors={gradients.primary}
               style={styles.saveGradient}
             >
+              {saving ? (
+                <>
+                  <ActivityIndicator size="small" color={colors.white} />
+                  <Text style={styles.saveText}>Đang lưu...</Text>
+                </>
+              ) : (
+                <>
               <Icon name="checkmark-circle" size={24} color={colors.white} />
-              <Text style={styles.saveText}>Save Preferences</Text>
+                  <Text style={styles.saveText}>Lưu sở thích</Text>
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
       </LinearGradient>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+        />
+      )}
     </View>
   );
 };
@@ -617,6 +652,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.white,
+  },
+
+  // Loading & Empty States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textMedium,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 100,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textMedium,
   },
 });
 
