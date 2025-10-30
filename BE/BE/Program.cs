@@ -81,6 +81,9 @@ builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
 // realtime
 builder.Services.AddSignalR();
 
+// ??ng ký DistanceService
+builder.Services.AddScoped<BE.Services.DistanceService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

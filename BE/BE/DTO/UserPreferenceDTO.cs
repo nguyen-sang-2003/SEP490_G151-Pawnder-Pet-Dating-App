@@ -8,7 +8,8 @@
         public string AttributeName { get; init; } = null!;
         public string? TypeValue { get; init; }
         public string? Unit { get; init; }
-
+        public int? MaxValue { get; init; }
+        public int? MinValue { get; init; }
         public string? Value { get; init; }
         public DateTime? CreatedAt { get; init; }
         public DateTime? UpdatedAt { get; init; }
