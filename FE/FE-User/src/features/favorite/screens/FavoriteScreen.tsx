@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,11 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  ScrollView,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -19,6 +24,9 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import { getLikesReceived, respondToLike, LikeReceivedItem } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const { width, height } = Dimensions.get("window");
+const CARD_PADDING = 16;
+
 type Props = NativeStackScreenProps<RootStackParamList, "Favorite">;
 
 interface LikeCat {
@@ -30,16 +38,19 @@ interface LikeCat {
   gender: "male" | "female";
   age: string;
   breed: string;
-  image: any;
+  image: any;          // First image for backward compatibility
+  images: any[];       // All images for carousel
   likedAt: string;
   isMatch: boolean;
 }
 
 const FavoriteScreen = ({ navigation }: Props) => {
-  const [pets, setPets] = React.useState<LikeCat[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [showMatchModal, setShowMatchModal] = React.useState(false);
-  const [matchedPet, setMatchedPet] = React.useState<LikeCat | null>(null);
+  const [pets, setPets] = useState<LikeCat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showMatchModal, setShowMatchModal] = useState(false);
+  const [matchedPet, setMatchedPet] = useState<LikeCat | null>(null);
+  const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   // Reload likes when screen comes into focus
   useFocusEffect(
@@ -66,21 +77,26 @@ const FavoriteScreen = ({ navigation }: Props) => {
       console.log('✅ Received likes:', likesData);
 
       // Convert API data to LikeCat format
-      const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => ({
-        id: item.matchId.toString(),                      // matchId for match/unmatch actions
-        petId: item.pet?.petId?.toString() || '0',        // actual petId for navigation
-        ownerId: item.owner?.userId || item.fromUserId,   // owner userId for chat
-        catName: item.pet?.name || 'Unknown',
-        ownerName: item.owner?.fullName || 'Unknown',
-        gender: item.pet?.gender?.toLowerCase() === 'male' ? 'male' : 'female',
-        age: item.pet?.age ? `${item.pet.age} years` : 'N/A',
-        breed: item.pet?.breed || 'Unknown',
-        image: item.petPhotos && item.petPhotos.length > 0
-          ? { uri: item.petPhotos[0] }
-          : require("../../../assets/cat_avatar.png"),
-        likedAt: getTimeAgo(item.createdAt),
-        isMatch: item.isMatch,
-      }));
+      const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => {
+        const photos = item.petPhotos && item.petPhotos.length > 0
+          ? item.petPhotos.map((url: string) => ({ uri: url }))
+          : [require("../../../assets/cat_avatar.png")];
+        
+        return {
+          id: item.matchId.toString(),                      // matchId for match/unmatch actions
+          petId: item.pet?.petId?.toString() || '0',        // actual petId for navigation
+          ownerId: item.owner?.userId || item.fromUserId,   // owner userId for chat
+          catName: item.pet?.name || 'Unknown',
+          ownerName: item.owner?.fullName || 'Unknown',
+          gender: item.pet?.gender?.toLowerCase() === 'male' ? 'male' : 'female',
+          age: item.pet?.age ? `${item.pet.age} years` : 'N/A',
+          breed: item.pet?.breed || 'Unknown',
+          image: photos[0],              // First image for backward compatibility
+          images: photos,                // All images for carousel
+          likedAt: getTimeAgo(item.createdAt),
+          isMatch: item.isMatch,
+        };
+      });
 
       setPets(formattedPets);
     } catch (error) {
@@ -192,184 +208,312 @@ const FavoriteScreen = ({ navigation }: Props) => {
     navigation.navigate("PetProfile", { petId });
   };
 
-  const renderLikeItem = ({ item }: { item: LikeCat }) => (
-    <TouchableOpacity 
-      style={styles.card}
-      onPress={() => handleViewProfile(item.petId)}  // Use petId instead of matchId
-      activeOpacity={0.9}
-    >
-      <Image source={item.image} style={styles.catImage} />
-      
-      {/* Match Badge */}
-      {item.isMatch && (
-        <View style={styles.matchBadge}>
-          <LinearGradient
-            colors={gradients.primary}
-            style={styles.matchBadgeGradient}
-          >
-            <Icon name="heart" size={16} color={colors.white} />
-            <Text style={styles.matchBadgeText}>Match!</Text>
-          </LinearGradient>
-        </View>
-      )}
+  const renderLikeItem = ({ item, index }: { item: LikeCat; index: number }) => {
+    const currentPhotoIndex = currentPhotoIndices[item.id] || 0;
+    const hasMultiplePhotos = item.images.length > 1;
 
-      <View style={styles.cardInfo}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.catName}>
-            {item.catName}{" "}
-            <Text style={item.gender === "male" ? styles.male : styles.female}>
-              {item.gender === "male" ? "♂" : "♀"}
-            </Text>
-          </Text>
-          <Text style={styles.likedTime}>{item.likedAt}</Text>
-        </View>
-        
-        <Text style={styles.ownerName}>Owner: {item.ownerName}</Text>
-        <Text style={styles.catMeta}>
-          {item.age} • {item.breed}
-        </Text>
+    return (
+      <Animated.View style={[styles.cardWrapper]}>
+        <TouchableOpacity 
+          style={styles.card}
+          onPress={() => handleViewProfile(item.petId)}
+          activeOpacity={0.95}
+        >
+          {/* Image Container with Photo Navigation */}
+          <View style={styles.imageContainer}>
+            <Image source={item.images[currentPhotoIndex]} style={styles.catImage} />
+            
+            {/* Photo Navigation - Left/Right tap areas */}
+            {hasMultiplePhotos && (
+              <>
+                <TouchableOpacity
+                  style={styles.photoTapLeft}
+                  activeOpacity={1}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    const newIdx = currentPhotoIndex > 0 ? currentPhotoIndex - 1 : item.images.length - 1;
+                    setCurrentPhotoIndices(prev => ({ ...prev, [item.id]: newIdx }));
+                  }}
+                />
+                <TouchableOpacity
+                  style={styles.photoTapRight}
+                  activeOpacity={1}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    const newIdx = (currentPhotoIndex + 1) % item.images.length;
+                    setCurrentPhotoIndices(prev => ({ ...prev, [item.id]: newIdx }));
+                  }}
+                />
+              </>
+            )}
+            
+            {/* Photo Dots Pagination */}
+            {hasMultiplePhotos && (
+              <View style={styles.photoDots}>
+                {item.images.map((_, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.photoDot,
+                      idx === currentPhotoIndex && styles.photoDotActive
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+            
+            {/* Top Badges Row */}
+            <View style={styles.topBadgesRow}>
+              {/* Match Badge */}
+              {item.isMatch && (
+                <View style={styles.matchBadge}>
+                  <LinearGradient
+                    colors={["#4CAF50", "#81C784"]}
+                    style={styles.matchBadgeGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Icon name="heart" size={14} color={colors.white} />
+                    <Text style={styles.matchBadgeText}>Match!</Text>
+                  </LinearGradient>
+                </View>
+              )}
+              
+              {/* Time Badge */}
+              <View style={styles.timeBadge}>
+                <Icon name="time-outline" size={12} color={colors.white} />
+                <Text style={styles.timeBadgeText}>{item.likedAt}</Text>
+              </View>
+            </View>
+            
+            {/* Gradient Overlay for better text readability */}
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.75)"]}
+              style={styles.imageGradient}
+            >
+              {/* Pet Info on Image */}
+              <View style={styles.imageInfo}>
+                <View style={styles.petNameRow}>
+                  <Text style={styles.catNameOnImage}>
+                    {item.catName}
+                    <Text style={item.gender === "male" ? styles.maleSymbol : styles.femaleSymbol}>
+                      {" "}{item.gender === "male" ? "♂" : "♀"}
+                    </Text>
+                  </Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Icon name="paw" size={14} color={colors.white} />
+                  <Text style={styles.metaText}>{item.age} • {item.breed}</Text>
+                </View>
+                <View style={styles.ownerRow}>
+                  <Icon name="person-outline" size={14} color={colors.white} />
+                  <Text style={styles.ownerTextOnImage}>{item.ownerName}</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actions}>
-          {item.isMatch ? (
-            // Already matched - show Chat and Unmatch
-            <>
-              <TouchableOpacity 
-                style={styles.actionBtnPrimary}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleChat(item.id, item.ownerId, item.ownerName);
-                }}
-              >
-                <LinearGradient
-                  colors={gradients.primary}
-                  style={styles.actionGradient}
+          {/* Action Buttons Below Image */}
+          <View style={styles.actionsContainer}>
+            {item.isMatch ? (
+              // Already matched - show Chat and Unmatch
+              <>
+                <TouchableOpacity 
+                  style={styles.actionBtnChat}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleChat(item.id, item.ownerId, item.ownerName);
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <Icon name="chatbubble" size={20} color={colors.white} />
-                  <Text style={styles.actionTextWhite}>Chat</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.actionBtnSecondary}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleUnmatch(item.id);
-                }}
-              >
-                <Icon name="close-circle" size={20} color={colors.error} />
-                <Text style={styles.actionTextDanger}>Unmatch</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            // Not matched yet - show Pass and Match
-            <>
-              <TouchableOpacity 
-                style={styles.actionBtnSecondary}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handlePass(item.id);
-                }}
-              >
-                <Icon name="close" size={20} color={colors.textMedium} />
-                <Text style={styles.actionTextSecondary}>Pass</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.actionBtnPrimary}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleMatch(item.id);
-                }}
-              >
-                <LinearGradient
-                  colors={gradients.primary}
-                  style={styles.actionGradient}
+                  <LinearGradient
+                    colors={gradients.primary}
+                    style={styles.actionGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Icon name="chatbubble" size={22} color={colors.white} />
+                    <Text style={styles.actionTextWhite}>Send Message</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.actionBtnUnmatch}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleUnmatch(item.id);
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <Icon name="heart" size={20} color={colors.white} />
-                  <Text style={styles.actionTextWhite}>Match</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+                  <Icon name="close-circle-outline" size={22} color={colors.error} />
+                  <Text style={styles.actionTextDanger}>Unmatch</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              // Not matched yet - show Pass and Match
+              <>
+                <TouchableOpacity 
+                  style={styles.actionBtnPass}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handlePass(item.id);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="close" size={28} color="#FF6B6B" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.actionBtnMatch}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleMatch(item.id);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={gradients.primary}
+                    style={styles.actionBtnMatchGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Icon name="heart" size={28} color={colors.white} />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   // Show loading state
   if (loading) {
     return (
-      <LinearGradient
-        colors={gradients.background}
-        style={styles.container}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <View style={styles.container}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Favorites</Text>
-            <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+          <View style={styles.headerContent}>
+            <LinearGradient
+              colors={["#FF6B9D", "#EF476F"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerIconGradient}
+            >
+              <Icon name="heart" size={22} color={colors.white} />
+            </LinearGradient>
+            <View>
+              <Text style={styles.headerTitle}>Favorites</Text>
+              <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+            </View>
           </View>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color="#EF476F" />
           <Text style={styles.loadingText}>Loading likes...</Text>
         </View>
         <BottomNav active="Favorite" />
-      </LinearGradient>
+      </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={gradients.background}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Favorites</Text>
-          <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      
+      {/* Animated Header with Gradient */}
+      <LinearGradient
+        colors={["rgba(255,240,247,1)", "rgba(250,251,252,0)"]}
+        style={styles.headerGradient}
+      >
+        <SafeAreaView style={{ flex: 0 }} />
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <LinearGradient
+              colors={gradients.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerIconGradient}
+            >
+              <Icon name="heart" size={24} color={colors.white} />
+            </LinearGradient>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Favorites</Text>
+              <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+            </View>
+          </View>
         </View>
-        <TouchableOpacity>
-          <Icon name="filter" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
 
-      {/* Stats */}
-      <View style={styles.stats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{pets.length}</Text>
-          <Text style={styles.statLabel}>Likes Received</Text>
+        {/* Modern Stats Card */}
+        <View style={styles.statsCard}>
+          <View style={styles.statsGradient}>
+            <View style={styles.statItem}>
+              <View style={[styles.statIconBg, styles.statIconLikes]}>
+                <Icon name="heart" size={20} color={colors.white} />
+              </View>
+              <View style={styles.statTextContainer}>
+                <Text style={styles.statNumber}>{pets.length}</Text>
+                <Text style={styles.statLabel}>Likes</Text>
+              </View>
+            </View>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
+              <View style={[styles.statIconBg, styles.statIconMatches]}>
+                <Icon name="people" size={20} color={colors.white} />
+              </View>
+              <View style={styles.statTextContainer}>
+                <Text style={styles.statNumber}>
+                  {pets.filter((c) => c.isMatch).length}
+                </Text>
+                <Text style={styles.statLabel}>Matches</Text>
+              </View>
+            </View>
+          </View>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>
-            {pets.filter((c) => c.isMatch).length}
-          </Text>
-          <Text style={styles.statLabel}>Matches</Text>
-        </View>
-      </View>
+      </LinearGradient>
 
-      {/* List */}
+      {/* List or Empty State */}
       {pets.length === 0 ? (
         <View style={styles.emptyState}>
-          <Icon name="heart-dislike-outline" size={80} color={colors.textLabel} />
+          <LinearGradient
+            colors={["rgba(255,110,167,0.1)", "rgba(255,155,192,0.05)"]}
+            style={styles.emptyIconBg}
+          >
+            <Icon name="heart-dislike-outline" size={60} color={colors.primary} />
+          </LinearGradient>
           <Text style={styles.emptyTitle}>No Favorites Yet</Text>
           <Text style={styles.emptyText}>
+            When other pets like you, they'll appear here.{'\n'}
             Keep swiping to find your perfect match!
           </Text>
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={() => navigation.navigate('Home')}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={gradients.primary}
+              style={styles.emptyButtonGradient}
+            >
+              <Icon name="paw" size={20} color={colors.white} />
+              <Text style={styles.emptyButtonText}>Start Swiping</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={pets}
           keyExtractor={(item) => item.id}
           renderItem={renderLikeItem}
-          contentContainerStyle={{ paddingBottom: 100, paddingTop: 16 }}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
         />
       )}
 
@@ -377,16 +521,19 @@ const FavoriteScreen = ({ navigation }: Props) => {
       {showMatchModal && matchedPet && (
         <View style={styles.matchModal}>
           <LinearGradient
-            colors={["rgba(255,110,167,0.95)", "rgba(255,155,192,0.95)"]}
+            colors={["rgba(255,110,167,0.97)", "rgba(255,155,192,0.97)"]}
             style={styles.matchGradient}
           >
-            <Icon name="heart" size={80} color={colors.white} />
-            <Text style={styles.matchTitle}>It's a Match!</Text>
+            <View style={styles.matchIconContainer}>
+              <Icon name="heart" size={80} color={colors.white} />
+            </View>
+            <Text style={styles.matchTitle}>It's a Match! 🎉</Text>
             <Text style={styles.matchText}>
               You and {matchedPet.ownerName} liked each other's pets
             </Text>
-            <View style={styles.matchPets}>
+            <View style={styles.matchPetContainer}>
               <Image source={matchedPet.image} style={styles.matchPetImage} />
+              <Text style={styles.matchPetName}>{matchedPet.catName}</Text>
             </View>
             <TouchableOpacity
               style={styles.sendMessageButton}
@@ -397,7 +544,9 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 setShowMatchModal(false);
                 setMatchedPet(null);
               }}
+              activeOpacity={0.9}
             >
+              <Icon name="chatbubble" size={20} color={colors.primary} />
               <Text style={styles.sendMessageText}>Send Message</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -406,8 +555,9 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 setShowMatchModal(false);
                 setMatchedPet(null);
               }}
+              activeOpacity={0.8}
             >
-              <Text style={styles.keepSwipingText}>Keep Swiping</Text>
+              <Text style={styles.keepSwipingText}>Keep Browsing</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>
@@ -415,191 +565,353 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       {/* Bottom Navigation */}
       <BottomNav active="Favorite" />
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
+    backgroundColor: "#FAFBFC",
   },
 
-  // Header
+  // Header with Gradient
+  headerGradient: {
+    paddingTop: StatusBar.currentHeight || 0,
+    paddingBottom: 12,
+  },
   header: {
+    paddingHorizontal: CARD_PADDING,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  headerContent: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    gap: 14,
+  },
+  headerIconGradient: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    ...shadows.medium,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "bold",
     color: colors.textDark,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 14,
     color: colors.textMedium,
     marginTop: 2,
+    fontWeight: "500",
   },
 
-  // Stats
-  stats: {
-    flexDirection: "row",
-    backgroundColor: colors.whiteWarm,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: radius.lg,
-    padding: 16,
+  // Modern Stats Card
+  statsCard: {
+    marginHorizontal: CARD_PADDING,
+    marginTop: 16,
+    borderRadius: radius.xl,
+    overflow: "hidden",
     ...shadows.medium,
+  },
+  statsGradient: {
+    flexDirection: "row",
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,110,167,0.15)",
+    borderRadius: radius.xl,
+    backgroundColor: "#FFF8FB", // Màu hồng kem dịu mắt
   },
   statItem: {
     flex: 1,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  statIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  statIconLikes: {
+    backgroundColor: colors.primary,
+  },
+  statIconMatches: {
+    backgroundColor: "#4CAF50",
+  },
+  statTextContainer: {
+    alignItems: "flex-start",
   },
   statNumber: {
     fontSize: 24,
     fontWeight: "bold",
-    color: colors.primary,
-    marginBottom: 4,
+    color: colors.textDark,
+    lineHeight: 28,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textMedium,
+    fontWeight: "600",
+    marginTop: -2,
   },
   statDivider: {
     width: 1,
-    backgroundColor: colors.textLabel,
-    opacity: 0.2,
+    backgroundColor: "rgba(255,110,167,0.2)",
+    marginHorizontal: 8,
   },
 
-  // Card
+  // List
+  listContent: {
+    paddingTop: 20,
+    paddingBottom: 100,
+  },
+
+  // Card Wrapper
+  cardWrapper: {
+    marginHorizontal: CARD_PADDING,
+    marginBottom: 20,
+  },
   card: {
-    backgroundColor: colors.whiteWarm,
-    borderRadius: radius.lg,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
     overflow: "hidden",
     ...shadows.large,
   },
-  catImage: {
+
+  // Image Container
+  imageContainer: {
     width: "100%",
-    height: 200,
-    resizeMode: "cover",
+    height: 400,
+    position: "relative",
     backgroundColor: colors.cardBackgroundLight,
   },
-  matchBadge: {
+  catImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+
+  // Photo Navigation
+  photoTapLeft: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: "100%",
+    width: "35%",
+    zIndex: 2,
+  },
+  photoTapRight: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    height: "100%",
+    width: "35%",
+    zIndex: 2,
+  },
+  photoDots: {
     position: "absolute",
     top: 12,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    zIndex: 3,
+  },
+  photoDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.5)",
+  },
+  photoDotActive: {
+    backgroundColor: colors.white,
+    width: 18,
+  },
+
+  // Top Badges
+  topBadgesRow: {
+    position: "absolute",
+    top: 12,
+    left: 12,
     right: 12,
-    borderRadius: radius.sm,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    zIndex: 4,
+  },
+  matchBadge: {
+    borderRadius: radius.md,
     overflow: "hidden",
+    ...shadows.button,
   },
   matchBadgeGradient: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   matchBadgeText: {
     color: colors.white,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "bold",
+    letterSpacing: 0.5,
   },
-  cardInfo: {
-    padding: 16,
-  },
-  cardHeader: {
+  timeBadge: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.sm,
   },
-  catName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: colors.textDark,
-  },
-  male: {
-    color: colors.male,
-  },
-  female: {
-    color: colors.female,
-  },
-  likedTime: {
-    fontSize: 12,
-    color: colors.textMedium,
-  },
-  ownerName: {
-    fontSize: 15,
-    color: colors.textDark,
-    marginBottom: 4,
-    fontWeight: "500",
-  },
-  catMeta: {
-    fontSize: 14,
-    color: colors.textMedium,
-    marginBottom: 12,
+  timeBadgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "600",
   },
 
-  // Actions
-  actions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
+  // Image Gradient Overlay
+  imageGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingBottom: 16,
   },
-  actionBtnSecondary: {
-    flex: 1,
+  imageInfo: {
+    gap: 6,
+  },
+  petNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+  },
+  catNameOnImage: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: colors.white,
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  maleSymbol: {
+    color: "#64B5F6",
+  },
+  femaleSymbol: {
+    color: "#FF9BC0",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    backgroundColor: colors.cardBackgroundLight,
-    paddingVertical: 12,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.textLabel,
   },
-  actionTextSecondary: {
+  metaText: {
+    fontSize: 15,
+    color: colors.white,
+    fontWeight: "500",
+  },
+  ownerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  ownerTextOnImage: {
     fontSize: 14,
-    fontWeight: "600",
-    color: colors.textMedium,
+    color: colors.white,
+    fontWeight: "500",
   },
-  actionBtnPrimary: {
+
+  // Actions Container
+  actionsContainer: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    backgroundColor: colors.white,
+  },
+
+  // Action Buttons - Matched State
+  actionBtnChat: {
     flex: 1,
     borderRadius: radius.md,
     overflow: "hidden",
+    ...shadows.button,
   },
   actionGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
+    gap: 8,
+    paddingVertical: 16,
   },
   actionTextWhite: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "bold",
     color: colors.white,
+    letterSpacing: 0.3,
   },
-  actionBtnDanger: {
-    flex: 1,
+  actionBtnUnmatch: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    backgroundColor: "#FFE5E5",
-    paddingVertical: 12,
+    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: colors.whiteWarm,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.error,
+    borderWidth: 1.5,
+    borderColor: "rgba(233,77,107,0.3)",
   },
   actionTextDanger: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     color: colors.error,
+  },
+
+  // Action Buttons - Not Matched State
+  actionBtnPass: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FF6B6B",
+    ...shadows.medium,
+  },
+  actionBtnMatch: {
+    flex: 1,
+    height: 64,
+    borderRadius: 32,
+    overflow: "hidden",
+    ...shadows.button,
+  },
+  actionBtnMatchGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   // Empty State
@@ -608,19 +920,45 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
-    paddingBottom: 120,
+    paddingBottom: 140,
+  },
+  emptyIconBg: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "bold",
     color: colors.textDark,
-    marginTop: 20,
+    marginTop: 24,
   },
   emptyText: {
     fontSize: 16,
     color: colors.textMedium,
     textAlign: "center",
     marginTop: 12,
+    lineHeight: 24,
+  },
+  emptyButton: {
+    marginTop: 28,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    ...shadows.button,
+  },
+  emptyButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.white,
   },
 
   // Match Modal
@@ -638,52 +976,73 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 40,
   },
+  matchIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   matchTitle: {
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: "bold",
     color: colors.white,
-    marginTop: 20,
+    marginTop: 24,
+    textAlign: "center",
   },
   matchText: {
-    fontSize: 16,
+    fontSize: 17,
     color: colors.white,
     textAlign: "center",
     marginTop: 12,
     opacity: 0.95,
+    lineHeight: 24,
   },
-  matchPets: {
-    flexDirection: "row",
-    marginTop: 30,
-    gap: 20,
+  matchPetContainer: {
+    alignItems: "center",
+    marginTop: 32,
+    gap: 12,
   },
   matchPetImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 5,
     borderColor: colors.white,
+    ...shadows.large,
+  },
+  matchPetName: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: colors.white,
   },
   sendMessageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     backgroundColor: colors.white,
-    paddingHorizontal: 48,
-    paddingVertical: 16,
+    paddingHorizontal: 40,
+    paddingVertical: 18,
     borderRadius: radius.lg,
-    marginTop: 30,
+    marginTop: 32,
     ...shadows.large,
   },
   sendMessageText: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "bold",
     color: colors.primary,
   },
   keepSwipingButton: {
     marginTop: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
   },
   keepSwipingText: {
     fontSize: 16,
     fontWeight: "600",
     color: colors.white,
+    opacity: 0.9,
   },
 
   // Loading
