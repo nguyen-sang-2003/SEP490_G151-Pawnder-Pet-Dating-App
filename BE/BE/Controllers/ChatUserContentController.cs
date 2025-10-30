@@ -1,5 +1,7 @@
 ﻿using BE.Models;
+using BE.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
@@ -9,10 +11,12 @@ namespace BE.Controllers
     public class ChatUserContentController : Controller
     {
         private readonly PawnderDatabaseContext _context;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public ChatUserContentController(PawnderDatabaseContext context)
+        public ChatUserContentController(PawnderDatabaseContext context, IHubContext<ChatHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // GET /chat-user-content/{matchId}
@@ -68,6 +72,15 @@ namespace BE.Controllers
 
             _context.ChatUserContents.Add(chatMessage);
             await _context.SaveChangesAsync();
+
+            // ✅ Gửi realtime tới 2 người trong cuộc chat
+            await _hubContext.Clients.All.SendAsync($"ReceiveMessage_{matchId}", new
+            {
+                MatchId = matchId,
+                FromUserId = fromUserId,
+                Message = message,
+                CreatedAt = chatMessage.CreatedAt
+            });
 
             return Ok(new
             {

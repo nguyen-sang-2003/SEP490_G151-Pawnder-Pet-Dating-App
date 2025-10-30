@@ -78,6 +78,11 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<KickboxSettings>(builder.Configuration.GetSection("KickboxSettings"));
 builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
 
+// realtime
+builder.Services.AddSignalR();
+
+// ??ng ký DistanceService
+builder.Services.AddScoped<BE.Services.DistanceService>();
 
 var app = builder.Build();
 
@@ -95,6 +100,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<ChatHub>("/chatHub");
 
 app.Run();
 public class CloudinarySettings
