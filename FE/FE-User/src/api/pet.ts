@@ -179,8 +179,15 @@ export const uploadPetPhotosMultipart = async (petId: number, photos: any[]) => 
  * GET /api/petphoto/{petId}
  */
 export const getPetPhotos = async (petId: number) => {
-  const response = await client.get(`/api/petphoto/${petId}`);
-  return response.data;
+  try {
+    console.log(`📞 Calling: GET /api/petphoto/${petId}`);
+    const response = await client.get(`/api/petphoto/${petId}`);
+    console.log('✅ Pet photos response:', JSON.stringify(response.data, null, 2));
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error fetching pet photos:', error);
+    throw error;
+  }
 };
 
 /**

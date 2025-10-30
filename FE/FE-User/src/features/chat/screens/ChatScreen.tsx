@@ -20,6 +20,7 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
+import { getUserPetAvatar } from "../../../utils/petAvatar";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -145,6 +146,9 @@ const ChatScreen = ({ navigation }: Props) => {
             // Get other user's info
             const otherUser = await getUserById(otherUserId);
             
+            // Get pet avatar
+            const userAvatar = await getUserPetAvatar(otherUserId);
+            
             // Get last message
             let lastMessage = "Start chatting!";
             let lastMessageTime = chat.createdAt;
@@ -168,7 +172,7 @@ const ChatScreen = ({ navigation }: Props) => {
               lastMessage: lastMessage,
               time: formatTime(lastMessageTime),
               unread: 0, // Unread count requires DB changes - keep simple for now
-              avatar: require("../../../assets/cat_avatar.png"), // TODO: Use user's actual avatar
+              avatar: userAvatar,
             } as ChatItem;
           } catch (error) {
             console.error('Error loading user/messages for chat:', chat.matchId, error);

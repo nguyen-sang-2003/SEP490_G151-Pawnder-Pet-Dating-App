@@ -193,19 +193,19 @@ const FavoriteScreen = ({ navigation }: Props) => {
     }
   };
 
-  const handleChat = (matchId: string, ownerId: number, ownerName: string) => {
+  const handleChat = (matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
     console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
     navigation.navigate('ChatDetail', { 
       matchId: parseInt(matchId),
       otherUserId: ownerId,
       userName: ownerName,
-      userAvatar: require("../../../assets/cat_avatar.png"),
+      userAvatar: petAvatar || require("../../../assets/cat_avatar.png"),
     });
   };
 
   const handleViewProfile = (petId: string) => {
     console.log('🐾 Opening pet profile:', petId);
-    navigation.navigate("PetProfile", { petId });
+    navigation.navigate("PetProfile", { petId, fromFavorite: true } as any);
   };
 
   const renderLikeItem = ({ item, index }: { item: LikeCat; index: number }) => {
@@ -322,7 +322,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   style={styles.actionBtnChat}
                   onPress={(e) => {
                     e.stopPropagation();
-                    handleChat(item.id, item.ownerId, item.ownerName);
+                    handleChat(item.id, item.ownerId, item.ownerName, item.image);
                   }}
                   activeOpacity={0.8}
                 >
@@ -539,7 +539,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
               style={styles.sendMessageButton}
               onPress={() => {
                 if (matchedPet) {
-                  handleChat(matchedPet.id, matchedPet.ownerId, matchedPet.ownerName);
+                  handleChat(matchedPet.id, matchedPet.ownerId, matchedPet.ownerName, matchedPet.image);
                 }
                 setShowMatchModal(false);
                 setMatchedPet(null);

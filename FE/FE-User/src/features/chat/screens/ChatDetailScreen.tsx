@@ -28,6 +28,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import signalRService from "../../../services/signalr.service";
+import { getUserPetAvatar } from "../../../utils/petAvatar";
 
 const { width, height } = Dimensions.get("window");
 
@@ -55,6 +56,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
+  const [myAvatar, setMyAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const flatListRef = useRef<FlatList>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -334,6 +336,11 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       setCurrentUserId(userId);
       console.log('👤 Current user:', userId);
       console.log('💬 Loading messages for matchId:', matchId);
+      
+      // Load my pet avatar
+      const avatar = await getUserPetAvatar(userId);
+      setMyAvatar(avatar);
+      console.log('👤 My avatar loaded');
       
       // Load messages from API
       const chatMessages = await getChatMessages(matchId);
@@ -669,7 +676,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     const prevMessage = index > 0 ? messages[index - 1] : null;
     const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
     
-    // Dating app style: no avatar in messages (only in header)
+    // Messenger style: show avatar for each message
     // Group consecutive messages from same person
     const isFirstInGroup = !prevMessage || prevMessage.isMe !== item.isMe;
     const isLastInGroup = !nextMessage || nextMessage.isMe !== item.isMe;
@@ -677,7 +684,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
     return (
       <View>
-        {/* Date Separator - Dating app style */}
+        {/* Date Separator */}
         {showDateSeparator && (
           <View style={styles.dateSeparatorContainer}>
             <View style={styles.dateSeparatorLine} />
@@ -696,54 +703,72 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             isLastInGroup && styles.messageLastInGroup,
           ]}
         >
-          <View
-            style={[
-              styles.messageBubble,
-              item.isMe ? styles.myBubble : styles.theirBubble,
-              !isFirstInGroup && (item.isMe ? styles.myBubbleGrouped : styles.theirBubbleGrouped),
-              isLastInGroup && (item.isMe ? styles.myBubbleLastInGroup : styles.theirBubbleLastInGroup),
-            ]}
-          >
-            {item.isMe ? (
-              <LinearGradient
-                colors={gradients.primary}
-                style={styles.myBubbleGradient}
-              >
-                <Text style={styles.myMessageText}>{item.text}</Text>
-              </LinearGradient>
-            ) : (
-              <Pressable
-                onLongPress={() => {
-                  setSelectedMessage(item);
-                  setShowMessageMenu(true);
-                }}
-                style={styles.theirBubbleContent}
-              >
-                <Text style={styles.theirMessageText}>{item.text}</Text>
-              </Pressable>
+          {/* Avatar - Messenger style (show for last message in group) */}
+          {!item.isMe && isLastInGroup && (
+            <Image source={userAvatar} style={styles.messageAvatar} />
+          )}
+          {!item.isMe && !isLastInGroup && (
+            <View style={styles.messageAvatarPlaceholder} />
+          )}
+          
+          <View style={styles.messageBubbleWrapper}>
+            <View
+              style={[
+                styles.messageBubble,
+                item.isMe ? styles.myBubble : styles.theirBubble,
+                !isFirstInGroup && (item.isMe ? styles.myBubbleGrouped : styles.theirBubbleGrouped),
+                isLastInGroup && (item.isMe ? styles.myBubbleLastInGroup : styles.theirBubbleLastInGroup),
+              ]}
+            >
+              {item.isMe ? (
+                <LinearGradient
+                  colors={gradients.primary}
+                  style={styles.myBubbleGradient}
+                >
+                  <Text style={styles.myMessageText}>{item.text}</Text>
+                </LinearGradient>
+              ) : (
+                <Pressable
+                  onLongPress={() => {
+                    setSelectedMessage(item);
+                    setShowMessageMenu(true);
+                  }}
+                  style={styles.theirBubbleContent}
+                >
+                  <Text style={styles.theirMessageText}>{item.text}</Text>
+                </Pressable>
+              )}
+            </View>
+            
+            {/* Time & Status - Show for last message in group */}
+            {isLastInGroup && (
+              <View style={[styles.messageTimeContainer, item.isMe && styles.myMessageTimeContainer]}>
+                <Text style={styles.messageTimeText}>
+                  {formatMessageTime(item.timestamp)}
+                </Text>
+                {item.isMe && item.status && (
+                  <View style={styles.messageStatusIcon}>
+                    {item.status === "sending" && (
+                      <Icon name="time-outline" size={14} color={colors.textLabel} />
+                    )}
+                    {item.status === "sent" && (
+                      <Icon name="checkmark" size={14} color={colors.textLabel} />
+                    )}
+                    {item.status === "read" && (
+                      <Icon name="checkmark-done" size={14} color={colors.primary} />
+                    )}
+                  </View>
+                )}
+              </View>
             )}
           </View>
           
-          {/* Time & Status - Show for last message in group */}
-          {isLastInGroup && (
-            <View style={[styles.messageTimeContainer, item.isMe && styles.myMessageTimeContainer]}>
-              <Text style={styles.messageTimeText}>
-                {formatMessageTime(item.timestamp)}
-              </Text>
-              {item.isMe && item.status && (
-                <View style={styles.messageStatusIcon}>
-                  {item.status === "sending" && (
-                    <Icon name="time-outline" size={14} color={colors.textLabel} />
-                  )}
-                  {item.status === "sent" && (
-                    <Icon name="checkmark" size={14} color={colors.textLabel} />
-                  )}
-                  {item.status === "read" && (
-                    <Icon name="checkmark-done" size={14} color={colors.primary} />
-                  )}
-                </View>
-              )}
-            </View>
+          {/* Avatar for my messages - Messenger style */}
+          {item.isMe && isLastInGroup && (
+            <Image source={myAvatar} style={styles.messageAvatar} />
+          )}
+          {item.isMe && !isLastInGroup && (
+            <View style={styles.messageAvatarPlaceholder} />
           )}
         </View>
       </View>
@@ -812,6 +837,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             ListFooterComponent={
               isTyping ? (
                 <View style={styles.typingIndicator}>
+                  <Image source={userAvatar} style={styles.messageAvatar} />
                   <View style={styles.typingBubble}>
                     <Animated.View 
                       style={[
@@ -1134,11 +1160,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   
-  // Message Container
+  // Message Container - Messenger style with avatars
   messageContainer: {
-    flexDirection: "column",
+    flexDirection: "row",
     marginBottom: 2,
     paddingHorizontal: 4,
+    alignItems: "flex-end",
   },
   messageGrouped: {
     marginBottom: 2,
@@ -1147,15 +1174,33 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   myMessage: {
-    alignItems: "flex-end",
+    justifyContent: "flex-end",
   },
   theirMessage: {
-    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  
+  // Avatar - Messenger style
+  messageAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginHorizontal: 6,
+  },
+  messageAvatarPlaceholder: {
+    width: 28,
+    marginHorizontal: 6,
+  },
+  
+  // Message Bubble Wrapper
+  messageBubbleWrapper: {
+    flexDirection: "column",
+    maxWidth: width * 0.65,
   },
   
   // Message Bubble
   messageBubble: {
-    maxWidth: width * 0.75,
+    maxWidth: "100%",
   },
   myBubble: {
     borderRadius: 20,

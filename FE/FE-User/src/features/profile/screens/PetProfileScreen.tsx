@@ -24,6 +24,7 @@ import { getItem } from "../../../utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { getUserPetAvatar } from "../../../utils/petAvatar";
 
 const { width, height } = Dimensions.get("window");
 const IMAGE_HEIGHT = height * 0.55;
@@ -33,6 +34,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "PetProfile">;
 const PetProfileScreen = ({ navigation, route }: Props) => {
   const petIdStr = route.params?.petId || "0";
   const petId = parseInt(petIdStr, 10);
+  const fromFavorite = route.params?.fromFavorite || false;
 
   const [loading, setLoading] = useState(true);
   const [petData, setPetData] = useState<any>(null);
@@ -41,6 +43,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [isMyPet, setIsMyPet] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [sendingMatchRequest, setSendingMatchRequest] = useState(false);
+  const [ownerAvatar, setOwnerAvatar] = useState<any>(require("../../../assets/cat_avatar_signin.png"));
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const loadPetData = async () => {
@@ -68,6 +71,13 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       const isOwner = !!(currentUserId && petUserId === currentUserId);
       setIsMyPet(isOwner);
       console.log('🔍 Is my pet:', isOwner);
+
+      // Load owner's pet avatar
+      if (petUserId) {
+        const avatar = await getUserPetAvatar(petUserId);
+        setOwnerAvatar(avatar);
+        console.log('👤 Owner avatar loaded');
+      }
 
       // Load photos
       try {
@@ -164,7 +174,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       email: ownerData?.Email || ownerData?.email,
       gender: ownerData?.Gender || ownerData?.gender,
       status: "Member", // TODO: Premium status
-      avatar: require("../../../assets/cat_avatar_signin.png"), // TODO: User avatar
+      avatar: ownerAvatar,
     },
   } : {
     id: petIdStr,
@@ -538,8 +548,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           )}
         </View>
 
-        {/* Action Buttons - Only show for other people's pets */}
-        {!isMyPet && (
+        {/* Action Buttons - Only show for other people's pets & not from Favorite */}
+        {!isMyPet && !fromFavorite && (
           <View style={styles.actionsContainer}>
             {/* Main Action Button */}
             <TouchableOpacity
