@@ -110,17 +110,19 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       setSaving(true);
       console.log('💾 Saving user data...');
       
+      // IMPORTANT: Don't send AddressId here - it's managed separately via GPS/Address API
+      // Sending undefined would set User.AddressId = NULL in database!
       await updateUser(userId, {
         RoleId: 2,
         FullName: name.trim(),
         Gender: gender,
-        AddressId: undefined,
+        // AddressId is NOT included - backend will keep existing value
         NewPassword: undefined,
       });
       
-      // Update address if addressId exists
+      // Update address if addressId exists AND user manually edited City/District/Ward
       if (addressId && (city.trim() || district.trim() || ward.trim())) {
-        console.log('💾 Updating address...');
+        console.log('💾 Updating address manually...');
         await updateAddressManual(addressId, city.trim(), district.trim(), ward.trim());
       }
       
@@ -144,11 +146,17 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
   };
 
   const handleGetGPSLocation = async () => {
+    // Prevent multiple calls
+    if (gettingLocation) {
+      console.log('⚠️ GPS request already in progress, skipping...');
+      return;
+    }
+    
     try {
       setGettingLocation(true);
       
       // Get GPS coordinates
-      console.log('📍 Requesting location permission...');
+      console.log('📍 [START] Requesting location permission...');
       const coordinates = await requestLocationAndGetCoordinates();
       
       if (!coordinates) {
@@ -162,24 +170,31 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       
       // Update address with GPS coordinates
       if (userId) {
-        console.log('📍 Updating address with coordinates:', coordinates);
+        console.log('📍 [API CALL] Updating address with coordinates:', coordinates);
+        console.log('📍 Current addressId:', addressId);
         
         // If user already has addressId, use PUT (update), else use POST (create)
         if (addressId) {
+          console.log('📍 Calling updateAddress (PUT)...');
           await updateAddress(addressId, coordinates.latitude, coordinates.longitude);
         } else {
+          console.log('📍 Calling createAddressForUser (POST)...');
           await createAddressForUser(userId, coordinates.latitude, coordinates.longitude);
         }
         
+        console.log('📍 [RELOAD] Fetching updated user data...');
         // Reload address data
         const user = await getUserById(userId);
         const addrId = user.AddressId || user.addressId;
+        console.log('📍 User reloaded, AddressId:', addrId);
+        
         if (addrId) {
           const address = await getAddressById(addrId);
           setAddressId(addrId);
           setCity(address?.City || address?.city || '');
           setDistrict(address?.District || address?.district || '');
           setWard(address?.Ward || address?.ward || '');
+          console.log('✅ Address data loaded:', address);
         }
         
         showAlert({
@@ -197,6 +212,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       });
     } finally {
       setGettingLocation(false);
+      console.log('📍 [END] GPS location process completed');
     }
   };
 
