@@ -13,6 +13,8 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -25,6 +27,7 @@ import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser, repor
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import signalRService from "../../../services/signalr.service";
 
 const { width, height } = Dimensions.get("window");
 
@@ -51,8 +54,69 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
+  const [otherUserOnline, setOtherUserOnline] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentUserIdRef = useRef<number | null>(null);
+  
+  // Keep ref updated
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+  
+  // Typing animation
+  const typingAnim1 = useRef(new Animated.Value(0)).current;
+  const typingAnim2 = useRef(new Animated.Value(0)).current;
+  const typingAnim3 = useRef(new Animated.Value(0)).current;
+
+  // Animate typing dots
+  useEffect(() => {
+    if (isTyping) {
+      const createAnimation = (animValue: Animated.Value, delay: number) => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.delay(delay),
+            Animated.timing(animValue, {
+              toValue: 1,
+              duration: 400,
+              easing: Easing.ease,
+              useNativeDriver: true,
+            }),
+            Animated.timing(animValue, {
+              toValue: 0,
+              duration: 400,
+              easing: Easing.ease,
+              useNativeDriver: true,
+            }),
+          ])
+        );
+      };
+
+      const anim1 = createAnimation(typingAnim1, 0);
+      const anim2 = createAnimation(typingAnim2, 200);
+      const anim3 = createAnimation(typingAnim3, 400);
+
+      anim1.start();
+      anim2.start();
+      anim3.start();
+
+      return () => {
+        anim1.stop();
+        anim2.stop();
+        anim3.stop();
+      };
+    }
+  }, [isTyping]);
+  
+  // Setup SignalR connection and listeners
+  useEffect(() => {
+    setupSignalR();
+    
+    return () => {
+      cleanupSignalR();
+    };
+  }, [matchId]);
   
   // Load messages when screen comes into focus
   useFocusEffect(
@@ -61,6 +125,192 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }, [matchId])
   );
   
+  const setupSignalR = async () => {
+    try {
+      console.log('🔧 [setupSignalR] Starting setup...');
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        console.log('❌ [setupSignalR] No userId found');
+        return;
+      }
+      
+      const userId = parseInt(userIdStr);
+      setCurrentUserId(userId);
+      console.log('👤 [setupSignalR] Current user ID:', userId);
+      console.log('💬 [setupSignalR] Match ID:', matchId);
+      console.log('👥 [setupSignalR] Other user ID:', otherUserId);
+      
+      // Connect to SignalR if not already connected
+      if (!signalRService.isConnected()) {
+        console.log('🔌 [setupSignalR] Connecting to SignalR...');
+        await signalRService.connect(userId);
+        console.log('✅ [setupSignalR] Connected to SignalR');
+      } else {
+        console.log('✅ [setupSignalR] Already connected to SignalR');
+      }
+      
+      // Join this chat room
+      console.log('🚪 [setupSignalR] Joining chat room...');
+      await signalRService.joinChat(matchId, userId);
+      console.log('✅ [setupSignalR] Joined chat room Match_' + matchId);
+      
+      // Setup listeners
+      console.log('👂 [setupSignalR] Setting up event listeners...');
+      signalRService.on('ReceiveMessage', handleReceiveMessage);
+      signalRService.on('UserTyping', handleUserTyping);
+      signalRService.on('UserOnline', handleUserOnline);
+      signalRService.on('UserOffline', handleUserOffline);
+      signalRService.on('UserJoinedChat', handleUserJoinedChat);
+      console.log('✅ [setupSignalR] Event listeners attached');
+      
+      // Check if other user is online
+      const isOnline = await signalRService.isUserOnline(otherUserId);
+      setOtherUserOnline(isOnline);
+      console.log('👤 [setupSignalR] Other user online status:', isOnline);
+      
+      console.log('✅ [setupSignalR] Complete setup for match:', matchId);
+    } catch (error) {
+      console.error('❌ [setupSignalR] Error:', error);
+    }
+  };
+
+  const cleanupSignalR = async () => {
+    try {
+      if (currentUserId) {
+        await signalRService.leaveChat(matchId, currentUserId);
+      }
+      
+      // Remove listeners
+      signalRService.off('ReceiveMessage', handleReceiveMessage);
+      signalRService.off('UserTyping', handleUserTyping);
+      signalRService.off('UserOnline', handleUserOnline);
+      signalRService.off('UserOffline', handleUserOffline);
+      signalRService.off('UserJoinedChat', handleUserJoinedChat);
+      
+      console.log('✅ SignalR cleanup complete');
+    } catch (error) {
+      console.error('❌ Error cleaning up SignalR:', error);
+    }
+  };
+
+  const handleReceiveMessage = (data: any) => {
+    console.log('📨 [handleReceiveMessage] Received message via SignalR:', data);
+    
+    // SignalR sends keys in camelCase: fromUserId, message, matchId, createdAt
+    const fromUserId = data.fromUserId || data.FromUserId;
+    const messageText = data.message || data.Message;
+    const createdAt = data.createdAt || data.CreatedAt;
+    
+    console.log('📨 [handleReceiveMessage] From user:', fromUserId);
+    console.log('📨 [handleReceiveMessage] Message:', messageText);
+    console.log('📨 [handleReceiveMessage] Current userId (ref):', currentUserIdRef.current);
+    
+    const isFromMe = currentUserIdRef.current && fromUserId === currentUserIdRef.current;
+    console.log('📨 [handleReceiveMessage] Is from me:', isFromMe);
+    
+    setMessages(prev => {
+      // Check if message already exists (by text content and recent time)
+      const existingMsg = prev.find(msg => 
+        msg.text === messageText && 
+        Math.abs(new Date(createdAt).getTime() - msg.timestamp.getTime()) < 10000 // 10 seconds window
+      );
+      
+      if (existingMsg) {
+        console.log('📨 [handleReceiveMessage] Message already exists:', existingMsg.id);
+        
+        // If it's our message in "sending" state, update to "sent"
+        if (isFromMe && existingMsg.status === "sending") {
+          console.log('📨 [handleReceiveMessage] Updating our message status to sent');
+          return prev.map(msg => 
+            msg.id === existingMsg.id
+              ? { ...msg, status: "sent" as const }
+              : msg
+          );
+        }
+        
+        // Message already exists, don't add duplicate
+        console.log('📨 [handleReceiveMessage] Skipping duplicate message');
+        return prev;
+      }
+      
+      // Add new message (only if it doesn't exist)
+      // This should only happen for messages from other users
+      if (!isFromMe) {
+        console.log('📨 [handleReceiveMessage] Adding new message from other user');
+        const newMessage: Message = {
+          id: `signalr_${fromUserId}_${Date.now()}`,
+          text: messageText,
+          isMe: false,
+          timestamp: new Date(createdAt),
+          status: "read" as const,
+        };
+        
+        return [...prev, newMessage];
+      }
+      
+      console.log('📨 [handleReceiveMessage] Ignoring our own message (should have been added optimistically)');
+      return prev;
+    });
+    
+    // Scroll to bottom
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
+  const handleUserTyping = (data: any) => {
+    console.log('⌨️ [handleUserTyping] Received typing event:', data);
+    
+    // SignalR sends keys in camelCase
+    const userId = data.userId || data.UserId;
+    const isTyping = data.isTyping !== undefined ? data.isTyping : data.IsTyping;
+    
+    console.log('⌨️ [handleUserTyping] User ID:', userId);
+    console.log('⌨️ [handleUserTyping] Other user ID:', otherUserId);
+    console.log('⌨️ [handleUserTyping] Is typing:', isTyping);
+    
+    if (userId === otherUserId) {
+      setIsTyping(isTyping);
+      
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        console.log('⌨️ [handleUserTyping] Clearing existing timeout');
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      
+      // Auto-hide typing indicator after 3 seconds only if currently typing
+      if (isTyping) {
+        console.log('⌨️ [handleUserTyping] Setting auto-hide timeout');
+        typingTimeoutRef.current = setTimeout(() => {
+          console.log('⌨️ [handleUserTyping] Auto-hiding typing indicator');
+          setIsTyping(false);
+        }, 3000);
+      }
+    }
+  };
+
+  const handleUserOnline = (userId: number) => {
+    if (userId === otherUserId) {
+      setOtherUserOnline(true);
+      console.log('👤 Other user is now online');
+    }
+  };
+
+  const handleUserOffline = (userId: number) => {
+    if (userId === otherUserId) {
+      setOtherUserOnline(false);
+      console.log('👤 Other user is now offline');
+    }
+  };
+
+  const handleUserJoinedChat = (data: any) => {
+    if (data.userId === otherUserId && data.matchId === matchId) {
+      setOtherUserOnline(true);
+      console.log('👤 Other user joined this chat');
+    }
+  };
+
   const loadMessages = async () => {
     try {
       setLoading(true);
@@ -124,6 +374,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     setMessages(prev => [...prev, newMessage]);
     setInputText("");
     
+    // Stop typing indicator and clear timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    signalRService.sendTyping(matchId, currentUserId, false);
+    
     // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
@@ -131,10 +388,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     
     try {
       setSending(true);
-      console.log('📤 Sending message:', { matchId, currentUserId, messageText });
+      console.log('📤 [handleSend] Sending message:', { matchId, currentUserId, messageText });
+      console.log('📤 [handleSend] SignalR connected:', signalRService.isConnected());
       
-      // Send message to API
+      // Send message to API (backend will broadcast via SignalR automatically)
+      console.log('📤 [handleSend] Saving to API (backend will broadcast)...');
       await sendMessage(matchId, currentUserId, messageText);
+      console.log('✅ [handleSend] Saved to API and broadcast via SignalR');
       
       // Update status to sent
       setMessages(prev => 
@@ -145,7 +405,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         )
       );
       
-      console.log('✅ Message sent successfully');
+      console.log('✅ [handleSend] Message sent successfully');
       
     } catch (error: any) {
       console.error('❌ Error sending message:', error);
@@ -163,6 +423,33 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       });
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+    
+    if (!currentUserId) return;
+    
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    
+    // Send typing indicator
+    if (text.trim().length > 0) {
+      console.log('⌨️ [handleInputChange] User is typing, sending indicator');
+      signalRService.sendTyping(matchId, currentUserId, true);
+      
+      // Auto-stop typing after 2 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        console.log('⌨️ [handleInputChange] User stopped typing (timeout)');
+        signalRService.sendTyping(matchId, currentUserId, false);
+      }, 2000);
+    } else {
+      console.log('⌨️ [handleInputChange] Input empty, stopping typing indicator');
+      signalRService.sendTyping(matchId, currentUserId, false);
     }
   };
 
@@ -418,7 +705,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{userName}</Text>
             <Text style={styles.headerStatus}>
-              {isTyping ? "typing..." : "Active now"}
+              {isTyping ? "typing..." : otherUserOnline ? "Online" : "Offline"}
             </Text>
           </View>
         </View>
@@ -458,19 +745,69 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
             showsVerticalScrollIndicator={false}
+            ListFooterComponent={
+              isTyping ? (
+                <View style={styles.typingIndicator}>
+                  <Image source={userAvatar} style={styles.typingAvatar} />
+                  <View style={styles.typingBubble}>
+                    <Animated.View 
+                      style={[
+                        styles.typingDot,
+                        {
+                          opacity: typingAnim1.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.4, 1],
+                          }),
+                          transform: [{
+                            translateY: typingAnim1.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, -4],
+                            }),
+                          }],
+                        },
+                      ]} 
+                    />
+                    <Animated.View 
+                      style={[
+                        styles.typingDot, 
+                        { marginLeft: 4 },
+                        {
+                          opacity: typingAnim2.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.4, 1],
+                          }),
+                          transform: [{
+                            translateY: typingAnim2.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, -4],
+                            }),
+                          }],
+                        },
+                      ]} 
+                    />
+                    <Animated.View 
+                      style={[
+                        styles.typingDot, 
+                        { marginLeft: 4 },
+                        {
+                          opacity: typingAnim3.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.4, 1],
+                          }),
+                          transform: [{
+                            translateY: typingAnim3.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, -4],
+                            }),
+                          }],
+                        },
+                      ]} 
+                    />
+                  </View>
+                </View>
+              ) : null
+            }
           />
-        )}
-
-        {/* Typing Indicator */}
-        {isTyping && (
-          <View style={styles.typingIndicator}>
-            <Image source={userAvatar} style={styles.typingAvatar} />
-            <View style={styles.typingBubble}>
-              <View style={styles.typingDot} />
-              <View style={[styles.typingDot, { marginLeft: 4 }]} />
-              <View style={[styles.typingDot, { marginLeft: 4 }]} />
-            </View>
-          </View>
         )}
 
         {/* Input */}
@@ -485,7 +822,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               placeholder="Type a message..."
               placeholderTextColor={colors.textLabel}
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={handleInputChange}
               multiline
               maxLength={500}
             />
@@ -789,7 +1126,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   typingAvatar: {
     width: 32,

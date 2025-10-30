@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import signalRService from "../../../services/signalr.service";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -39,13 +40,80 @@ const ChatScreen = ({ navigation }: Props) => {
   const [chatData, setChatData] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set());
+
+  // Setup SignalR connection once
+  useEffect(() => {
+    setupSignalR();
+    
+    return () => {
+      // Don't disconnect on unmount, keep connection alive
+      // signalRService.disconnect();
+    };
+  }, []);
 
   // Load chats when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadChats();
+      refreshOnlineUsers();
     }, [])
   );
+
+  const setupSignalR = async () => {
+    try {
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) return;
+      
+      const userId = parseInt(userIdStr);
+      
+      // Connect to SignalR if not connected
+      if (!signalRService.isConnected()) {
+        await signalRService.connect(userId);
+      }
+      
+      // Listen for online/offline events
+      signalRService.on('UserOnline', handleUserOnline);
+      signalRService.on('UserOffline', handleUserOffline);
+      signalRService.on('ReceiveMessage', handleNewMessage);
+      
+      // Get initial online users
+      const online = await signalRService.getOnlineUsers();
+      setOnlineUsers(new Set(online));
+      
+      console.log('✅ SignalR setup complete in ChatScreen');
+    } catch (error) {
+      console.error('❌ Error setting up SignalR:', error);
+    }
+  };
+
+  const handleUserOnline = (userId: number) => {
+    setOnlineUsers(prev => new Set([...prev, userId]));
+  };
+
+  const handleUserOffline = (userId: number) => {
+    setOnlineUsers(prev => {
+      const updated = new Set(prev);
+      updated.delete(userId);
+      return updated;
+    });
+  };
+
+  const handleNewMessage = (data: any) => {
+    // Reload chats to update last message
+    loadChats();
+  };
+
+  const refreshOnlineUsers = async () => {
+    try {
+      if (signalRService.isConnected()) {
+        const online = await signalRService.getOnlineUsers();
+        setOnlineUsers(new Set(online));
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing online users:', error);
+    }
+  };
 
   const loadChats = async () => {
     try {
@@ -99,7 +167,7 @@ const ChatScreen = ({ navigation }: Props) => {
               name: otherUser.fullName || 'Unknown',
               lastMessage: lastMessage,
               time: formatTime(lastMessageTime),
-              unread: 0, // TODO: Implement unread count
+              unread: 0, // Unread count requires DB changes - keep simple for now
               avatar: require("../../../assets/cat_avatar.png"), // TODO: Use user's actual avatar
             } as ChatItem;
           } catch (error) {

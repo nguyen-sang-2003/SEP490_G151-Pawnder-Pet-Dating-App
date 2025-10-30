@@ -40,7 +40,7 @@ namespace BE.Controllers
 
    
 
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             await _db.SaveChangesAsync(ct);
 
             return Ok(new { message = "Cập nhật người dùng thành công." });

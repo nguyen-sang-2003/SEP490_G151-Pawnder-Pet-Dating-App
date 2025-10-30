@@ -49,3 +49,8 @@ export const getBaseUrl = (environment: Environment = CURRENT_ENVIRONMENT): stri
   }
 };
 
+/**
+ * Current API base URL
+ */
+export const API_BASE_URL = getBaseUrl();
+

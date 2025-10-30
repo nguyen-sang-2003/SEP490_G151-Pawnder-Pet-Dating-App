@@ -92,7 +92,7 @@ namespace BE.Controllers
                 ToUserId = toUserId,
                 Status = "Pending",
                 IsDeleted = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
             };
 
             _context.ChatUsers.Add(chatUser);
@@ -118,7 +118,7 @@ namespace BE.Controllers
                 return NotFound(new { message = "Không tìm thấy yêu cầu kết bạn." });
 
             chatUser.Status = "Accepted";
-            chatUser.UpdatedAt = DateTime.Now;
+            chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             _context.ChatUsers.Update(chatUser);
             await _context.SaveChangesAsync();
