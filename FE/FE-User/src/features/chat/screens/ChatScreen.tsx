@@ -236,10 +236,14 @@ const ChatScreen = ({ navigation }: Props) => {
     }
   };
 
-  const renderChatItem = ({ item }: { item: ChatItem }) => (
+  const renderChatItem = ({ item }: { item: ChatItem }) => {
+    const isOnline = onlineUsers.has(item.otherUserId);
+    
+    return (
     <TouchableOpacity 
       style={styles.chatItem}
       onPress={() => handleChatPress(item)}
+      activeOpacity={0.7}
     >
       <View style={styles.avatarWrapper}>
         <LinearGradient
@@ -248,9 +252,13 @@ const ChatScreen = ({ navigation }: Props) => {
         >
           <Image source={item.avatar} style={styles.avatar} />
         </LinearGradient>
-        {item.isAI && (
+        {item.isAI ? (
           <View style={styles.aiBadge}>
             <Icon name="sparkles" size={12} color={colors.white} />
+          </View>
+        ) : isOnline && (
+          <View style={styles.onlineBadge}>
+            <View style={styles.onlineDot} />
           </View>
         )}
       </View>
@@ -271,18 +279,24 @@ const ChatScreen = ({ navigation }: Props) => {
         </View>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
-    <LinearGradient
-      colors={gradients.background}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Dating App Style Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <View style={styles.headerContent}>
+          <LinearGradient
+            colors={gradients.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerIconGradient}
+          >
+            <Icon name="chatbubbles" size={22} color={colors.white} />
+          </LinearGradient>
+          <Text style={styles.headerTitle}>Messages</Text>
+        </View>
       </View>
 
       {/* Search Bar */}
@@ -372,41 +386,65 @@ const ChatScreen = ({ navigation }: Props) => {
 
       {/* Bottom Navigation */}
       <BottomNav active="Chat" />
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#FAFBFC", // Consistent with HomeScreen
     paddingTop: 50,
   },
 
-  // Header
+  // Dating App Style Header
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerIconGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#29B6F6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "bold",
     color: colors.textDark,
+    textShadowColor: "rgba(41,182,246,0.1)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 
-  // Search Bar
+  // Search Bar - Enhanced
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.whiteWarm,
     marginHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 18,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: radius.lg,
-    ...shadows.small,
+    paddingVertical: 14,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: "rgba(41,182,246,0.12)",
+    shadowColor: "#29B6F6",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
   },
   searchIcon: {
     marginRight: 10,
@@ -471,45 +509,85 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
 
-  // Chat Item
+  // Chat Item - Card Style
   chatItem: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     backgroundColor: colors.whiteWarm,
     marginHorizontal: 20,
-    marginBottom: 8,
-    borderRadius: radius.md,
-    ...shadows.small,
+    marginBottom: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,110,167,0.08)",
+    shadowColor: "#29B6F6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   avatarWrapper: {
-    marginRight: 12,
+    marginRight: 14,
     position: "relative",
   },
   avatarGradient: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#29B6F6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   aiBadge: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
+    bottom: -2,
+    right: -2,
     backgroundColor: "#9C27B0",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: colors.whiteWarm,
+    shadowColor: "#9C27B0",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  onlineBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    backgroundColor: colors.whiteWarm,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: colors.whiteWarm,
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  onlineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#4CAF50",
   },
   chatInfo: {
     flex: 1,
@@ -541,17 +619,23 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
   },
   unreadBadge: {
-    backgroundColor: colors.primary,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    backgroundColor: "#29B6F6",
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 6,
     marginLeft: 8,
+    shadowColor: "#29B6F6",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 4,
   },
   unreadText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.white,
   },
 
