@@ -199,7 +199,12 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     // SignalR sends keys in camelCase: fromUserId, message, matchId, createdAt
     const fromUserId = data.fromUserId || data.FromUserId;
     const messageText = data.message || data.Message;
-    const createdAt = data.createdAt || data.CreatedAt;
+    let createdAt = data.createdAt || data.CreatedAt;
+    
+    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+    if (typeof createdAt === 'string' && !createdAt.endsWith('Z') && !createdAt.includes('+')) {
+      createdAt = createdAt + 'Z';
+    }
     
     console.log('📨 [handleReceiveMessage] From user:', fromUserId);
     console.log('📨 [handleReceiveMessage] Message:', messageText);
@@ -208,11 +213,14 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     const isFromMe = currentUserIdRef.current && fromUserId === currentUserIdRef.current;
     console.log('📨 [handleReceiveMessage] Is from me:', isFromMe);
     
+    // Parse timestamp as UTC
+    const timestamp = new Date(createdAt);
+    
     setMessages(prev => {
       // Check if message already exists (by text content and recent time)
       const existingMsg = prev.find(msg => 
         msg.text === messageText && 
-        Math.abs(new Date(createdAt).getTime() - msg.timestamp.getTime()) < 10000 // 10 seconds window
+        Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 10000 // 10 seconds window
       );
       
       if (existingMsg) {
@@ -241,7 +249,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           id: `signalr_${fromUserId}_${Date.now()}`,
           text: messageText,
           isMe: false,
-          timestamp: new Date(createdAt),
+          timestamp: timestamp,
           status: "read" as const,
         };
         
@@ -332,14 +340,22 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       console.log('✅ Loaded messages:', chatMessages.length);
       
       // Convert API messages to UI format
-      const formattedMessages: Message[] = chatMessages.map((msg) => ({
-        id: msg.contentId.toString(),
-        text: msg.message,
-        isMe: msg.fromUserId === userId,
-        timestamp: new Date(msg.createdAt),
-        status: "read" as const,
-        contentId: msg.contentId, // Store contentId for reporting
-      }));
+      const formattedMessages: Message[] = chatMessages.map((msg) => {
+        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        let dateString = msg.createdAt;
+        if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+          dateString = dateString + 'Z';
+        }
+        
+        return {
+          id: msg.contentId.toString(),
+          text: msg.message,
+          isMe: msg.fromUserId === userId,
+          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
+          status: "read" as const,
+          contentId: msg.contentId, // Store contentId for reporting
+        };
+      });
       
       setMessages(formattedMessages);
       
@@ -604,26 +620,71 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     });
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
+  // Dating app style time formatting
+  const formatMessageTime = (date: Date) => {
+    return date.toLocaleTimeString("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
+  };
+
+  const formatDateSeparator = (date: Date) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Reset time for comparison
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    yesterday.setHours(0, 0, 0, 0);
+
+    if (compareDate.getTime() === today.getTime()) {
+      return "Hôm nay";
+    } else if (compareDate.getTime() === yesterday.getTime()) {
+      return "Hôm qua";
+    } else {
+      return date.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    }
+  };
+
+  const shouldShowDateSeparator = (currentMsg: Message, prevMsg: Message | null) => {
+    if (!prevMsg) return true;
+    
+    const currentDate = new Date(currentMsg.timestamp);
+    const prevDate = new Date(prevMsg.timestamp);
+    
+    currentDate.setHours(0, 0, 0, 0);
+    prevDate.setHours(0, 0, 0, 0);
+    
+    return currentDate.getTime() !== prevDate.getTime();
   };
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const prevMessage = index > 0 ? messages[index - 1] : null;
-    const showAvatar = !item.isMe && (!prevMessage || prevMessage.isMe);
-    const showTimestamp = index === 0 || 
-      (item.timestamp.getTime() - (prevMessage?.timestamp?.getTime() || 0)) > 300000;
+    const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+    
+    // Dating app style: no avatar in messages (only in header)
+    // Group consecutive messages from same person
+    const isFirstInGroup = !prevMessage || prevMessage.isMe !== item.isMe;
+    const isLastInGroup = !nextMessage || nextMessage.isMe !== item.isMe;
+    const showDateSeparator = shouldShowDateSeparator(item, prevMessage);
 
     return (
       <View>
-        {showTimestamp && (
-          <View style={styles.timestampContainer}>
-            <Text style={styles.timestampText}>
-              {formatTime(item.timestamp)}
+        {/* Date Separator - Dating app style */}
+        {showDateSeparator && (
+          <View style={styles.dateSeparatorContainer}>
+            <View style={styles.dateSeparatorLine} />
+            <Text style={styles.dateSeparatorText}>
+              {formatDateSeparator(item.timestamp)}
             </Text>
+            <View style={styles.dateSeparatorLine} />
           </View>
         )}
         
@@ -631,22 +692,16 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           style={[
             styles.messageContainer,
             item.isMe ? styles.myMessage : styles.theirMessage,
+            !isFirstInGroup && styles.messageGrouped,
+            isLastInGroup && styles.messageLastInGroup,
           ]}
         >
-          {!item.isMe && (
-            <View style={styles.avatarContainer}>
-              {showAvatar ? (
-                <Image source={userAvatar} style={styles.messageAvatar} />
-              ) : (
-                <View style={styles.avatarPlaceholder} />
-              )}
-            </View>
-          )}
-          
           <View
             style={[
               styles.messageBubble,
               item.isMe ? styles.myBubble : styles.theirBubble,
+              !isFirstInGroup && (item.isMe ? styles.myBubbleGrouped : styles.theirBubbleGrouped),
+              isLastInGroup && (item.isMe ? styles.myBubbleLastInGroup : styles.theirBubbleLastInGroup),
             ]}
           >
             {item.isMe ? (
@@ -655,19 +710,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 style={styles.myBubbleGradient}
               >
                 <Text style={styles.myMessageText}>{item.text}</Text>
-                {item.status && (
-                  <View style={styles.messageStatus}>
-                    {item.status === "sending" && (
-                      <Icon name="time-outline" size={12} color="rgba(255,255,255,0.7)" />
-                    )}
-                    {item.status === "sent" && (
-                      <Icon name="checkmark" size={12} color="rgba(255,255,255,0.7)" />
-                    )}
-                    {item.status === "read" && (
-                      <Icon name="checkmark-done" size={12} color="rgba(255,255,255,0.9)" />
-                    )}
-                  </View>
-                )}
               </LinearGradient>
             ) : (
               <Pressable
@@ -681,6 +723,28 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               </Pressable>
             )}
           </View>
+          
+          {/* Time & Status - Show for last message in group */}
+          {isLastInGroup && (
+            <View style={[styles.messageTimeContainer, item.isMe && styles.myMessageTimeContainer]}>
+              <Text style={styles.messageTimeText}>
+                {formatMessageTime(item.timestamp)}
+              </Text>
+              {item.isMe && item.status && (
+                <View style={styles.messageStatusIcon}>
+                  {item.status === "sending" && (
+                    <Icon name="time-outline" size={14} color={colors.textLabel} />
+                  )}
+                  {item.status === "sent" && (
+                    <Icon name="checkmark" size={14} color={colors.textLabel} />
+                  )}
+                  {item.status === "read" && (
+                    <Icon name="checkmark-done" size={14} color={colors.primary} />
+                  )}
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </View>
     );
@@ -748,7 +812,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             ListFooterComponent={
               isTyping ? (
                 <View style={styles.typingIndicator}>
-                  <Image source={userAvatar} style={styles.typingAvatar} />
                   <View style={styles.typingBubble}>
                     <Animated.View 
                       style={[
@@ -819,7 +882,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             
             <TextInput
               style={styles.input}
-              placeholder="Type a message..."
+              placeholder="Nhắn tin..."
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={handleInputChange}
@@ -1043,97 +1106,132 @@ const styles = StyleSheet.create({
     ...shadows.small,
   },
 
-  // Messages
+  // Messages - Dating App Style
   messagesList: {
     padding: 16,
     paddingBottom: 8,
   },
-  timestampContainer: {
-    alignItems: "center",
-    marginVertical: 12,
-  },
-  timestampText: {
-    fontSize: 12,
-    color: colors.textMedium,
-    backgroundColor: "rgba(255,255,255,0.7)",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  messageContainer: {
+  
+  // Date Separator
+  dateSeparatorContainer: {
     flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+    paddingHorizontal: 8,
+  },
+  dateSeparatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.textLabel,
+    opacity: 0.2,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textMedium,
+    marginHorizontal: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  
+  // Message Container
+  messageContainer: {
+    flexDirection: "column",
+    marginBottom: 2,
+    paddingHorizontal: 4,
+  },
+  messageGrouped: {
+    marginBottom: 2,
+  },
+  messageLastInGroup: {
     marginBottom: 12,
-    alignItems: "flex-end",
   },
   myMessage: {
-    justifyContent: "flex-end",
+    alignItems: "flex-end",
   },
   theirMessage: {
-    justifyContent: "flex-start",
+    alignItems: "flex-start",
   },
-  avatarContainer: {
-    marginRight: 8,
-    width: 32,
-  },
-  messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  avatarPlaceholder: {
-    width: 32,
-    height: 32,
-  },
+  
+  // Message Bubble
   messageBubble: {
-    maxWidth: width * 0.7,
-    borderRadius: radius.lg,
+    maxWidth: width * 0.75,
   },
   myBubble: {
+    borderRadius: 20,
+    borderBottomRightRadius: 4,
+  },
+  myBubbleGrouped: {
+    borderRadius: 20,
+    borderBottomRightRadius: 20,
+    borderTopRightRadius: 4,
+  },
+  myBubbleLastInGroup: {
     borderBottomRightRadius: 4,
   },
   theirBubble: {
+    borderRadius: 20,
+    borderBottomLeftRadius: 4,
+  },
+  theirBubbleGrouped: {
+    borderRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderTopLeftRadius: 4,
+  },
+  theirBubbleLastInGroup: {
     borderBottomLeftRadius: 4,
   },
   myBubbleGradient: {
-    padding: 12,
-    borderRadius: radius.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderBottomRightRadius: 4,
   },
   theirBubbleContent: {
     backgroundColor: colors.whiteWarm,
-    padding: 12,
-    borderRadius: radius.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderBottomLeftRadius: 4,
     ...shadows.small,
   },
   myMessageText: {
-    fontSize: 15,
+    fontSize: 16,
     color: colors.white,
     lineHeight: 22,
   },
   theirMessageText: {
-    fontSize: 15,
+    fontSize: 16,
     color: colors.textDark,
     lineHeight: 22,
   },
-  messageStatus: {
-    alignSelf: "flex-end",
+  
+  // Time & Status - Dating app style
+  messageTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
+    marginHorizontal: 8,
+  },
+  myMessageTimeContainer: {
+    justifyContent: "flex-end",
+  },
+  messageTimeText: {
+    fontSize: 11,
+    color: colors.textLabel,
+    marginRight: 4,
+  },
+  messageStatusIcon: {
+    marginLeft: 2,
   },
 
-  // Typing Indicator
+  // Typing Indicator - Dating app style (no avatar)
   typingIndicator: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
+    paddingTop: 4,
     paddingBottom: 8,
-  },
-  typingAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
   },
   typingBubble: {
     flexDirection: "row",

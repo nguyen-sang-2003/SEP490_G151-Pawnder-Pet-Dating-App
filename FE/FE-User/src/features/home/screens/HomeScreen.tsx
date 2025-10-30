@@ -25,8 +25,8 @@ import { sendLike } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
-const CARD_WIDTH = width - 32;
-const CARD_HEIGHT = height * 0.75; // Tăng từ 0.62 lên 0.75
+const CARD_WIDTH = width - 24; // Padding 12px each side
+const CARD_HEIGHT = height * 0.72; // 72% of screen height
 const SWIPE_THRESHOLD = width * 0.25;
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
@@ -519,10 +519,7 @@ const HomeScreen = ({ navigation }: Props) => {
     // Show loading state
     if (loading) {
         return (
-            <LinearGradient
-                colors={gradients.background}
-                style={styles.container}
-            >
+            <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
                 <SafeAreaView style={{ flex: 0 }} />
                 <View style={styles.loadingContainer}>
@@ -530,48 +527,16 @@ const HomeScreen = ({ navigation }: Props) => {
                     <Text style={styles.loadingText}>Loading pets...</Text>
                 </View>
                 <BottomNav active="Home" />
-            </LinearGradient>
+            </View>
         );
     }
 
     if (currentIndex >= pets.length) {
         return (
-            <LinearGradient
-                colors={gradients.background}
-                style={styles.container}
-            >
+            <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-                <SafeAreaView style={{ flex: 0 }} />
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerLeft}>
-                        <View style={styles.avatarWrapper}>
-                            <LinearGradient
-                                colors={gradients.primary}
-                                style={styles.avatarGradient}
-                            >
-                                <Image
-                                    source={require("../../../assets/cat_avatar_signin.png")}
-                                    style={styles.avatar}
-                                />
-                            </LinearGradient>
-                        </View>
-                        <View>
-                            <Text style={styles.locationLabel}>Location</Text>
-                            <Text style={styles.locationText}>Ha Noi, Viet Nam</Text>
-                        </View>
-                    </View>
-                    <TouchableOpacity 
-                        style={styles.notificationButton}
-                        onPress={() => navigation.navigate("Notification")}
-                    >
-                        <Icon name="notifications-outline" size={24} color={colors.primary} />
-                        <View style={styles.notificationBadge}>
-                            <Text style={styles.notificationBadgeText}>2</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
+                
+                {/* No More Cards Content */}
                 <View style={styles.noMoreCards}>
                     <Icon name="paw" size={80} color={colors.primary} />
                     <Text style={styles.noMoreTitle}>No More Pets!</Text>
@@ -594,57 +559,107 @@ const HomeScreen = ({ navigation }: Props) => {
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
+
+                {/* Tinder-style Header - Overlay with glow */}
+                <LinearGradient
+                    colors={["rgba(250,251,252,0.98)", "rgba(250,251,252,0)"]}
+                    style={styles.headerGradient}
+                >
+                    <SafeAreaView style={{ flex: 0 }} />
+                    <View style={styles.header}>
+                    {/* Logo */}
+                    <View style={styles.logoContainer}>
+                        <LinearGradient
+                            colors={gradients.primary}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.logoGradient}
+                        >
+                            <Icon name="paw" size={24} color={colors.white} />
+                        </LinearGradient>
+                        <Text style={styles.logoText}>Pawnder</Text>
+                    </View>
+
+                    {/* Right Actions */}
+                    <View style={styles.headerRight}>
+                        <TouchableOpacity 
+                            style={styles.iconButton}
+                            onPress={() => {/* TODO: Open filter */}}
+                        >
+                            <Icon name="options-outline" size={26} color={colors.textDark} />
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            style={styles.iconButton}
+                            onPress={() => navigation.navigate("Notification")}
+                        >
+                            <Icon name="notifications-outline" size={26} color={colors.textDark} />
+                            <View style={styles.notificationBadge}>
+                                <Text style={styles.notificationBadgeText}>2</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                    </View>
+                </LinearGradient>
+
                 <BottomNav active="Home" />
-            </LinearGradient>
+            </View>
         );
     }
 
     return (
-        <LinearGradient
-            colors={gradients.background}
-            style={styles.container}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-        >
+        <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-            <SafeAreaView style={{ flex: 0 }} />
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <View style={styles.avatarWrapper}>
-                        <LinearGradient
-                            colors={gradients.primary}
-                            style={styles.avatarGradient}
-                        >
-                            <Image
-                                source={require("../../../assets/cat_avatar_signin.png")}
-                                style={styles.avatar}
-                            />
-                        </LinearGradient>
-                    </View>
-                    <View>
-                        <Text style={styles.locationLabel}>Location</Text>
-                        <Text style={styles.locationText}>Ha Noi, Viet Nam</Text>
-                    </View>
-                </View>
-                <TouchableOpacity 
-                    style={styles.notificationButton}
-                    onPress={() => navigation.navigate("Notification")}
-                >
-                    <Icon name="notifications-outline" size={24} color={colors.primary} />
-                    <View style={styles.notificationBadge}>
-                        <Text style={styles.notificationBadgeText}>2</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
-
-            {/* Cards */}
+            
+            {/* Cards - Render first so header overlays on top */}
             <View style={styles.cardsContainer}>
                 {pets
                     .map((pet, index) => renderCard(pet, index))
                     .filter(card => card !== null)
                     .reverse()}
             </View>
+
+            {/* Tinder-style Header - Overlay with glow */}
+            <LinearGradient
+                colors={["rgba(250,251,252,0.98)", "rgba(250,251,252,0)"]}
+                style={styles.headerGradient}
+            >
+                <SafeAreaView style={{ flex: 0 }} />
+                <View style={styles.header}>
+                {/* Logo */}
+                <View style={styles.logoContainer}>
+                    <LinearGradient
+                        colors={gradients.primary}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.logoGradient}
+                    >
+                        <Icon name="paw" size={24} color={colors.white} />
+                    </LinearGradient>
+                    <Text style={styles.logoText}>Pawnder</Text>
+                </View>
+
+                {/* Right Actions */}
+                <View style={styles.headerRight}>
+                    <TouchableOpacity 
+                        style={styles.iconButton}
+                        onPress={() => {/* TODO: Open filter */}}
+                    >
+                        <Icon name="options-outline" size={26} color={colors.textDark} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                        style={styles.iconButton}
+                        onPress={() => navigation.navigate("Notification")}
+                    >
+                        <Icon name="notifications-outline" size={26} color={colors.textDark} />
+                        <View style={styles.notificationBadge}>
+                            <Text style={styles.notificationBadgeText}>2</Text>
+                        </View>
+                    </TouchableOpacity>
+                    </View>
+                </View>
+            </LinearGradient>
 
             {/* Match Modal */}
             {showMatchModal && matchedPet && (
@@ -663,7 +678,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             onPress={() => {
                                 setShowMatchModal(false);
                                 setMatchedPet(null);
-                                navigation.navigate("Chat");
+                                navigation.navigate("Chat", {});
                             }}
                         >
                             <Text style={styles.sendMessageText}>Send Message</Text>
@@ -683,61 +698,85 @@ const HomeScreen = ({ navigation }: Props) => {
 
             {/* Bottom Navigation */}
             <BottomNav active="Home" />
-        </LinearGradient>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: { 
-        flex: 1, 
+        flex: 1,
+        backgroundColor: "#FAFBFC", // Brighter background để hiệu ứng nổi bật hơn
     },
 
-    // Header
+    // Tinder-style Header - Overlay
+    headerGradient: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        paddingTop: StatusBar.currentHeight || 0,
+    },
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingHorizontal: 20,
-        paddingTop: 16, // Giảm từ 50 xuống 16
-        paddingBottom: 12,
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 16,
+        backgroundColor: "transparent",
     },
-    headerLeft: { 
-        flexDirection: "row", 
-        alignItems: "center" 
+    logoContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
     },
-    avatarWrapper: {
-        marginRight: 12,
-    },
-    avatarGradient: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+    logoGradient: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: "center",
         alignItems: "center",
-        ...shadows.small,
+        shadowColor: "#FF6EA7",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 6,
     },
-    avatar: { 
-        width: 46, 
-        height: 46, 
-        borderRadius: 23,
+    logoText: {
+        fontSize: 26,
+        fontWeight: "bold",
+        color: colors.primary,
+        letterSpacing: -0.5,
+        textShadowColor: "rgba(255,110,167,0.15)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
-    locationLabel: { 
-        fontSize: 12, 
-        color: colors.textLabel,
-        fontWeight: "500",
+    headerRight: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
     },
-    locationText: { 
-        fontSize: 16, 
-        fontWeight: "bold", 
-        color: colors.textDark 
-    },
-    notificationButton: {
+    iconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.whiteWarm,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 1.5,
+        borderColor: "rgba(255,110,167,0.15)",
+        shadowColor: "#FF6EA7",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
         position: "relative",
     },
     notificationBadge: {
         position: "absolute",
-        top: -4,
-        right: -4,
+        top: -2,
+        right: -2,
         backgroundColor: "#FF3B30",
         borderRadius: 10,
         minWidth: 20,
@@ -746,6 +785,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
         borderWidth: 2,
         borderColor: colors.whiteWarm,
+        shadowColor: "#FF3B30",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.6,
+        shadowRadius: 6,
+        elevation: 8,
     },
     notificationBadgeText: {
         color: colors.white,
@@ -753,12 +797,13 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
 
-    // Cards
+    // Cards - Tinder Style with padding
     cardsContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        marginTop: -20, // Đẩy card lên gần header hơn
+        paddingTop: 80, // Space for header
+        paddingBottom: 20, // Space for bottom nav
     },
     card: {
         position: "absolute",
@@ -770,7 +815,13 @@ const styles = StyleSheet.create({
         borderRadius: radius.xl,
         overflow: "hidden",
         backgroundColor: colors.whiteWarm,
-        ...shadows.large,
+        borderWidth: 3,
+        borderColor: "rgba(255,110,167,0.2)", // Subtle pink border
+        shadowColor: "#FF6EA7",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 15,
     },
     imageContainer: {
         width: "100%",
@@ -789,15 +840,19 @@ const styles = StyleSheet.create({
         zIndex: 5,
     },
     infoButton: {
-        backgroundColor: "rgba(0,0,0,0.6)",
+        backgroundColor: "rgba(0,0,0,0.65)",
         width: 48,
         height: 48,
         borderRadius: 24,
         justifyContent: "center",
         alignItems: "center",
-        ...shadows.medium,
         borderWidth: 2,
-        borderColor: "rgba(255,255,255,0.3)",
+        borderColor: "rgba(255,255,255,0.35)",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        elevation: 8,
     },
     
     // Photo Navigation
@@ -956,9 +1011,13 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         justifyContent: "center",
         alignItems: "center",
-        ...shadows.large,
         borderWidth: 3,
         borderColor: "#FF3B30",
+        shadowColor: "#FF3B30",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 10,
     },
     cardActionBtnLike: {
         backgroundColor: colors.whiteWarm,
@@ -967,9 +1026,13 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         justifyContent: "center",
         alignItems: "center",
-        ...shadows.large,
         borderWidth: 3,
         borderColor: "#FF6EA7",
+        shadowColor: "#FF6EA7",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 14,
+        elevation: 12,
     },
 
     // No More Cards
@@ -979,6 +1042,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 40,
         paddingBottom: 100,
+        backgroundColor: colors.whiteWarm,
     },
     noMoreTitle: {
         fontSize: 28,
@@ -1066,11 +1130,12 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         paddingBottom: 100,
+        backgroundColor: colors.whiteWarm,
     },
     loadingText: {
         marginTop: 16,
         fontSize: 16,
-        color: colors.textMedium,
+        color: colors.textDark,
         fontWeight: "600",
     },
 });

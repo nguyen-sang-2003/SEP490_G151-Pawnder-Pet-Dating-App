@@ -189,26 +189,32 @@ const ChatScreen = ({ navigation }: Props) => {
   };
 
   const formatTime = (dateString: string): string => {
-    const date = new Date(dateString);
+    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+    let dateStr = dateString;
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      dateStr = dateStr + 'Z';
+    }
+    
+    const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffHours / 24);
     
     if (diffDays > 0) {
-      return diffDays === 1 ? 'Yesterday' : `${diffDays}d ago`;
+      return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày`;
     }
     
     if (diffHours > 0) {
-      return `${diffHours}h ago`;
+      return `${diffHours} giờ`;
     }
     
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins > 0) {
-      return `${diffMins}m ago`;
+      return `${diffMins} phút`;
     }
     
-    return 'Just now';
+    return 'Vừa xong';
   };
 
   const filteredChats = chatData.filter(chat =>
