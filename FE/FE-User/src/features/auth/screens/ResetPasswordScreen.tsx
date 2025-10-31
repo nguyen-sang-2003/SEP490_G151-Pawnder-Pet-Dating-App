@@ -230,9 +230,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
               <Text
                 style={[
                   styles.requirementText,
-                  newPassword &&
-                    newPassword === confirmPassword &&
-                    styles.requirementMet,
+                  newPassword && newPassword === confirmPassword ? styles.requirementMet : null,
                 ]}
               >
                 Match confirmation password

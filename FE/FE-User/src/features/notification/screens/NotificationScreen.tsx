@@ -123,7 +123,7 @@ const NotificationScreen = ({ navigation }: Props) => {
         navigation.navigate("Favorite");
       }
     } else if (item.type === "message") {
-      navigation.navigate("Chat");
+      navigation.navigate("Chat" as any);
     }
   };
 
