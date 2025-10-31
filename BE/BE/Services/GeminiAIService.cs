@@ -86,8 +86,8 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             var history = await GetChatHistoryAsync(chatAiId);
 
             // Gọi Gemini API
-            var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash-exp");
-
+            //var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash-exp");
+            var model = _googleAI.GenerativeModel(model: "gemini-2.5-flash");
             // Xây dựng prompt
             var promptBuilder = new System.Text.StringBuilder();
 
