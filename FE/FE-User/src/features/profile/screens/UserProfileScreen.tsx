@@ -18,7 +18,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import Icon from "react-native-vector-icons/Ionicons";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, getMatchStats, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
+import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
 import { getItem } from "../../../utils/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -46,7 +46,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [addressData, setAddressData] = useState<any>(null);
   const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
   const [petPhotos, setPetPhotos] = useState<any[]>([]);
-  const [stats, setStats] = useState({ matches: 0, likes: 0 });
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Fetch user and pets data - wrapped in useCallback
@@ -68,16 +67,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
       const user = await getUserById(userId);
       setUserData(user);
       console.log('👤 User data loaded:', user);
-
-      // Fetch stats
-      try {
-        const statsData = await getMatchStats(userId);
-        setStats(statsData);
-        console.log('📊 Stats loaded:', statsData);
-      } catch (error) {
-        console.error('⚠️ Error loading stats:', error);
-        setStats({ matches: 0, likes: 0 });
-      }
 
       // Fetch pets data
       const petsData = await getPetsByUserId(userId);
@@ -202,12 +191,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
     gender: "male" as "male" | "female",
     bio: "Please add a pet",
     photos: [require("../../../assets/cat_avatar.png")],
-  };
-
-  // Stats data - CAT STATS (loaded from API)
-  const catStats = {
-    matches: stats.matches,
-    likes: stats.likes,
   };
 
   // Parse address data
@@ -435,28 +418,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
               </TouchableOpacity>
             </View>
             <Text style={styles.breedText}>{myCat.breed} • {myCat.age}</Text>
-          </View>
-        </View>
-
-        {/* Cat Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <LinearGradient
-              colors={["#FF6EA7", "#FF9BC0"]}
-              style={styles.statGradient}
-            >
-              <Text style={styles.statNumber}>{catStats.matches}</Text>
-              <Text style={styles.statLabel}>Matches</Text>
-            </LinearGradient>
-          </View>
-          <View style={styles.statCard}>
-            <LinearGradient
-              colors={["#9C27B0", "#BA68C8"]}
-              style={styles.statGradient}
-            >
-              <Text style={styles.statNumber}>{catStats.likes}</Text>
-              <Text style={styles.statLabel}>Likes</Text>
-            </LinearGradient>
           </View>
         </View>
 
@@ -811,36 +772,6 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.7)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
-    fontWeight: "500",
-  },
-
-  // Stats
-  statsContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    marginTop: -40,
-    gap: 12,
-    zIndex: 15,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    ...shadows.large,
-  },
-  statGradient: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.9)",
     fontWeight: "500",
   },
 

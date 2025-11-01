@@ -50,6 +50,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedPet, setMatchedPet] = useState<LikeCat | null>(null);
   const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
+  const [activeTab, setActiveTab] = useState<'likes' | 'matches'>('likes');
   const scrollY = useRef(new Animated.Value(0)).current;
 
   // Reload likes when screen comes into focus
@@ -332,7 +333,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Icon name="chatbubble" size={22} color={colors.white} />
+                    <Icon name="chatbubble" size={18} color={colors.white} />
                     <Text style={styles.actionTextWhite}>Send Message</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -345,7 +346,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Icon name="close-circle-outline" size={22} color={colors.error} />
+                  <Icon name="close-circle-outline" size={18} color={colors.error} />
                   <Text style={styles.actionTextDanger}>Unmatch</Text>
                 </TouchableOpacity>
               </>
@@ -360,7 +361,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Icon name="close" size={28} color="#FF6B6B" />
+                  <Icon name="close" size={22} color="#FF6B6B" />
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
@@ -377,7 +378,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Icon name="heart" size={28} color={colors.white} />
+                    <Icon name="heart" size={22} color={colors.white} />
                   </LinearGradient>
                 </TouchableOpacity>
               </>
@@ -444,78 +445,116 @@ const FavoriteScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
-        {/* Modern Stats Card */}
-        <View style={styles.statsCard}>
-          <View style={styles.statsGradient}>
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBg, styles.statIconLikes]}>
-                <Icon name="heart" size={20} color={colors.white} />
-              </View>
-              <View style={styles.statTextContainer}>
-                <Text style={styles.statNumber}>{pets.length}</Text>
-                <Text style={styles.statLabel}>Likes</Text>
-              </View>
-            </View>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBg, styles.statIconMatches]}>
-                <Icon name="people" size={20} color={colors.white} />
-              </View>
-              <View style={styles.statTextContainer}>
-                <Text style={styles.statNumber}>
-                  {pets.filter((c) => c.isMatch).length}
-                </Text>
-                <Text style={styles.statLabel}>Matches</Text>
-              </View>
-            </View>
-          </View>
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'likes' && styles.tabActive]}
+            onPress={() => setActiveTab('likes')}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={activeTab === 'likes' ? gradients.primary : ['transparent', 'transparent']}
+              style={styles.tabGradient}
+            >
+              <Icon 
+                name="heart" 
+                size={20} 
+                color={activeTab === 'likes' ? colors.white : colors.textMedium} 
+              />
+              <Text style={[
+                styles.tabText,
+                activeTab === 'likes' && styles.tabTextActive
+              ]}>
+                Likes ({pets.filter(p => !p.isMatch).length})
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'matches' && styles.tabActive]}
+            onPress={() => setActiveTab('matches')}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={activeTab === 'matches' ? gradients.primary : ['transparent', 'transparent']}
+              style={styles.tabGradient}
+            >
+              <Icon 
+                name="people" 
+                size={20} 
+                color={activeTab === 'matches' ? colors.white : colors.textMedium} 
+              />
+              <Text style={[
+                styles.tabText,
+                activeTab === 'matches' && styles.tabTextActive
+              ]}>
+                Matches ({pets.filter(p => p.isMatch).length})
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
       {/* List or Empty State */}
-      {pets.length === 0 ? (
-        <View style={styles.emptyState}>
-          <LinearGradient
-            colors={["rgba(255,110,167,0.1)", "rgba(255,155,192,0.05)"]}
-            style={styles.emptyIconBg}
-          >
-            <Icon name="heart-dislike-outline" size={60} color={colors.primary} />
-          </LinearGradient>
-          <Text style={styles.emptyTitle}>No Favorites Yet</Text>
-          <Text style={styles.emptyText}>
-            When other pets like you, they'll appear here.{'\n'}
-            Keep swiping to find your perfect match!
-          </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
-            onPress={() => navigation.navigate('Home')}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={gradients.primary}
-              style={styles.emptyButtonGradient}
-            >
-              <Icon name="paw" size={20} color={colors.white} />
-              <Text style={styles.emptyButtonText}>Start Swiping</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <Animated.FlatList
-          data={pets}
-          keyExtractor={(item) => item.id}
-          renderItem={renderLikeItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          scrollEventThrottle={16}
-        />
-      )}
+      {(() => {
+        const filteredPets = pets.filter(pet => 
+          activeTab === 'likes' ? !pet.isMatch : pet.isMatch
+        );
+        
+        if (filteredPets.length === 0) {
+          return (
+            <View style={styles.emptyState}>
+              <LinearGradient
+                colors={["rgba(255,110,167,0.1)", "rgba(255,155,192,0.05)"]}
+                style={styles.emptyIconBg}
+              >
+                <Icon 
+                  name={activeTab === 'likes' ? "heart-dislike-outline" : "people-outline"} 
+                  size={60} 
+                  color={colors.primary} 
+                />
+              </LinearGradient>
+              <Text style={styles.emptyTitle}>
+                {activeTab === 'likes' ? 'No Likes Yet' : 'No Matches Yet'}
+              </Text>
+              <Text style={styles.emptyText}>
+                {activeTab === 'likes' 
+                  ? "When other pets like you, they'll appear here.\nKeep swiping to find your perfect match!"
+                  : "When you match with someone, they'll appear here.\nStart liking pets to create matches!"
+                }
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={() => navigation.navigate('Home')}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={gradients.primary}
+                  style={styles.emptyButtonGradient}
+                >
+                  <Icon name="paw" size={20} color={colors.white} />
+                  <Text style={styles.emptyButtonText}>Start Swiping</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          );
+        }
+        
+        return (
+          <Animated.FlatList
+            data={filteredPets}
+            keyExtractor={(item) => item.id}
+            renderItem={renderLikeItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
+            scrollEventThrottle={16}
+          />
+        );
+      })()}
 
       {/* Match Modal */}
       {showMatchModal && matchedPet && (
@@ -614,67 +653,41 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Modern Stats Card
-  statsCard: {
+  // Tabs
+  tabsContainer: {
+    flexDirection: "row",
     marginHorizontal: CARD_PADDING,
     marginTop: 16,
-    borderRadius: radius.xl,
-    overflow: "hidden",
-    ...shadows.medium,
-  },
-  statsGradient: {
-    flexDirection: "row",
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,110,167,0.15)",
-    borderRadius: radius.xl,
-    backgroundColor: "#FFF8FB", // Màu hồng kem dịu mắt
-  },
-  statItem: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
     gap: 12,
   },
-  statIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
+  tab: {
+    flex: 1,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    backgroundColor: colors.whiteWarm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tabActive: {
+    borderColor: colors.primary,
+    ...shadows.medium,
+  },
+  tabGradient: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
   },
-  statIconLikes: {
-    backgroundColor: colors.primary,
-  },
-  statIconMatches: {
-    backgroundColor: "#4CAF50",
-  },
-  statTextContainer: {
-    alignItems: "flex-start",
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: colors.textDark,
-    lineHeight: 28,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMedium,
+  tabText: {
+    fontSize: 14,
     fontWeight: "600",
-    marginTop: -2,
+    color: colors.textMedium,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: "rgba(255,110,167,0.2)",
-    marginHorizontal: 8,
+  tabTextActive: {
+    color: colors.white,
+    fontWeight: "700",
   },
 
   // List
@@ -686,7 +699,7 @@ const styles = StyleSheet.create({
   // Card Wrapper
   cardWrapper: {
     marginHorizontal: CARD_PADDING,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   card: {
     backgroundColor: colors.white,
@@ -698,9 +711,9 @@ const styles = StyleSheet.create({
   // Image Container
   imageContainer: {
     width: "100%",
-    height: 400,
+    height: 180,
     position: "relative",
-    backgroundColor: colors.cardBackgroundLight,
+    backgroundColor: "#F0F0F0",
   },
   catImage: {
     width: "100%",
@@ -796,12 +809,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingBottom: 10,
   },
   imageInfo: {
-    gap: 6,
+    gap: 4,
   },
   petNameRow: {
     flexDirection: "row",
@@ -809,7 +822,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   catNameOnImage: {
-    fontSize: 26,
+    fontSize: 18,
     fontWeight: "bold",
     color: colors.white,
     textShadowColor: "rgba(0,0,0,0.3)",
@@ -825,20 +838,20 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
   metaText: {
-    fontSize: 15,
+    fontSize: 11,
     color: colors.white,
     fontWeight: "500",
   },
   ownerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
   ownerTextOnImage: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.white,
     fontWeight: "500",
   },
@@ -846,8 +859,8 @@ const styles = StyleSheet.create({
   // Actions Container
   actionsContainer: {
     flexDirection: "row",
-    gap: 12,
-    padding: 16,
+    gap: 8,
+    padding: 10,
     backgroundColor: colors.white,
   },
 
@@ -862,11 +875,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
+    gap: 6,
+    paddingVertical: 12,
   },
   actionTextWhite: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
     color: colors.white,
     letterSpacing: 0.3,
@@ -875,25 +888,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     backgroundColor: colors.whiteWarm,
     borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: "rgba(233,77,107,0.3)",
   },
   actionTextDanger: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
     color: colors.error,
   },
 
   // Action Buttons - Not Matched State
   actionBtnPass: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.white,
     justifyContent: "center",
     alignItems: "center",
@@ -903,8 +916,8 @@ const styles = StyleSheet.create({
   },
   actionBtnMatch: {
     flex: 1,
-    height: 64,
-    borderRadius: 32,
+    height: 44,
+    borderRadius: 22,
     overflow: "hidden",
     ...shadows.button,
   },
