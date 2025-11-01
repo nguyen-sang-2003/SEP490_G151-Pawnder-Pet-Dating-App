@@ -40,8 +40,6 @@ namespace BE.Controllers
                 .FirstOrDefault(p => p.Attribute.Name.ToLower() == "khoảng cách");
 
             double? maxDistance = distancePref?.MaxValue;
-            
-            Console.WriteLine($"📍 Distance Filter: maxDistance = {maxDistance} km (distancePref found: {distancePref != null})");
 
             // Get list of users already matched (to exclude them)
             var sentToUsers = await _context.ChatUsers
@@ -85,7 +83,7 @@ namespace BE.Controllers
             var attributePreferences = (preferences ?? new List<UserPreference>())
                 .Where(p => p.Attribute.Name.ToLower() != "khoảng cách")
                 .ToList();
-
+            
             foreach (var pet in pets)
             {
                 double score = 0;
@@ -116,6 +114,11 @@ namespace BE.Controllers
                     {
                         isMatch = petChar.Value >= pref.MinValue && petChar.Value <= pref.MaxValue;
                     }
+                    // Handle case where only MaxValue is set (like Distance)
+                    else if (pref.MaxValue != null && petChar.Value != null && pref.MinValue == null)
+                    {
+                        isMatch = petChar.Value <= pref.MaxValue;
+                    }
 
                     if (isMatch)
                     {
@@ -131,21 +134,16 @@ namespace BE.Controllers
                 if (maxDistance != null)
                 {
                     distance = await _distanceService.GetDistanceBetweenUsersAsync(userId, pet.UserId);
-                    Console.WriteLine($"🗺️ Pet {pet.Name} (Owner UserId: {pet.UserId}): Distance = {distance} km, MaxDistance = {maxDistance} km");
                     
                     if (distance == null)
                     {
-                        Console.WriteLine($"⚠️ Skipping pet {pet.Name} - No address data for user or pet owner");
                         continue; // Skip if no address data
                     }
                     
                     if (distance > maxDistance)
                     {
-                        Console.WriteLine($"❌ Skipping pet {pet.Name} - Too far ({distance} km > {maxDistance} km)");
                         continue; // Skip if too far
                     }
-                    
-                    Console.WriteLine($"✅ Pet {pet.Name} is within range ({distance} km <= {maxDistance} km)");
                 }
 
                 matchedPets.Add((Pet: pet, Score: score, TotalPref: totalPref, Distance: distance));

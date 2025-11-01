@@ -19,6 +19,7 @@ import HeartsBackground from "../components/HeartsBackground";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { register, sendOtp } from "../../../api";
+import { gradients } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SignUp">;
 
@@ -161,9 +162,9 @@ const SignUpScreen = ({ navigation }: Props) => {
 
   return (
     <LinearGradient
-      colors={["#FDE8EF", "#F9C9D6"]}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
+      colors={gradients.auth.signup}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       {/* Background tim */}
@@ -180,7 +181,7 @@ const SignUpScreen = ({ navigation }: Props) => {
       {/* Avatar + Circle */}
       <View style={styles.circleWrapper}>
         <LinearGradient
-          colors={["#FF6EA7", "#FFC2D6"]}
+          colors={gradients.auth.buttonSecondary}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.circle}
@@ -287,7 +288,7 @@ const SignUpScreen = ({ navigation }: Props) => {
           disabled={loading}
         >
           <LinearGradient
-            colors={["#FF7AAE", "#FF9BC0"]}
+            colors={gradients.auth.buttonPrimary}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.button}

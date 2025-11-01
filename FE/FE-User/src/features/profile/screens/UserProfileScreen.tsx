@@ -9,6 +9,9 @@ import {
   Dimensions,
   Pressable,
   ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
+  Platform,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -132,8 +135,17 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
         // Load characteristics
         const chars = await getPetCharacteristics(petId);
-        setCharacteristics(chars);
-        console.log('🎯 Characteristics loaded:', chars);
+        
+        // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
+        const filteredChars = chars.filter((char: any) => {
+          const name = char.name?.toLowerCase() || '';
+          if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
+            return false;
+          }
+          return true;
+        });
+        
+        setCharacteristics(filteredChars);
 
         // Load all photos from PetPhotos table
         const photos = await getPetPhotos(petId);
@@ -330,14 +342,30 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <SafeAreaView style={{ backgroundColor: colors.whiteWarm }} />
+      
       {/* Top Header with Settings */}
       <View style={styles.topHeader}>
-        <Text style={styles.topHeaderTitle}>My Profile</Text>
+        <View style={styles.headerLeft}>
+          <LinearGradient
+            colors={gradients.profile}
+            style={styles.headerIconGradient}
+          >
+            <Icon name="person" size={20} color={colors.white} />
+          </LinearGradient>
+          <Text style={styles.topHeaderTitle}>My Profile</Text>
+        </View>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => navigation.navigate("Settings")}
         >
-          <Icon name="settings-outline" size={22} color={colors.textDark} />
+          <LinearGradient
+            colors={gradients.profile}
+            style={styles.settingsIconGradient}
+          >
+            <Icon name="settings-outline" size={20} color={colors.white} />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -357,10 +385,12 @@ const UserProfileScreen = ({ navigation }: Props) => {
             onPress={handleNextPhoto}
           />
           
-          <Image
-            source={myCat.photos[activePhotoIndex]}
-            style={styles.mainPhoto}
-          />
+          <View style={styles.photoWrapper}>
+            <Image
+              source={myCat.photos[activePhotoIndex]}
+              style={styles.mainPhoto}
+            />
+          </View>
           
           {/* Gradient Overlay */}
           <LinearGradient
@@ -410,7 +440,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 onPress={handleEditCat}
               >
                 <LinearGradient
-                  colors={gradients.primary}
+                  colors={gradients.profile}
                   style={styles.editBtnGradient}
                 >
                   <Icon name="pencil" size={18} color="#fff" />
@@ -482,7 +512,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
               onPress={() => navigation.navigate("AddPet")}
             >
               <LinearGradient
-                colors={gradients.primary}
+                colors={gradients.profile}
                 style={styles.addPetGradient}
               >
                 <Icon name="add" size={18} color="#fff" />
@@ -640,9 +670,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: "#F8F9FA",
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: colors.whiteWarm,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerIconGradient: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    ...shadows.small,
   },
   topHeaderTitle: {
     fontSize: 22,
@@ -650,10 +693,12 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
   settingsButton: {
+    borderRadius: 20,
+  },
+  settingsIconGradient: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
     ...shadows.small,
@@ -665,8 +710,18 @@ const styles = StyleSheet.create({
   // Photo Section
   photoSection: {
     position: "relative",
-    height: width * 1.15,
+    width: width - 32,
+    height: width * 1.2,
+    marginHorizontal: 16,
+    marginTop: 8,
+  },
+  photoWrapper: {
+    width: "100%",
+    height: "100%",
+    borderRadius: radius.xl,
+    overflow: "hidden",
     backgroundColor: "#000",
+    ...shadows.large,
   },
   mainPhoto: {
     width: "100%",

@@ -328,7 +328,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   activeOpacity={0.8}
                 >
                   <LinearGradient
-                    colors={gradients.primary}
+                    colors={gradients.favorite}
                     style={styles.actionGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -346,7 +346,12 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Icon name="close-circle-outline" size={18} color={colors.error} />
+                  <LinearGradient
+                    colors={["#FF6B6B", "#FF8E8E"]}
+                    style={styles.unmatchIconGradient}
+                  >
+                    <Icon name="close-circle-outline" size={16} color={colors.white} />
+                  </LinearGradient>
                   <Text style={styles.actionTextDanger}>Unmatch</Text>
                 </TouchableOpacity>
               </>
@@ -354,14 +359,18 @@ const FavoriteScreen = ({ navigation }: Props) => {
               // Not matched yet - show Pass and Match
               <>
                 <TouchableOpacity 
-                  style={styles.actionBtnPass}
                   onPress={(e) => {
                     e.stopPropagation();
                     handlePass(item.id);
                   }}
                   activeOpacity={0.8}
                 >
-                  <Icon name="close" size={22} color="#FF6B6B" />
+                  <LinearGradient
+                    colors={["#FF6B6B", "#FF8E8E"]}
+                    style={styles.actionBtnPass}
+                  >
+                    <Icon name="close" size={20} color={colors.white} />
+                  </LinearGradient>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
@@ -373,7 +382,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   activeOpacity={0.8}
                 >
                   <LinearGradient
-                    colors={gradients.primary}
+                    colors={gradients.favorite}
                     style={styles.actionBtnMatchGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -431,7 +440,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <LinearGradient
-              colors={gradients.primary}
+              colors={gradients.favorite}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.headerIconGradient}
@@ -453,7 +462,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
             activeOpacity={0.7}
           >
             <LinearGradient
-              colors={activeTab === 'likes' ? gradients.primary : ['transparent', 'transparent']}
+              colors={activeTab === 'likes' ? gradients.favorite : ['transparent', 'transparent']}
               style={styles.tabGradient}
             >
               <Icon 
@@ -476,7 +485,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
             activeOpacity={0.7}
           >
             <LinearGradient
-              colors={activeTab === 'matches' ? gradients.primary : ['transparent', 'transparent']}
+              colors={activeTab === 'matches' ? gradients.favorite : ['transparent', 'transparent']}
               style={styles.tabGradient}
             >
               <Icon 
@@ -529,7 +538,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={gradients.primary}
+                  colors={gradients.favorite}
                   style={styles.emptyButtonGradient}
                 >
                   <Icon name="paw" size={20} color={colors.white} />
@@ -888,18 +897,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: colors.whiteWarm,
     borderRadius: radius.md,
     borderWidth: 1.5,
-    borderColor: "rgba(233,77,107,0.3)",
+    borderColor: "rgba(255,107,107,0.3)",
+  },
+  unmatchIconGradient: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
   },
   actionTextDanger: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.error,
+    color: "#FF6B6B",
   },
 
   // Action Buttons - Not Matched State
@@ -907,11 +923,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.white,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FF6B6B",
+    borderColor: "rgba(255,255,255,0.3)",
     ...shadows.medium,
   },
   actionBtnMatch: {

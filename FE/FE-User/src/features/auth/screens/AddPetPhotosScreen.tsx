@@ -175,7 +175,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={gradients.auth.signup}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -221,7 +221,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                 onPress={handleAddPhoto}
               >
                 <LinearGradient
-                  colors={gradients.primary}
+                  colors={gradients.auth.buttonSecondary}
                   style={styles.addPhotoGradient}
                 >
                   <Icon name="camera" size={32} color={colors.white} />
@@ -275,7 +275,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           disabled={uploading}
         >
           <LinearGradient
-            colors={gradients.primary}
+            colors={gradients.auth.buttonPrimary}
             style={styles.button}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

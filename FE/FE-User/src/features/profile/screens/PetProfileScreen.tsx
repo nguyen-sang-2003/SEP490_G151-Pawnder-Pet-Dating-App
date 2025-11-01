@@ -97,8 +97,17 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       // Load characteristics
       try {
         const chars = await getPetCharacteristics(petId);
-        setCharacteristics(chars);
-        console.log('🎯 Characteristics loaded:', chars);
+        
+        // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
+        const filteredChars = chars.filter((char: any) => {
+          const name = char.name?.toLowerCase() || '';
+          if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
+            return false;
+          }
+          return true;
+        });
+        
+        setCharacteristics(filteredChars);
       } catch (error) {
         console.log('⚠️ No characteristics found');
         setCharacteristics([]);
@@ -347,49 +356,50 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             </>
           )}
           
-          {/* Hero Image */}
-          <Image 
-            source={pet.photos?.[activePhotoIndex] || pet.avatar} 
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-          
-          {/* Dark Gradient Overlay */}
-          <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.8)"]}
-            style={styles.heroGradient}
-          />
-          
-          {/* Header Buttons Overlay */}
-          <View style={styles.headerOverlay}>
-            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-              <Icon name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
+          {/* Hero Image with Wrapper */}
+          <View style={styles.heroImageWrapper}>
+            <Image 
+              source={pet.photos?.[activePhotoIndex] || pet.avatar} 
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
             
-            {isMyPet && (
-              <TouchableOpacity onPress={handleEditPet} style={styles.editHeaderBtn}>
-                <Icon name="pencil" size={22} color="#fff" />
+            {/* Dark Gradient Overlay */}
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.8)"]}
+              style={styles.heroGradient}
+            />
+            
+            {/* Header Buttons Overlay */}
+            <View style={styles.headerOverlay}>
+              <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+                <Icon name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-            )}
-          </View>
-          
-          {/* Photo Indicators */}
-          {pet.photos && pet.photos.length > 1 && (
-            <View style={styles.photoDotsContainer}>
-              {pet.photos.map((_: any, index: number) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.photoDot,
-                    index === activePhotoIndex && styles.photoDotActive
-                  ]}
-                />
-              ))}
+              
+              {isMyPet && (
+                <TouchableOpacity onPress={handleEditPet} style={styles.editHeaderBtn}>
+                  <Icon name="pencil" size={22} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
-          )}
-          
-          {/* Pet Info on Image */}
-          <View style={styles.heroInfo}>
+            
+            {/* Photo Indicators */}
+            {pet.photos && pet.photos.length > 1 && (
+              <View style={styles.photoDotsContainer}>
+                {pet.photos.map((_: any, index: number) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.photoDot,
+                      index === activePhotoIndex && styles.photoDotActive
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+            
+            {/* Pet Info on Image */}
+            <View style={styles.heroInfo}>
             <View style={styles.heroNameRow}>
               <Text style={styles.heroName}>
                 {pet.name}
@@ -408,6 +418,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.heroLocation}>{pet.location}</Text>
               </View>
             )}
+            </View>
           </View>
         </View>
 
@@ -559,7 +570,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               disabled={sendingMatchRequest}
             >
               <LinearGradient
-                colors={sendingMatchRequest ? ["#CCC", "#DDD"] : gradients.primary}
+                colors={sendingMatchRequest ? ["#CCC", "#DDD"] : gradients.profile}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.matchButtonGradient}
@@ -637,7 +648,15 @@ const styles = StyleSheet.create({
   heroSection: {
     position: "relative",
     height: IMAGE_HEIGHT,
+    backgroundColor: colors.whiteWarm,
+  },
+  heroImageWrapper: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 32,
+    overflow: "hidden",
     backgroundColor: "#000",
+    ...shadows.large,
   },
   heroImage: {
     width: "100%",

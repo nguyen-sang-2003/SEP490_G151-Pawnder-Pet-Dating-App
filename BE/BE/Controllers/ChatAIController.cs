@@ -9,7 +9,7 @@ namespace BE.Controllers
 {
     [ApiController]
     [Route("api/chat-ai")]
-    // [Authorize] // TẠM THỜI BỎ ĐỂ TEST
+    [Authorize]
     public class ChatAIController : ControllerBase
     {
         private readonly IGeminiAIService _geminiService;
@@ -23,15 +23,15 @@ namespace BE.Controllers
 
         private int GetCurrentUserId()
         {
-            // CÁCH 1: Lấy từ JWT token (khi đã setup authentication)
+            // Lấy userId từ JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!string.IsNullOrEmpty(userIdClaim))
             {
                 return int.Parse(userIdClaim);
             }
 
-            // CÁCH 2: Tạm thời hardcode để test (XÓA KHI PRODUCTION)
-            return 1; // Hoặc userId bất kỳ tồn tại trong DB
+            // Nếu không có token thì trả về 0
+            return 0;
         }
 
         /// <summary>
@@ -43,6 +43,14 @@ namespace BE.Controllers
             try
             {
                 var currentUserId = GetCurrentUserId();
+                
+                // Kiểm tra authentication
+                if (currentUserId == 0)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+                
+                // Kiểm tra authorization - chỉ được xem chat của chính mình
                 if (currentUserId != userId)
                 {
                     return Forbid();
@@ -82,6 +90,14 @@ namespace BE.Controllers
             try
             {
                 var currentUserId = GetCurrentUserId();
+                
+                // Kiểm tra authentication
+                if (currentUserId == 0)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+                
+                // Kiểm tra authorization - chỉ được tạo chat cho chính mình
                 if (currentUserId != userId)
                 {
                     return Forbid();
@@ -116,6 +132,13 @@ namespace BE.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+                
+                // Kiểm tra authentication
+                if (userId == 0)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+                
                 var chat = await _context.ChatAis
                     .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId && c.IsDeleted == false);
 
@@ -130,7 +153,7 @@ namespace BE.Controllers
                 }
 
                 chat.Title = request.Title;
-                chat.UpdatedAt = DateTime.UtcNow;
+                chat.UpdatedAt = DateTime.Now;
                 await _context.SaveChangesAsync();
 
                 return Ok(new { success = true, message = "Cập nhật tiêu đề thành công" });
@@ -151,7 +174,7 @@ namespace BE.Controllers
             {
                 var userId = GetCurrentUserId();
                 var chat = await _context.ChatAis
-                    .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId);
+                    .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && (userId == 0 || c.UserId == userId));
 
                 if (chat == null)
                 {
@@ -159,14 +182,18 @@ namespace BE.Controllers
                 }
 
                 chat.IsDeleted = true;
-                chat.UpdatedAt = DateTime.UtcNow;
+                chat.UpdatedAt = DateTime.Now;
+                
+                _context.ChatAis.Update(chat);
                 await _context.SaveChangesAsync();
 
                 return Ok(new { success = true, message = "Xóa cuộc trò chuyện thành công" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                Console.WriteLine($"❌ Delete chat error: {ex.Message}");
+                Console.WriteLine($"❌ Inner exception: {ex.InnerException?.Message}");
+                return StatusCode(500, new { success = false, message = ex.InnerException?.Message ?? ex.Message });
             }
         }
 
@@ -179,6 +206,13 @@ namespace BE.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+                
+                // Kiểm tra authentication
+                if (userId == 0)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+                
                 var chat = await _context.ChatAis
                     .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId && c.IsDeleted == false);
 
@@ -235,7 +269,7 @@ namespace BE.Controllers
                     {
                         question = request.Question,
                         answer = answer,
-                        timestamp = DateTime.UtcNow
+                        timestamp = DateTime.Now
                     }
                 });
             }

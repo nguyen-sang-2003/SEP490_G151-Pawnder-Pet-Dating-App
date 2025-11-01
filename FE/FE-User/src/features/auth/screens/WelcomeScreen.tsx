@@ -5,15 +5,16 @@ import * as Animatable from "react-native-animatable";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import HeartsBackground from "../components/HeartsBackground";
+import { gradients } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
 const WelcomeScreen = ({ navigation }: Props) => {
   return (
     <LinearGradient
-      colors={["#FDE8EF", "#F9C9D6"]}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
+      colors={gradients.auth.welcome}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       {/* Trái tim bay */}
@@ -54,7 +55,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
           onPress={() => navigation.navigate("SignIn")}
         >
           <LinearGradient
-            colors={["#FF7AAE", "#FF9BC0"]}
+            colors={gradients.auth.buttonWelcome}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.button}

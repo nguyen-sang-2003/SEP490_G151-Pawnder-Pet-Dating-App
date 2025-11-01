@@ -60,7 +60,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
 
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={gradients.auth.forgot}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -81,7 +81,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
           {/* Icon */}
           <View style={styles.iconContainer}>
             <LinearGradient
-              colors={gradients.primary}
+              colors={gradients.auth.buttonSecondary}
               style={styles.iconGradient}
             >
               <Icon name="lock-closed-outline" size={48} color={colors.white} />
@@ -122,7 +122,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ["#CCC", "#AAA"] : gradients.primary}
+              colors={loading ? ["#CCC", "#AAA"] : gradients.auth.buttonPrimary}
               style={styles.sendGradient}
             >
               {loading ? (

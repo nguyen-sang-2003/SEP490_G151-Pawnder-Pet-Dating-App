@@ -17,6 +17,7 @@ import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { login } from "../../../api";
 import { setItem } from "../../../utils/storage";
+import { gradients } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SignIn">;
 
@@ -121,9 +122,9 @@ const SignInScreen = ({ navigation }: Props) => {
 
   return (
     <LinearGradient
-      colors={["#FDE8EF", "#F9C9D6"]}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
+      colors={gradients.auth.welcome}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       {/* nhiều trái tim tách thành component riêng */}
@@ -131,7 +132,7 @@ const SignInScreen = ({ navigation }: Props) => {
 
       {/* Avatar + Circle */}
       <View style={styles.circleWrapper}>
-        <LinearGradient colors={["#FF6EA7", "#FFC2D6"]} style={styles.circle} />
+        <LinearGradient colors={gradients.auth.buttonPrimary} style={styles.circle} />
         <Image
           source={require("../../../assets/cat_avatar_signin.png")}
           style={styles.avatar}
@@ -166,7 +167,7 @@ const SignInScreen = ({ navigation }: Props) => {
             disabled={loading}
           >
             <LinearGradient
-              colors={["#FF6EA7", "#FF9BC0"]}
+              colors={gradients.auth.buttonPrimary}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.button}

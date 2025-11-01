@@ -128,7 +128,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={gradients.auth.signup}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -257,7 +257,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
             disabled={loading}
           >
             <LinearGradient
-              colors={gradients.primary}
+              colors={gradients.auth.buttonPrimary}
               style={styles.button}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}

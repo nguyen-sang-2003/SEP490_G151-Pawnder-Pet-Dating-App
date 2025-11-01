@@ -722,7 +722,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             >
               {item.isMe ? (
                 <LinearGradient
-                  colors={gradients.primary}
+                  colors={gradients.chat}
                   style={styles.myBubbleGradient}
                 >
                   <Text style={styles.myMessageText}>{item.text}</Text>
@@ -776,11 +776,12 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   };
 
   return (
-    <LinearGradient
-      colors={gradients.background}
-      style={styles.container}
-    >
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={["#FFFFFF", "#FFF8FB"]}
+        style={styles.headerGradient}
+      >
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -806,6 +807,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           <Icon name="ellipsis-vertical" size={24} color={colors.textDark} />
         </TouchableOpacity>
       </View>
+      </LinearGradient>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -922,7 +924,9 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               disabled={!inputText.trim() || sending}
             >
               <LinearGradient
-                colors={inputText.trim() && !sending ? gradients.primary : ["#DDD", "#CCC"]}
+                colors={inputText.trim() && !sending ? gradients.chat : ["#E0E0E0", "#BDBDBD"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={styles.sendGradient}
               >
                 {sending ? (
@@ -931,7 +935,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon
                     name="send"
                     size={20}
-                    color={inputText.trim() ? colors.white : colors.textLabel}
+                    color={colors.white}
                   />
                 )}
               </LinearGradient>
@@ -1067,16 +1071,21 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           showCancel={alertConfig.showCancel}
         />
       )}
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.whiteWarm,
   },
   keyboardView: {
     flex: 1,
+  },
+  headerGradient: {
+    paddingBottom: 12,
+    ...shadows.small,
   },
 
   // Header
@@ -1086,7 +1095,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 12,
-    backgroundColor: "transparent",
   },
   backButton: {
     width: 40,
@@ -1153,11 +1161,14 @@ const styles = StyleSheet.create({
   },
   dateSeparatorText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: colors.textMedium,
+    fontWeight: "700",
+    color: colors.white,
+    backgroundColor: colors.textMedium,
     marginHorizontal: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: "hidden",
   },
   
   // Message Container - Messenger style with avatars
@@ -1303,9 +1314,11 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255, 154, 118, 0.15)",
     ...shadows.medium,
   },
   attachButton: {

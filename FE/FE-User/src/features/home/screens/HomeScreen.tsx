@@ -44,7 +44,7 @@ interface PetProfile {
   personality: string[];
   owner: string;
   ownerId: number; // Add ownerId for API calls
-  matchPercent?: number; // For recommended pets
+  matchPercent: number; // Match percentage (0-100)
 }
 
 const HomeScreen = ({ navigation }: Props) => {
@@ -249,19 +249,16 @@ const HomeScreen = ({ navigation }: Props) => {
             const userId = parseInt(userIdStr);
             
             if (!userId || isNaN(userId)) {
-                console.log('❌ Invalid userId');
                 setLoading(false);
                 return;
             }
 
-            console.log('👤 Current userId:', userId);
             setCurrentUserId(userId);
             
             // Luôn dùng recommendation API
             // Nếu chưa có filter → trả về tất cả pets (matchPercent = 0)
             // Nếu có filter → sắp xếp theo matchPercent
             const recommendedPets = await getRecommendedPets(userId);
-            console.log('🎯 Fetched pets:', recommendedPets.length);
 
             // Convert recommended pets to PetProfile format
             const formattedPets: PetProfile[] = recommendedPets
@@ -270,6 +267,8 @@ const HomeScreen = ({ navigation }: Props) => {
                     const photos = pet.photos && pet.photos.length > 0
                         ? pet.photos.map((url: string) => ({ uri: url }))
                         : [require("../../../assets/cat_avatar.png")];
+                    
+                    const matchPercent = pet.matchPercent ?? 0;
                     
                     return {
                         id: pet.petId.toString(),
@@ -284,14 +283,10 @@ const HomeScreen = ({ navigation }: Props) => {
                         personality: [],
                         owner: pet.owner?.fullName || 'Unknown',
                         ownerId: pet.userId,
-                        matchPercent: pet.matchPercent,
+                        matchPercent: matchPercent,
                     };
                 });
 
-            console.log('✅ Formatted pets:', formattedPets.length);
-            if (formattedPets.length > 0) {
-                console.log('📋 Sample pet:', formattedPets[0]);
-            }
             setPets(formattedPets);
             setCurrentIndex(0);
             setCurrentPhotoIndices({});
@@ -306,7 +301,6 @@ const HomeScreen = ({ navigation }: Props) => {
     // Reload pets when screen comes into focus (e.g., after sending match request from PetProfile)
     useFocusEffect(
         useCallback(() => {
-            console.log('🔄 Home screen focused - reloading pets...');
             loadPets();
         }, [])
     );
@@ -406,10 +400,19 @@ const HomeScreen = ({ navigation }: Props) => {
                         <View style={styles.infoButtonOverlay}>
                             <TouchableOpacity 
                                 style={styles.infoButton}
-                                activeOpacity={0.8}
+                                activeOpacity={0.7}
                                 onPress={() => handleViewPetDetail(pet.id)}
                             >
-                                <Icon name="information-circle" size={28} color={colors.white} />
+                                <View style={styles.infoButtonGradient}>
+                                    <LinearGradient
+                                        colors={gradients.home}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={{ width: 28, height: 28, borderRadius: 14, justifyContent: "center", alignItems: "center" }}
+                                    >
+                                        <Icon name="information" size={20} color={colors.white} />
+                                    </LinearGradient>
+                                </View>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -458,7 +461,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                                 {pet.gender === "male" ? "♂" : "♀"}
                                             </Text>
                                         </Text>
-                                        {pet.matchPercent !== undefined && pet.matchPercent > 0 && (
+                                        {pet.matchPercent > 0 && (
                                             <View style={styles.matchBadge}>
                                                 <Icon name="star" size={12} color={colors.primary} />
                                                 <Text style={styles.matchBadgeText}>{pet.matchPercent}%</Text>
@@ -494,19 +497,27 @@ const HomeScreen = ({ navigation }: Props) => {
                             {isCurrentCard && (
                                 <View style={styles.cardActions}>
                                     <TouchableOpacity 
-                                        style={styles.cardActionBtnNope} 
                                         onPress={handleNope}
                                         activeOpacity={0.8}
                                     >
-                                        <Icon name="close" size={36} color="#FF3B30" />
+                                        <LinearGradient
+                                            colors={["#FF6B6B", "#FF8E8E"]}
+                                            style={styles.cardActionBtnNope}
+                                        >
+                                            <Icon name="close" size={32} color={colors.white} />
+                                        </LinearGradient>
                                     </TouchableOpacity>
                                     
                                     <TouchableOpacity 
-                                        style={styles.cardActionBtnLike} 
                                         onPress={handleLike}
                                         activeOpacity={0.8}
                                     >
-                                        <Icon name="heart" size={36} color="#FF6EA7" />
+                                        <LinearGradient
+                                            colors={gradients.home}
+                                            style={styles.cardActionBtnLike}
+                                        >
+                                            <Icon name="heart" size={32} color={colors.white} />
+                                        </LinearGradient>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -524,7 +535,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
                 <SafeAreaView style={{ flex: 0 }} />
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ActivityIndicator size="large" color={colors.homeStart} />
                     <Text style={styles.loadingText}>Loading pets...</Text>
                 </View>
                 <BottomNav active="Home" />
@@ -539,7 +550,12 @@ const HomeScreen = ({ navigation }: Props) => {
                 
                 {/* No More Cards Content */}
                 <View style={styles.noMoreCards}>
-                    <Icon name="paw" size={80} color={colors.primary} />
+                    <LinearGradient
+                        colors={gradients.home}
+                        style={styles.noMoreIconGradient}
+                    >
+                        <Icon name="paw" size={60} color={colors.white} />
+                    </LinearGradient>
                     <Text style={styles.noMoreTitle}>No More Pets!</Text>
                     <Text style={styles.noMoreText}>
                         Check back later for more adorable matches
@@ -552,7 +568,7 @@ const HomeScreen = ({ navigation }: Props) => {
                         }}
                     >
                         <LinearGradient
-                            colors={gradients.primary}
+                            colors={gradients.home}
                             style={styles.resetGradient}
                         >
                             <Icon name="refresh" size={24} color={colors.white} />
@@ -571,7 +587,7 @@ const HomeScreen = ({ navigation }: Props) => {
                     {/* Logo */}
                     <View style={styles.logoContainer}>
                         <LinearGradient
-                            colors={gradients.primary}
+                            colors={gradients.home}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.logoGradient}
@@ -630,7 +646,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 {/* Logo */}
                 <View style={styles.logoContainer}>
                     <LinearGradient
-                        colors={gradients.primary}
+                        colors={gradients.home}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.logoGradient}
@@ -823,7 +839,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         paddingTop: 80, // Space for header
-        paddingBottom: 20, // Space for bottom nav
+        paddingBottom: 110, // Increased space for bottom nav
     },
     card: {
         position: "absolute",
@@ -835,13 +851,13 @@ const styles = StyleSheet.create({
         borderRadius: radius.xl,
         overflow: "hidden",
         backgroundColor: colors.whiteWarm,
-        borderWidth: 3,
-        borderColor: "rgba(255,110,167,0.2)", // Subtle pink border
-        shadowColor: "#FF6EA7",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 20,
-        elevation: 15,
+        borderWidth: 2,
+        borderColor: "rgba(233, 30, 99, 0.3)",
+        shadowColor: "#E91E63",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.35,
+        shadowRadius: 24,
+        elevation: 18,
     },
     imageContainer: {
         width: "100%",
@@ -860,19 +876,22 @@ const styles = StyleSheet.create({
         zIndex: 5,
     },
     infoButton: {
-        backgroundColor: "rgba(0,0,0,0.65)",
+        borderRadius: 24,
+    },
+    infoButtonGradient: {
         width: 48,
         height: 48,
         borderRadius: 24,
         justifyContent: "center",
         alignItems: "center",
+        backgroundColor: "rgba(255,255,255,0.95)",
         borderWidth: 2,
-        borderColor: "rgba(255,255,255,0.35)",
+        borderColor: "rgba(255,255,255,1)",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.4,
-        shadowRadius: 10,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 5,
     },
     
     // Photo Navigation
@@ -961,6 +980,9 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: "bold", 
         color: colors.white,
+        textShadowColor: "rgba(0, 0, 0, 0.8)",
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 8,
     },
     male: { 
         color: "#64B5F6",
@@ -972,6 +994,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: colors.white,
         marginTop: 4,
+        textShadowColor: "rgba(0, 0, 0, 0.7)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 6,
     },
     distanceRow: {
         flexDirection: "row",
@@ -982,11 +1007,17 @@ const styles = StyleSheet.create({
     distance: {
         fontSize: 14,
         color: colors.white,
+        textShadowColor: "rgba(0, 0, 0, 0.7)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 6,
     },
     bio: {
         fontSize: 15, 
         color: colors.white,
         lineHeight: 22,
+        textShadowColor: "rgba(0, 0, 0, 0.6)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 4,
     },
     personalityTags: {
         flexDirection: "row",
@@ -1013,6 +1044,9 @@ const styles = StyleSheet.create({
     ownerText: {
         fontSize: 14,
         color: colors.white,
+        textShadowColor: "rgba(0, 0, 0, 0.6)",
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 4,
     },
 
     // Card Actions (X and Heart buttons)
@@ -1022,33 +1056,31 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 24,
         marginTop: 20,
-        paddingBottom: 16,
+        paddingBottom: 8,
     },
     cardActionBtnNope: {
-        backgroundColor: colors.whiteWarm,
         width: 64,
         height: 64,
         borderRadius: 32,
         justifyContent: "center",
         alignItems: "center",
-        borderWidth: 3,
-        borderColor: "#FF3B30",
-        shadowColor: "#FF3B30",
+        borderWidth: 2,
+        borderColor: "rgba(255,255,255,0.3)",
+        shadowColor: "#FF6B6B",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
         elevation: 10,
     },
     cardActionBtnLike: {
-        backgroundColor: colors.whiteWarm,
         width: 64,
         height: 64,
         borderRadius: 32,
         justifyContent: "center",
         alignItems: "center",
-        borderWidth: 3,
-        borderColor: "#FF6EA7",
-        shadowColor: "#FF6EA7",
+        borderWidth: 2,
+        borderColor: "rgba(255,255,255,0.3)",
+        shadowColor: colors.homeStart,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.5,
         shadowRadius: 14,
@@ -1063,6 +1095,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 40,
         paddingBottom: 100,
         backgroundColor: colors.whiteWarm,
+    },
+    noMoreIconGradient: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 24,
+        ...shadows.large,
     },
     noMoreTitle: {
         fontSize: 28,

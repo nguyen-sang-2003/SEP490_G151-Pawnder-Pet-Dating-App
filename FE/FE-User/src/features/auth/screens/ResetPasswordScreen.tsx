@@ -75,7 +75,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
 
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={gradients.auth.forgot}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -99,7 +99,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
           {/* Icon */}
           <View style={styles.iconContainer}>
             <LinearGradient
-              colors={gradients.primary}
+              colors={gradients.auth.buttonSecondary}
               style={styles.iconGradient}
             >
               <Icon name="key-outline" size={48} color={colors.white} />
@@ -245,7 +245,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ["#CCC", "#AAA"] : gradients.primary}
+              colors={loading ? ["#CCC", "#AAA"] : gradients.auth.buttonPrimary}
               style={styles.resetGradient}
             >
               {loading ? (

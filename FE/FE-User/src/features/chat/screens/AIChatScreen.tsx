@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,13 +11,16 @@ import {
   Dimensions,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getChatAIHistory, sendMessageToAI } from "../../../api";
 
 const { width } = Dimensions.get("window");
 
@@ -31,88 +34,135 @@ interface Message {
   suggestions?: string[];
 }
 
-const QUICK_QUESTIONS = [
-  "🐱 What should I feed my cat?",
-  "🏃 How much exercise does my cat need?",
-  "💊 When should I vaccinate my cat?",
-  "🎾 Fun activities for indoor cats?",
-];
 
 const AIChatScreen = ({ navigation, route }: Props) => {
   const chatId = route.params?.chatId || "new";
   
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      text: "Hi there! 👋 I'm your AI Pet Care Assistant. I'm here to help you with any questions about your cat! How can I assist you today?",
-      isAI: true,
-      timestamp: new Date(),
-      suggestions: [
-        "Pet care tips",
-        "Health advice",
-        "Training tips",
-        "Nutrition guide",
-      ],
-    },
-  ]);
-  
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [chatTitle, setChatTitle] = useState("AI Chat");
   const flatListRef = useRef<FlatList>(null);
 
-  const simulateAIResponse = (userMessage: string) => {
-    setIsTyping(true);
+  // Load chat history on mount
+  useEffect(() => {
+    if (chatId && chatId !== "new") {
+      loadChatHistory();
+    } else {
+      // New chat - show welcome message
+      setMessages([
+        {
+          id: "welcome",
+          text: "Hi there! 👋 I'm your AI Pet Care Assistant. I'm here to help you with any questions about your cat! How can I assist you today?",
+          isAI: true,
+          timestamp: new Date(),
+          suggestions: [
+            "Pet care tips",
+            "Health advice",
+            "Training tips",
+            "Nutrition guide",
+          ],
+        },
+      ]);
+      setLoading(false);
+    }
+  }, [chatId]);
+
+  const loadChatHistory = async () => {
+    try {
+      setLoading(true);
+      console.log('📞 Loading AI chat history:', chatId);
+      
+      const chatData = await getChatAIHistory(parseInt(chatId));
+      setChatTitle(chatData.chatTitle);
+      
+      // Convert API messages to Message format
+      const formattedMessages: Message[] = [];
+      
+      chatData.messages.forEach(msg => {
+        // User question
+        formattedMessages.push({
+          id: `${msg.contentId}-q`,
+          text: msg.question,
+          isAI: false,
+          timestamp: new Date(msg.createdAt),
+        });
+        
+        // AI answer
+        formattedMessages.push({
+          id: `${msg.contentId}-a`,
+          text: msg.answer,
+          isAI: true,
+          timestamp: new Date(msg.createdAt),
+        });
+      });
+      
+      setMessages(formattedMessages);
+    } catch (error: any) {
+      console.error('❌ Error loading chat history:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể tải lịch sử chat');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSend = async (text?: string) => {
+    const messageText = text || inputText.trim();
+    
+    if (!messageText) return;
+    
+    if (chatId === "new") {
+      Alert.alert('Lỗi', 'Vui lòng tạo cuộc trò chuyện mới trước');
+      return;
+    }
+
+    // Add user message to UI immediately
+    const userMessage: Message = {
+      id: `temp-${Date.now()}`,
+      text: messageText,
+      isAI: false,
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setInputText("");
     
     setTimeout(() => {
-      const aiResponses = [
-        "That's a great question! Based on your cat's needs, I'd recommend feeding them high-quality protein-rich food 2-3 times daily. Persian cats particularly need food that supports their coat health.",
-        "Let me help you with that! For indoor cats, I suggest 15-20 minutes of playtime twice daily. Use interactive toys like feather wands or laser pointers to keep them active.",
-        "Great question! Vaccination is crucial for cat health. Kittens should get their first shots at 6-8 weeks, with boosters at 12 and 16 weeks. Adult cats need annual boosters.",
-        "For training, cats respond well to positive reinforcement. Use treats and praise when they use the litter box correctly or come when called. Be patient and consistent!",
-      ];
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    // Show typing indicator
+    setIsTyping(true);
+
+    try {
+      console.log('📞 Sending message to AI:', { chatId, messageText });
       
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+      // Call API
+      const response = await sendMessageToAI(parseInt(chatId), messageText);
       
+      // Add AI response to messages
       const aiMessage: Message = {
         id: Date.now().toString(),
-        text: randomResponse,
+        text: response.answer,
         isAI: true,
-        timestamp: new Date(),
-        suggestions: [
-          "Tell me more",
-          "Any other tips?",
-          "Thank you!",
-        ],
+        timestamp: new Date(response.timestamp),
       };
       
       setMessages(prev => [...prev, aiMessage]);
+      
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      
+    } catch (error: any) {
+      console.error('❌ Error sending message to AI:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể gửi tin nhắn');
+      
+      // Remove user message on error
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+    } finally {
       setIsTyping(false);
-      
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }, 1500);
-  };
-
-  const handleSend = (text?: string) => {
-    const messageText = text || inputText.trim();
-    
-    if (messageText) {
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        text: messageText,
-        isAI: false,
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, userMessage]);
-      setInputText("");
-      
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-
-      simulateAIResponse(messageText);
     }
   };
 
@@ -171,7 +221,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         {item.isAI && (
           <View style={styles.aiAvatarContainer}>
             <LinearGradient
-              colors={["#667EEA", "#8B9FEE"]}
+              colors={gradients.ai}
               style={styles.aiAvatar}
             >
               <Icon name="sparkles" size={20} color={colors.white} />
@@ -200,7 +250,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                   onPress={() => handleAskExpert(item)}
                 >
                   <LinearGradient
-                    colors={["#4CAF50", "#81C784"]}
+                    colors={[colors.success, "#81C784"]}
                     style={styles.askExpertGradient}
                   >
                     <Icon name="shield-checkmark" size={16} color={colors.white} />
@@ -243,12 +293,48 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     </View>
   );
 
+  // Show loading state
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={gradients.background}
+        style={styles.container}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={colors.textDark} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <LinearGradient
+              colors={gradients.ai}
+              style={styles.headerAvatar}
+            >
+              <Icon name="sparkles" size={24} color={colors.white} />
+            </LinearGradient>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerName}>{chatTitle}</Text>
+              <Text style={styles.headerStatus}>Loading...</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.aiPrimary} />
+          <Text style={styles.loadingText}>Loading chat...</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   return (
-    <LinearGradient
-      colors={gradients.background}
-      style={styles.container}
-    >
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={["#FFFFFF", "#FFF8FB"]}
+        style={styles.headerGradient}
+      >
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -259,7 +345,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
 
         <View style={styles.headerCenter}>
           <LinearGradient
-            colors={["#667EEA", "#8B9FEE"]}
+            colors={gradients.ai}
             style={styles.headerAvatar}
           >
             <Icon name="sparkles" size={24} color={colors.white} />
@@ -267,7 +353,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>AI Pet Assistant</Text>
             <Text style={styles.headerStatus}>
-              {isTyping ? "typing..." : "Always active"}
+              {isTyping ? "typing..." : "Always active "}
             </Text>
           </View>
         </View>
@@ -276,27 +362,16 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           style={styles.menuButton}
           onPress={() => navigation.navigate("ExpertConfirmation" as any)}
         >
-          <Icon name="shield-checkmark" size={22} color="#4CAF50" />
+          <LinearGradient
+            colors={["#4CAF50", "#81C784"]}
+            style={styles.menuIconGradient}
+          >
+            <Icon name="shield-checkmark" size={20} color={colors.white} />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
+      </LinearGradient>
 
-      {/* Quick Questions */}
-      {messages.length === 1 && (
-        <View style={styles.quickQuestionsContainer}>
-          <Text style={styles.quickQuestionsTitle}>Quick Questions</Text>
-          <View style={styles.quickQuestionsGrid}>
-            {QUICK_QUESTIONS.map((question, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.quickQuestionCard}
-                onPress={() => handleSend(question)}
-              >
-                <Text style={styles.quickQuestionText}>{question}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -318,7 +393,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         {isTyping && (
           <View style={styles.typingIndicator}>
             <LinearGradient
-              colors={["#667EEA", "#8B9FEE"]}
+              colors={gradients.ai}
               style={styles.typingAvatar}
             >
               <Icon name="sparkles" size={16} color={colors.white} />
@@ -335,7 +410,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.attachButton}>
-              <Icon name="camera-outline" size={28} color="#667EEA" />
+              <Icon name="camera-outline" size={28} color={colors.aiPrimary} />
             </TouchableOpacity>
             
             <TextInput
@@ -354,40 +429,36 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               disabled={!inputText.trim()}
             >
               <LinearGradient
-                colors={inputText.trim() ? ["#667EEA", "#764BA2"] : ["#DDD", "#CCC"]}
+                colors={inputText.trim() ? gradients.ai : ["#E0E0E0", "#BDBDBD"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={styles.sendGradient}
               >
-                <Icon
-                  name="send"
-                  size={20}
-                  color={inputText.trim() ? colors.white : colors.textLabel}
-                />
+                  <Icon
+                    name="send"
+                    size={20}
+                    color={colors.white}
+                  />
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
-
-      {/* AI Badge */}
-      <View style={styles.aiBadge}>
-        <LinearGradient
-          colors={["#667EEA", "#764BA2"]}
-          style={styles.aiBadgeGradient}
-        >
-          <Icon name="sparkles" size={12} color={colors.white} />
-          <Text style={styles.aiBadgeText}>Powered by AI</Text>
-        </LinearGradient>
-      </View>
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.whiteWarm,
   },
   keyboardView: {
     flex: 1,
+  },
+  headerGradient: {
+    paddingBottom: 12,
+    ...shadows.small,
   },
 
   // Header
@@ -431,14 +502,17 @@ const styles = StyleSheet.create({
   },
   headerStatus: {
     fontSize: 12,
-    color: "#667EEA",
+    color: colors.aiPrimary,
     marginTop: 2,
   },
   menuButton: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuIconGradient: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
     ...shadows.small,
@@ -461,17 +535,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   quickQuestionCard: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: "#8B9FEE",
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: "rgba(255, 154, 118, 0.2)",
     ...shadows.small,
   },
   quickQuestionText: {
     fontSize: 14,
-    color: "#667EEA",
+    color: colors.aiPrimary,
     fontWeight: "500",
   },
 
@@ -527,7 +601,7 @@ const styles = StyleSheet.create({
   aiLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#667EEA",
+    color: colors.aiPrimary,
   },
   messageTime: {
     fontSize: 11,
@@ -588,7 +662,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 13,
-    color: "#667EEA",
+    color: colors.aiPrimary,
     fontWeight: "500",
   },
 
@@ -620,7 +694,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#667EEA",
+    backgroundColor: colors.aiPrimary,
     opacity: 0.6,
   },
 
@@ -632,11 +706,11 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 8,
-    borderWidth: 1,
-    borderColor: "rgba(156, 39, 176, 0.2)",
+    borderWidth: 2,
+    borderColor: "rgba(255, 154, 118, 0.15)",
     ...shadows.medium,
   },
   attachButton: {
@@ -664,25 +738,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // AI Badge
-  aiBadge: {
-    position: "absolute",
-    top: 110,
-    right: 16,
-    borderRadius: radius.full,
-    overflow: "hidden",
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  aiBadgeGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    gap: 4,
-  },
-  aiBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.white,
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textMedium,
+    fontWeight: '600',
   },
 });
 

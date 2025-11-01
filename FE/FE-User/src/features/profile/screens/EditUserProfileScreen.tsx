@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -14,7 +13,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getUserById, updateUser, getAddressById, updateAddressManual, createAddressForUser, updateAddress } from "../../../api";
+import { getUserById, updateUser, getAddressById, createAddressForUser, updateAddress } from "../../../api";
 import { getItem } from "../../../utils/storage";
 import { colors } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
@@ -32,10 +31,9 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState("Male");
-  const [city, setCity] = useState("");
-  const [district, setDistrict] = useState("");
-  const [ward, setWard] = useState("");
-  const [locationMode, setLocationMode] = useState<'manual' | 'gps'>('manual'); // Toggle between manual and GPS
+  const [city, setCity] = useState(""); // Read-only, for display from GPS
+  const [district, setDistrict] = useState(""); // Read-only, for display from GPS
+  const [ward, setWard] = useState(""); // Read-only, for display from GPS
   const [gettingLocation, setGettingLocation] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
@@ -110,21 +108,13 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       setSaving(true);
       console.log('💾 Saving user data...');
       
-      // IMPORTANT: Don't send AddressId here - it's managed separately via GPS/Address API
-      // Sending undefined would set User.AddressId = NULL in database!
+      // Update user info only (address is managed via GPS)
       await updateUser(userId, {
         RoleId: 2,
         FullName: name.trim(),
         Gender: gender,
-        // AddressId is NOT included - backend will keep existing value
         NewPassword: undefined,
       });
-      
-      // Update address if addressId exists AND user manually edited City/District/Ward
-      if (addressId && (city.trim() || district.trim() || ward.trim())) {
-        console.log('💾 Updating address manually...');
-        await updateAddressManual(addressId, city.trim(), district.trim(), ward.trim());
-      }
       
       console.log('✅ User updated successfully');
       showAlert({ type: 'success', title: 'Thành công', message: 'Đã cập nhật thông tin!', onClose: () => navigation.goBack() });
@@ -138,11 +128,6 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
   const handleBack = () => {
     navigation.goBack();
-  };
-
-  const handleChangeAvatar = () => {
-    // Image picker logic
-    showAlert({ type: 'info', title: 'Thay đổi ảnh đại diện', message: 'Tính năng sắp ra mắt!' });
   };
 
   const handleGetGPSLocation = async () => {
@@ -251,33 +236,6 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Avatar Section */}
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarWrapper}>
-            <LinearGradient
-              colors={["#FF6EA7", "#FFC2D6"]}
-              style={styles.avatarGradient}
-            >
-              <Image
-                source={require("../../../assets/cat_avatar_signin.png")}
-                style={styles.avatar}
-              />
-            </LinearGradient>
-            <TouchableOpacity
-              style={styles.editIconBtn}
-              onPress={handleChangeAvatar}
-            >
-              <LinearGradient
-                colors={["#FF6EA7", "#FF9BC0"]}
-                style={styles.editIconGradient}
-              >
-                <Icon name="camera" size={18} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.changePhotoText}>Change profile photo</Text>
-        </View>
-
         {/* Form */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Information</Text>
@@ -360,79 +318,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             </View>
           </View>
 
-          {/* Location Mode Toggle */}
-          <View style={styles.locationModeToggle}>
-            <TouchableOpacity
-              style={[styles.modeButton, locationMode === 'manual' && styles.modeButtonActive]}
-              onPress={() => setLocationMode('manual')}
-            >
-              <Icon 
-                name="create-outline" 
-                size={18} 
-                color={locationMode === 'manual' ? '#fff' : colors.textMedium} 
-              />
-              <Text style={[styles.modeButtonText, locationMode === 'manual' && styles.modeButtonTextActive]}>
-                Nhập thủ công
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeButton, locationMode === 'gps' && styles.modeButtonActive]}
-              onPress={() => setLocationMode('gps')}
-            >
-              <Icon 
-                name="location" 
-                size={18} 
-                color={locationMode === 'gps' ? '#fff' : colors.textMedium} 
-              />
-              <Text style={[styles.modeButtonText, locationMode === 'gps' && styles.modeButtonTextActive]}>
-                Dùng GPS
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Manual Mode */}
-          {locationMode === 'manual' ? (
-            <>
-              {/* City */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>City</Text>
-                <TextInput
-                  style={styles.input}
-                  value={city}
-                  onChangeText={setCity}
-                  placeholder="Enter city"
-                  placeholderTextColor="#999"
-                />
-              </View>
-
-              {/* District */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>District</Text>
-                <TextInput
-                  style={styles.input}
-                  value={district}
-                  onChangeText={setDistrict}
-                  placeholder="Enter district"
-                  placeholderTextColor="#999"
-                />
-              </View>
-
-              {/* Ward */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Ward</Text>
-                <TextInput
-                  style={styles.input}
-                  value={ward}
-                  onChangeText={setWard}
-                  placeholder="Enter ward"
-                  placeholderTextColor="#999"
-                />
-              </View>
-            </>
-          ) : (
-            /* GPS Mode */
-            <>
-              <View style={styles.gpsInfoBox}>
+          {/* Location - GPS Only */}
+          <Text style={styles.sectionTitle}>Location (GPS)</Text>
+          
+          <View style={styles.gpsInfoBox}>
                 <Icon name="information-circle" size={20} color={colors.primary} />
                 <Text style={styles.gpsInfoText}>
                   Nhấn nút bên dưới để tự động lấy vị trí từ GPS của bạn
@@ -464,19 +353,17 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Show current location */}
-              {(city || district || ward) && (
-                <View style={styles.currentLocationBox}>
-                  <Icon name="location" size={18} color={colors.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.currentLocationLabel}>Vị trí hiện tại:</Text>
-                    <Text style={styles.currentLocationText}>
-                      {[ward, district, city].filter(Boolean).join(', ') || 'Chưa có'}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </>
+          {/* Show current location */}
+          {(city || district || ward) && (
+            <View style={styles.currentLocationBox}>
+              <Icon name="location" size={18} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.currentLocationLabel}>Vị trí hiện tại:</Text>
+                <Text style={styles.currentLocationText}>
+                  {[ward, district, city].filter(Boolean).join(', ') || 'Chưa có'}
+                </Text>
+              </View>
+            </View>
           )}
         </View>
 
@@ -549,57 +436,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: "#333",
-  },
-
-  // Avatar Section
-  avatarSection: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
-  avatarWrapper: {
-    position: "relative",
-    marginBottom: 12,
-  },
-  avatarGradient: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#FF6EA7",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-  },
-  editIconBtn: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-  },
-  editIconGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFF",
-    shadowColor: "#FF6EA7",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  changePhotoText: {
-    fontSize: 14,
-    color: "#FF6EA7",
-    fontWeight: "600",
   },
 
   // Section
@@ -675,37 +511,6 @@ const styles = StyleSheet.create({
   },
   genderTextActive: {
     color: "#FF6EA7",
-  },
-
-  // Location Mode Toggle
-  locationModeToggle: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-  },
-  modeButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F5F5F5",
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: "transparent",
-    gap: 6,
-  },
-  modeButtonActive: {
-    backgroundColor: "#FF6EA7",
-    borderColor: "#FF6EA7",
-  },
-  modeButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#999",
-  },
-  modeButtonTextActive: {
-    color: "#fff",
   },
 
   // GPS Mode

@@ -84,19 +84,14 @@ const FilterScreen = ({ navigation }: Props) => {
             }
 
             const userId = parseInt(userIdStr);
-            console.log("👤 Loading filters for userId:", userId);
             setCurrentUserId(userId);
 
             // Load attributes
-            console.log("📋 Loading attributes...");
             const attributesData = await getAttributesForFilter();
-            console.log("✅ Loaded attributes:", attributesData.length);
             setAttributes(attributesData);
 
             // Load existing preferences
-            console.log("🔍 Loading user preferences...");
             const preferencesData = await getUserPreferences(userId);
-            console.log("✅ Loaded preferences:", preferencesData);
             
             const filtersMap: { [key: number]: ActiveFilter } = {};
             preferencesData.forEach((pref: any) => {
@@ -107,7 +102,6 @@ const FilterScreen = ({ navigation }: Props) => {
                 };
             });
 
-            console.log("📊 Active filters map:", filtersMap);
             setActiveFilters(filtersMap);
         } catch (error: any) {
             console.error("❌ Error loading filter data:", error);
@@ -197,15 +191,10 @@ const FilterScreen = ({ navigation }: Props) => {
                     MaxValue: filter.maxValue,
                 }));
 
-            console.log("💾 Saving filters:", {
-                userId: currentUserId,
-                filterCount: preferences.length,
-                preferences: preferences,
-            });
-
             await saveUserPreferencesBatch(currentUserId, preferences);
-            
             console.log("✅ Filters saved successfully!");
+            
+            // Reload Home screen to fetch new recommendations
             navigation.goBack();
         } catch (error: any) {
             console.error("❌ Error saving filters:", error);

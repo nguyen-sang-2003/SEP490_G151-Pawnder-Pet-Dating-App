@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,13 +6,20 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  ActivityIndicator,
+  TextInput,
+  Modal,
+  Pressable,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getChatAISessions, createChatAISession, deleteChatAISession, updateChatAITitle, ChatAISession } from "../../../api";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AIChatList">;
 
@@ -25,45 +32,102 @@ interface ChatSession {
 }
 
 const AIChatListScreen = ({ navigation }: Props) => {
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([
-    {
-      id: "1",
-      title: "Cat Nutrition Advice",
-      lastMessage: "What should I feed my Persian cat?",
-      timestamp: new Date(Date.now() - 3600000),
-      messageCount: 5,
-    },
-    {
-      id: "2",
-      title: "Health Checkup Questions",
-      lastMessage: "Is my cat's behavior normal?",
-      timestamp: new Date(Date.now() - 86400000),
-      messageCount: 8,
-    },
-    {
-      id: "3",
-      title: "Training Tips",
-      lastMessage: "How to train my cat?",
-      timestamp: new Date(Date.now() - 172800000),
-      messageCount: 3,
-    },
-  ]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null);
+  const [newTitle, setNewTitle] = useState("");
 
-  const handleCreateNewChat = () => {
-    const newChat: ChatSession = {
-      id: Date.now().toString(),
-      title: "New Conversation",
-      lastMessage: "",
-      timestamp: new Date(),
-      messageCount: 0,
-    };
-    
-    setChatSessions(prev => [newChat, ...prev]);
-    navigation.navigate("AIChat", { chatId: newChat.id });
+  // Load chat sessions when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadChatSessions();
+    }, [])
+  );
+
+  const loadChatSessions = async () => {
+    try {
+      setLoading(true);
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        console.log('❌ No userId found');
+        setLoading(false);
+        return;
+      }
+
+      const userId = parseInt(userIdStr);
+      setCurrentUserId(userId);
+      console.log('📞 Loading AI chat sessions for user:', userId);
+
+      const sessions = await getChatAISessions(userId);
+      
+      // Convert API data to ChatSession format
+      const formattedSessions: ChatSession[] = sessions.map((session: ChatAISession) => ({
+        id: session.chatAiid.toString(),
+        title: session.title,
+        lastMessage: session.lastQuestion || '',
+        timestamp: new Date(session.updatedAt),
+        messageCount: session.messageCount,
+      }));
+
+      setChatSessions(formattedSessions);
+    } catch (error: any) {
+      console.error('❌ Error loading AI chat sessions:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể tải danh sách chat');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateNewChat = async () => {
+    if (!currentUserId) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+      return;
+    }
+
+    try {
+      console.log('📞 Creating new AI chat session');
+      const newChat = await createChatAISession(currentUserId, { title: 'New Chat' });
+      
+      // Navigate to chat screen immediately
+      navigation.navigate("AIChat", { chatId: newChat.chatId.toString() });
+      
+      // Reload list when we come back
+      loadChatSessions();
+    } catch (error: any) {
+      console.error('❌ Error creating AI chat session:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể tạo cuộc trò chuyện mới');
+    }
   };
 
   const handleChatPress = (chatId: string) => {
     navigation.navigate("AIChat", { chatId });
+  };
+
+  const handleRenameChat = (chat: ChatSession) => {
+    setSelectedChat(chat);
+    setNewTitle(chat.title);
+    setShowRenameModal(true);
+  };
+
+  const handleSaveRename = async () => {
+    if (!selectedChat || !newTitle.trim()) return;
+
+    try {
+      await updateChatAITitle(parseInt(selectedChat.id), newTitle.trim());
+      setChatSessions(prev =>
+        prev.map(chat =>
+          chat.id === selectedChat.id ? { ...chat, title: newTitle.trim() } : chat
+        )
+      );
+      setShowRenameModal(false);
+      setSelectedChat(null);
+      setNewTitle("");
+    } catch (error: any) {
+      console.error('❌ Error renaming chat:', error);
+      Alert.alert('Lỗi', error.message || 'Không thể đổi tên cuộc trò chuyện');
+    }
   };
 
   const handleDeleteChat = (chatId: string, title: string) => {
@@ -75,9 +139,14 @@ const AIChatListScreen = ({ navigation }: Props) => {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => {
-            setChatSessions(prev => prev.filter(chat => chat.id !== chatId));
-            // TODO: Call DELETE /chat-ai/{chatAiId}
+          onPress: async () => {
+            try {
+              await deleteChatAISession(parseInt(chatId));
+              setChatSessions(prev => prev.filter(chat => chat.id !== chatId));
+            } catch (error: any) {
+              console.error('❌ Error deleting chat:', error);
+              Alert.alert('Lỗi', error.message || 'Không thể xóa cuộc trò chuyện');
+            }
           },
         },
       ]
@@ -106,11 +175,11 @@ const AIChatListScreen = ({ navigation }: Props) => {
     <TouchableOpacity
       style={styles.chatItem}
       onPress={() => handleChatPress(item.id)}
-      onLongPress={() => handleDeleteChat(item.id, item.title)}
+      onLongPress={() => handleRenameChat(item)}
     >
       <View style={styles.chatIconContainer}>
         <LinearGradient
-          colors={["#667EEA", "#764BA2"]}
+          colors={gradients.ai}
           style={styles.chatIconGradient}
         >
           <Icon name="chatbubbles" size={20} color={colors.white} />
@@ -136,10 +205,46 @@ const AIChatListScreen = ({ navigation }: Props) => {
         style={styles.deleteBtn}
         onPress={() => handleDeleteChat(item.id, item.title)}
       >
-        <Icon name="trash-outline" size={18} color={colors.textMedium} />
+        <LinearGradient
+          colors={["#FF6B6B", "#FF8E8E"]}
+          style={styles.deleteIconGradient}
+        >
+          <Icon name="trash-outline" size={16} color={colors.white} />
+        </LinearGradient>
       </TouchableOpacity>
     </TouchableOpacity>
   );
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={gradients.background} style={styles.gradient}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={colors.textDark} />
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <LinearGradient
+                colors={gradients.ai}
+                style={styles.headerIcon}
+              >
+                <Icon name="sparkles" size={24} color={colors.white} />
+              </LinearGradient>
+              <Text style={styles.headerTitle}>AI Pet Assistant</Text>
+            </View>
+          </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.aiPrimary} />
+            <Text style={styles.loadingText}>Loading chats...</Text>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -154,33 +259,43 @@ const AIChatListScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <LinearGradient
-              colors={["#667EEA", "#764BA2"]}
+              colors={gradients.ai}
               style={styles.headerIcon}
             >
               <Icon name="sparkles" size={24} color={colors.white} />
             </LinearGradient>
-            <Text style={styles.headerTitle}>AI Assistant</Text>
+            <Text style={styles.headerTitle}>AI Pet Assistant</Text>
           </View>
           <TouchableOpacity
             style={styles.expertButton}
             onPress={() => navigation.navigate("ExpertConfirmation" as any)}
           >
-            <Icon name="shield-checkmark" size={24} color="#4CAF50" />
+            <LinearGradient
+              colors={["#4CAF50", "#81C784"]}
+              style={styles.expertIconGradient}
+            >
+              <Icon name="shield-checkmark" size={20} color={colors.white} />
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
         {/* Info Banner */}
         <View style={styles.infoBanner}>
-          <Icon name="information-circle" size={20} color="#667EEA" />
+          <LinearGradient
+            colors={gradients.ai}
+            style={styles.infoBannerIconGradient}
+          >
+            <Icon name="information-circle" size={18} color={colors.white} />
+          </LinearGradient>
           <Text style={styles.infoBannerText}>
-            Get instant pet care advice. Ask an expert for confirmation!
+            Get instant pet care advice from AI. Ask an expert for confirmation! 
           </Text>
         </View>
 
         {/* New Chat Button */}
         <TouchableOpacity style={styles.newChatButton} onPress={handleCreateNewChat}>
           <LinearGradient
-            colors={["#667EEA", "#764BA2"]}
+            colors={gradients.ai}
             style={styles.newChatGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -208,13 +323,70 @@ const AIChatListScreen = ({ navigation }: Props) => {
           />
         ) : (
           <View style={styles.emptyContainer}>
-            <Icon name="chatbubbles-outline" size={80} color={colors.textLabel} />
+            <LinearGradient
+              colors={gradients.ai}
+              style={styles.emptyIconGradient}
+            >
+              <Icon name="chatbubbles-outline" size={60} color={colors.white} />
+            </LinearGradient>
             <Text style={styles.emptyTitle}>No Conversations Yet</Text>
             <Text style={styles.emptyText}>
               Start a new conversation to get pet care advice from AI
             </Text>
           </View>
         )}
+
+        {/* Rename Modal */}
+        <Modal
+          visible={showRenameModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowRenameModal(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowRenameModal(false)}
+          >
+            <Pressable style={styles.renameModal} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Icon name="create-outline" size={24} color={colors.aiPrimary} />
+                <Text style={styles.modalTitle}>Đổi tên cuộc trò chuyện</Text>
+              </View>
+              
+              <TextInput
+                style={styles.modalInput}
+                value={newTitle}
+                onChangeText={setNewTitle}
+                placeholder="Nhập tên mới..."
+                placeholderTextColor={colors.textLabel}
+                autoFocus
+                maxLength={50}
+              />
+              
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setShowRenameModal(false)}
+                >
+                  <Text style={styles.modalCancelText}>Hủy</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={handleSaveRename}
+                  disabled={!newTitle.trim()}
+                >
+                  <LinearGradient
+                    colors={newTitle.trim() ? gradients.ai : ["#E0E0E0", "#BDBDBD"]}
+                    style={styles.modalSaveGradient}
+                  >
+                    <Text style={styles.modalSaveText}>Lưu</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </LinearGradient>
     </View>
   );
@@ -254,22 +426,25 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     color: colors.textDark,
   },
   expertButton: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  expertIconGradient: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
     ...shadows.small,
@@ -280,17 +455,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(102, 126, 234, 0.1)",
+    backgroundColor: colors.white,
     marginHorizontal: 16,
-    padding: 12,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: "rgba(102, 126, 234, 0.25)",
+    padding: 14,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: "rgba(255, 154, 118, 0.2)",
+    ...shadows.small,
+  },
+  infoBannerIconGradient: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
   infoBannerText: {
     flex: 1,
     fontSize: 13,
-    color: "#667EEA",
+    color: colors.aiPrimary,
     lineHeight: 18,
   },
 
@@ -298,10 +481,10 @@ const styles = StyleSheet.create({
   newChatButton: {
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 20,
-    borderRadius: radius.lg,
+    marginBottom: 24,
+    borderRadius: radius.xl,
     overflow: "hidden",
-    ...shadows.medium,
+    ...shadows.large,
   },
   newChatGradient: {
     flexDirection: "row",
@@ -385,11 +568,81 @@ const styles = StyleSheet.create({
   },
   chatMessageCount: {
     fontSize: 12,
-    color: "#667EEA",
+    color: colors.aiPrimary,
     fontWeight: "500",
   },
   deleteBtn: {
-    padding: 8,
+    padding: 4,
+  },
+  deleteIconGradient: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Rename Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  renameModal: {
+    width: "85%",
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: 24,
+    ...shadows.large,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.textDark,
+  },
+  modalInput: {
+    backgroundColor: colors.whiteWarm,
+    borderRadius: radius.md,
+    padding: 14,
+    fontSize: 15,
+    color: colors.textDark,
+    borderWidth: 2,
+    borderColor: "rgba(255, 154, 118, 0.2)",
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  modalButton: {
+    minWidth: 80,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textMedium,
+    textAlign: "center",
+    paddingVertical: 10,
+  },
+  modalSaveGradient: {
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalSaveText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
   },
 
   // Empty State
@@ -398,6 +651,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
+  },
+  emptyIconGradient: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 22,
@@ -411,6 +672,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 12,
     lineHeight: 22,
+  },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 100,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textMedium,
+    fontWeight: '600',
   },
 });
 

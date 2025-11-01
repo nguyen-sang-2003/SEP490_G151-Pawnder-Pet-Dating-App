@@ -53,8 +53,19 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       const attrs = await getAttributes();
       console.log('Loaded attributes:', attrs);
       
-      // Filter out invalid attributes
-      const validAttrs = attrs.filter(attr => attr.AttributeId != null);
+      // Filter out invalid attributes and distance-related attributes (those are user preferences, not pet characteristics)
+      const validAttrs = attrs.filter(attr => {
+        if (attr.AttributeId == null) return false;
+        
+        // Filter out distance/range attributes - these are user preferences, not pet characteristics
+        const name = attr.Name?.toLowerCase() || '';
+        if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
+          console.log('🚫 Filtering out distance attribute:', attr.Name);
+          return false;
+        }
+        
+        return true;
+      });
       setAttributes(validAttrs);
 
       // Load options for each attribute
@@ -199,7 +210,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   if (loading) {
     return (
       <LinearGradient
-        colors={gradients.background}
+        colors={gradients.auth.signup}
         style={[styles.container, styles.centerContent]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -212,7 +223,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={gradients.auth.signup}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -315,7 +326,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             disabled={saving}
           >
             <LinearGradient
-              colors={gradients.primary}
+              colors={gradients.auth.buttonPrimary}
               style={styles.button}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}

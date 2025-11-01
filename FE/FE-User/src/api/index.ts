@@ -10,6 +10,7 @@ export * from './pet';
 export * from './user';
 export * from './match';
 export * from './chat';
+export * from './chatai';
 export * from './block';
 export * from './report';
 

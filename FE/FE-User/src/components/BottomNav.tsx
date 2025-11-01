@@ -30,35 +30,39 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
     }
   };
 
-  // Nav items config - Each tab has unique color theme
+  // Nav items config - Each tab has unique gradient from theme
   const navItems = [
     { 
       key: "Home" as Tab, 
       icon: "paw", 
       iconOutline: "paw-outline",
-      gradient: ["#FF6EA7", "#FF9BC0"], // Pink - Pawnder brand
-      shadowColor: "#FF6EA7",
+      gradient: gradients.home,
+      gradientLight: ["rgba(233, 30, 99, 0.25)", "rgba(255, 107, 157, 0.25)"],
+      shadowColor: colors.homeStart,
     },
     { 
       key: "Chat" as Tab, 
       icon: "chatbubbles", 
       iconOutline: "chatbubbles-outline",
-      gradient: ["#4FC3F7", "#29B6F6"], // Blue - Communication
-      shadowColor: "#29B6F6",
+      gradient: gradients.chat,
+      gradientLight: ["rgba(255, 154, 118, 0.25)", "rgba(255, 126, 179, 0.25)"],
+      shadowColor: colors.chatStart,
     },
     { 
       key: "Favorite" as Tab, 
       icon: "heart", 
       iconOutline: "heart-outline",
-      gradient: ["#FF6B9D", "#EF476F"], // Red Pink - Love
-      shadowColor: "#EF476F",
+      gradient: gradients.favorite,
+      gradientLight: ["rgba(255, 126, 168, 0.25)", "rgba(255, 189, 212, 0.25)"],
+      shadowColor: colors.favoriteStart,
     },
     { 
       key: "Profile" as Tab, 
       icon: "person", 
       iconOutline: "person-outline",
-      gradient: ["#9C27B0", "#BA68C8"], // Purple - Personal
-      shadowColor: "#BA68C8",
+      gradient: gradients.profile,
+      gradientLight: ["rgba(255, 168, 204, 0.25)", "rgba(255, 224, 240, 0.25)"],
+      shadowColor: colors.profileStart,
     },
   ];
 
@@ -84,16 +88,16 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
                     styles.activeBackground,
                     {
                       shadowColor: item.shadowColor,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.4,
-                      shadowRadius: 12,
-                      elevation: 8,
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 16,
+                      elevation: 10,
                     }
                   ]}
                 >
                   <Icon 
                     name={item.icon} 
-                    size={26} 
+                    size={28} 
                     color={colors.white} 
                   />
                 </LinearGradient>
@@ -101,8 +105,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
                 <View style={styles.inactiveBackground}>
                   <Icon 
                     name={item.iconOutline} 
-                    size={26} 
-                    color={colors.textMedium} 
+                    size={28} 
+                    color={colors.textLight} 
                   />
                 </View>
               )}
@@ -121,24 +125,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === "ios" ? 20 : 10,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === "ios" ? 24 : 16,
     backgroundColor: "transparent",
   },
   bottomNav: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 8,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: "rgba(255,110,167,0.15)",
-    shadowColor: "#FF6EA7",
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 157, 0.15)",
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowRadius: 20,
     elevation: 12,
   },
   navItem: {
@@ -147,9 +151,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   activeBackground: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
     // Shadow applied inline for each tab color

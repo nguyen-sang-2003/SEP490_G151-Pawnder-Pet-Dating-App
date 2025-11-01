@@ -73,7 +73,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
         public async Task<string> SendMessageAsync(int userId, int chatAiId, string question)
         {
-            // Kiểm tra chat session
+            // Kiểm tra chat session (chỉ cho phép truy cập chat của chính mình)
             var chatAi = await _context.ChatAis
                 .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId && c.IsDeleted == false);
 

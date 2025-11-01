@@ -260,7 +260,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={gradients.auth.forgot}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -281,7 +281,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
           {/* Icon */}
           <View style={styles.iconContainer}>
             <LinearGradient
-              colors={gradients.primary}
+              colors={gradients.auth.buttonSecondary}
               style={styles.iconGradient}
             >
               <Icon name="mail-outline" size={48} color={colors.white} />
@@ -340,7 +340,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
             disabled={loading}
           >
             <LinearGradient
-              colors={gradients.primary}
+              colors={gradients.auth.buttonPrimary}
               style={styles.verifyGradient}
             >
               {loading ? (

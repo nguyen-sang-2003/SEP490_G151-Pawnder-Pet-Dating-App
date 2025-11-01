@@ -251,7 +251,7 @@ const ChatScreen = ({ navigation }: Props) => {
     >
       <View style={styles.avatarWrapper}>
         <LinearGradient
-          colors={item.isAI ? ["#667EEA", "#764BA2"] : gradients.primary}
+          colors={item.isAI ? gradients.ai : gradients.chat}
           style={styles.avatarGradient}
         >
           <Image source={item.avatar} style={styles.avatar} />
@@ -292,7 +292,7 @@ const ChatScreen = ({ navigation }: Props) => {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <LinearGradient
-            colors={gradients.primary}
+            colors={gradients.chat}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerIconGradient}
@@ -327,7 +327,7 @@ const ChatScreen = ({ navigation }: Props) => {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={["#667EEA", "#764BA2"]}
+          colors={gradients.ai}
           style={styles.aiChatGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -339,7 +339,7 @@ const ChatScreen = ({ navigation }: Props) => {
             <View style={styles.aiChatText}>
               <Text style={styles.aiChatTitle}>Chat with AI</Text>
               <Text style={styles.aiChatSubtitle}>
-                Get instant pet care advice
+                Get instant pet care advice 
               </Text>
             </View>
             <Icon name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
@@ -412,43 +412,32 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerIconGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#29B6F6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    ...shadows.medium,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "bold",
     color: colors.textDark,
-    textShadowColor: "rgba(41,182,246,0.1)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
 
   // Search Bar - Enhanced
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     marginHorizontal: 20,
     marginBottom: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderRadius: 25,
-    borderWidth: 1.5,
-    borderColor: "rgba(41,182,246,0.12)",
-    shadowColor: "#29B6F6",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: "rgba(255, 154, 118, 0.2)",
+    ...shadows.small,
   },
   searchIcon: {
     marginRight: 10,
@@ -463,10 +452,10 @@ const styles = StyleSheet.create({
   // AI Chat Card
   aiChatCard: {
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 24,
     borderRadius: radius.lg,
     overflow: "hidden",
-    ...shadows.medium,
+    ...shadows.large,
   },
   aiChatGradient: {
     flexDirection: "row",
@@ -555,7 +544,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: -2,
     right: -2,
-    backgroundColor: "#9C27B0",
+    backgroundColor: colors.aiPrimary,
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -563,7 +552,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 3,
     borderColor: colors.whiteWarm,
-    shadowColor: "#9C27B0",
+    shadowColor: colors.aiPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 4,
