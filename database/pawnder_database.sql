@@ -66,6 +66,7 @@ CREATE TABLE "Attribute" (
     "Name" VARCHAR(100) NOT NULL,
     "TypeValue" VARCHAR(50),
     "Unit" VARCHAR(20),
+    "Percent" DECIMAL(5,2) DEFAULT 0,
     "IsDeleted" BOOLEAN DEFAULT FALSE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
@@ -276,31 +277,121 @@ INSERT INTO "UserStatus" ("UserStatusName") VALUES
 -- ========================
 -- Thêm dữ liệu bảng Attribute
 -- ========================
-INSERT INTO "Attribute" ("Name", "TypeValue", "Unit") VALUES
-('Chiều cao', 'float', 'cm'),
-('Cân nặng', 'float', 'kg'),
-('Dáng người', 'string', NULL),
-('Tỷ lệ cơ thể', 'string', NULL),
-('Hình dạng đầu', 'string', NULL),
-('Mắt', 'string', NULL),
-('Tai', 'string', NULL),
-('Mũi', 'string', NULL),
-('Mõm', 'string', NULL),
-('Hàm/răng', 'string', NULL),
-('Nếp nhăn', 'string', NULL);
-
--- ===========================
--- BẢNG Address
--- ===========================
-INSERT INTO "Address" ("FullAddress", "City", "District", "Ward")
+INSERT INTO "Attribute" ("Name", "TypeValue", "Unit", "Percent")
 VALUES
-('123 Lý Thường Kiệt, Quận 10, Hồ Chí Minh', 'Hồ Chí Minh', 'Quận 10', 'Phường 6'),
-('25 Nguyễn Huệ, Quận 1, Hồ Chí Minh', 'Hồ Chí Minh', 'Quận 1', 'Phường Bến Nghé'),
-('99 Võ Văn Kiệt, Quận Ninh Kiều, Cần Thơ', 'Cần Thơ', 'Ninh Kiều', 'An Hòa');
+('Hình dạng đầu', 'string', NULL, 9),
+('Hình dạng mõm', 'string', NULL, 7),
+('Màu lông', 'string', NULL, 9),
+('Độ dài lông', 'string', NULL, 6),
+('Kiểu lông', 'string', NULL, 6),
+('Cân nặng', 'float', 'kg', 8),
+('Kích thước mắt', 'string', NULL, 7),
+('Màu mắt', 'string', NULL, 6),
+('Hình dạng tai', 'string', NULL, 7),
+('Hình dạng đuôi', 'string', NULL, 4),
+('Tỷ lệ chân – thân', 'string', NULL, 3),
+('Trạng thái cơ thể', 'string', NULL, 2),
+('Tuổi', 'float', 'năm', 2),
+('Loại', 'string', NULL, 2),
+('Giới tính', 'string', NULL, 2),
+('Khoảng cách', 'float', 'km', 5),
+('Chiều cao', 'float', 'cm', 5);
 
--- ===========================
--- BẢNG User
--- ===========================
+-- ========================
+-- Thêm dữ liệu bảng AttributeOption
+-- ========================
+-- 1. Hình dạng đầu
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đầu'), 'Tròn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đầu'), 'Cân đối'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đầu'), 'Dài'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đầu'), 'Vuông');
+
+-- 2. Hình dạng mõm
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng mõm'), 'Ngắn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng mõm'), 'Trung bình'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng mõm'), 'Dài');
+
+-- 3. Màu lông
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Trắng'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Vàng'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Nâu'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Đen'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Xám'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Đỏ'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Bạc'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Xanh'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu lông'), 'Đốm');
+
+-- 4. Độ dài lông
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Độ dài lông'), 'Ngắn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Độ dài lông'), 'Trung bình'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Độ dài lông'), 'Dài');
+
+-- 5. Kiểu lông
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kiểu lông'), 'Mượt'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kiểu lông'), 'Xoăn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kiểu lông'), 'Xù'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kiểu lông'), 'Không lông');
+
+-- 7. Kích thước mắt
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kích thước mắt'), 'Rất to'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kích thước mắt'), 'To'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kích thước mắt'), 'Trung bình'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Kích thước mắt'), 'Nhỏ');
+
+-- 8. Màu mắt
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu mắt'), 'Đen'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu mắt'), 'Nâu'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu mắt'), 'Vàng'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu mắt'), 'Xanh dương'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu mắt'), 'Xanh lá'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Màu mắt'), 'Hổ phách');
+
+-- 9. Hình dạng tai
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng tai'), 'Dựng'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng tai'), 'Cụp'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng tai'), 'Cụp một phần'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng tai'), 'Dài'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng tai'), 'Ngắn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng tai'), 'Tròn');
+
+-- 10. Hình dạng đuôi
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đuôi'), 'Thẳng'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đuôi'), 'Cong nhẹ'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đuôi'), 'Cong tròn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đuôi'), 'Dài'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Hình dạng đuôi'), 'Cụt');
+
+-- 11. Tỷ lệ chân – thân
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Tỷ lệ chân – thân'), 'Chân rất ngắn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Tỷ lệ chân – thân'), 'Chân ngắn'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Tỷ lệ chân – thân'), 'Cân đối'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Tỷ lệ chân – thân'), 'Chân dài'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Tỷ lệ chân – thân'), 'Chân rất dài');
+
+-- 12. Trạng thái cơ thể
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Trạng thái cơ thể'), 'Gầy'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Trạng thái cơ thể'), 'Săn chắc'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Trạng thái cơ thể'), 'Cân đối'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Trạng thái cơ thể'), 'Mũm mĩm'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Trạng thái cơ thể'), 'Béo');
+
+-- 15. Giới tính
+INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Giới tính'), 'Đực'),
+((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Giới tính'), 'Cái');
+
 -- ===========================
 -- BẢNG User
 -- ===========================
@@ -425,7 +516,7 @@ INSERT INTO "ChatUser" ("FromUserId", "ToUserId", "Status")
 VALUES
 ((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
  (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
- 'Matched');
+ 'Accepted');
 
 -- ===========================
 -- BẢNG ChatUserContent
