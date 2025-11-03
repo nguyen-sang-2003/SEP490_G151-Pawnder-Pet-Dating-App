@@ -33,29 +33,35 @@ namespace BE.Controllers
             if (preferences == null || preferences.Count == 0)
                 return BadRequest("Người dùng chưa có sở thích.");
 
-            // Lấy khoảng cách từ Attribute "Distance"
+            // Lấy Khoảng cách từ Attribute "Distance"
             var distancePref = preferences
-                .FirstOrDefault(p => p.Attribute.Name.ToLower() == "khoảng cách");
+                .FirstOrDefault(p => p.Attribute.Name.ToLower() == "Khoảng cách");
 
             double? maxDistance = distancePref?.MaxValue;
 
-            var pets = await _context.Pets
+            // lấy tất cả pets trừ pet của chính user đó
+            var pets = await _context.Pets.Where(p => p.UserId != userId)
                 .Include(p => p.PetCharacteristics)
                 .Include(p => p.User)
                 .ThenInclude(u => u.Address)
                 .ToListAsync();
 
-            var matchedPets = new List<(Pet Pet, double Score, double TotalPref, double? Distance)>();
+            var matchedPets = new List<(Pet Pet, decimal Score, decimal totalPercent, double? Distance)>();
 
             foreach (var pet in pets)
             {
-                double score = 0;
-                double totalPref = preferences.Count;
+                decimal score = 0; // tổng Percent của những attribute trùng
+                decimal totalPercent = 0;
+                foreach (var pref in preferences)
+                {
+                    if (pref.Attribute.Name.ToLower() != "Khoảng cách")
+                        totalPercent += pref.Attribute.Percent ?? 0; // tổng Percent của những attribute user chọn
+                }
 
                 foreach (var pref in preferences)
                 {
                     // bỏ qua attribute Distance, xử lý riêng bên ngoài
-                    if (pref.Attribute.Name.ToLower() == "khoảng cách")
+                    if (pref.Attribute.Name.ToLower() == "Khoảng cách")
                         continue;
 
                     var petChar = pet.PetCharacteristics.FirstOrDefault(pc =>
@@ -69,30 +75,26 @@ namespace BE.Controllers
                         ));
 
                     if (petChar != null)
-                        score++;
+                        score += pref.Attribute.Percent ?? 0; // mỗi attribute khớp cộng trọng số Percent
                 }
 
                 if (score == 0)
                     continue; // không khớp gì thì bỏ qua
 
-                // Xử lý lọc theo khoảng cách nếu có
+                // Xử lý lọc theo Khoảng cách nếu có
                 double? distance = null;
-                if (maxDistance != null)
+                if (maxDistance != null || maxDistance > 0)
                 {
                     distance = await _distanceService.GetDistanceBetweenUsersAsync(userId, pet.UserId);
                     if (distance == null || distance > maxDistance)
                         continue;
-                    else
-                    {
-                        totalPref = totalPref - 1;
-                    }
                 }
 
-                matchedPets.Add((pet, score, totalPref, distance));
+                matchedPets.Add((pet, score, totalPercent, distance));
             }
 
             var result = matchedPets
-                .OrderByDescending(p => p.Score / p.TotalPref)
+                .OrderByDescending(p => p.Score / p.totalPercent)
                 .ThenBy(p => p.Distance ?? double.MaxValue)
                 .Take(20)
                 .Select(p => new
@@ -100,7 +102,7 @@ namespace BE.Controllers
                     PetId = p.Pet.PetId,
                     Name = p.Pet.Name,
                     UserId = p.Pet.UserId,
-                    MatchPercent = Math.Round((p.Score / p.TotalPref) * 100, 1),
+                    MatchPercent = Math.Round((p.Score / p.totalPercent) * 100, 1),
                     DistanceKm = p.Distance,
                     Score = p.Score
                 });

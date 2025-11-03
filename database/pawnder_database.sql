@@ -294,7 +294,7 @@ VALUES
 ('Tuổi', 'float', 'năm', 2),
 ('Loại', 'string', NULL, 2),
 ('Giới tính', 'string', NULL, 2),
-('Khoảng cách giữa người dùng', 'float', 'km', 5),
+('Khoảng cách', 'float', 'km', 5),
 ('Chiều cao', 'float', 'cm', 5);
 
 -- ========================
@@ -391,16 +391,6 @@ INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
 INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
 ((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Giới tính'), 'Đực'),
 ((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Giới tính'), 'Cái');
-
-
--- ===========================
--- BẢNG Address
--- ===========================
-INSERT INTO "Address" ("FullAddress", "City", "District", "Ward")
-VALUES
-('123 Lý Thường Kiệt, Quận 10, Hồ Chí Minh', 'Hồ Chí Minh', 'Quận 10', 'Phường 6'),
-('25 Nguyễn Huệ, Quận 1, Hồ Chí Minh', 'Hồ Chí Minh', 'Quận 1', 'Phường Bến Nghé'),
-('99 Võ Văn Kiệt, Quận Ninh Kiều, Cần Thơ', 'Cần Thơ', 'Ninh Kiều', 'An Hòa');
 
 -- ===========================
 -- BẢNG User
