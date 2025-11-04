@@ -85,6 +85,9 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Percent)
+                .HasPrecision(5, 2)
+                .HasDefaultValueSql("0");
             entity.Property(e => e.TypeValue).HasMaxLength(50);
             entity.Property(e => e.Unit).HasMaxLength(20);
             entity.Property(e => e.UpdatedAt)

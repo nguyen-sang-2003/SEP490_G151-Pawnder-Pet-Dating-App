@@ -77,7 +77,7 @@ namespace BE.Controllers
                          && !blockedUserIds.Contains(p.UserId.Value))
                 .ToListAsync();
 
-            var matchedPets = new List<(Pet Pet, double Score, double TotalPref, double? Distance)>();
+            var matchedPets = new List<(Pet Pet, decimal Score, decimal totalPercent, double? Distance)>();
 
             // Filter preferences, excluding distance
             var attributePreferences = (preferences ?? new List<UserPreference>())
@@ -129,9 +129,9 @@ namespace BE.Controllers
                 // Show all pets, even with 0 matches (if no preferences, all pets shown)
                 // Pets will be sorted by score later
 
-                // Xử lý lọc theo khoảng cách nếu có
+                // Xử lý lọc theo Khoảng cách nếu có
                 double? distance = null;
-                if (maxDistance != null)
+                if (maxDistance != null || maxDistance > 0)
                 {
                     distance = await _distanceService.GetDistanceBetweenUsersAsync(userId, pet.UserId);
                     
