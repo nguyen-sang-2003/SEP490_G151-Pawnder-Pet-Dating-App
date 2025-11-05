@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, ThemeProvider } from './context';
+import { NotificationProvider } from './context/NotificationContext';
 import { STORAGE_KEYS } from './constants';
 import './App.css';
 
@@ -47,7 +48,8 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
+        <NotificationProvider>
+          <Router>
           <div className="App">
             <Routes>
               {/* Public Routes */}
@@ -146,6 +148,7 @@ function App() {
             </Routes>
           </div>
         </Router>
+        </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

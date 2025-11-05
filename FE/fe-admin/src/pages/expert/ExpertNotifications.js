@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNotification } from '../../context/NotificationContext';
 import './ExpertNotifications.css';
 
 const ExpertNotifications = () => {
+  const { updatePendingNotifications } = useNotification();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -249,9 +251,11 @@ const ExpertNotifications = () => {
         },
       ];
       setNotifications(mockNotifications);
+      // Update pending notifications in context
+      updatePendingNotifications(mockNotifications);
       setLoading(false);
     }, 1000);
-  }, []);
+  }, [updatePendingNotifications]);
 
   const handleViewDetail = (notification) => {
     setSelectedNotification(notification);
@@ -274,11 +278,15 @@ const ExpertNotifications = () => {
       console.log('Note:', note);
       
       // Update local state
-      setNotifications(notifications.map(notif => 
+      const updatedNotifications = notifications.map(notif => 
         notif.id === selectedNotification.id 
           ? { ...notif, status: 'confirmed', expertNote: note }
           : notif
-      ));
+      );
+      setNotifications(updatedNotifications);
+      
+      // Update pending notifications in context
+      updatePendingNotifications(updatedNotifications);
       
       alert('Đã xác nhận thông báo thành công!');
       handleCloseModal();
