@@ -125,24 +125,6 @@ const PetDetail = () => {
     return species === 'Dog' ? '🐕' : '🐱';
   };
 
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      active: { color: '#27ae60', text: 'Hoạt động' },
-      inactive: { color: '#f39c12', text: 'Không hoạt động' },
-      banned: { color: '#e74c3c', text: 'Bị cấm' }
-    };
-    
-    const config = statusConfig[status] || { color: '#95a5a6', text: 'Không xác định' };
-    
-    return (
-      <span 
-        className="status-badge" 
-        style={{ backgroundColor: config.color }}
-      >
-        {config.text}
-      </span>
-    );
-  };
 
   return (
     <div className="pet-detail-page">
@@ -215,9 +197,6 @@ const PetDetail = () => {
             <h2>
               {getSpeciesIcon(pet.species)} {pet.name}
             </h2>
-            <div className="pet-status">
-              {getStatusBadge(pet.status)}
-            </div>
           </div>
 
           <div className="info-grid">

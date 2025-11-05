@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { mockUsers } from '../../data/mockUsers';
 import './UsersList.css';
 
 const UsersList = () => {
@@ -7,171 +8,10 @@ const UsersList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 8;
 
-  // Dữ liệu người dùng mẫu với đầy đủ trường database
-  const users = [
-    {
-      id: 1,
-      username: 'john_doe',
-      email: 'john.doe@email.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      phone: '+84 123 456 789',
-      dateOfBirth: '1995-03-15',
-      gender: 'Male',
-      address: '123 Nguyễn Huệ, Q1, TP.HCM',
-      avatar: null,
-      status: 'active',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-01-15T08:30:00Z',
-      updatedAt: '2024-10-28T14:20:00Z',
-      lastLogin: '2024-10-28T10:15:00Z',
-      totalPets: 2,
-      totalMatches: 5
-    },
-    {
-      id: 2,
-      username: 'alice_wonder',
-      email: 'alice.wonder@email.com',
-      firstName: 'Alice',
-      lastName: 'Wonder',
-      phone: '+84 987 654 321',
-      dateOfBirth: '1992-07-22',
-      gender: 'Female',
-      address: '456 Lê Lợi, Q3, TP.HCM',
-      avatar: 'https://via.placeholder.com/150',
-      status: 'active',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-02-10T09:15:00Z',
-      updatedAt: '2024-10-27T16:45:00Z',
-      lastLogin: '2024-10-27T14:30:00Z',
-      totalPets: 1,
-      totalMatches: 3
-    },
-    {
-      id: 3,
-      username: 'bob_smith',
-      email: 'bob.smith@email.com',
-      firstName: 'Bob',
-      lastName: 'Smith',
-      phone: '+84 555 123 456',
-      dateOfBirth: '1988-11-08',
-      gender: 'Male',
-      address: '789 Điện Biên Phủ, Q.Bình Thạnh, TP.HCM',
-      avatar: null,
-      status: 'inactive',
-      role: 'user',
-      isVerified: false,
-      createdAt: '2024-03-05T11:20:00Z',
-      updatedAt: '2024-10-20T09:10:00Z',
-      lastLogin: '2024-10-20T08:45:00Z',
-      totalPets: 0,
-      totalMatches: 0
-    },
-    {
-      id: 4,
-      username: 'sarah_jones',
-      email: 'sarah.jones@email.com',
-      firstName: 'Sarah',
-      lastName: 'Jones',
-      phone: '+84 777 888 999',
-      dateOfBirth: '1990-05-12',
-      gender: 'Female',
-      address: '321 Cách Mạng Tháng 8, Q10, TP.HCM',
-      avatar: 'https://via.placeholder.com/150',
-      status: 'active',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-04-12T14:30:00Z',
-      updatedAt: '2024-10-28T12:15:00Z',
-      lastLogin: '2024-10-28T11:20:00Z',
-      totalPets: 3,
-      totalMatches: 8
-    },
-    {
-      id: 5,
-      username: 'mike_wilson',
-      email: 'mike.wilson@email.com',
-      firstName: 'Mike',
-      lastName: 'Wilson',
-      phone: '+84 333 444 555',
-      dateOfBirth: '1993-09-18',
-      gender: 'Male',
-      address: '654 Võ Văn Tần, Q3, TP.HCM',
-      avatar: null,
-      status: 'banned',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-05-20T16:45:00Z',
-      updatedAt: '2024-10-25T10:30:00Z',
-      lastLogin: '2024-10-25T09:15:00Z',
-      totalPets: 1,
-      totalMatches: 2
-    },
-    {
-      id: 6,
-      username: 'emma_brown',
-      email: 'emma.brown@email.com',
-      firstName: 'Emma',
-      lastName: 'Brown',
-      phone: '+84 666 777 888',
-      dateOfBirth: '1991-12-03',
-      gender: 'Female',
-      address: '987 Nguyễn Thị Minh Khai, Q1, TP.HCM',
-      avatar: 'https://via.placeholder.com/150',
-      status: 'active',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-06-08T13:20:00Z',
-      updatedAt: '2024-10-28T15:45:00Z',
-      lastLogin: '2024-10-28T13:30:00Z',
-      totalPets: 2,
-      totalMatches: 6
-    },
-    {
-      id: 7,
-      username: 'david_lee',
-      email: 'david.lee@email.com',
-      firstName: 'David',
-      lastName: 'Lee',
-      phone: '+84 111 222 333',
-      dateOfBirth: '1989-04-25',
-      gender: 'Male',
-      address: '147 Pasteur, Q3, TP.HCM',
-      avatar: null,
-      status: 'active',
-      role: 'user',
-      isVerified: false,
-      createdAt: '2024-07-15T10:10:00Z',
-      updatedAt: '2024-10-28T08:20:00Z',
-      lastLogin: '2024-10-28T07:45:00Z',
-      totalPets: 1,
-      totalMatches: 4
-    },
-    {
-      id: 8,
-      username: 'lisa_garcia',
-      email: 'lisa.garcia@email.com',
-      firstName: 'Lisa',
-      lastName: 'Garcia',
-      phone: '+84 444 555 666',
-      dateOfBirth: '1994-08-14',
-      gender: 'Female',
-      address: '258 Đinh Tiên Hoàng, Q1, TP.HCM',
-      avatar: 'https://via.placeholder.com/150',
-      status: 'inactive',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-08-22T15:30:00Z',
-      updatedAt: '2024-10-15T12:40:00Z',
-      lastLogin: '2024-10-15T11:20:00Z',
-      totalPets: 0,
-      totalMatches: 1
-    }
-  ];
+  // Dữ liệu người dùng từ mock data
+  const users = mockUsers;
 
   // Lọc và tìm kiếm
   const filteredUsers = users.filter(user => {
@@ -206,12 +46,11 @@ const UsersList = () => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      active: { color: '#27ae60', text: 'Hoạt động' },
-      inactive: { color: '#f39c12', text: 'Không hoạt động' },
-      banned: { color: '#e74c3c', text: 'Bị cấm' }
+      NORMAL: { color: '#3498db', text: 'NORMAL' },
+      PREMIUM: { color: '#f39c12', text: 'PREMIUM' }
     };
     
-    const config = statusConfig[status] || { color: '#95a5a6', text: 'Không xác định' };
+    const config = statusConfig[status] || { color: '#95a5a6', text: 'NORMAL' };
     
     return (
       <span 
@@ -262,9 +101,8 @@ const UsersList = () => {
             className="filter-select"
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="active">Hoạt động</option>
-            <option value="inactive">Không hoạt động</option>
-            <option value="banned">Bị cấm</option>
+            <option value="NORMAL">NORMAL</option>
+            <option value="PREMIUM">PREMIUM</option>
           </select>
         </div>
       </div>
@@ -275,16 +113,16 @@ const UsersList = () => {
           <span className="stat-label">Tổng người dùng</span>
         </div>
         <div className="stat-card">
-          <span className="stat-number">{users.filter(u => u.status === 'active').length}</span>
-          <span className="stat-label">Đang hoạt động</span>
+          <span className="stat-number">{users.filter(u => u.status === 'NORMAL').length}</span>
+          <span className="stat-label">NORMAL</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-number">{users.filter(u => u.status === 'PREMIUM').length}</span>
+          <span className="stat-label">PREMIUM</span>
         </div>
         <div className="stat-card">
           <span className="stat-number">{users.filter(u => u.isVerified).length}</span>
           <span className="stat-label">Đã xác thực</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-number">{users.filter(u => u.status === 'banned').length}</span>
-          <span className="stat-label">Bị cấm</span>
         </div>
       </div>
 
@@ -398,19 +236,11 @@ const UsersList = () => {
                     <button 
                       className="action-btn edit"
                       onClick={(e) => e.stopPropagation()}
+                      title="Chỉnh sửa người dùng"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                    </button>
-                    <button 
-                      className="action-btn delete"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3,6 5,6 21,6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                       </svg>
                     </button>
                   </div>

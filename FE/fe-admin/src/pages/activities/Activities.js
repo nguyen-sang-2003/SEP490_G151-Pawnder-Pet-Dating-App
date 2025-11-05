@@ -7,8 +7,8 @@ const Activities = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Dữ liệu thông báo mở rộng
-  const allActivities = [
+  // Dữ liệu thông báo mở rộng - chỉ hiển thị user và report
+  const allActivitiesRaw = [
     {
       id: 1,
       type: 'user',
@@ -211,6 +211,9 @@ const Activities = () => {
     }
   ];
 
+  // Lọc chỉ lấy user và report
+  const allActivities = allActivitiesRaw.filter(a => a.type === 'user' || a.type === 'report');
+
   // Tính toán phân trang
   const totalPages = Math.ceil(allActivities.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -249,12 +252,8 @@ const Activities = () => {
           <span className="stat-label">Người dùng mới</span>
         </div>
         <div className="stat-item">
-          <span className="stat-number">{allActivities.filter(a => a.type === 'pet').length}</span>
-          <span className="stat-label">Thú cưng mới</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-number">{allActivities.filter(a => a.type === 'match').length}</span>
-          <span className="stat-label">Ghép đôi thành công</span>
+          <span className="stat-number">{allActivities.filter(a => a.type === 'report').length}</span>
+          <span className="stat-label">Báo cáo mới</span>
         </div>
       </div>
 
@@ -271,9 +270,7 @@ const Activities = () => {
             <div className="activity-type">
               <span className={`type-badge ${activity.type}`}>
                 {activity.type === 'user' && 'Người dùng'}
-                {activity.type === 'pet' && 'Thú cưng'}
                 {activity.type === 'report' && 'Báo cáo'}
-                {activity.type === 'match' && 'Ghép đôi'}
               </span>
             </div>
           </div>

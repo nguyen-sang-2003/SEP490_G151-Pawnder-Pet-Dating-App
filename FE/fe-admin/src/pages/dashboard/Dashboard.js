@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { mockUsers } from '../../data/mockUsers';
+import { mockPets } from '../../data/mockPets';
+import { mockReports } from '../../data/mockReports';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -26,10 +29,60 @@ const Dashboard = () => {
     { month: 'T3/2024', users: 800 },
     { month: 'T4/2024', users: 1234 }
   ];
+  // Tính tổng số người dùng từ dữ liệu thực tế
+  const totalUsers = mockUsers.length;
+  const formattedTotalUsers = totalUsers.toLocaleString('en-US');
+
+  // Tính tổng số thú cưng từ dữ liệu thực tế
+  const totalPets = mockPets.length;
+  const formattedTotalPets = totalPets.toLocaleString('en-US');
+
+  // Tính số báo cáo chờ xử lý từ dữ liệu thực tế (bao gồm cả từ localStorage)
+  const getReportsWithLocalStorage = () => {
+    return mockReports.map(report => {
+      const savedStatus = localStorage.getItem(`report_status_${report.id}`);
+      const savedResolution = localStorage.getItem(`report_resolution_${report.id}`);
+      const savedUpdatedAt = localStorage.getItem(`report_updatedAt_${report.id}`);
+      
+      if (savedStatus) {
+        return {
+          ...report,
+          status: savedStatus,
+          resolution: savedResolution || report.resolution,
+          updatedAt: savedUpdatedAt || report.updatedAt
+        };
+      }
+      return report;
+    });
+  };
+
+  const reports = getReportsWithLocalStorage();
+  const pendingReports = reports.filter(r => r.status === 'Pending').length;
+
+  // Tính tổng số ghép đôi thành công từ dữ liệu thực tế
+  // Tổng từ tổng số matches của tất cả users
+  const totalMatches = mockUsers.reduce((sum, user) => sum + (user.totalMatches || 0), 0);
+  const formattedTotalMatches = totalMatches.toLocaleString('en-US');
+
+  // Tính số người dùng hoạt động hôm nay (lastLogin trong ngày hôm nay)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(today);
+  todayEnd.setHours(23, 59, 59, 999);
+  
+  const activeUsersToday = mockUsers.filter(user => {
+    if (!user.lastLogin) return false;
+    const lastLoginDate = new Date(user.lastLogin);
+    return lastLoginDate >= today && lastLoginDate <= todayEnd;
+  }).length;
+
+  // Tính số báo cáo đã xử lý (status = 'Resolved')
+  const resolvedReports = reports.filter(r => r.status === 'Resolved').length;
+
   const stats = [
     {
       title: 'Tổng người dùng',
-      value: '1,234',
+      value: formattedTotalUsers,
       change: '+12%',
       changeType: 'positive',
       icon: (
@@ -42,7 +95,7 @@ const Dashboard = () => {
     },
     {
       title: 'Tổng thú cưng',
-      value: '2,456',
+      value: formattedTotalPets,
       change: '+8%',
       changeType: 'positive',
       icon: (
@@ -54,7 +107,7 @@ const Dashboard = () => {
     },
     {
       title: 'Báo cáo chờ xử lý',
-      value: '12',
+      value: pendingReports.toString(),
       change: '-3%',
       changeType: 'negative',
       icon: (
@@ -69,7 +122,7 @@ const Dashboard = () => {
     },
     {
       title: 'Ghép đôi thành công',
-      value: '89',
+      value: formattedTotalMatches,
       change: '+15%',
       changeType: 'positive',
       icon: (
@@ -91,24 +144,24 @@ const Dashboard = () => {
     },
     {
       id: 2,
-      type: 'pet',
-      message: 'Thú cưng mới được thêm: Buddy',
-      time: '15 phút trước',
-      avatar: '🐕'
-    },
-    {
-      id: 3,
       type: 'report',
       message: 'Báo cáo mới từ user123',
       time: '30 phút trước',
       avatar: '⚠️'
     },
     {
-      id: 4,
-      type: 'match',
-      message: 'Ghép đôi thành công: Luna & Max',
+      id: 3,
+      type: 'user',
+      message: 'Người dùng mới đăng ký: alice_wonder',
       time: '1 giờ trước',
-      avatar: '💕'
+      avatar: '👤'
+    },
+    {
+      id: 4,
+      type: 'report',
+      message: 'Báo cáo mới từ bob_smith',
+      time: '2 giờ trước',
+      avatar: '⚠️'
     }
   ];
 
@@ -223,15 +276,11 @@ const Dashboard = () => {
           <div className="quick-stats">
             <div className="quick-stat">
               <span className="quick-stat-label">Người dùng hoạt động hôm nay</span>
-              <span className="quick-stat-value">156</span>
-            </div>
-            <div className="quick-stat">
-              <span className="quick-stat-label">Thú cưng được duyệt</span>
-              <span className="quick-stat-value">23</span>
+              <span className="quick-stat-value">{activeUsersToday.toLocaleString('en-US')}</span>
             </div>
             <div className="quick-stat">
               <span className="quick-stat-label">Báo cáo đã xử lý</span>
-              <span className="quick-stat-value">8</span>
+              <span className="quick-stat-value">{resolvedReports.toLocaleString('en-US')}</span>
             </div>
             <div className="quick-stat">
               <span className="quick-stat-label">Tỷ lệ hài lòng</span>
