@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
 const NotificationContext = createContext();
 
@@ -14,15 +14,15 @@ export const NotificationProvider = ({ children }) => {
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingNotifications, setPendingNotifications] = useState([]);
 
-  const updatePendingCount = (count) => {
+  const updatePendingCount = useCallback((count) => {
     setPendingCount(count);
-  };
+  }, []);
 
-  const updatePendingNotifications = (notifications) => {
+  const updatePendingNotifications = useCallback((notifications) => {
     const pending = notifications.filter(n => n.status === 'pending');
     setPendingNotifications(pending);
     setPendingCount(pending.length);
-  };
+  }, []);
 
   return (
     <NotificationContext.Provider value={{

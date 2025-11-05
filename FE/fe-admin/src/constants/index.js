@@ -69,6 +69,7 @@ export const STORAGE_KEYS = {
   USER_INFO: 'user_info',
   THEME: 'theme',
   LANGUAGE: 'language',
+  EXPERT_NOTIFICATIONS: 'expert_notifications', // Lưu trạng thái notifications của expert
 };
 
 // Theme

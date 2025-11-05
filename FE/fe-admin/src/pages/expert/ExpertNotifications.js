@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNotification } from '../../context/NotificationContext';
+import { STORAGE_KEYS } from '../../constants';
 import './ExpertNotifications.css';
 
 const ExpertNotifications = () => {
@@ -13,9 +14,25 @@ const ExpertNotifications = () => {
   const [note, setNote] = useState('');
   const itemsPerPage = 8;
 
-  // Mock data - sẽ thay thế bằng API call
+  // Load notifications từ localStorage hoặc mock data
   useEffect(() => {
-    // Simulate API call
+    // Kiểm tra xem có dữ liệu đã lưu trong localStorage không
+    const savedNotifications = localStorage.getItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS);
+    
+    if (savedNotifications) {
+      try {
+        const parsedNotifications = JSON.parse(savedNotifications);
+        setNotifications(parsedNotifications);
+        updatePendingNotifications(parsedNotifications);
+        setLoading(false);
+        return;
+      } catch (error) {
+        console.error('Error parsing saved notifications:', error);
+        // Nếu có lỗi, tiếp tục load mock data
+      }
+    }
+    
+    // Nếu không có dữ liệu đã lưu, load mock data
     setTimeout(() => {
       const mockNotifications = [
         {
@@ -253,6 +270,8 @@ const ExpertNotifications = () => {
       setNotifications(mockNotifications);
       // Update pending notifications in context
       updatePendingNotifications(mockNotifications);
+      // Lưu vào localStorage
+      localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS, JSON.stringify(mockNotifications));
       setLoading(false);
     }, 1000);
   }, [updatePendingNotifications]);
@@ -274,22 +293,33 @@ const ExpertNotifications = () => {
     
     try {
       // TODO: Call API to confirm notification with note
-      console.log('Confirming notification:', selectedNotification.id);
-      console.log('Note:', note);
       
-      // Update local state
-      const updatedNotifications = notifications.map(notif => 
-        notif.id === selectedNotification.id 
-          ? { ...notif, status: 'confirmed', expertNote: note }
-          : notif
-      );
-      setNotifications(updatedNotifications);
+      // Update local state - sử dụng functional update để đảm bảo state được cập nhật đúng
+      setNotifications(prevNotifications => {
+        const updated = prevNotifications.map(notif => {
+          if (notif.id === selectedNotification.id) {
+            return { ...notif, status: 'confirmed', expertNote: note };
+          }
+          return notif;
+        });
+        
+        // Lưu vào localStorage để giữ trạng thái sau khi F5
+        localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS, JSON.stringify(updated));
+        
+        return updated;
+      });
       
-      // Update pending notifications in context
-      updatePendingNotifications(updatedNotifications);
+      // Đóng modal trước
+      handleCloseModal();
+      
+      // Chuyển sang màn "Xem tất cả đã xử lý" sau khi state được cập nhật
+      // Sử dụng setTimeout để đảm bảo state update hoàn tất trước khi filter
+      setTimeout(() => {
+        setFilterStatus('all');
+        setCurrentPage(1);
+      }, 150);
       
       alert('Đã xác nhận thông báo thành công!');
-      handleCloseModal();
     } catch (error) {
       console.error('Error confirming notification:', error);
       alert('Có lỗi xảy ra khi xác nhận thông báo');
@@ -334,11 +364,29 @@ const ExpertNotifications = () => {
     ? notifications.filter(notif => notif.status === 'pending')
     : notifications.filter(notif => notif.status === 'confirmed');
   
+  // Debug: Log filtered notifications (chỉ log khi cần thiết để tránh spam)
+  // Đã tắt debug logs để tránh spam console
+  
   // Pagination
   const totalPages = Math.ceil(filteredNotifications.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentNotifications = filteredNotifications.slice(startIndex, endIndex);
+  
+  // Update pending notifications in context khi notifications thay đổi
+  // Sử dụng useRef để tránh vòng lặp vô hạn
+  const prevPendingCountRef = useRef(notifications.filter(n => n.status === 'pending').length);
+  
+  useEffect(() => {
+    const currentPendingCount = notifications.filter(n => n.status === 'pending').length;
+    
+    // Chỉ update khi có thay đổi về pending count
+    if (currentPendingCount !== prevPendingCountRef.current) {
+      updatePendingNotifications(notifications);
+      prevPendingCountRef.current = currentPendingCount;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications]); // Depend vào notifications để detect khi status thay đổi
   
   // Reset page when filter changes
   useEffect(() => {
@@ -413,9 +461,9 @@ const ExpertNotifications = () => {
                 </td>
               </tr>
             ) : (
-              currentNotifications.map((notification) => (
+              currentNotifications.map((notification, index) => (
                 <tr key={notification.id}>
-                  <td>{notification.id}</td>
+                  <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                   <td>
                     <div className="user-info">
                       <div className="user-name">{notification.userName}</div>
