@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mockPets } from '../../data/mockPets';
+import { mockUsers } from '../../data/mockUsers';
 import './PetsList.css';
 
 const PetsList = () => {
@@ -10,8 +11,24 @@ const PetsList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Dữ liệu thú cưng từ mock data
-  const pets = mockPets;
+  // Helper function để lấy owner info từ mockUsers
+  const getOwnerInfo = (ownerId) => {
+    const owner = mockUsers.find(u => u.id === ownerId);
+    if (owner) {
+      return {
+        ownerName: `${owner.firstName} ${owner.lastName}`,
+        ownerEmail: owner.email,
+        ownerPhone: owner.phone
+      };
+    }
+    return { ownerName: 'Unknown', ownerEmail: 'unknown@email.com', ownerPhone: 'N/A' };
+  };
+
+  // Dữ liệu thú cưng từ mock data - enrich với owner info từ mockUsers
+  const pets = mockPets.map(pet => ({
+    ...pet,
+    ...getOwnerInfo(pet.ownerId)
+  }));
 
   // Lọc và tìm kiếm
   const filteredPets = pets.filter(pet => {
@@ -46,7 +63,7 @@ const PetsList = () => {
 
 
   const getSpeciesIcon = (species) => {
-    return species === 'Dog' ? '🐕' : '🐱';
+    return '🐱'; // Chỉ có mèo
   };
 
   const getVaccinationBadge = (isVaccinated) => {
@@ -96,7 +113,6 @@ const PetsList = () => {
             className="filter-select"
           >
             <option value="all">Tất cả loài</option>
-            <option value="Dog">Chó</option>
             <option value="Cat">Mèo</option>
           </select>
         </div>
@@ -106,10 +122,6 @@ const PetsList = () => {
         <div className="stat-card">
           <span className="stat-number">{pets.length}</span>
           <span className="stat-label">Tổng thú cưng</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-number">{pets.filter(p => p.species === 'Dog').length}</span>
-          <span className="stat-label">Chó</span>
         </div>
         <div className="stat-card">
           <span className="stat-number">{pets.filter(p => p.species === 'Cat').length}</span>

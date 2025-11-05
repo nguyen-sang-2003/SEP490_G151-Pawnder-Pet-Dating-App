@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { mockReports } from '../../data/mockReports';
+import { mockUsers } from '../../data/mockUsers';
+import { addUserNotification } from '../../data/mockUserNotifications';
 import './ReportDetail.css';
 
 const ReportDetail = () => {
@@ -7,293 +10,55 @@ const ReportDetail = () => {
   const navigate = useNavigate();
   const reportId = parseInt(id);
 
-  // Dữ liệu báo cáo mẫu (trong thực tế sẽ fetch từ API)
-  const reports = [
-    {
-      id: 1,
-      reporter: {
-        userId: 1,
-        fullName: 'John Doe',
-        email: 'john.doe@email.com',
-        username: 'john_doe',
-        phone: '+84 123 456 789',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 101,
-        message: 'Nội dung không phù hợp trong tin nhắn',
-        type: 'chat',
-        timestamp: '2024-01-14T20:30:00Z'
-      },
-      reportedUser: {
-        userId: 2,
-        fullName: 'Alice Wonder',
-        email: 'alice.wonder@email.com',
-        username: 'alice_wonder',
-        phone: '+84 987 654 321',
-        avatar: null
-      },
-      reason: 'Inappropriate behavior',
-      description: 'Người dùng này đã gửi các tin nhắn với nội dung không phù hợp và có hành vi quấy rối qua ứng dụng.',
-      status: 'Pending',
-      resolution: null,
-      createdAt: '2024-01-15T08:30:00Z',
-      updatedAt: '2024-01-15T08:30:00Z',
-      attachments: []
-    },
-    {
-      id: 2,
-      reporter: {
-        userId: 3,
-        fullName: 'Bob Smith',
-        email: 'bob.smith@email.com',
-        username: 'bob_smith',
-        phone: '+84 555 123 456',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 102,
-        message: 'Nội dung spam trong chat',
-        type: 'chat',
-        timestamp: '2024-02-19T15:20:00Z'
-      },
-      reportedUser: {
-        userId: 4,
-        fullName: 'Sarah Jones',
-        email: 'sarah.jones@email.com',
-        username: 'sarah_jones',
-        phone: '+84 777 888 999',
-        avatar: null
-      },
-      reason: 'Spam messages',
-      description: 'Người dùng này liên tục gửi tin nhắn spam và quảng cáo không mong muốn.',
-      status: 'Resolved',
-      resolution: 'Đã cảnh báo người dùng và xóa nội dung không phù hợp. Tài khoản đã được đánh dấu để theo dõi.',
-      createdAt: '2024-02-20T10:15:00Z',
-      updatedAt: '2024-02-21T14:30:00Z',
-      attachments: []
-    },
-    {
-      id: 3,
-      reporter: {
-        userId: 2,
-        fullName: 'Alice Wonder',
-        email: 'alice.wonder@email.com',
-        username: 'alice_wonder',
-        phone: '+84 987 654 321',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 103,
-        message: 'Hình ảnh không phù hợp',
-        type: 'photo',
-        timestamp: '2024-03-09T12:10:00Z'
-      },
-      reportedUser: {
-        userId: 5,
-        fullName: 'Mike Wilson',
-        email: 'mike.wilson@email.com',
-        username: 'mike_wilson',
-        phone: '+84 333 444 555',
-        avatar: null
-      },
-      reason: 'Inappropriate content',
-      description: 'Người dùng đã chia sẻ hình ảnh không phù hợp trong hồ sơ thú cưng.',
-      status: 'Rejected',
-      resolution: 'Sau khi xem xét, không có bằng chứng vi phạm. Hình ảnh đã được kiểm tra và phù hợp với quy định cộng đồng.',
-      createdAt: '2024-03-10T09:20:00Z',
-      updatedAt: '2024-03-12T11:45:00Z',
-      attachments: []
-    },
-    {
-      id: 4,
-      reporter: {
-        userId: 4,
-        fullName: 'Sarah Jones',
-        email: 'sarah.jones@email.com',
-        username: 'sarah_jones',
-        phone: '+84 777 888 999',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 104,
-        message: 'Quấy rối qua tin nhắn',
-        type: 'chat',
-        timestamp: '2024-10-24T18:45:00Z'
-      },
-      reportedUser: {
-        userId: 1,
-        fullName: 'John Doe',
-        email: 'john.doe@email.com',
-        username: 'john_doe',
-        phone: '+84 123 456 789',
-        avatar: null
-      },
-      reason: 'Harassment',
-      description: 'Người dùng này đã gửi nhiều tin nhắn quấy rối và có hành vi không phù hợp sau khi tôi từ chối kết nối.',
-      status: 'Pending',
-      resolution: null,
-      createdAt: '2024-10-25T14:30:00Z',
-      updatedAt: '2024-10-25T14:30:00Z',
-      attachments: []
-    },
-    {
-      id: 5,
-      reporter: {
-        userId: 5,
-        fullName: 'Mike Wilson',
-        email: 'mike.wilson@email.com',
-        username: 'mike_wilson',
-        phone: '+84 333 444 555',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 105,
-        message: 'Thông tin giả mạo',
-        type: 'profile',
-        timestamp: '2024-09-14T10:20:00Z'
-      },
-      reportedUser: {
-        userId: 3,
-        fullName: 'Bob Smith',
-        email: 'bob.smith@email.com',
-        username: 'bob_smith',
-        phone: '+84 555 123 456',
-        avatar: null
-      },
-      reason: 'Fake information',
-      description: 'Người dùng này đã cung cấp thông tin giả mạo về bản thân và thú cưng trong hồ sơ.',
-      status: 'Resolved',
-      resolution: 'Đã xác minh và cập nhật thông tin. Người dùng đã được yêu cầu cung cấp bằng chứng xác thực.',
-      createdAt: '2024-09-15T16:45:00Z',
-      updatedAt: '2024-09-18T10:20:00Z',
-      attachments: []
-    },
-    {
-      id: 6,
-      reporter: {
-        userId: 1,
-        fullName: 'John Doe',
-        email: 'john.doe@email.com',
-        username: 'john_doe',
-        phone: '+84 123 456 789',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 106,
-        message: 'Vi phạm quy tắc cộng đồng',
-        type: 'chat',
-        timestamp: '2024-10-27T16:30:00Z'
-      },
-      reportedUser: {
-        userId: 6,
-        fullName: 'Emma Brown',
-        email: 'emma.brown@email.com',
-        username: 'emma_brown',
-        phone: '+84 111 222 333',
-        avatar: null
-      },
-      reason: 'Community guidelines violation',
-      description: 'Người dùng này đã vi phạm quy tắc cộng đồng bằng cách sử dụng ngôn từ không phù hợp và có hành vi gây rối.',
-      status: 'Pending',
-      resolution: null,
-      createdAt: '2024-10-28T08:15:00Z',
-      updatedAt: '2024-10-28T08:15:00Z',
-      attachments: []
-    },
-    {
-      id: 7,
-      reporter: {
-        userId: 2,
-        fullName: 'Alice Wonder',
-        email: 'alice.wonder@email.com',
-        username: 'alice_wonder',
-        phone: '+84 987 654 321',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 107,
-        message: 'Nội dung lừa đảo',
-        type: 'chat',
-        timestamp: '2024-08-19T14:15:00Z'
-      },
-      reportedUser: {
-        userId: 7,
-        fullName: 'David Lee',
-        email: 'david.lee@email.com',
-        username: 'david_lee',
-        phone: '+84 444 555 666',
-        avatar: null
-      },
-      reason: 'Scam',
-      description: 'Người dùng này đã cố gắng lừa đảo bằng cách yêu cầu thanh toán trước khi gặp mặt và không cung cấp thông tin thực.',
-      status: 'Resolved',
-      resolution: 'Đã khóa tài khoản và báo cáo cho cơ quan chức năng. Tất cả thông tin liên quan đã được lưu trữ.',
-      createdAt: '2024-08-20T12:30:00Z',
-      updatedAt: '2024-08-22T15:00:00Z',
-      attachments: []
-    },
-    {
-      id: 8,
-      reporter: {
-        userId: 3,
-        fullName: 'Bob Smith',
-        email: 'bob.smith@email.com',
-        username: 'bob_smith',
-        phone: '+84 555 123 456',
-        avatar: null
-      },
-      reportedContent: {
-        contentId: 108,
-        message: 'Ngôn từ không phù hợp',
-        type: 'chat',
-        timestamp: '2024-07-09T11:45:00Z'
-      },
-      reportedUser: {
-        userId: 8,
-        fullName: 'Lisa Chen',
-        email: 'lisa.chen@email.com',
-        username: 'lisa_chen',
-        phone: '+84 999 888 777',
-        avatar: null
-      },
-      reason: 'Offensive language',
-      description: 'Người dùng này đã sử dụng ngôn từ không phù hợp và có tính xúc phạm trong các tin nhắn.',
-      status: 'Rejected',
-      resolution: 'Sau khi xem xét, không đủ bằng chứng về vi phạm. Ngôn từ được sử dụng trong ngữ cảnh phù hợp.',
-      createdAt: '2024-07-10T11:20:00Z',
-      updatedAt: '2024-07-12T13:45:00Z',
-      attachments: []
+  // Helper function để lấy user info từ mockUsers
+  const getUserInfo = (userId) => {
+    const user = mockUsers.find(u => u.id === userId);
+    if (user) {
+      return {
+        userId: user.id,
+        fullName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        username: user.username,
+        phone: user.phone,
+        avatar: user.avatar
+      };
     }
-  ];
-
-  // Lấy report từ danh sách
-  const initialReport = reports.find(r => r.id === reportId);
-  
-  // Đọc status từ localStorage nếu có
-  const getReportStatus = () => {
-    const savedStatus = localStorage.getItem(`report_status_${reportId}`);
-    if (savedStatus) {
-      return savedStatus;
-    }
-    return initialReport ? initialReport.status : 'Pending';
+    return {
+      userId: userId,
+      fullName: 'Unknown User',
+      email: 'unknown@email.com',
+      username: 'unknown',
+      phone: 'N/A',
+      avatar: null
+    };
   };
 
-  const [reportStatus, setReportStatus] = useState(getReportStatus());
-  const [report, setReport] = useState(initialReport ? {
-    ...initialReport,
-    status: reportStatus
-  } : null);
+  // Tìm report từ mockReports và enrich với user info từ mockUsers
+  const baseReport = mockReports.find(r => r.id === reportId);
+  
+  // Đọc status từ localStorage nếu có (để giữ trạng thái đã xử lý)
+  const getInitialReport = () => {
+    if (!baseReport) return null;
+    const savedStatus = localStorage.getItem(`report_status_${reportId}`);
+    const savedResolution = localStorage.getItem(`report_resolution_${reportId}`);
+    const savedUpdatedAt = localStorage.getItem(`report_updatedAt_${reportId}`);
+    
+    return {
+      ...baseReport,
+      reporter: getUserInfo(baseReport.reporterId),
+      reportedUser: getUserInfo(baseReport.reportedUserId),
+      reportedContent: {
+        ...baseReport.reportedContent,
+        timestamp: baseReport.reportedContent.timestamp || baseReport.createdAt
+      },
+      status: savedStatus || baseReport.status || 'Pending',
+      resolution: savedResolution || baseReport.resolution || null,
+      updatedAt: savedUpdatedAt || baseReport.updatedAt,
+      attachments: [] // Có thể thêm từ API sau
+    };
+  };
 
-  // Cập nhật report khi status thay đổi
-  useEffect(() => {
-    if (report) {
-      setReport({
-        ...report,
-        status: reportStatus
-      });
-    }
-  }, [reportStatus]);
+  const [report, setReport] = useState(getInitialReport());
 
   if (!report) {
     return (
@@ -308,10 +73,6 @@ const ReportDetail = () => {
       </div>
     );
   }
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
-  };
 
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString('vi-VN');
@@ -361,39 +122,71 @@ const ReportDetail = () => {
   const handleResolve = () => {
     const newStatus = 'Resolved';
     const newResolution = 'Báo cáo đã được xử lý thành công.';
+    const newUpdatedAt = new Date().toISOString();
     
     // Lưu status vào localStorage
     localStorage.setItem(`report_status_${reportId}`, newStatus);
     localStorage.setItem(`report_resolution_${reportId}`, newResolution);
-    localStorage.setItem(`report_updatedAt_${reportId}`, new Date().toISOString());
+    localStorage.setItem(`report_updatedAt_${reportId}`, newUpdatedAt);
+    
+    // Gửi notification cho người báo cáo (reporter)
+    if (report && report.reporterId) {
+      const notification = {
+        userId: report.reporterId, // Người báo cáo sẽ nhận notification
+        type: 'report_resolved',
+        title: 'Báo cáo của bạn đã được xử lý',
+        message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xử lý thành công. Người dùng bị báo cáo đã được xử lý theo quy định.`,
+        data: {
+          reportId: reportId,
+          status: newStatus,
+          resolution: newResolution
+        }
+      };
+      addUserNotification(notification);
+    }
     
     // Cập nhật state
-    setReportStatus(newStatus);
-    setReport({
-      ...report,
+    setReport(prev => prev ? {
+      ...prev,
       status: newStatus,
       resolution: newResolution,
-      updatedAt: new Date().toISOString()
-    });
+      updatedAt: newUpdatedAt
+    } : null);
   };
 
   const handleReject = () => {
     const newStatus = 'Rejected';
     const newResolution = 'Báo cáo đã bị từ chối.';
+    const newUpdatedAt = new Date().toISOString();
     
     // Lưu status vào localStorage
     localStorage.setItem(`report_status_${reportId}`, newStatus);
     localStorage.setItem(`report_resolution_${reportId}`, newResolution);
-    localStorage.setItem(`report_updatedAt_${reportId}`, new Date().toISOString());
+    localStorage.setItem(`report_updatedAt_${reportId}`, newUpdatedAt);
+    
+    // Gửi notification cho người báo cáo (reporter)
+    if (report && report.reporterId) {
+      const notification = {
+        userId: report.reporterId, // Người báo cáo sẽ nhận notification
+        type: 'report_rejected',
+        title: 'Báo cáo của bạn đã được xem xét',
+        message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xem xét. Sau khi kiểm tra, chúng tôi không tìm thấy bằng chứng vi phạm. Người dùng bị báo cáo không sai và không bị xử lý.`,
+        data: {
+          reportId: reportId,
+          status: newStatus,
+          resolution: newResolution
+        }
+      };
+      addUserNotification(notification);
+    }
     
     // Cập nhật state
-    setReportStatus(newStatus);
-    setReport({
-      ...report,
+    setReport(prev => prev ? {
+      ...prev,
       status: newStatus,
       resolution: newResolution,
-      updatedAt: new Date().toISOString()
-    });
+      updatedAt: newUpdatedAt
+    } : null);
   };
 
   return (

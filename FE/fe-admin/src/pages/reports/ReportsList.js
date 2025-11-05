@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { mockReports } from '../../data/mockReports';
+import { mockUsers } from '../../data/mockUsers';
 import './ReportsList.css';
 
 const ReportsList = () => {
@@ -12,6 +13,29 @@ const ReportsList = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const itemsPerPage = 10;
 
+  // Helper function để lấy user info từ mockUsers
+  const getUserInfo = (userId) => {
+    const user = mockUsers.find(u => u.id === userId);
+    if (user) {
+      return {
+        userId: user.id,
+        fullName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        username: user.username,
+        phone: user.phone,
+        avatar: user.avatar
+      };
+    }
+    return {
+      userId: userId,
+      fullName: 'Unknown User',
+      email: 'unknown@email.com',
+      username: 'unknown',
+      phone: 'N/A',
+      avatar: null
+    };
+  };
+
   // Reload khi quay lại từ ReportDetail
   useEffect(() => {
     if (location.pathname === '/reports') {
@@ -19,8 +43,12 @@ const ReportsList = () => {
     }
   }, [location.pathname]);
 
-  // Dữ liệu báo cáo từ mock data
-  const initialReports = mockReports;
+  // Dữ liệu báo cáo từ mock data - enrich với user info từ mockUsers
+  const initialReports = mockReports.map(report => ({
+    ...report,
+    reporter: getUserInfo(report.reporterId),
+    reportedUser: getUserInfo(report.reportedUserId)
+  }));
 
   // Merge reports với status từ localStorage (refresh khi có thay đổi)
   const getReports = () => {
@@ -109,14 +137,14 @@ const ReportsList = () => {
 
   const handleResolve = (reportId, e) => {
     e.stopPropagation();
-    // TODO: Implement resolve logic
-    alert(`Xử lý báo cáo #${reportId}`);
+    // Navigate đến ReportDetail để xem chi tiết và xử lý
+    navigate(`/reports/${reportId}`);
   };
 
   const handleReject = (reportId, e) => {
     e.stopPropagation();
-    // TODO: Implement reject logic
-    alert(`Từ chối báo cáo #${reportId}`);
+    // Navigate đến ReportDetail để xem chi tiết và từ chối
+    navigate(`/reports/${reportId}`);
   };
 
   return (
@@ -231,26 +259,29 @@ const ReportsList = () => {
                           <circle cx="12" cy="12" r="3"/>
                         </svg>
                       </button>
-                      <button
-                        className="action-btn resolve"
-                        onClick={(e) => handleResolve(report.id, e)}
-                        title="Xử lý"
-                        disabled={report.status === 'Resolved'}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M20 6L9 17l-5-5"/>
-                        </svg>
-                      </button>
-                      <button
-                        className="action-btn reject"
-                        onClick={(e) => handleReject(report.id, e)}
-                        title="Từ chối"
-                        disabled={report.status === 'Rejected' || report.status === 'Resolved'}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
-                      </button>
+                      {/* Chỉ hiển thị button Xử lý và Từ chối khi report chưa được xử lý (Pending) */}
+                      {report.status === 'Pending' && (
+                        <>
+                          <button
+                            className="action-btn resolve"
+                            onClick={(e) => handleResolve(report.id, e)}
+                            title="Xử lý"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                          </button>
+                          <button
+                            className="action-btn reject"
+                            onClick={(e) => handleReject(report.id, e)}
+                            title="Từ chối"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

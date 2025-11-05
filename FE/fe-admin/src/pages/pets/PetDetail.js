@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { mockPets } from '../../data/mockPets';
+import { mockUsers } from '../../data/mockUsers';
 import './PetDetail.css';
 
 const PetDetail = () => {
@@ -7,89 +9,27 @@ const PetDetail = () => {
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Dữ liệu thú cưng mẫu (trong thực tế sẽ fetch từ API)
-  const pets = [
-    {
-      id: 1,
-      name: 'Buddy',
-      species: 'Dog',
-      breed: 'Golden Retriever',
-      age: 3,
-      gender: 'Male',
-      weight: 25.5,
-      color: 'Golden',
-      description: 'Friendly and energetic dog who loves playing fetch. Buddy is very social and gets along well with other dogs and children. He enjoys long walks in the park and playing with his favorite tennis ball.',
-      ownerId: 1,
-      ownerName: 'John Doe',
-      ownerEmail: 'john.doe@email.com',
-      ownerPhone: '+84 123 456 789',
-      status: 'active',
-      isVaccinated: true,
-      isNeutered: false,
-      createdAt: '2024-01-20T10:30:00Z',
-      updatedAt: '2024-10-28T14:20:00Z',
-      photos: [
-        'https://via.placeholder.com/600x400/FFD700/000000?text=Buddy+1',
-        'https://via.placeholder.com/600x400/FFA500/000000?text=Buddy+2'
-      ],
-      totalMatches: 5,
-      totalLikes: 12
-    },
-    {
-      id: 2,
-      name: 'Luna',
-      species: 'Cat',
-      breed: 'Persian',
-      age: 2,
-      gender: 'Female',
-      weight: 4.2,
-      color: 'White',
-      description: 'Calm and elegant cat, perfect for apartment living. Luna is very gentle and loves to be pampered. She enjoys sitting by the window watching birds and curling up in warm spots.',
-      ownerId: 2,
-      ownerName: 'Alice Wonder',
-      ownerEmail: 'alice.wonder@email.com',
-      ownerPhone: '+84 987 654 321',
-      status: 'active',
-      isVaccinated: true,
-      isNeutered: true,
-      createdAt: '2024-02-15T14:20:00Z',
-      updatedAt: '2024-10-27T16:45:00Z',
-      photos: [
-        'https://via.placeholder.com/600x400/FFFFFF/000000?text=Luna+1'
-      ],
-      totalMatches: 3,
-      totalLikes: 8
-    },
-    {
-      id: 3,
-      name: 'Max',
-      species: 'Dog',
-      breed: 'German Shepherd',
-      age: 5,
-      gender: 'Male',
-      weight: 32.0,
-      color: 'Black and Tan',
-      description: 'Loyal and protective, great with families. Max is a trained guard dog who is very protective of his family but gentle with children. He needs regular exercise and mental stimulation.',
-      ownerId: 3,
-      ownerName: 'Bob Smith',
-      ownerEmail: 'bob.smith@email.com',
-      ownerPhone: '+84 555 123 456',
-      status: 'inactive',
-      isVaccinated: false,
-      isNeutered: true,
-      createdAt: '2024-03-10T09:15:00Z',
-      updatedAt: '2024-10-20T09:10:00Z',
-      photos: [
-        'https://via.placeholder.com/600x400/000000/FFFFFF?text=Max+1',
-        'https://via.placeholder.com/600x400/8B4513/FFFFFF?text=Max+2',
-        'https://via.placeholder.com/600x400/654321/FFFFFF?text=Max+3'
-      ],
-      totalMatches: 0,
-      totalLikes: 2
+  // Helper function để lấy owner info từ mockUsers
+  const getOwnerInfo = (ownerId) => {
+    const owner = mockUsers.find(u => u.id === ownerId);
+    if (owner) {
+      return {
+        ownerName: `${owner.firstName} ${owner.lastName}`,
+        ownerEmail: owner.email,
+        ownerPhone: owner.phone
+      };
     }
-  ];
+    return { ownerName: 'Unknown', ownerEmail: 'unknown@email.com', ownerPhone: 'N/A' };
+  };
 
-  const pet = pets.find(p => p.id === parseInt(id));
+  // Tìm pet từ mockPets và enrich với owner info từ mockUsers
+  const basePet = mockPets.find(p => p.id === parseInt(id));
+  const pet = basePet ? {
+    ...basePet,
+    ...getOwnerInfo(basePet.ownerId),
+    // Mở rộng description nếu cần (trong mockPets description ngắn hơn)
+    description: basePet.description || 'Chưa có mô tả'
+  } : null;
 
   if (!pet) {
     return (

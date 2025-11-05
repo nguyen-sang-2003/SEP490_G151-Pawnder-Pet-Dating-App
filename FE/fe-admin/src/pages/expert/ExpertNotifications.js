@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { STORAGE_KEYS } from '../../constants';
+import { mockUsers } from '../../data/mockUsers';
 import './ExpertNotifications.css';
 
 const ExpertNotifications = () => {
@@ -13,33 +14,54 @@ const ExpertNotifications = () => {
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [note, setNote] = useState('');
   const itemsPerPage = 8;
+  const hasLoadedRef = useRef(false); // Flag để đảm bảo chỉ load một lần
 
   // Load notifications từ localStorage hoặc mock data
   useEffect(() => {
+    // Chỉ load một lần duy nhất
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+    
     // Kiểm tra xem có dữ liệu đã lưu trong localStorage không
     const savedNotifications = localStorage.getItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS);
     
-    if (savedNotifications) {
+    if (savedNotifications && savedNotifications.trim() !== '') {
       try {
         const parsedNotifications = JSON.parse(savedNotifications);
-        setNotifications(parsedNotifications);
-        updatePendingNotifications(parsedNotifications);
-        setLoading(false);
-        return;
+        // Kiểm tra xem parsed data có phải là array không
+        if (Array.isArray(parsedNotifications) && parsedNotifications.length > 0) {
+          setNotifications(parsedNotifications);
+          updatePendingNotifications(parsedNotifications);
+          setLoading(false);
+          return;
+        }
       } catch (error) {
         console.error('Error parsing saved notifications:', error);
-        // Nếu có lỗi, tiếp tục load mock data
+        // Nếu có lỗi, xóa localStorage và tiếp tục load mock data
+        localStorage.removeItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS);
       }
     }
     
     // Nếu không có dữ liệu đã lưu, load mock data
+    // 15 notifications từ 8 users (1 user có thể có nhiều notifications)
+    // Sử dụng getUserInfo để đảm bảo userName và userEmail khớp với mockUsers
     setTimeout(() => {
+      const getUserInfo = (userId) => {
+        const user = mockUsers.find(u => u.id === userId);
+        if (user) {
+          return {
+            userName: `${user.firstName} ${user.lastName}`,
+            userEmail: user.email
+          };
+        }
+        return { userName: 'Unknown User', userEmail: 'unknown@email.com' };
+      };
+
       const mockNotifications = [
         {
           id: 1,
           userId: 1,
-          userName: 'Nguyễn Văn A',
-          userEmail: 'user1@pawnder.com',
+          ...getUserInfo(1),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -52,9 +74,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 2,
-          userId: 2,
-          userName: 'Trần Thị B',
-          userEmail: 'user2@pawnder.com',
+          userId: 1, // User 1 có thêm notification thứ 2
+          ...getUserInfo(1),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -67,9 +88,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 3,
-          userId: 3,
-          userName: 'Lê Minh C',
-          userEmail: 'user3@pawnder.com',
+          userId: 2,
+          ...getUserInfo(2),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -82,9 +102,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 4,
-          userId: 4,
-          userName: 'Phạm Thị D',
-          userEmail: 'user4@pawnder.com',
+          userId: 2, // User 2 có thêm notification thứ 2
+          ...getUserInfo(2),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -98,9 +117,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 5,
-          userId: 5,
-          userName: 'Hoàng Văn E',
-          userEmail: 'user5@pawnder.com',
+          userId: 3,
+          ...getUserInfo(3),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -114,9 +132,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 6,
-          userId: 6,
-          userName: 'Ngô Thị F',
-          userEmail: 'user6@pawnder.com',
+          userId: 3, // User 3 có thêm notification thứ 2
+          ...getUserInfo(3),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -130,9 +147,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 7,
-          userId: 7,
-          userName: 'Đỗ Văn G',
-          userEmail: 'user7@pawnder.com',
+          userId: 4,
+          ...getUserInfo(4),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -145,9 +161,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 8,
-          userId: 8,
-          userName: 'Bùi Thị H',
-          userEmail: 'user8@pawnder.com',
+          userId: 5,
+          ...getUserInfo(5),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -160,9 +175,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 9,
-          userId: 9,
-          userName: 'Võ Văn I',
-          userEmail: 'user9@pawnder.com',
+          userId: 5, // User 5 có thêm notification thứ 2
+          ...getUserInfo(5),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -175,9 +189,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 10,
-          userId: 10,
-          userName: 'Lý Thị K',
-          userEmail: 'user10@pawnder.com',
+          userId: 6,
+          ...getUserInfo(6),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -191,9 +204,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 11,
-          userId: 11,
-          userName: 'Phan Văn L',
-          userEmail: 'user11@pawnder.com',
+          userId: 6, // User 6 có thêm notification thứ 2
+          ...getUserInfo(6),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -206,9 +218,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 12,
-          userId: 12,
-          userName: 'Trương Thị M',
-          userEmail: 'user12@pawnder.com',
+          userId: 7,
+          ...getUserInfo(7),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -222,9 +233,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 13,
-          userId: 13,
-          userName: 'Nguyễn Văn N',
-          userEmail: 'user13@pawnder.com',
+          userId: 7, // User 7 có thêm notification thứ 2
+          ...getUserInfo(7),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -237,9 +247,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 14,
-          userId: 14,
-          userName: 'Đinh Thị O',
-          userEmail: 'user14@pawnder.com',
+          userId: 8,
+          ...getUserInfo(8),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -252,9 +261,8 @@ const ExpertNotifications = () => {
         },
         {
           id: 15,
-          userId: 15,
-          userName: 'Lê Văn P',
-          userEmail: 'user15@pawnder.com',
+          userId: 8, // User 8 có thêm notification thứ 2
+          ...getUserInfo(8),
           title: 'Yêu cầu xác nhận thông tin AI',
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
@@ -274,7 +282,8 @@ const ExpertNotifications = () => {
       localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS, JSON.stringify(mockNotifications));
       setLoading(false);
     }, 1000);
-  }, [updatePendingNotifications]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Chỉ chạy một lần khi component mount
 
   const handleViewDetail = (notification) => {
     setSelectedNotification(notification);

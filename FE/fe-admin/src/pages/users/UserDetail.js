@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { mockUsers } from '../../data/mockUsers';
+import { mockPets } from '../../data/mockPets';
 import './UserDetail.css';
 
 const UserDetail = () => {
@@ -7,110 +9,153 @@ const UserDetail = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
 
-  // Dữ liệu người dùng mẫu (trong thực tế sẽ fetch từ API)
-  const users = [
-    {
-      id: 1,
-      username: 'john_doe',
-      email: 'john.doe@email.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      phone: '+84 123 456 789',
-      dateOfBirth: '1995-03-15',
-      gender: 'Male',
-      address: '123 Nguyễn Huệ, Q1, TP.HCM',
-      avatar: 'https://via.placeholder.com/200x200/3498db/ffffff?text=JD',
-      status: 'active',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-01-15T08:30:00Z',
-      updatedAt: '2024-10-28T14:20:00Z',
-      lastLogin: '2024-10-28T10:15:00Z',
-      totalPets: 2,
-      totalMatches: 5,
-      bio: 'Tôi là một người yêu thích động vật và muốn tìm bạn đồng hành cho những chú thú cưng của mình. Tôi có kinh nghiệm chăm sóc chó và mèo trong nhiều năm.',
+  // Tìm user từ mockUsers
+  const baseUser = mockUsers.find(u => u.id === parseInt(id));
+  
+  // Lấy pets từ mockPets dựa trên ownerId
+  const getUserPets = (userId) => {
+    return mockPets.filter(pet => pet.ownerId === userId).map(pet => ({
+      id: pet.id,
+      name: pet.name,
+      species: pet.species,
+      breed: pet.breed
+    }));
+  };
+
+  // Mock data bổ sung cho các field không có trong mockUsers
+  // (Trong thực tế sẽ fetch từ API hoặc thêm vào mockUsers)
+  const getAdditionalUserData = (userId) => {
+    const userPets = getUserPets(userId); // Lấy pets từ mockPets
+    
+    const additionalData = {
+      1: {
+        bio: 'Tôi là một người yêu thích động vật và muốn tìm bạn đồng hành cho những chú thú cưng của mình. Tôi có kinh nghiệm chăm sóc mèo trong nhiều năm.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: '1-5 years',
+          location: 'TP.HCM',
+          activityLevel: 'Moderate'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: [
+          { id: 1, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-25T14:30:00Z' },
+          { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-20T09:15:00Z' },
+          { id: 3, petName: 'Simba', ownerName: 'Emma Brown', matchedAt: '2024-10-18T16:45:00Z' }
+        ]
+      },
+      2: {
+        bio: 'Tôi là một người yêu mèo và có kinh nghiệm chăm sóc mèo Persian. Tôi thích tạo ra một môi trường yên tĩnh và thoải mái cho thú cưng.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: '2-4 years',
+          location: 'TP.HCM',
+          activityLevel: 'Low'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: [
+          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-25T14:30:00Z' },
+          { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-22T11:20:00Z' }
+        ]
+      },
+      3: {
+        bio: 'Tôi đang tìm hiểu về việc nuôi thú cưng và muốn học hỏi kinh nghiệm từ những người có kinh nghiệm.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: 'Any',
+          location: 'TP.HCM',
+          activityLevel: 'High'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: []
+      },
+      4: {
+        bio: 'Tôi là người yêu thích mèo và có kinh nghiệm nuôi nhiều loại mèo khác nhau. Tôi thích hoạt động ngoài trời cùng thú cưng.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: '2-6 years',
+          location: 'TP.HCM',
+          activityLevel: 'High'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: [
+          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-26T10:00:00Z' },
+          { id: 2, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-24T15:30:00Z' }
+        ]
+      },
+      5: {
+        bio: 'Tôi là người mới bắt đầu nuôi thú cưng và đang học hỏi cách chăm sóc tốt nhất.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: '1-3 years',
+          location: 'TP.HCM',
+          activityLevel: 'Moderate'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: [
+          { id: 1, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-23T12:00:00Z' }
+        ]
+      },
+      6: {
+        bio: 'Tôi yêu mèo, có kinh nghiệm chăm sóc mèo. Tôi thích tạo môi trường vui vẻ và năng động cho thú cưng.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: '1-4 years',
+          location: 'TP.HCM',
+          activityLevel: 'Moderate'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: [
+          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-27T14:00:00Z' },
+          { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-25T11:00:00Z' }
+        ]
+      },
+      7: {
+        bio: 'Tôi là người yêu thích mèo và có kinh nghiệm nuôi mèo trong nhiều năm.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: '2-5 years',
+          location: 'TP.HCM',
+          activityLevel: 'Low'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: [
+          { id: 1, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-22T16:00:00Z' }
+        ]
+      },
+      8: {
+        bio: 'Tôi đang tìm hiểu về việc nuôi thú cưng và chuẩn bị đón nhận một thành viên mới trong gia đình.',
+        preferences: {
+          petSpecies: ['Cat'],
+          petAge: 'Any',
+          location: 'TP.HCM',
+          activityLevel: 'Moderate'
+        },
+        pets: userPets, // Sử dụng pets từ mockPets
+        matches: [
+          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-21T10:00:00Z' }
+        ]
+      }
+    };
+    
+    return additionalData[userId] || {
+      bio: 'Chưa có thông tin giới thiệu.',
       preferences: {
-        petSpecies: ['Dog', 'Cat'],
-        petAge: '1-5 years',
+        petSpecies: ['Cat'],
+        petAge: 'Any',
         location: 'TP.HCM',
         activityLevel: 'Moderate'
       },
-      pets: [
-        { id: 1, name: 'Buddy', species: 'Dog', breed: 'Golden Retriever' },
-        { id: 9, name: 'Charlie', species: 'Dog', breed: 'Beagle' }
-      ],
-      matches: [
-        { id: 1, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-25T14:30:00Z' },
-        { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-20T09:15:00Z' },
-        { id: 3, petName: 'Simba', ownerName: 'Emma Brown', matchedAt: '2024-10-18T16:45:00Z' }
-      ]
-    },
-    {
-      id: 2,
-      username: 'alice_wonder',
-      email: 'alice.wonder@email.com',
-      firstName: 'Alice',
-      lastName: 'Wonder',
-      phone: '+84 987 654 321',
-      dateOfBirth: '1992-07-22',
-      gender: 'Female',
-      address: '456 Lê Lợi, Q3, TP.HCM',
-      avatar: 'https://via.placeholder.com/200x200/e91e63/ffffff?text=AW',
-      status: 'active',
-      role: 'user',
-      isVerified: true,
-      createdAt: '2024-02-10T09:15:00Z',
-      updatedAt: '2024-10-27T16:45:00Z',
-      lastLogin: '2024-10-27T14:30:00Z',
-      totalPets: 1,
-      totalMatches: 3,
-      bio: 'Tôi là một người yêu mèo và có kinh nghiệm chăm sóc mèo Persian. Tôi thích tạo ra một môi trường yên tĩnh và thoải mái cho thú cưng.',
-      preferences: {
-        petSpecies: ['Cat'],
-        petAge: '2-4 years',
-        location: 'TP.HCM',
-        activityLevel: 'Low'
-      },
-      pets: [
-        { id: 2, name: 'Luna', species: 'Cat', breed: 'Persian' }
-      ],
-      matches: [
-        { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-25T14:30:00Z' },
-        { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-22T11:20:00Z' }
-      ]
-    },
-    {
-      id: 3,
-      username: 'bob_smith',
-      email: 'bob.smith@email.com',
-      firstName: 'Bob',
-      lastName: 'Smith',
-      phone: '+84 555 123 456',
-      dateOfBirth: '1988-11-08',
-      gender: 'Male',
-      address: '789 Điện Biên Phủ, Q.Bình Thạnh, TP.HCM',
-      avatar: null,
-      status: 'inactive',
-      role: 'user',
-      isVerified: false,
-      createdAt: '2024-03-05T11:20:00Z',
-      updatedAt: '2024-10-20T09:10:00Z',
-      lastLogin: '2024-10-20T08:45:00Z',
-      totalPets: 0,
-      totalMatches: 0,
-      bio: 'Tôi đang tìm hiểu về việc nuôi thú cưng và muốn học hỏi kinh nghiệm từ những người có kinh nghiệm.',
-      preferences: {
-        petSpecies: ['Dog'],
-        petAge: 'Any',
-        location: 'TP.HCM',
-        activityLevel: 'High'
-      },
-      pets: [],
+      pets: userPets, // Sử dụng pets từ mockPets
       matches: []
-    }
-  ];
+    };
+  };
 
-  const user = users.find(u => u.id === parseInt(id));
+  // Kết hợp baseUser với additional data
+  const user = baseUser ? {
+    ...baseUser,
+    ...getAdditionalUserData(baseUser.id)
+    // Giữ nguyên status từ mockUsers (NORMAL/PREMIUM)
+  } : null;
 
   if (!user) {
     return (
@@ -135,7 +180,10 @@ const UserDetail = () => {
   };
 
   const getStatusBadge = (status) => {
+    // Xử lý cả status từ mockUsers (NORMAL/PREMIUM) và status cũ (active/inactive)
     const statusConfig = {
+      NORMAL: { color: '#3498db', text: 'NORMAL' },
+      PREMIUM: { color: '#f39c12', text: 'PREMIUM' },
       active: { color: '#27ae60', text: 'Hoạt động' },
       inactive: { color: '#f39c12', text: 'Không hoạt động' },
       banned: { color: '#e74c3c', text: 'Bị cấm' }
@@ -357,7 +405,7 @@ const UserDetail = () => {
                   {user.pets.map(pet => (
                     <div key={pet.id} className="pet-card">
                       <div className="pet-icon">
-                        {pet.species === 'Dog' ? '🐕' : '🐱'}
+                        🐱 {/* Chỉ có mèo */}
                       </div>
                       <div className="pet-info">
                         <h4>{pet.name}</h4>
