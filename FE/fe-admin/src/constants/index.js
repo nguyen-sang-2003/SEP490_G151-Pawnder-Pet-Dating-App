@@ -70,6 +70,7 @@ export const STORAGE_KEYS = {
   THEME: 'theme',
   LANGUAGE: 'language',
   EXPERT_NOTIFICATIONS: 'expert_notifications', // Lưu trạng thái notifications của expert
+  EXPERT_NOTIFICATIONS_INITIALIZED: 'expert_notifications_initialized', // Flag đánh dấu đã khởi tạo (ngăn reset về mock data)
 };
 
 // Theme

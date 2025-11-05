@@ -22,24 +22,72 @@ const ExpertNotifications = () => {
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
     
+    // Helper function để enrich notifications với user info từ mockUsers
+    const getUserInfo = (userId) => {
+      const user = mockUsers.find(u => u.id === userId);
+      if (user) {
+        return {
+          userName: `${user.firstName} ${user.lastName}`,
+          userEmail: user.email
+        };
+      }
+      return { userName: 'Unknown User', userEmail: 'unknown@email.com' };
+    };
+    
+    const enrichNotifications = (notifications) => {
+      return notifications.map(notif => ({
+        ...notif,
+        ...getUserInfo(notif.userId)
+      }));
+    };
+    
+    // Kiểm tra flag đã khởi tạo - nếu đã có thì KHÔNG BAO GIỜ load mock data
+    const isInitialized = localStorage.getItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS_INITIALIZED) === 'true';
+    
     // Kiểm tra xem có dữ liệu đã lưu trong localStorage không
     const savedNotifications = localStorage.getItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS);
     
+    // Ưu tiên load từ localStorage nếu có dữ liệu hợp lệ
     if (savedNotifications && savedNotifications.trim() !== '') {
       try {
         const parsedNotifications = JSON.parse(savedNotifications);
         // Kiểm tra xem parsed data có phải là array không
         if (Array.isArray(parsedNotifications) && parsedNotifications.length > 0) {
-          setNotifications(parsedNotifications);
-          updatePendingNotifications(parsedNotifications);
+          // Enrich notifications với user info từ mockUsers
+          const enrichedNotifications = enrichNotifications(parsedNotifications);
+          setNotifications(enrichedNotifications);
+          updatePendingNotifications(enrichedNotifications);
+          // Đảm bảo flag initialized được set
+          localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS_INITIALIZED, 'true');
           setLoading(false);
           return;
         }
       } catch (error) {
         console.error('Error parsing saved notifications:', error);
-        // Nếu có lỗi, xóa localStorage và tiếp tục load mock data
-        localStorage.removeItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS);
+        // Nếu có lỗi parse, chỉ xóa nếu chưa initialized
+        if (!isInitialized) {
+          localStorage.removeItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS);
+        } else {
+          // Nếu đã initialized nhưng có lỗi, giữ nguyên và không load mock data
+          console.warn('Notifications data corrupted but initialized flag is set. Keeping existing data.');
+          setLoading(false);
+          return;
+        }
       }
+    }
+    
+    // CHỈ load mock data nếu:
+    // 1. Chưa có flag initialized VÀ
+    // 2. localStorage trống hoặc không hợp lệ
+    // Nếu đã initialized thì KHÔNG BAO GIỜ load mock data nữa
+    if (isInitialized) {
+      // Đã initialized nhưng không có dữ liệu - có thể đã bị xóa bởi user
+      // Giữ nguyên state rỗng, không load mock data
+      console.warn('Notifications initialized but no data found. Keeping empty state.');
+      setNotifications([]);
+      updatePendingNotifications([]);
+      setLoading(false);
+      return;
     }
     
     // Nếu không có dữ liệu đã lưu, load mock data
@@ -66,10 +114,10 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'pending',
-          aiQuestion: 'Chó của tôi 6 tháng tuổi, đang bị ho và chảy nước mũi. Tôi nên làm gì?',
-          aiAnswer: 'Với chó 6 tháng tuổi bị ho và chảy nước mũi, có thể là dấu hiệu của nhiễm trùng đường hô hấp. Bạn nên đưa chó đến bác sĩ thú y để được khám và điều trị kịp thời. Trong khi chờ đợi, hãy giữ chó ở nơi ấm áp, khô ráo và đảm bảo chó uống đủ nước.',
+          aiQuestion: 'Mèo của tôi 6 tháng tuổi, đang bị ho và chảy nước mũi. Tôi nên làm gì?',
+          aiAnswer: 'Với mèo 6 tháng tuổi bị ho và chảy nước mũi, có thể là dấu hiệu của nhiễm trùng đường hô hấp. Bạn nên đưa mèo đến bác sĩ thú y để được khám và điều trị kịp thời. Trong khi chờ đợi, hãy giữ mèo ở nơi ấm áp, khô ráo và đảm bảo mèo uống đủ nước.',
           petName: 'Buddy',
-          petType: 'Chó',
+          petType: 'Mèo',
           createdAt: '2024-01-15T10:30:00Z',
         },
         {
@@ -94,10 +142,10 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'pending',
-          aiQuestion: 'Chó của tôi đang mang thai, nên cho ăn gì và chăm sóc như thế nào?',
-          aiAnswer: 'Chó mang thai cần chế độ dinh dưỡng đặc biệt. Nên tăng lượng thức ăn từ từ, chia nhỏ bữa ăn, và sử dụng thức ăn chất lượng cao giàu protein. Tránh vận động mạnh, giữ môi trường yên tĩnh và ấm áp. Nên tham khảo ý kiến bác sĩ thú y về chế độ ăn phù hợp.',
+          aiQuestion: 'Mèo của tôi đang mang thai, nên cho ăn gì và chăm sóc như thế nào?',
+          aiAnswer: 'Mèo mang thai cần chế độ dinh dưỡng đặc biệt. Nên tăng lượng thức ăn từ từ, chia nhỏ bữa ăn, và sử dụng thức ăn chất lượng cao giàu protein. Tránh vận động mạnh, giữ môi trường yên tĩnh và ấm áp. Nên tham khảo ý kiến bác sĩ thú y về chế độ ăn phù hợp.',
           petName: 'Luna',
-          petType: 'Chó',
+          petType: 'Mèo',
           createdAt: '2024-01-14T16:45:00Z',
         },
         {
@@ -123,11 +171,11 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'confirmed',
-          aiQuestion: 'Chó con 2 tháng tuổi có thể tắm được chưa?',
-          aiAnswer: 'Chó con 2 tháng tuổi có thể tắm được, nhưng cần cẩn thận. Nên dùng nước ấm, sữa tắm dành cho chó con, và tắm nhanh để tránh cảm lạnh. Sau khi tắm, lau khô ngay và giữ ấm. Không nên tắm quá thường xuyên, chỉ khi cần thiết.',
+          aiQuestion: 'Mèo con 2 tháng tuổi có thể tắm được chưa?',
+          aiAnswer: 'Mèo con 2 tháng tuổi có thể tắm được, nhưng cần cẩn thận. Nên dùng nước ấm, sữa tắm dành cho mèo con, và tắm nhanh để tránh cảm lạnh. Sau khi tắm, lau khô ngay và giữ ấm. Không nên tắm quá thường xuyên, chỉ khi cần thiết.',
           petName: 'Max',
-          petType: 'Chó',
-          expertNote: 'Thông tin AI đúng nhưng cần bổ sung: Chó con 2 tháng tuổi nên tắm sau khi đã tiêm phòng đầy đủ và đảm bảo sức khỏe tốt. Nên tắm trong phòng kín gió, dùng nước ấm (37-38°C), và sấy khô hoàn toàn sau khi tắm.',
+          petType: 'Mèo',
+          expertNote: 'Thông tin AI đúng nhưng cần bổ sung: Mèo con 2 tháng tuổi nên tắm sau khi đã tiêm phòng đầy đủ và đảm bảo sức khỏe tốt. Nên tắm trong phòng kín gió, dùng nước ấm (37-38°C), và sấy khô hoàn toàn sau khi tắm.',
           createdAt: '2024-01-12T11:10:00Z',
         },
         {
@@ -153,10 +201,10 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'pending',
-          aiQuestion: 'Chó của tôi 3 tuổi bị tiêu chảy 2 ngày. Có nên đưa đến bác sĩ thú y không?',
-          aiAnswer: 'Tiêu chảy ở chó trong 2 ngày có thể do nhiều nguyên nhân: thay đổi thức ăn, nhiễm khuẩn, hoặc vấn đề tiêu hóa. Nếu chó vẫn ăn uống bình thường và không có dấu hiệu mất nước, có thể theo dõi thêm. Nếu tiêu chảy kéo dài hoặc có máu, nên đưa đến bác sĩ thú y ngay.',
+          aiQuestion: 'Mèo của tôi 3 tuổi bị tiêu chảy 2 ngày. Có nên đưa đến bác sĩ thú y không?',
+          aiAnswer: 'Tiêu chảy ở mèo trong 2 ngày có thể do nhiều nguyên nhân: thay đổi thức ăn, nhiễm khuẩn, hoặc vấn đề tiêu hóa. Nếu mèo vẫn ăn uống bình thường và không có dấu hiệu mất nước, có thể theo dõi thêm. Nếu tiêu chảy kéo dài hoặc có máu, nên đưa đến bác sĩ thú y ngay.',
           petName: 'Rocky',
-          petType: 'Chó',
+          petType: 'Mèo',
           createdAt: '2024-01-10T14:20:00Z',
         },
         {
@@ -181,10 +229,10 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'pending',
-          aiQuestion: 'Chó nhà tôi thường xuyên gãi và cắn chân. Có phải do ve rận không?',
-          aiAnswer: 'Chó gãi và cắn chân thường xuyên có thể do nhiều nguyên nhân: ve rận, dị ứng, nấm da, hoặc vấn đề về da. Nên kiểm tra da chó để tìm ve rận hoặc dấu hiệu bất thường. Nếu có ve rận, cần điều trị ngay. Nếu không tìm thấy ve rận, nên đưa đến bác sĩ thú y để kiểm tra.',
+          aiQuestion: 'Mèo nhà tôi thường xuyên gãi và cắn chân. Có phải do ve rận không?',
+          aiAnswer: 'Mèo gãi và cắn chân thường xuyên có thể do nhiều nguyên nhân: ve rận, dị ứng, nấm da, hoặc vấn đề về da. Nên kiểm tra da mèo để tìm ve rận hoặc dấu hiệu bất thường. Nếu có ve rận, cần điều trị ngay. Nếu không tìm thấy ve rận, nên đưa đến bác sĩ thú y để kiểm tra.',
           petName: 'Max',
-          petType: 'Chó',
+          petType: 'Mèo',
           createdAt: '2024-01-08T09:30:00Z',
         },
         {
@@ -210,10 +258,10 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'pending',
-          aiQuestion: 'Chó con 1 tháng tuổi nên cho ăn gì?',
-          aiAnswer: 'Chó con 1 tháng tuổi vẫn cần sữa mẹ hoặc sữa thay thế. Nếu không có sữa mẹ, nên dùng sữa công thức dành cho chó con và cho ăn nhiều lần trong ngày. Có thể bắt đầu cho ăn thức ăn mềm dành cho chó con từ 3-4 tuần tuổi, nhưng vẫn cần sữa.',
+          aiQuestion: 'Mèo con 1 tháng tuổi nên cho ăn gì?',
+          aiAnswer: 'Mèo con 1 tháng tuổi vẫn cần sữa mẹ hoặc sữa thay thế. Nếu không có sữa mẹ, nên dùng sữa công thức dành cho mèo con và cho ăn nhiều lần trong ngày. Có thể bắt đầu cho ăn thức ăn mềm dành cho mèo con từ 3-4 tuần tuổi, nhưng vẫn cần sữa.',
           petName: 'Bella',
-          petType: 'Chó',
+          petType: 'Mèo',
           createdAt: '2024-01-06T13:20:00Z',
         },
         {
@@ -239,10 +287,10 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'pending',
-          aiQuestion: 'Chó của tôi 5 tuổi đột nhiên đi tiểu nhiều hơn bình thường. Có phải do bệnh không?',
-          aiAnswer: 'Chó đi tiểu nhiều hơn bình thường có thể do nhiều nguyên nhân: nhiễm trùng đường tiết niệu, bệnh thận, tiểu đường, hoặc uống nhiều nước do thời tiết. Nên đưa chó đến bác sĩ thú y để kiểm tra, đặc biệt là nếu có kèm theo các triệu chứng khác như khát nước nhiều, mệt mỏi, hoặc nước tiểu có máu.',
+          aiQuestion: 'Mèo của tôi 5 tuổi đột nhiên đi tiểu nhiều hơn bình thường. Có phải do bệnh không?',
+          aiAnswer: 'Mèo đi tiểu nhiều hơn bình thường có thể do nhiều nguyên nhân: nhiễm trùng đường tiết niệu, bệnh thận, tiểu đường, hoặc uống nhiều nước do thời tiết. Nên đưa mèo đến bác sĩ thú y để kiểm tra, đặc biệt là nếu có kèm theo các triệu chứng khác như khát nước nhiều, mệt mỏi, hoặc nước tiểu có máu.',
           petName: 'Charlie',
-          petType: 'Chó',
+          petType: 'Mèo',
           createdAt: '2024-01-04T15:30:00Z',
         },
         {
@@ -267,19 +315,31 @@ const ExpertNotifications = () => {
           content: 'Người dùng premium yêu cầu xác nhận thông tin từ AI',
           type: 'ai_verification',
           status: 'confirmed',
-          aiQuestion: 'Chó con 3 tháng tuổi nên tiêm phòng những gì?',
-          aiAnswer: 'Chó con 3 tháng tuổi nên tiêm phòng các loại vắc-xin: DHP (Distemper, Hepatitis, Parvovirus), Parainfluenza, và có thể bắt đầu tiêm phòng dại. Nên tham khảo ý kiến bác sĩ thú y về lịch tiêm phòng phù hợp với từng giống chó và khu vực.',
+          aiQuestion: 'Mèo con 3 tháng tuổi nên tiêm phòng những gì?',
+          aiAnswer: 'Mèo con 3 tháng tuổi nên tiêm phòng các loại vắc-xin: FVRCP (Feline Viral Rhinotracheitis, Calicivirus, Panleukopenia), và có thể bắt đầu tiêm phòng dại. Nên tham khảo ý kiến bác sĩ thú y về lịch tiêm phòng phù hợp với từng giống mèo và khu vực.',
           petName: 'Daisy',
-          petType: 'Chó',
-          expertNote: 'Thông tin AI đúng. Lịch tiêm phòng thường là: 6-8 tuần (DHP lần 1), 10-12 tuần (DHP lần 2), 14-16 tuần (DHP lần 3 + dại). Nên tuân thủ lịch tiêm phòng để đảm bảo sức khỏe cho chó con.',
+          petType: 'Mèo',
+          expertNote: 'Thông tin AI đúng. Lịch tiêm phòng thường là: 6-8 tuần (FVRCP lần 1), 10-12 tuần (FVRCP lần 2), 14-16 tuần (FVRCP lần 3 + dại). Nên tuân thủ lịch tiêm phòng để đảm bảo sức khỏe cho mèo con.',
           createdAt: '2024-01-02T08:15:00Z',
         },
       ];
-      setNotifications(mockNotifications);
-      // Update pending notifications in context
-      updatePendingNotifications(mockNotifications);
-      // Lưu vào localStorage
-      localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS, JSON.stringify(mockNotifications));
+      
+      // Enrich notifications với user info từ mockUsers
+      const enrichedNotifications = enrichNotifications(mockNotifications);
+      setNotifications(enrichedNotifications);
+      updatePendingNotifications(enrichedNotifications);
+      
+      // Lưu vào localStorage (chỉ lưu userId, không lưu userName/userEmail để tránh trùng lặp)
+      // Khi load lại, sẽ enrich từ mockUsers
+      const normalizedNotifications = mockNotifications.map(notif => {
+        const { userName, userEmail, ...rest } = notif;
+        return rest; // Chỉ giữ userId, không giữ userName/userEmail
+      });
+      localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS, JSON.stringify(normalizedNotifications));
+      
+      // QUAN TRỌNG: Đánh dấu đã khởi tạo để ngăn chặn reset về mock data sau này
+      localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS_INITIALIZED, 'true');
+      
       setLoading(false);
     }, 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -312,8 +372,17 @@ const ExpertNotifications = () => {
           return notif;
         });
         
-        // Lưu vào localStorage để giữ trạng thái sau khi F5
-        localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS, JSON.stringify(updated));
+        // Lưu vào localStorage (normalize - chỉ giữ userId, không giữ userName/userEmail)
+        // Khi load lại, sẽ enrich từ mockUsers
+        const normalizedNotifications = updated.map(notif => {
+          const { userName, userEmail, ...rest } = notif;
+          return rest; // Chỉ giữ userId, không giữ userName/userEmail
+        });
+        localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS, JSON.stringify(normalizedNotifications));
+        
+        // QUAN TRỌNG: Đảm bảo flag initialized luôn được set khi có thay đổi
+        // Ngăn chặn reset về mock data
+        localStorage.setItem(STORAGE_KEYS.EXPERT_NOTIFICATIONS_INITIALIZED, 'true');
         
         return updated;
       });
