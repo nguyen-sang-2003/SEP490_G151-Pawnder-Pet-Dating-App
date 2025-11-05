@@ -23,6 +23,8 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import { getPetsForMatching, PetForMatching, getRecommendedPets, RecommendedPet } from "../../../api/pet";
 import { sendLike } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAppSelector } from "../../../app/hooks";
+import { selectNotificationBadge } from "../../badge/badgeSlice";
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - 24; // Padding 12px each side
@@ -48,6 +50,7 @@ interface PetProfile {
 }
 
 const HomeScreen = ({ navigation }: Props) => {
+    const notificationBadge = useAppSelector(selectNotificationBadge);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [pets, setPets] = useState<PetProfile[]>([]);
     const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
@@ -611,9 +614,13 @@ const HomeScreen = ({ navigation }: Props) => {
                             onPress={() => navigation.navigate("Notification")}
                         >
                             <Icon name="notifications-outline" size={26} color={colors.textDark} />
-                            <View style={styles.notificationBadge}>
-                                <Text style={styles.notificationBadgeText}>2</Text>
-                            </View>
+                            {notificationBadge > 0 && (
+                                <View style={styles.notificationBadge}>
+                                    <Text style={styles.notificationBadgeText}>
+                                        {notificationBadge > 99 ? '99+' : notificationBadge}
+                                    </Text>
+                                </View>
+                            )}
                         </TouchableOpacity>
                     </View>
                     </View>

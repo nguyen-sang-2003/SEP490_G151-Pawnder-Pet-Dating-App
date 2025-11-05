@@ -161,5 +161,85 @@ namespace BE.Services
         {
             return Task.FromResult(OnlineUsers.Keys.ToList());
         }
+
+        /// <summary>
+        /// Send notification to a specific user about new message badge (STATIC for use in controllers)
+        /// </summary>
+        public static async Task SendNewMessageBadge(IHubContext<ChatHub> hubContext, int toUserId, int matchId)
+        {
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                foreach (var connectionId in connections)
+                {
+                    await hubContext.Clients.Client(connectionId).SendAsync("NewMessageBadge", new
+                    {
+                        MatchId = matchId,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+                Console.WriteLine($"[ChatHub] Sent NewMessageBadge to user {toUserId}");
+            }
+            else
+            {
+                Console.WriteLine($"[ChatHub] User {toUserId} not connected, skipping badge notification");
+            }
+        }
+
+        /// <summary>
+        /// Send notification to a specific user about new like (STATIC for use in controllers)
+        /// </summary>
+        public static async Task SendNewLikeBadge(IHubContext<ChatHub> hubContext, int toUserId, int fromUserId)
+        {
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                foreach (var connectionId in connections)
+                {
+                    await hubContext.Clients.Client(connectionId).SendAsync("NewLikeBadge", new
+                    {
+                        FromUserId = fromUserId,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+                Console.WriteLine($"[ChatHub] Sent NewLikeBadge to user {toUserId}");
+            }
+            else
+            {
+                Console.WriteLine($"[ChatHub] User {toUserId} not connected, skipping badge notification");
+            }
+        }
+
+        /// <summary>
+        /// Send notification about new match (STATIC for use in controllers)
+        /// </summary>
+        public static async Task SendMatchNotification(IHubContext<ChatHub> hubContext, int toUserId, string otherUserName, int otherUserId, int matchId, string? petName, string? petPhotoUrl)
+        {
+            Console.WriteLine($"[ChatHub] SendMatchNotification called - ToUser={toUserId}, OtherUserName={otherUserName ?? "NULL"}, OtherUserId={otherUserId}, PetName={petName ?? "NULL"}");
+            
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                var payload = new
+                {
+                    MatchId = matchId,
+                    OtherUserId = otherUserId,
+                    OtherUserName = otherUserName,
+                    PetName = petName,
+                    PetPhotoUrl = petPhotoUrl,
+                    Message = $"It's a Match with {otherUserName}! 🎉",
+                    Timestamp = DateTime.UtcNow
+                };
+                
+                Console.WriteLine($"[ChatHub] Sending payload: MatchId={payload.MatchId}, OtherUserId={payload.OtherUserId}, OtherUserName={payload.OtherUserName}, PetName={payload.PetName}");
+                
+                foreach (var connectionId in connections)
+                {
+                    await hubContext.Clients.Client(connectionId).SendAsync("MatchSuccess", payload);
+                }
+                Console.WriteLine($"[ChatHub] ✅ Sent MatchSuccess notification to user {toUserId} ({connections.Count} connection(s))");
+            }
+            else
+            {
+                Console.WriteLine($"[ChatHub] ⚠️ User {toUserId} not connected, skipping match notification");
+            }
+        }
     }
 }

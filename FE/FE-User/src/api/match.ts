@@ -58,6 +58,11 @@ export interface MatchStats {
   likes: number;
 }
 
+export interface BadgeCounts {
+  chatBadge: number;
+  favoriteBadge: number;
+}
+
 /**
  * Get user stats (matches and likes count)
  * GET /api/match/stats/{userId}
@@ -70,6 +75,22 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
     return response.data;
   } catch (error: any) {
     console.error('❌ Error fetching stats:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get badge counts for user (unread messages + pending likes)
+ * GET /api/match/badge-counts/{userId}
+ */
+export const getBadgeCounts = async (userId: number): Promise<BadgeCounts> => {
+  try {
+    console.log(`🔔 Getting badge counts for userId: ${userId}`);
+    const response = await client.get(`/api/match/badge-counts/${userId}`);
+    console.log('✅ Badge counts received:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error fetching badge counts:', error);
     throw error;
   }
 };

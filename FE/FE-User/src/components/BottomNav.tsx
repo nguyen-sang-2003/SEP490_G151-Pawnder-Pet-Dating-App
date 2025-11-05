@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Platform, Text } from "react-native";
 // @ts-ignore: bỏ qua lỗi type cho Ionicons
 import Icon from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
@@ -7,6 +7,8 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { colors, gradients, shadows } from "../theme";
+import { useAppSelector } from "../app/hooks";
+import { selectChatBadge, selectFavoriteBadge } from "../features/badge/badgeSlice";
 
 // Đồng bộ Tab với RootStackParamList
 export type Tab = keyof Pick<
@@ -20,6 +22,15 @@ interface BottomNavProps {
 
 const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  
+  // Get badge counts from Redux
+  const chatBadge = useAppSelector(selectChatBadge);
+  const favoriteBadge = useAppSelector(selectFavoriteBadge);
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🎯 [BottomNav] Badge counts updated - Chat:', chatBadge, 'Favorite:', favoriteBadge);
+  }, [chatBadge, favoriteBadge]);
 
   // Hàm điều hướng khi bấm tab
   const handlePress = (tab: Tab) => {
@@ -72,6 +83,14 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
         {navItems.map((item) => {
           const isActive = active === item.key;
           
+          // Determine badge count for this tab
+          let badgeCount = 0;
+          if (item.key === "Chat") {
+            badgeCount = chatBadge;
+          } else if (item.key === "Favorite") {
+            badgeCount = favoriteBadge;
+          }
+          
           return (
             <TouchableOpacity
               key={item.key}
@@ -79,37 +98,48 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
               onPress={() => handlePress(item.key)}
               activeOpacity={0.7}
             >
-              {isActive ? (
-                <LinearGradient
-                  colors={item.gradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[
-                    styles.activeBackground,
-                    {
-                      shadowColor: item.shadowColor,
-                      shadowOffset: { width: 0, height: 6 },
-                      shadowOpacity: 0.5,
-                      shadowRadius: 16,
-                      elevation: 10,
-                    }
-                  ]}
-                >
-                  <Icon 
-                    name={item.icon} 
-                    size={28} 
-                    color={colors.white} 
-                  />
-                </LinearGradient>
-              ) : (
-                <View style={styles.inactiveBackground}>
-                  <Icon 
-                    name={item.iconOutline} 
-                    size={28} 
-                    color={colors.textLight} 
-                  />
-                </View>
-              )}
+              <View>
+                {isActive ? (
+                  <LinearGradient
+                    colors={item.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      styles.activeBackground,
+                      {
+                        shadowColor: item.shadowColor,
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 16,
+                        elevation: 10,
+                      }
+                    ]}
+                  >
+                    <Icon 
+                      name={item.icon} 
+                      size={28} 
+                      color={colors.white} 
+                    />
+                  </LinearGradient>
+                ) : (
+                  <View style={styles.inactiveBackground}>
+                    <Icon 
+                      name={item.iconOutline} 
+                      size={28} 
+                      color={colors.textLight} 
+                    />
+                  </View>
+                )}
+                
+                {/* Badge indicator */}
+                {badgeCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -165,6 +195,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "transparent",
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FF3B30",
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.white,
+    shadowColor: "#FF3B30",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  badgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
   },
 });
 

@@ -23,7 +23,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser, reportMessage } from "../../../api";
+import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser, reportMessage, getUserById } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -44,7 +44,7 @@ interface Message {
 }
 
 const ChatDetailScreen = ({ navigation, route }: Props) => {
-  const { matchId, otherUserId, userName, userAvatar } = route.params;
+  const { matchId, otherUserId, userName: initialUserName, userAvatar } = route.params;
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -57,6 +57,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [showMessageMenu, setShowMessageMenu] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [myAvatar, setMyAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
+  const [otherUserAvatar, setOtherUserAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
+  const [userName, setUserName] = useState<string>(initialUserName || "Loading...");
   const flatListRef = useRef<FlatList>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -66,6 +68,25 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   useEffect(() => {
     currentUserIdRef.current = currentUserId;
   }, [currentUserId]);
+
+  // Fetch user info if not provided
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (!initialUserName || initialUserName === "Someone" || initialUserName === "undefined") {
+        try {
+          console.log('📱 Fetching user info for userId:', otherUserId);
+          const userInfo = await getUserById(otherUserId);
+          setUserName(userInfo.fullName || "User");
+          console.log('✅ User info loaded:', userInfo.fullName);
+        } catch (error) {
+          console.error('❌ Error fetching user info:', error);
+          setUserName("User");
+        }
+      }
+    };
+
+    fetchUserInfo();
+  }, [otherUserId, initialUserName]);
   
   // Typing animation
   const typingAnim1 = useRef(new Animated.Value(0)).current;
@@ -341,6 +362,16 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       const avatar = await getUserPetAvatar(userId);
       setMyAvatar(avatar);
       console.log('👤 My avatar loaded');
+      
+      // Load other user's pet avatar
+      try {
+        const otherAvatar = await getUserPetAvatar(otherUserId);
+        setOtherUserAvatar(otherAvatar);
+        console.log('👤 Other user avatar loaded');
+      } catch (error) {
+        console.log('⚠️ Could not load other user avatar, using default');
+        setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
+      }
       
       // Load messages from API
       const chatMessages = await getChatMessages(matchId);
@@ -705,7 +736,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         >
           {/* Avatar - Messenger style (show for last message in group) */}
           {!item.isMe && isLastInGroup && (
-            <Image source={userAvatar} style={styles.messageAvatar} />
+            <Image source={otherUserAvatar} style={styles.messageAvatar} />
           )}
           {!item.isMe && !isLastInGroup && (
             <View style={styles.messageAvatarPlaceholder} />
@@ -791,7 +822,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Image source={userAvatar} style={styles.headerAvatar} />
+          <Image source={otherUserAvatar} style={styles.headerAvatar} />
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{userName}</Text>
             <Text style={styles.headerStatus}>
@@ -839,7 +870,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             ListFooterComponent={
               isTyping ? (
                 <View style={styles.typingIndicator}>
-                  <Image source={userAvatar} style={styles.messageAvatar} />
+                  <Image source={otherUserAvatar} style={styles.messageAvatar} />
                   <View style={styles.typingBubble}>
                     <Animated.View 
                       style={[
@@ -955,7 +986,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           <Pressable style={styles.menuModal} onPress={(e) => e.stopPropagation()}>
             {/* Menu Header */}
             <View style={styles.menuHeader}>
-              <Image source={userAvatar} style={styles.menuAvatar} />
+              <Image source={otherUserAvatar} style={styles.menuAvatar} />
               <View style={styles.menuHeaderText}>
                 <Text style={styles.menuUserName}>{userName}</Text>
                 <Text style={styles.menuUserStatus}>Active now</Text>

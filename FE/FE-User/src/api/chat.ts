@@ -80,13 +80,14 @@ export const getChatMessages = async (matchId: number): Promise<ChatMessage[]> =
     console.log('✅ Got messages:', response.data.length);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error getting messages:', error);
-    
-    // Return empty array if no messages found (404)
+    // Return empty array if no messages found (404) - this is normal for new matches
     if (error.response?.status === 404) {
       console.log('ℹ️ No messages found yet, returning empty array');
       return [];
     }
+    
+    // Only log error for non-404 cases
+    console.error('❌ Error getting messages:', error);
     
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);

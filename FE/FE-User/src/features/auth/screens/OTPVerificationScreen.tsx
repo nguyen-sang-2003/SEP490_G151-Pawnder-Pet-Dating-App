@@ -120,59 +120,83 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
       await verifyOtp(email, otpCode);
       console.log('✅ OTP verified successfully');
 
-      // Step 2: Create account in database
-      if (userData) {
-        console.log('OTP verified successfully. Creating account...');
-        const registerResponse = await register(userData);
-        const newUserId = registerResponse.userId || registerResponse.UserId;
-        
-        if (!newUserId) {
-          throw new Error('Không thể lấy UserId từ response');
-        }
-        
-        console.log('✅ Account created. UserId:', newUserId);
-        
-        // Save userId to AsyncStorage for later use
-        await setItem('userId', newUserId.toString());
-        console.log('💾 UserId saved to storage');
-        
-        // Step 3: Request location permission and get GPS
-        showAlert({
-          type: 'info',
-          title: 'Cấp quyền vị trí 📍',
-          message: 'Để tìm thú cưng gần bạn, vui lòng cho phép Pawnder truy cập vị trí của bạn.',
-          confirmText: 'Đồng ý',
-          onClose: () => {
-            // Request location in background
-            handleLocationSetup(newUserId);
-          },
-        });
-      } else {
-        // If no userData (e.g., forgot password flow), just navigate
-        showAlert({
-          type: 'success',
-          title: 'Xác thực thành công! ✅',
-          message: 'Email đã được xác thực.',
-          confirmText: 'Tiếp tục',
-          onClose: () => navigation.replace("Home"),
-        });
-      }
+      // Show OTP success message first
+      showAlert({
+        type: 'success',
+        title: 'OTP đúng! ✅',
+        message: 'Mã xác thực chính xác. Tiếp tục tạo tài khoản...',
+        confirmText: 'Tiếp tục',
+        onClose: async () => {
+          // Step 2: Create account in database
+          if (userData) {
+            try {
+              setLoading(true);
+              console.log('OTP verified successfully. Creating account...');
+              const registerResponse = await register(userData);
+              const newUserId = registerResponse.userId || registerResponse.UserId;
+              
+              if (!newUserId) {
+                throw new Error('Không thể lấy UserId từ response');
+              }
+              
+              console.log('✅ Account created. UserId:', newUserId);
+              
+              // Save userId to AsyncStorage for later use
+              await setItem('userId', newUserId.toString());
+              console.log('💾 UserId saved to storage');
+              
+              setLoading(false);
+              
+              // Step 3: Request location permission and get GPS
+              showAlert({
+                type: 'info',
+                title: 'Cấp quyền vị trí 📍',
+                message: 'Để tìm thú cưng gần bạn, vui lòng cho phép Pawnder truy cập vị trí của bạn.',
+                confirmText: 'Đồng ý',
+                onClose: () => {
+                  // Request location in background
+                  handleLocationSetup(newUserId);
+                },
+              });
+            } catch (error: any) {
+              setLoading(false);
+              console.error('Registration error:', error);
+              
+              let errorTitle = 'Tạo tài khoản thất bại';
+              let errorMessage = error.message || 'Có lỗi xảy ra. Vui lòng thử lại.';
+              
+              // Check if error is from registration
+              if (error.message?.includes('Email') || error.message?.includes('đã tồn tại')) {
+                errorTitle = 'Email đã được sử dụng';
+                errorMessage = 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác.';
+              }
+              
+              showAlert({
+                type: 'error',
+                title: errorTitle,
+                message: errorMessage,
+              });
+            }
+          } else {
+            // If no userData (e.g., forgot password flow), just navigate
+            setLoading(false);
+            showAlert({
+              type: 'success',
+              title: 'Xác thực thành công! ✅',
+              message: 'Email đã được xác thực.',
+              confirmText: 'Tiếp tục',
+              onClose: () => navigation.replace("Home"),
+            });
+          }
+        },
+      });
     } catch (error: any) {
-      console.error('Verification/Registration error:', error);
-      
-      let errorTitle = 'Xác thực thất bại';
-      let errorMessage = error.message || 'Có lỗi xảy ra. Vui lòng thử lại.';
-      
-      // Check if error is from registration (after OTP verified)
-      if (error.message?.includes('Email') || error.message?.includes('đã tồn tại')) {
-        errorTitle = 'Email đã được sử dụng';
-        errorMessage = 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác.';
-      }
+      console.error('OTP Verification error:', error);
       
       showAlert({
         type: 'error',
-        title: errorTitle,
-        message: errorMessage,
+        title: 'Xác thực thất bại',
+        message: error.message || 'Mã OTP không chính xác. Vui lòng thử lại.',
       });
     } finally {
       setLoading(false);

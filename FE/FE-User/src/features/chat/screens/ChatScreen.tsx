@@ -21,6 +21,9 @@ import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from ".
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
 import { getUserPetAvatar } from "../../../utils/petAvatar";
+import { useDispatch } from "react-redux";
+import { resetChatBadge } from "../../badge/badgeSlice";
+import { AppDispatch } from "../../../app/store";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -37,6 +40,7 @@ interface ChatItem {
 }
 
 const ChatScreen = ({ navigation }: Props) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [searchQuery, setSearchQuery] = useState("");
   const [chatData, setChatData] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,9 +60,12 @@ const ChatScreen = ({ navigation }: Props) => {
   // Load chats when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      // Reset chat badge when user views this screen
+      console.log('🔔 Resetting chat badge to 0');
+      dispatch(resetChatBadge());
       loadChats();
       refreshOnlineUsers();
-    }, [])
+    }, [dispatch])
   );
 
   const setupSignalR = async () => {

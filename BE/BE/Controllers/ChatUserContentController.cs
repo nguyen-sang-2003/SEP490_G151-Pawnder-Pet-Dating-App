@@ -114,6 +114,20 @@ namespace BE.Controllers
                 
                 Console.WriteLine($"[SendMessage] Broadcast complete");
 
+                // Notify the recipient about new message badge
+                var toUserId = match.FromUserId == fromUserId ? match.ToUserId : match.FromUserId;
+                if (toUserId.HasValue)
+                {
+                    try
+                    {
+                        await ChatHub.SendNewMessageBadge(_hubContext, toUserId.Value, matchId);
+                    }
+                    catch (Exception notifEx)
+                    {
+                        Console.WriteLine($"[SendMessage] Error sending badge notification: {notifEx.Message}");
+                    }
+                }
+
                 return Ok(new
                 {
                     message = "Gửi tin nhắn thành công.",

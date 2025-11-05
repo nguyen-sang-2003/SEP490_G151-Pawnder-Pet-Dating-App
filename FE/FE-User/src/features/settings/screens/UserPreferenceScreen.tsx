@@ -113,10 +113,17 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
       
       // Convert preferences map to array
       const prefsArray: UserPreferenceBatchRequest[] = Array.from(preferences.values())
-        .filter(pref => 
-          // Only include preferences that have some value set
-          pref.optionId != null || (pref.minValue != null && pref.maxValue != null)
-        )
+        .filter(pref => {
+          // Include if has optionId (for string type attributes)
+          if (pref.optionId != null) return true;
+          
+          // Include if has at least one value set (for numeric attributes)
+          // For distance: only maxValue is needed
+          // For range: both minValue and maxValue should be set
+          if (pref.minValue != null || pref.maxValue != null) return true;
+          
+          return false;
+        })
         .map(pref => ({
           AttributeId: pref.attributeId,
           OptionId: pref.optionId,
@@ -139,7 +146,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
         message: `Đã lưu sở thích (${result.created} mới, ${result.updated} cập nhật)`,
         onConfirm: () => {
           hideAlert();
-    navigation.goBack();
+          navigation.goBack();
         }
       });
     } catch (error: any) {

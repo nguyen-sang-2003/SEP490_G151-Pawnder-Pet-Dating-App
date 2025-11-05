@@ -23,6 +23,9 @@ import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getLikesReceived, respondToLike, LikeReceivedItem } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDispatch } from "react-redux";
+import { resetFavoriteBadge, showMatchModal } from "../../badge/badgeSlice";
+import { AppDispatch } from "../../../app/store";
 
 const { width, height } = Dimensions.get("window");
 const CARD_PADDING = 16;
@@ -45,10 +48,9 @@ interface LikeCat {
 }
 
 const FavoriteScreen = ({ navigation }: Props) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [pets, setPets] = useState<LikeCat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showMatchModal, setShowMatchModal] = useState(false);
-  const [matchedPet, setMatchedPet] = useState<LikeCat | null>(null);
   const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
   const [activeTab, setActiveTab] = useState<'likes' | 'matches'>('likes');
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -57,8 +59,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
   useFocusEffect(
     useCallback(() => {
       console.log('🔄 Favorite screen focused - reloading likes...');
+      // Reset favorite badge when user views this screen
+      console.log('🔔 Resetting favorite badge to 0');
+      dispatch(resetFavoriteBadge());
       loadLikes();
-    }, [])
+    }, [dispatch])
   );
 
   const loadLikes = async () => {
@@ -144,15 +149,15 @@ const FavoriteScreen = ({ navigation }: Props) => {
         )
       );
 
-      // Show match modal
-      setMatchedPet(pet);
-      setShowMatchModal(true);
-
-      // Hide modal after 3 seconds
-      setTimeout(() => {
-        setShowMatchModal(false);
-        setMatchedPet(null);
-      }, 3000);
+      // Show global match modal
+      const petPhotoUrl = typeof pet.image === 'string' ? pet.image : pet.image?.uri;
+      dispatch(showMatchModal({
+        otherUserName: pet.ownerName,
+        otherUserId: pet.ownerId,
+        matchId: parseInt(petId),
+        petName: pet.catName,
+        petPhotoUrl: petPhotoUrl,
+      }));
     } catch (error) {
       console.error('❌ Error matching:', error);
     }
@@ -565,52 +570,6 @@ const FavoriteScreen = ({ navigation }: Props) => {
         );
       })()}
 
-      {/* Match Modal */}
-      {showMatchModal && matchedPet && (
-        <View style={styles.matchModal}>
-          <LinearGradient
-            colors={["rgba(255,110,167,0.97)", "rgba(255,155,192,0.97)"]}
-            style={styles.matchGradient}
-          >
-            <View style={styles.matchIconContainer}>
-              <Icon name="heart" size={80} color={colors.white} />
-            </View>
-            <Text style={styles.matchTitle}>It's a Match! 🎉</Text>
-            <Text style={styles.matchText}>
-              You and {matchedPet.ownerName} liked each other's pets
-            </Text>
-            <View style={styles.matchPetContainer}>
-              <Image source={matchedPet.image} style={styles.matchPetImage} />
-              <Text style={styles.matchPetName}>{matchedPet.catName}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.sendMessageButton}
-              onPress={() => {
-                if (matchedPet) {
-                  handleChat(matchedPet.id, matchedPet.ownerId, matchedPet.ownerName, matchedPet.image);
-                }
-                setShowMatchModal(false);
-                setMatchedPet(null);
-              }}
-              activeOpacity={0.9}
-            >
-              <Icon name="chatbubble" size={20} color={colors.primary} />
-              <Text style={styles.sendMessageText}>Send Message</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.keepSwipingButton}
-              onPress={() => {
-                setShowMatchModal(false);
-                setMatchedPet(null);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.keepSwipingText}>Keep Browsing</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
-      )}
-
       {/* Bottom Navigation */}
       <BottomNav active="Favorite" />
     </View>
@@ -987,90 +946,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: colors.white,
-  },
-
-  // Match Modal
-  matchModal: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1000,
-  },
-  matchGradient: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-  },
-  matchIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  matchTitle: {
-    fontSize: 38,
-    fontWeight: "bold",
-    color: colors.white,
-    marginTop: 24,
-    textAlign: "center",
-  },
-  matchText: {
-    fontSize: 17,
-    color: colors.white,
-    textAlign: "center",
-    marginTop: 12,
-    opacity: 0.95,
-    lineHeight: 24,
-  },
-  matchPetContainer: {
-    alignItems: "center",
-    marginTop: 32,
-    gap: 12,
-  },
-  matchPetImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 5,
-    borderColor: colors.white,
-    ...shadows.large,
-  },
-  matchPetName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: colors.white,
-  },
-  sendMessageButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: colors.white,
-    paddingHorizontal: 40,
-    paddingVertical: 18,
-    borderRadius: radius.lg,
-    marginTop: 32,
-    ...shadows.large,
-  },
-  sendMessageText: {
-    fontSize: 17,
-    fontWeight: "bold",
-    color: colors.primary,
-  },
-  keepSwipingButton: {
-    marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-  },
-  keepSwipingText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.white,
-    opacity: 0.9,
   },
 
   // Loading

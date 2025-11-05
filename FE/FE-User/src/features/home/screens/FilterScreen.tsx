@@ -160,24 +160,25 @@ const FilterScreen = ({ navigation }: Props) => {
                     const attrId = parseInt(attributeIdStr);
                     const attr = attributes.find(a => a.AttributeId === attrId);
                     
-                    // Skip if has optionId (string type - handled separately)
+                    // Always include if has optionId (string type attribute)
                     if (filter.optionId !== undefined) return true;
                     
-                    // Skip if no min/max values
+                    // Skip if no min/max values (no numeric filter set)
                     if (filter.minValue === undefined && filter.maxValue === undefined) return false;
                     
-                    // For Distance (single max handle)
+                    // For Distance (single max handle) - attribute "Khoảng cách"
                     if (attr?.Name?.toLowerCase() === "khoảng cách") {
-                        // Skip if maxValue is at maximum (= "Unlimited")
+                        // Only save if user has set a specific distance limit (not unlimited)
+                        // Backend will use this to filter pets by distance
                         return filter.maxValue !== undefined && filter.maxValue < maxDistanceLimit;
                     }
                     
-                    // For Height/Weight (dual handles)
+                    // For Height/Weight (dual handles) - other float attributes
                     const maxLimit = attr?.Name?.toLowerCase().includes("cao") ? 100 : 50;
                     const min = filter.minValue || 0;
                     const max = filter.maxValue || maxLimit;
                     
-                    // Skip if full range (= "Any")
+                    // Skip if full range (= "Any" selection)
                     if (min === 0 && max === maxLimit) {
                         return false;
                     }
@@ -191,10 +192,11 @@ const FilterScreen = ({ navigation }: Props) => {
                     MaxValue: filter.maxValue,
                 }));
 
+            console.log("💾 Saving preferences:", preferences);
             await saveUserPreferencesBatch(currentUserId, preferences);
             console.log("✅ Filters saved successfully!");
             
-            // Reload Home screen to fetch new recommendations
+            // Navigate back to Home screen - will auto-reload pets with new recommendations
             navigation.goBack();
         } catch (error: any) {
             console.error("❌ Error saving filters:", error);

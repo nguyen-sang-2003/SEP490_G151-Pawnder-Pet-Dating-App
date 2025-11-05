@@ -32,9 +32,6 @@ namespace BE.Controllers
 
             var preferences = user.UserPreferences.ToList();
             
-            // Nếu chưa có preferences, vẫn return all pets (score = 0 for all)
-            // Đây là optional filter - không bắt buộc phải set
-            
             // Lấy khoảng cách từ Attribute "Khoảng cách"
             var distancePref = preferences?
                 .FirstOrDefault(p => p.Attribute.Name.ToLower() == "khoảng cách");
@@ -77,19 +74,25 @@ namespace BE.Controllers
                          && !blockedUserIds.Contains(p.UserId.Value))
                 .ToListAsync();
 
-            var matchedPets = new List<(Pet Pet, decimal Score, decimal totalPercent, double? Distance)>();
+            var matchedPets = new List<(Pet Pet, decimal Score, decimal TotalPercent, double? Distance)>();
 
             // Filter preferences, excluding distance
             var attributePreferences = (preferences ?? new List<UserPreference>())
                 .Where(p => p.Attribute.Name.ToLower() != "khoảng cách")
                 .ToList();
+
+            // Tính tổng Percent của những attribute user chọn (không bao gồm khoảng cách)
+            decimal totalPercent = 0;
+            foreach (var pref in attributePreferences)
+            {
+                totalPercent += pref.Attribute.Percent ?? 0;
+            }
             
             foreach (var pet in pets)
             {
-                double score = 0;
-                double totalPref = attributePreferences.Count;
+                decimal score = 0; // tổng Percent của những attribute trùng
 
-                // Scoring system - không bắt buộc match all
+                // Scoring system theo Percent
                 foreach (var pref in attributePreferences)
                 {
                     var petChar = pet.PetCharacteristics.FirstOrDefault(pc =>
@@ -114,7 +117,7 @@ namespace BE.Controllers
                     {
                         isMatch = petChar.Value >= pref.MinValue && petChar.Value <= pref.MaxValue;
                     }
-                    // Handle case where only MaxValue is set (like Distance)
+                    // Handle case where only MaxValue is set
                     else if (pref.MaxValue != null && petChar.Value != null && pref.MinValue == null)
                     {
                         isMatch = petChar.Value <= pref.MaxValue;
@@ -122,16 +125,13 @@ namespace BE.Controllers
 
                     if (isMatch)
                     {
-                        score++; // Cộng điểm nếu match
+                        score += pref.Attribute.Percent ?? 0; // Cộng trọng số Percent nếu match
                     }
                 }
 
-                // Show all pets, even with 0 matches (if no preferences, all pets shown)
-                // Pets will be sorted by score later
-
                 // Xử lý lọc theo Khoảng cách nếu có
                 double? distance = null;
-                if (maxDistance != null || maxDistance > 0)
+                if (maxDistance != null && maxDistance > 0)
                 {
                     distance = await _distanceService.GetDistanceBetweenUsersAsync(userId, pet.UserId);
                     
@@ -146,11 +146,11 @@ namespace BE.Controllers
                     }
                 }
 
-                matchedPets.Add((Pet: pet, Score: score, TotalPref: totalPref, Distance: distance));
+                matchedPets.Add((Pet: pet, Score: score, TotalPercent: totalPercent, Distance: distance));
             }
 
             var result = matchedPets
-                .OrderByDescending(p => p.TotalPref > 0 ? p.Score / p.TotalPref : 0)
+                .OrderByDescending(p => p.TotalPercent > 0 ? p.Score / p.TotalPercent : 0)
                 .ThenBy(p => p.Distance ?? double.MaxValue)
                 .Take(20)
                 .Select(p => new
@@ -162,9 +162,9 @@ namespace BE.Controllers
                     Gender = p.Pet.Gender,
                     Age = p.Pet.Age,
                     Description = p.Pet.Description,
-                    MatchPercent = p.TotalPref > 0 ? Math.Round((p.Score / p.TotalPref) * 100, 1) : 0,
+                    MatchPercent = p.TotalPercent > 0 ? Math.Round((decimal)(p.Score / p.TotalPercent) * 100, 1) : 0,
                     MatchScore = p.Score,
-                    TotalAttributes = p.TotalPref,
+                    TotalPercent = p.TotalPercent,
                     DistanceKm = p.Distance != null ? Math.Round(p.Distance.Value, 2) : (double?)null,
                     Photos = p.Pet.PetPhotos
                         .OrderBy(photo => photo.SortOrder)

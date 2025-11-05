@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { useDispatch } from "react-redux";
+import { resetNotificationBadge } from "../../badge/badgeSlice";
+import { AppDispatch } from "../../../app/store";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Notification">;
 
@@ -79,6 +82,14 @@ const notifications: NotificationItem[] = [
 ];
 
 const NotificationScreen = ({ navigation }: Props) => {
+  const dispatch = useDispatch<AppDispatch>();
+
+  // Reset notification badge when entering this screen
+  useEffect(() => {
+    console.log('🔔 Resetting notification badge to 0');
+    dispatch(resetNotificationBadge());
+  }, [dispatch]);
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "expert_reply":

@@ -1,5 +1,7 @@
 using BE.Models;
+using BE.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
@@ -9,10 +11,12 @@ namespace BE.Controllers
     public class MatchController : Controller
     {
         private readonly PawnderDatabaseContext _context;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public MatchController(PawnderDatabaseContext context)
+        public MatchController(PawnderDatabaseContext context, IHubContext<ChatHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         /// <summary>
@@ -221,8 +225,47 @@ namespace BE.Controllers
                     _context.ChatUsers.Update(reciprocalLike);
                     await _context.SaveChangesAsync();
 
-                    // Create notification for both users
+                    // Get user names and pets for notifications
+                    var user1 = await _context.Users.FindAsync(request.FromUserId);
+                    var user2 = await _context.Users.FindAsync(request.ToUserId);
+                    
+                    // Get pets with photos
+                    var pet1 = await _context.Pets
+                        .Where(p => p.UserId == request.FromUserId && p.IsDeleted == false)
+                        .OrderBy(p => p.PetId)
+                        .FirstOrDefaultAsync();
+                    var pet2 = await _context.Pets
+                        .Where(p => p.UserId == request.ToUserId && p.IsDeleted == false)
+                        .OrderBy(p => p.PetId)
+                        .FirstOrDefaultAsync();
+                    
+                    Console.WriteLine($"[MatchController] Found pets: User1Pet={pet1?.Name ?? "null"}, User2Pet={pet2?.Name ?? "null"}");
+                    
+                    var pet1Photo = pet1 != null ? await _context.PetPhotos
+                        .Where(pp => pp.PetId == pet1.PetId && pp.IsDeleted == false)
+                        .OrderBy(pp => pp.PhotoId)
+                        .Select(pp => pp.ImageUrl)
+                        .FirstOrDefaultAsync() : null;
+                    var pet2Photo = pet2 != null ? await _context.PetPhotos
+                        .Where(pp => pp.PetId == pet2.PetId && pp.IsDeleted == false)
+                        .OrderBy(pp => pp.PhotoId)
+                        .Select(pp => pp.ImageUrl)
+                        .FirstOrDefaultAsync() : null;
+                    
+                    Console.WriteLine($"[MatchController] Found photos: User1Photo={pet1Photo ?? "null"}, User2Photo={pet2Photo ?? "null"}");
+
+                    // Create notification for both users (they can view in Notification screen)
                     await CreateMatchNotification(request.FromUserId, request.ToUserId, reciprocalLike.MatchId);
+
+                    // Send real-time match notifications to both users
+                    if (user1 != null && user2 != null)
+                    {
+                        Console.WriteLine($"[MatchController] Sending match notification to User {request.FromUserId}: OtherUser={user2.FullName}, Pet={pet2?.Name}, Photo={pet2Photo}");
+                        await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName, request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
+                        
+                        Console.WriteLine($"[MatchController] Sending match notification to User {request.ToUserId}: OtherUser={user1.FullName}, Pet={pet1?.Name}, Photo={pet1Photo}");
+                        await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName, request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
+                    }
 
                     return Ok(new
                     {
@@ -251,6 +294,9 @@ namespace BE.Controllers
                 await _context.SaveChangesAsync();
                 
                 Console.WriteLine($"[MatchController] Created ChatUser with MatchId={chatUser.MatchId}");
+
+                // Send real-time badge notification to recipient
+                await SendLikeNotification(request.ToUserId, request.FromUserId);
 
                 return Ok(new
                 {
@@ -301,8 +347,47 @@ namespace BE.Controllers
                     _context.ChatUsers.Update(chatUser);
                     await _context.SaveChangesAsync();
 
-                    // Create notification
+                    // Get user names and pets for notifications
+                    var user1 = await _context.Users.FindAsync(chatUser.FromUserId);
+                    var user2 = await _context.Users.FindAsync(chatUser.ToUserId);
+                    
+                    // Get pets with photos
+                    var pet1 = await _context.Pets
+                        .Where(p => p.UserId == chatUser.FromUserId && p.IsDeleted == false)
+                        .OrderBy(p => p.PetId)
+                        .FirstOrDefaultAsync();
+                    var pet2 = await _context.Pets
+                        .Where(p => p.UserId == chatUser.ToUserId && p.IsDeleted == false)
+                        .OrderBy(p => p.PetId)
+                        .FirstOrDefaultAsync();
+                    
+                    Console.WriteLine($"[MatchController][RespondToLike] Found pets: User1Pet={pet1?.Name ?? "null"}, User2Pet={pet2?.Name ?? "null"}");
+                    
+                    var pet1Photo = pet1 != null ? await _context.PetPhotos
+                        .Where(pp => pp.PetId == pet1.PetId && pp.IsDeleted == false)
+                        .OrderBy(pp => pp.PhotoId)
+                        .Select(pp => pp.ImageUrl)
+                        .FirstOrDefaultAsync() : null;
+                    var pet2Photo = pet2 != null ? await _context.PetPhotos
+                        .Where(pp => pp.PetId == pet2.PetId && pp.IsDeleted == false)
+                        .OrderBy(pp => pp.PhotoId)
+                        .Select(pp => pp.ImageUrl)
+                        .FirstOrDefaultAsync() : null;
+                    
+                    Console.WriteLine($"[MatchController][RespondToLike] Found photos: User1Photo={pet1Photo ?? "null"}, User2Photo={pet2Photo ?? "null"}");
+
+                    // Create notification (users can view in Notification screen)
                     await CreateMatchNotification(chatUser.FromUserId!.Value, chatUser.ToUserId!.Value, chatUser.MatchId);
+
+                    // Send real-time match notifications to both users
+                    if (user1 != null && user2 != null)
+                    {
+                        Console.WriteLine($"[MatchController][RespondToLike] Sending match notification to User {chatUser.FromUserId}: OtherUser={user2.FullName}, Pet={pet2?.Name}, Photo={pet2Photo}");
+                        await ChatHub.SendMatchNotification(_hubContext, chatUser.FromUserId.Value, user2.FullName, chatUser.ToUserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
+                        
+                        Console.WriteLine($"[MatchController][RespondToLike] Sending match notification to User {chatUser.ToUserId}: OtherUser={user1.FullName}, Pet={pet1?.Name}, Photo={pet1Photo}");
+                        await ChatHub.SendMatchNotification(_hubContext, chatUser.ToUserId.Value, user1.FullName, chatUser.FromUserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
+                    }
 
                     Console.WriteLine($"[MatchController] Match accepted!");
 
@@ -336,6 +421,66 @@ namespace BE.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error responding to like", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get badge counts for user (unread messages + pending likes)
+        /// GET /api/match/badge-counts/{userId}
+        /// </summary>
+        [HttpGet("badge-counts/{userId}")]
+        public async Task<IActionResult> GetBadgeCounts(int userId)
+        {
+            try
+            {
+                Console.WriteLine($"[MatchController] Getting badge counts for userId: {userId}");
+
+                // Get all accepted matches for this user
+                var acceptedMatches = await _context.ChatUsers
+                    .Where(c => c.IsDeleted == false 
+                               && c.Status == "Accepted" 
+                               && (c.FromUserId == userId || c.ToUserId == userId))
+                    .Select(c => c.MatchId)
+                    .ToListAsync();
+
+                // Count unread messages across all chats
+                // For simplicity: count messages from OTHER users that were created recently
+                // In a real app, you'd track read/unread status per message
+                var unreadMessagesCount = 0;
+                foreach (var matchId in acceptedMatches)
+                {
+                    var lastMessage = await _context.ChatUserContents
+                        .Where(c => c.MatchId == matchId && c.FromUserId != userId)
+                        .OrderByDescending(c => c.CreatedAt)
+                        .FirstOrDefaultAsync();
+
+                    if (lastMessage != null)
+                    {
+                        // Check if there are any messages from the other user
+                        // This is a simplified approach - you may want to track actual read status
+                        unreadMessagesCount++;
+                    }
+                }
+
+                // Count pending likes (people who liked you)
+                var pendingLikesCount = await _context.ChatUsers
+                    .Where(c => c.IsDeleted == false 
+                               && c.Status == "Pending" 
+                               && c.ToUserId == userId)
+                    .CountAsync();
+
+                Console.WriteLine($"[MatchController] Badge counts - Unread: {unreadMessagesCount}, Pending Likes: {pendingLikesCount}");
+
+                return Ok(new
+                {
+                    chatBadge = unreadMessagesCount,
+                    favoriteBadge = pendingLikesCount
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MatchController] Error getting badge counts: {ex.Message}");
+                return StatusCode(500, new { message = "Error fetching badge counts", error = ex.Message });
             }
         }
 
@@ -378,6 +523,21 @@ namespace BE.Controllers
             {
                 Console.WriteLine($"Error creating notifications: {ex.Message}");
                 // Don't throw - notifications are not critical
+            }
+        }
+
+        /// <summary>
+        /// Send real-time like notification via SignalR
+        /// </summary>
+        private async Task SendLikeNotification(int toUserId, int fromUserId)
+        {
+            try
+            {
+                await ChatHub.SendNewLikeBadge(_hubContext, toUserId, fromUserId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MatchController] Error sending like notification: {ex.Message}");
             }
         }
     }

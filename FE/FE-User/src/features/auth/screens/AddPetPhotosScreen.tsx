@@ -92,11 +92,11 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   };
 
   const handleNext = async () => {
-    if (photos.length === 0) {
+    if (photos.length < 3) {
       showAlert({
         type: 'warning',
-        title: 'Chưa có ảnh',
-        message: 'Vui lòng thêm ít nhất 1 ảnh cho thú cưng!',
+        title: 'Chưa đủ ảnh',
+        message: `Vui lòng thêm ít nhất 3 ảnh cho thú cưng! (Hiện tại: ${photos.length}/3)`,
       });
       return;
     }
@@ -139,12 +139,13 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         type: 'success',
         title: 'Hoàn tất! 🎉',
         message: 'Thú cưng của bạn đã được tạo thành công!',
-        confirmText: 'Về trang chủ',
+        confirmText: isFromProfile ? 'Về trang cá nhân' : 'Tiếp tục',
         onClose: () => {
           if (isFromProfile) {
             navigation.navigate("Profile");
           } else {
-            navigation.replace("Home");
+            // Navigate to OnboardingPreferences for new users
+            navigation.replace("OnboardingPreferences");
           }
         },
       });
@@ -189,7 +190,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           <Text style={styles.stepText}>Step 3 of 3</Text>
           <Text style={styles.title}>Add Pet Photos 📸</Text>
           <Text style={styles.subtitle}>
-            Add at least 1 photo (up to {maxPhotos})
+            Add at least 3 photos (up to {maxPhotos})
           </Text>
         </View>
       </View>
@@ -199,6 +200,26 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Photo Counter */}
+        <View style={styles.photoCounterContainer}>
+          <View style={[
+            styles.photoCounterBadge,
+            photos.length >= 3 && styles.photoCounterBadgeComplete
+          ]}>
+            <Icon 
+              name={photos.length >= 3 ? "checkmark-circle" : "images"} 
+              size={20} 
+              color={photos.length >= 3 ? "#FFF" : colors.primary} 
+            />
+            <Text style={[
+              styles.photoCounterText,
+              photos.length >= 3 && styles.photoCounterTextComplete
+            ]}>
+              {photos.length}/3 photos {photos.length >= 3 ? '✓' : ''}
+            </Text>
+          </View>
+        </View>
+
         {/* Photos Grid */}
         <View style={styles.photosContainer}>
           <View style={styles.photosGrid}>
@@ -347,6 +368,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     color: colors.textMedium,
+  },
+
+  // Photo Counter
+  photoCounterContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  photoCounterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    gap: 8,
+    ...shadows.small,
+  },
+  photoCounterBadgeComplete: {
+    backgroundColor: colors.primary,
+  },
+  photoCounterText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textDark,
+  },
+  photoCounterTextComplete: {
+    color: colors.white,
   },
 
   // Photos

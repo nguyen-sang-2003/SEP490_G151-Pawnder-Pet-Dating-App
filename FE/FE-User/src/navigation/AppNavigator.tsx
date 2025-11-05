@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { View, ActivityIndicator } from "react-native";
+import { navigationRef } from "../services/navigation.service";
 
 // Import Auth Screens
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
@@ -10,6 +11,7 @@ import SignUpScreen from "../features/auth/screens/SignUpScreen";
 import AddPetBasicInfoScreen from "../features/auth/screens/AddPetBasicInfoScreen";
 import AddPetCharacteristicsScreen from "../features/auth/screens/AddPetCharacteristicsScreen";
 import AddPetPhotosScreen from "../features/auth/screens/AddPetPhotosScreen";
+import OnboardingPreferencesScreen from "../features/auth/screens/OnboardingPreferencesScreen";
 import OTPVerificationScreen from "../features/auth/screens/OTPVerificationScreen";
 import ForgotPasswordScreen from "../features/auth/screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "../features/auth/screens/ResetPasswordScreen";
@@ -62,6 +64,7 @@ export type RootStackParamList = {
   AddPetBasicInfo: { isFromProfile?: boolean };
   AddPetCharacteristics: { petId: number; isFromProfile?: boolean };
   AddPetPhotos: { petId: number; isFromProfile?: boolean };
+  OnboardingPreferences: undefined;
   Home: undefined;
   FilterScreen: undefined;
   Chat: { matchId?: number }; // Optional matchId để navigate từ Favorite
@@ -139,7 +142,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName={isAuthenticated ? "Home" : "Welcome"}
         screenOptions={{ headerShown: false }}
@@ -153,6 +156,7 @@ const AppNavigator = () => {
         <Stack.Screen name="AddPetBasicInfo" component={AddPetBasicInfoScreen} />
         <Stack.Screen name="AddPetCharacteristics" component={AddPetCharacteristicsScreen} />
         <Stack.Screen name="AddPetPhotos" component={AddPetPhotosScreen} />
+        <Stack.Screen name="OnboardingPreferences" component={OnboardingPreferencesScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen 
           name="FilterScreen" 

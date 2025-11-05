@@ -84,10 +84,18 @@ public class UserController : ControllerBase
     [HttpGet("{userId:int}")]
     public async Task<ActionResult<UserResponse>> GetUser(int userId, CancellationToken ct = default)
     {
+        Console.WriteLine($"[UsersController] GetUser called with userId: {userId}");
+        
         var u = await _db.Users.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.UserId == userId, ct);
+            .FirstOrDefaultAsync(x => x.UserId == userId && (x.IsDeleted == null || x.IsDeleted == false), ct);
 
-        if (u is null) return NotFound();
+        if (u is null)
+        {
+            Console.WriteLine($"[UsersController] User not found for userId: {userId}");
+            return NotFound();
+        }
+        
+        Console.WriteLine($"[UsersController] User found: {u.FullName}");
 
         return Ok(new UserResponse
         {

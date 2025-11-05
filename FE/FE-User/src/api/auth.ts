@@ -104,6 +104,48 @@ export const removeAuthToken = async (): Promise<void> => {
 };
 
 /**
+ * Store user ID securely
+ */
+export const storeUserId = async (userId: number): Promise<void> => {
+  try {
+    await Keychain.setGenericPassword('userId', userId.toString(), {
+      service: 'pawnder.userId',
+    });
+  } catch (error) {
+    console.error('Error storing user ID:', error);
+  }
+};
+
+/**
+ * Retrieve stored user ID
+ */
+export const getUserId = async (): Promise<number | null> => {
+  try {
+    const credentials = await Keychain.getGenericPassword({
+      service: 'pawnder.userId',
+    });
+    if (credentials) {
+      return parseInt(credentials.password, 10);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user ID:', error);
+    return null;
+  }
+};
+
+/**
+ * Remove stored user ID
+ */
+export const removeUserId = async (): Promise<void> => {
+  try {
+    await Keychain.resetGenericPassword({ service: 'pawnder.userId' });
+  } catch (error) {
+    console.error('Error removing user ID:', error);
+  }
+};
+
+/**
  * Login user
  */
 export const login = async (
@@ -129,6 +171,14 @@ export const login = async (
       console.log('✅ Token stored successfully');
     } else {
       console.warn('⚠️ No token received from backend');
+    }
+    
+    // Store userId for badge notifications
+    const userId = response.data.userId || response.data.UserId;
+    if (userId) {
+      console.log('💾 Storing userId:', userId);
+      await storeUserId(userId);
+      console.log('✅ UserId stored successfully');
     }
     
     return response.data;
@@ -193,9 +243,11 @@ export const logout = async (): Promise<void> => {
   try {
     await apiClient.post('/logout');
     await removeAuthToken();
+    await removeUserId();
   } catch (error) {
-    // Even if API call fails, remove local token
+    // Even if API call fails, remove local token and userId
     await removeAuthToken();
+    await removeUserId();
     throw error;
   }
 };

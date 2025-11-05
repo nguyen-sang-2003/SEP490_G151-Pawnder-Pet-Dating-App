@@ -139,6 +139,23 @@ class SignalRService {
       console.log('👁️ Messages read:', data);
       this.notifyListeners('MessagesRead', data);
     });
+
+    // Badge notifications
+    this.connection.on('NewMessageBadge', (data) => {
+      console.log('🔔 New message badge:', data);
+      this.notifyListeners('NewMessageBadge', data);
+    });
+
+    this.connection.on('NewLikeBadge', (data) => {
+      console.log('💗 New like badge:', data);
+      this.notifyListeners('NewLikeBadge', data);
+    });
+
+    // Match success notification
+    this.connection.on('MatchSuccess', (data) => {
+      console.log('🎉 Match success:', data);
+      this.notifyListeners('MatchSuccess', data);
+    });
   }
 
   /**

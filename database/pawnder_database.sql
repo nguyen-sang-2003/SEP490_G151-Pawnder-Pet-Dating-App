@@ -445,7 +445,7 @@ VALUES
 -- ===========================
 INSERT INTO "Pet" ("UserId", "Name", "Breed", "Gender", "Age", "Description")
 VALUES
-((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'), 'Milo', 'Golden Retriever', 'Đực', 3, 'Chó thân thiện, thích chạy nhảy'),
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'), 'Milo', 'Golden Retriever', 'Đực', 3, 'thân thiện, thích chạy nhảy'),
 ((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'), 'Luna', 'Poodle', 'Cái', 2, 'Rất ngoan và dễ thương');
 
 -- ===========================
