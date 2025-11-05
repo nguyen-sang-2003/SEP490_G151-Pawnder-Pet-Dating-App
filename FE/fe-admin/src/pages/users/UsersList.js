@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mockUsers } from '../../data/mockUsers';
+import { STORAGE_KEYS } from '../../constants';
 import './UsersList.css';
 
 const UsersList = () => {
@@ -9,6 +10,215 @@ const UsersList = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  
+  // Ban user states
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [banDuration, setBanDuration] = useState('1'); // 1 day, 3 days, 7 days, 1 month, 3 months, permanent
+  const [banReason, setBanReason] = useState('');
+  const [userBans, setUserBans] = useState({}); // { userId: { banExpiresAt: timestamp, reason: string } }
+  
+  // Timer for countdown
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const intervalRef = useRef(null);
+
+  // Load ban data from localStorage
+  useEffect(() => {
+    const savedBans = localStorage.getItem(STORAGE_KEYS.USER_BANS);
+    if (savedBans) {
+      try {
+        const bans = JSON.parse(savedBans);
+        setUserBans(bans);
+      } catch (error) {
+        console.error('Error parsing user bans:', error);
+      }
+    }
+  }, []);
+
+  // Check and auto-unban users when ban expires
+  useEffect(() => {
+    const checkAndUnban = () => {
+      const now = Date.now();
+      const updatedBans = { ...userBans };
+      let hasChanges = false;
+
+      Object.keys(updatedBans).forEach(userId => {
+        const ban = updatedBans[userId];
+        // permanent ban has banExpiresAt === null
+        if (ban.banExpiresAt && ban.banExpiresAt <= now) {
+          delete updatedBans[userId];
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        setUserBans(updatedBans);
+        localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+      }
+    };
+
+    // Check immediately
+    checkAndUnban();
+
+    // Check every minute
+    intervalRef.current = setInterval(checkAndUnban, 60000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [userBans]);
+
+  // Update countdown timer when modal is open
+  useEffect(() => {
+    if (showBanModal && selectedUser && userBans[selectedUser.id]) {
+      const ban = userBans[selectedUser.id];
+      if (ban.banExpiresAt) {
+        const updateCountdown = () => {
+          const now = Date.now();
+          const remaining = ban.banExpiresAt - now;
+          if (remaining > 0) {
+            setTimeRemaining(remaining);
+          } else {
+            setTimeRemaining(0);
+          }
+        };
+
+        updateCountdown();
+        const countdownInterval = setInterval(updateCountdown, 1000);
+
+        return () => clearInterval(countdownInterval);
+      } else {
+        setTimeRemaining(null); // Permanent ban
+      }
+    } else {
+      setTimeRemaining(null);
+    }
+  }, [showBanModal, selectedUser, userBans]);
+
+  // Helper function to check if user is banned
+  const isUserBanned = (userId) => {
+    return userBans[userId] !== undefined;
+  };
+
+  // Helper function to get ban info
+  const getBanInfo = (userId) => {
+    return userBans[userId] || null;
+  };
+
+  // Helper function to format time remaining
+  const formatTimeRemaining = (ms) => {
+    if (ms === null) return 'Vĩnh viễn';
+    if (ms <= 0) return 'Đã hết hạn';
+
+    const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((ms % (1000 * 60)) / 1000);
+
+    if (days > 0) {
+      return `${days} ngày ${hours} giờ ${minutes} phút`;
+    } else if (hours > 0) {
+      return `${hours} giờ ${minutes} phút ${seconds} giây`;
+    } else if (minutes > 0) {
+      return `${minutes} phút ${seconds} giây`;
+    } else {
+      return `${seconds} giây`;
+    }
+  };
+
+  // Handle open ban modal
+  const handleOpenBanModal = (user) => {
+    setSelectedUser(user);
+    setBanDuration('1');
+    setBanReason('');
+    setShowBanModal(true);
+    
+    // If user is already banned, show current ban info
+    if (userBans[user.id]) {
+      const ban = userBans[user.id];
+      if (ban.banExpiresAt) {
+        const remaining = ban.banExpiresAt - Date.now();
+        setTimeRemaining(remaining > 0 ? remaining : 0);
+      } else {
+        setTimeRemaining(null);
+      }
+    }
+  };
+
+  // Handle close ban modal
+  const handleCloseBanModal = () => {
+    setShowBanModal(false);
+    setSelectedUser(null);
+    setBanDuration('1');
+    setBanReason('');
+    setTimeRemaining(null);
+  };
+
+  // Handle ban user
+  const handleBanUser = () => {
+    if (!selectedUser || !banReason.trim()) {
+      alert('Vui lòng nhập lý do ban!');
+      return;
+    }
+
+    const now = Date.now();
+    let banExpiresAt = null;
+
+    // Calculate ban expiration time
+    switch (banDuration) {
+      case '1': // 1 day
+        banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+        break;
+      case '3': // 3 days
+        banExpiresAt = now + (3 * 24 * 60 * 60 * 1000);
+        break;
+      case '7': // 7 days
+        banExpiresAt = now + (7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30': // 1 month
+        banExpiresAt = now + (30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90': // 3 months
+        banExpiresAt = now + (90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'permanent': // Permanent
+        banExpiresAt = null;
+        break;
+      default:
+        banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+    }
+
+    const updatedBans = {
+      ...userBans,
+      [selectedUser.id]: {
+        banExpiresAt,
+        reason: banReason.trim(),
+        bannedAt: now
+      }
+    };
+
+    setUserBans(updatedBans);
+    localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+    
+    alert('Đã ban người dùng thành công!');
+    handleCloseBanModal();
+  };
+
+  // Handle unban user
+  const handleUnbanUser = () => {
+    if (!selectedUser) return;
+
+    const updatedBans = { ...userBans };
+    delete updatedBans[selectedUser.id];
+
+    setUserBans(updatedBans);
+    localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+    
+    alert('Đã gỡ ban người dùng thành công!');
+    handleCloseBanModal();
+  };
 
   // Dữ liệu người dùng từ mock data
   const users = mockUsers;
@@ -44,13 +254,25 @@ const UsersList = () => {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (user) => {
+    // Check if user is banned
+    if (isUserBanned(user.id)) {
+      return (
+        <span 
+          className="status-badge banned" 
+          style={{ backgroundColor: '#e74c3c' }}
+        >
+          BANNED
+        </span>
+      );
+    }
+
     const statusConfig = {
       NORMAL: { color: '#3498db', text: 'NORMAL' },
       PREMIUM: { color: '#f39c12', text: 'PREMIUM' }
     };
     
-    const config = statusConfig[status] || { color: '#95a5a6', text: 'NORMAL' };
+    const config = statusConfig[user.status] || { color: '#95a5a6', text: 'NORMAL' };
     
     return (
       <span 
@@ -189,7 +411,7 @@ const UsersList = () => {
                   </div>
                 </td>
                 <td>
-                  {getStatusBadge(user.status)}
+                  {getStatusBadge(user)}
                 </td>
                 <td>
                   {getVerificationBadge(user.isVerified)}
@@ -235,8 +457,11 @@ const UsersList = () => {
                     </button>
                     <button 
                       className="action-btn edit"
-                      onClick={(e) => e.stopPropagation()}
-                      title="Chỉnh sửa người dùng"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenBanModal(user);
+                      }}
+                      title="Xử lý sai phạm"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -287,6 +512,113 @@ const UsersList = () => {
               <path d="M9 18l6-6-6-6"/>
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Ban User Modal */}
+      {showBanModal && selectedUser && (
+        <div className="modal-overlay" onClick={handleCloseBanModal}>
+          <div className="modal-content ban-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Xử lý sai phạm - {selectedUser.firstName} {selectedUser.lastName}</h2>
+              <button className="modal-close" onClick={handleCloseBanModal}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {/* Current ban status */}
+              {isUserBanned(selectedUser.id) && (
+                <div className="ban-status-info">
+                  <h3>Trạng thái ban hiện tại:</h3>
+                  <div className="ban-info-item">
+                    <span className="ban-label">Lý do ban:</span>
+                    <span className="ban-value">{getBanInfo(selectedUser.id).reason}</span>
+                  </div>
+                  <div className="ban-info-item">
+                    <span className="ban-label">Thời gian còn lại:</span>
+                    <span className="ban-value time-remaining">
+                      {timeRemaining !== null ? formatTimeRemaining(timeRemaining) : 'Vĩnh viễn'}
+                    </span>
+                  </div>
+                  {getBanInfo(selectedUser.id).banExpiresAt && (
+                    <div className="ban-info-item">
+                      <span className="ban-label">Hết hạn vào:</span>
+                      <span className="ban-value">
+                        {new Date(getBanInfo(selectedUser.id).banExpiresAt).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Ban form */}
+              <div className="ban-form">
+                <h3>{isUserBanned(selectedUser.id) ? 'Cập nhật ban' : 'Ban người dùng'}</h3>
+                
+                <div className="form-group">
+                  <label htmlFor="banDuration">Thời gian ban:</label>
+                  <select
+                    id="banDuration"
+                    value={banDuration}
+                    onChange={(e) => setBanDuration(e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="1">1 ngày</option>
+                    <option value="3">3 ngày</option>
+                    <option value="7">7 ngày</option>
+                    <option value="30">1 tháng</option>
+                    <option value="90">3 tháng</option>
+                    <option value="permanent">Vĩnh viễn</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="banReason">Lý do ban: <span className="required">*</span></label>
+                  <textarea
+                    id="banReason"
+                    value={banReason}
+                    onChange={(e) => setBanReason(e.target.value)}
+                    placeholder="Nhập lý do ban người dùng..."
+                    rows="4"
+                    className="form-textarea"
+                    required
+                  />
+                </div>
+
+                {/* Preview ban expiration */}
+                {banDuration !== 'permanent' && (
+                  <div className="ban-preview">
+                    <span className="ban-preview-label">Thời gian ban sẽ hết hạn vào:</span>
+                    <span className="ban-preview-value">
+                      {(() => {
+                        const now = Date.now();
+                        const days = parseInt(banDuration);
+                        const expiresAt = now + (days * 24 * 60 * 60 * 1000);
+                        return new Date(expiresAt).toLocaleString('vi-VN');
+                      })()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={handleCloseBanModal}>
+                Hủy
+              </button>
+              {isUserBanned(selectedUser.id) && (
+                <button className="btn btn-warning" onClick={handleUnbanUser}>
+                  Gỡ ban
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={handleBanUser}>
+                {isUserBanned(selectedUser.id) ? 'Cập nhật ban' : 'Xác nhận ban'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
