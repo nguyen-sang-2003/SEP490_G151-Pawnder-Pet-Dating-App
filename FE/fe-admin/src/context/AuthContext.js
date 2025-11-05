@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 // import { AuthContextType, User } from '../types';
-import { STORAGE_KEYS } from '../constants';
+import { STORAGE_KEYS, USER_ROLES } from '../constants';
+// import authService from '../services/auth/authService';
+// import { getRoleFromToken, getUserIdFromToken } from '../utils/jwtUtils';
 
 // Initial state
 const initialState = {
@@ -81,39 +83,55 @@ export const AuthProvider = ({ children }) => {
       // Simulate API call for demo purposes
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Fixed admin account for testing
-      const adminAccount = {
-        email: 'admin@pawnder.com',
-        password: 'admin123'
+      // Mock accounts for testing
+      const mockAccounts = {
+        'admin@pawnder.com': {
+          password: 'admin123',
+          user: {
+            id: 1,
+            username: 'admin',
+            email: 'admin@pawnder.com',
+            firstName: 'Admin',
+            lastName: 'Pawnder',
+            role: USER_ROLES.ADMIN,
+            status: 'active',
+            avatar: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        },
+        'expert@pawnder.com': {
+          password: '123456',
+          user: {
+            id: 2,
+            username: 'expert',
+            email: 'expert@pawnder.com',
+            firstName: 'Expert',
+            lastName: 'Pawnder',
+            role: USER_ROLES.EXPERT,
+            status: 'active',
+            avatar: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        }
       };
       
       // Check credentials
-      if (credentials.email === adminAccount.email && credentials.password === adminAccount.password) {
-        // Mock admin user data
-        const mockUser = {
-          id: 1,
-          username: 'admin',
-          email: adminAccount.email,
-          firstName: 'Admin',
-          lastName: 'Pawnder',
-          role: 'admin',
-          status: 'active',
-          avatar: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // Mock token
-        const mockToken = 'mock-admin-token-' + Date.now();
-        
-        // Store in localStorage
-        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, mockToken);
-        localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(mockUser));
-        
-        dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: mockUser });
-      } else {
+      const account = mockAccounts[credentials.email];
+      if (!account || account.password !== credentials.password) {
         throw new Error('Email hoặc mật khẩu không đúng');
       }
+      
+      // Mock token
+      const mockToken = 'mock-token-' + Date.now();
+      const user = account.user;
+      
+      // Store in localStorage
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, mockToken);
+      localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(user));
+      
+      dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
     } catch (error) {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       throw error;
@@ -131,6 +149,21 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: user });
   };
 
+  // Helper function to check if user has specific role
+  const hasRole = (role) => {
+    if (!state.user) return false;
+    return state.user.role === role;
+  };
+  
+  // Helper function to check if user is admin
+  const isAdmin = () => hasRole(USER_ROLES.ADMIN);
+  
+  // Helper function to check if user is expert
+  const isExpert = () => hasRole(USER_ROLES.EXPERT);
+  
+  // Helper function to check if user is admin or expert
+  const isAdminOrExpert = () => isAdmin() || isExpert();
+
   const value = {
     user: state.user,
     isAuthenticated: state.isAuthenticated,
@@ -138,6 +171,10 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUser,
+    hasRole,
+    isAdmin,
+    isExpert,
+    isAdminOrExpert,
   };
 
   return (

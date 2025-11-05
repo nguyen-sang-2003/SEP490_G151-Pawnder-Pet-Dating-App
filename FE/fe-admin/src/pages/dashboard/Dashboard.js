@@ -10,27 +10,29 @@ const Dashboard = () => {
   const [showUserChart, setShowUserChart] = useState(false);
   const navigate = useNavigate();
 
-  // Dữ liệu biểu đồ người dùng theo tháng/năm
-  const userChartData = [
-    { month: 'T1/2023', users: 850 },
-    { month: 'T2/2023', users: 920 },
-    { month: 'T3/2023', users: 920 },
-    { month: 'T4/2023', users: 800 },
-    { month: 'T5/2023', users: 800 },
-    { month: 'T6/2023', users: 1100 },
-    { month: 'T7/2023', users: 1100 },
-    { month: 'T8/2023', users: 750 },
-    { month: 'T9/2023', users: 1400 },
-    { month: 'T10/2023', users: 1200 },
-    { month: 'T11/2023', users: 1200 },
-    { month: 'T12/2023', users: 950 },
-    { month: 'T1/2024', users: 950 },
-    { month: 'T2/2024', users: 1300 },
-    { month: 'T3/2024', users: 800 },
-    { month: 'T4/2024', users: 1234 }
-  ];
   // Tính tổng số người dùng từ dữ liệu thực tế
   const totalUsers = mockUsers.length;
+  
+  // Dữ liệu biểu đồ tăng trưởng người dùng - tính từ tổng số users thực tế
+  // Tạo xu hướng tăng trưởng từ 0 đến tổng số users hiện tại (8)
+  const userChartData = [
+    { month: 'T1/2023', users: 0 },
+    { month: 'T2/2023', users: 0 },
+    { month: 'T3/2023', users: 1 },
+    { month: 'T4/2023', users: 1 },
+    { month: 'T5/2023', users: 2 },
+    { month: 'T6/2023', users: 2 },
+    { month: 'T7/2023', users: 3 },
+    { month: 'T8/2023', users: 3 },
+    { month: 'T9/2023', users: 4 },
+    { month: 'T10/2023', users: 5 },
+    { month: 'T11/2023', users: 6 },
+    { month: 'T12/2023', users: 6 },
+    { month: 'T1/2024', users: 7 },
+    { month: 'T2/2024', users: 7 },
+    { month: 'T3/2024', users: 8 },
+    { month: 'T4/2024', users: totalUsers } // Sử dụng tổng số users thực tế
+  ];
   const formattedTotalUsers = totalUsers.toLocaleString('en-US');
 
   // Tính tổng số thú cưng từ dữ liệu thực tế

@@ -14,14 +14,33 @@ import PetDetail from './pages/pets/PetDetail';
 import ReportsList from './pages/reports/ReportsList';
 import ReportDetail from './pages/reports/ReportDetail';
 import Activities from './pages/activities/Activities';
+import PaymentManagement from './pages/payments/PaymentManagement';
+import ExpertNotifications from './pages/expert/ExpertNotifications';
 
 // Layout
 import AdminLayout from './components/layout/AdminLayout';
+import ExpertLayout from './components/layout/ExpertLayout';
 
 // Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-  return token ? children : <Navigate to="/login" replace />;
+import ProtectedRoute from './components/common/ProtectedRoute';
+import { USER_ROLES } from './constants';
+import { useAuth } from './context/AuthContext';
+
+// Redirect component based on role
+const RoleBasedRedirect = () => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (user.role === USER_ROLES.ADMIN) {
+    return <Navigate to="/dashboard" replace />;
+  } else if (user.role === USER_ROLES.EXPERT) {
+    return <Navigate to="/expert/notifications" replace />;
+  }
+  
+  return <Navigate to="/login" replace />;
 };
 
 function App() {
@@ -34,17 +53,15 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               
-              {/* Protected Routes */}
+              {/* Admin Routes */}
               <Route path="/" element={
-                <ProtectedRoute>
-                  <AdminLayout>
-                    <Dashboard />
-                  </AdminLayout>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <RoleBasedRedirect />
                 </ProtectedRoute>
               } />
               
               <Route path="/dashboard" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <Dashboard />
                   </AdminLayout>
@@ -52,7 +69,7 @@ function App() {
               } />
               
               <Route path="/users" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <UsersList />
                   </AdminLayout>
@@ -60,7 +77,7 @@ function App() {
               } />
               
               <Route path="/users/:id" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <UserDetail />
                   </AdminLayout>
@@ -68,7 +85,7 @@ function App() {
               } />
               
               <Route path="/pets" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <PetsList />
                   </AdminLayout>
@@ -76,7 +93,7 @@ function App() {
               } />
               
               <Route path="/pets/:id" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <PetDetail />
                   </AdminLayout>
@@ -84,7 +101,7 @@ function App() {
               } />
               
               <Route path="/reports" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <ReportsList />
                   </AdminLayout>
@@ -92,7 +109,7 @@ function App() {
               } />
               
               <Route path="/reports/:id" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <ReportDetail />
                   </AdminLayout>
@@ -100,15 +117,32 @@ function App() {
               } />
               
               <Route path="/activities" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <Activities />
                   </AdminLayout>
                 </ProtectedRoute>
               } />
               
+              <Route path="/payments" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <PaymentManagement />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Expert Routes */}
+              <Route path="/expert/notifications" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.EXPERT]}>
+                  <ExpertLayout>
+                    <ExpertNotifications />
+                  </ExpertLayout>
+                </ProtectedRoute>
+              } />
+              
               {/* Catch all route */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<RoleBasedRedirect />} />
             </Routes>
           </div>
         </Router>

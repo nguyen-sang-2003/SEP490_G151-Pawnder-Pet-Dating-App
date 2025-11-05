@@ -35,9 +35,9 @@ export const API_ENDPOINTS = {
 
 // User Roles
 export const USER_ROLES = {
-  ADMIN: 'admin',
-  MODERATOR: 'moderator',
-  USER: 'user',
+  ADMIN: 'Admin',
+  EXPERT: 'Expert',
+  USER: 'User',
 };
 
 // Pet Status

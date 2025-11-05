@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { validateEmail } from '../../utils/validateEmail';
+import { USER_ROLES, STORAGE_KEYS } from '../../constants';
 import './Login.css';
 
 const Login = () => {
@@ -65,7 +66,28 @@ const Login = () => {
     
     try {
       await login(formData);
-      navigate('/dashboard');
+      // Wait a bit for user state to update
+      setTimeout(() => {
+        // Get user from localStorage to check role
+        const userInfo = localStorage.getItem(STORAGE_KEYS.USER_INFO);
+        if (userInfo) {
+          try {
+            const user = JSON.parse(userInfo);
+            // Redirect based on role
+            if (user.role === USER_ROLES.ADMIN) {
+              navigate('/dashboard');
+            } else if (user.role === USER_ROLES.EXPERT) {
+              navigate('/expert/notifications');
+            } else {
+              navigate('/dashboard'); // Default fallback
+            }
+          } catch (e) {
+            navigate('/dashboard'); // Fallback if parsing fails
+          }
+        } else {
+          navigate('/dashboard'); // Fallback if no user info
+        }
+      }, 100);
     } catch (error) {
       setErrors({
         general: error.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
