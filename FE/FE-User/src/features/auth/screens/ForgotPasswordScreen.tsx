@@ -16,6 +16,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { sendOtp } from "../../../api/otp";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ForgotPassword">;
 
@@ -39,11 +40,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
     setLoading(true);
 
     try {
-      // TODO: API call to /send-mail-otp
-      console.log("Sending OTP to:", email);
-
-      // Mock delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await sendOtp(email);
 
       showAlert({
         type: 'success',
@@ -51,8 +48,9 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
         message: "Mã đặt lại mật khẩu đã được gửi đến email của bạn",
         onClose: () => navigation.navigate("ResetPassword", { email }),
       });
-    } catch (error) {
-      showAlert({ type: 'error', title: "Lỗi", message: "Không thể gửi mã. Vui lòng thử lại." });
+    } catch (error: any) {
+      const errorMessage = error.message || "Không thể gửi mã. Vui lòng thử lại.";
+      showAlert({ type: 'error', title: "Lỗi", message: errorMessage });
     } finally {
       setLoading(false);
     }

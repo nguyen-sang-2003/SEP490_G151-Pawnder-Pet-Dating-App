@@ -17,6 +17,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { verifyOtp, resetPassword } from "../../../api/otp";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ResetPassword">;
 
@@ -54,11 +55,11 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
     setLoading(true);
 
     try {
-      // TODO: API call to reset password with OTP
-      console.log("Resetting password for:", email, "with OTP:", otp);
+      // Verify OTP first
+      await verifyOtp(email, otp);
 
-      // Mock delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Reset password after OTP verification
+      await resetPassword(email, newPassword);
 
       showAlert({
         type: 'success',
@@ -66,8 +67,9 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
         message: "Đã đặt lại mật khẩu thành công!",
         onClose: () => navigation.navigate("SignIn"),
       });
-    } catch (error) {
-      showAlert({ type: 'error', title: "Lỗi", message: "Không thể đặt lại mật khẩu. Vui lòng thử lại." });
+    } catch (error: any) {
+      const errorMessage = error.message || "Không thể đặt lại mật khẩu. Vui lòng thử lại.";
+      showAlert({ type: 'error', title: "Lỗi", message: errorMessage });
     } finally {
       setLoading(false);
     }

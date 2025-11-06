@@ -53,3 +53,26 @@ export const verifyOtp = async (
   }
 };
 
+/**
+ * Reset password with OTP verification
+ */
+export const resetPassword = async (
+  email: string,
+  newPassword: string
+): Promise<{ message: string }> => {
+  try {
+    const response = await apiClient.put<{ message: string }>('/user/reset-password', {
+      email,
+      newPassword
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('Reset password error:', error);
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Không thể đặt lại mật khẩu. Vui lòng thử lại.');
+  }
+};
+

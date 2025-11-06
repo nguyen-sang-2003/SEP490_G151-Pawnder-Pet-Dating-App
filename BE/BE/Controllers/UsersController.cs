@@ -263,5 +263,36 @@ public class UserController : ControllerBase
             return StatusCode(500, new { message = $"Lỗi: {ex.Message}" });
         }
     }
+
+    // PUT /user/reset-password
+    [HttpPut("reset-password")]
+    public async Task<ActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request, 
+        CancellationToken ct = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.NewPassword))
+                return BadRequest(new { message = "Email và mật khẩu mới là bắt buộc." });
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email && (u.IsDeleted == null || u.IsDeleted == false), ct);
+            
+            if (user == null)
+                return NotFound(new { message = "Email không tồn tại." });
+
+            // Hash new password
+            user.PasswordHash = _passwordService.HashPassword(request.NewPassword);
+            user.TokenJwt = null; // Clear old token for security
+            user.UpdatedAt = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new { message = "Đặt lại mật khẩu thành công." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Lỗi: {ex.Message}" });
+        }
+    }
 }
 
