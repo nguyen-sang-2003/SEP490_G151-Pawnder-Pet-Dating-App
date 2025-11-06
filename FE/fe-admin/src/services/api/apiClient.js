@@ -30,11 +30,18 @@ apiClient.interceptors.response.use(
     return response.data;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER_INFO);
-      window.location.href = '/login';
+    // Only handle response errors (network errors won't have error.response)
+    if (error.response) {
+      if (error.response.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER_INFO);
+        window.location.href = '/login';
+      }
+    } else if (error.request) {
+      // Request was made but no response received (network error)
+      // Silently ignore network errors to avoid console spam
+      console.debug('Network error:', error.message);
     }
     return Promise.reject(error);
   }
