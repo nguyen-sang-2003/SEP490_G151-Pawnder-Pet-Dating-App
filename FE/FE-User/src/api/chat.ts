@@ -34,9 +34,9 @@ export interface SendMessageRequest {
  */
 export const getChats = async (userId: number): Promise<ChatUser[]> => {
   try {
-    console.log('📞 Getting chats for user:', userId);
+
     const response = await client.get<ChatUser[]>(`/api/ChatUser/chat/${userId}`);
-    console.log('✅ Got chats:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error getting chats:', error);
@@ -53,9 +53,9 @@ export const getChats = async (userId: number): Promise<ChatUser[]> => {
  */
 export const deleteChat = async (matchId: number): Promise<void> => {
   try {
-    console.log('🗑️ Deleting chat:', matchId);
+
     const response = await client.delete(`/api/ChatUser/chat/${matchId}`);
-    console.log('✅ Chat deleted:', response.data);
+
   } catch (error: any) {
     console.error('❌ Error deleting chat:', error);
     if (error.response?.data?.message) {
@@ -73,16 +73,16 @@ export const deleteChat = async (matchId: number): Promise<void> => {
  */
 export const getChatMessages = async (matchId: number): Promise<ChatMessage[]> => {
   try {
-    console.log('📞 Getting messages for match:', matchId);
+
     const response = await client.get<ChatMessage[]>(
       `/api/ChatUserContent/chat-user-content/${matchId}`
     );
-    console.log('✅ Got messages:', response.data.length);
+
     return response.data;
   } catch (error: any) {
     // Return empty array if no messages found (404) - this is normal for new matches
     if (error.response?.status === 404) {
-      console.log('ℹ️ No messages found yet, returning empty array');
+
       return [];
     }
     
@@ -108,7 +108,7 @@ export const sendMessage = async (
   message: string
 ): Promise<void> => {
   try {
-    console.log('📤 Sending message:', { matchId, fromUserId, message });
+
     
     // Backend expects raw string, not JSON
     const response = await client.post(
@@ -121,7 +121,7 @@ export const sendMessage = async (
       }
     );
     
-    console.log('✅ Message sent:', response.data);
+
   } catch (error: any) {
     console.error('❌ Error sending message:', error);
     if (error.response?.data?.message) {

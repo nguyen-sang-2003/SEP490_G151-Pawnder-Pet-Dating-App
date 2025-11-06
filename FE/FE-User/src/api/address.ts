@@ -30,7 +30,7 @@ export const createAddressForUser = async (
   longitude: number
 ): Promise<AddressResponse> => {
   try {
-    console.log('📍 Creating address for user:', { userId, latitude, longitude });
+
 
     const response = await apiClient.post<AddressResponse>(
       `/address/${userId}`,
@@ -40,7 +40,7 @@ export const createAddressForUser = async (
       }
     );
 
-    console.log('✅ Address created:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Create address error:', error.response?.data || error.message);
@@ -60,7 +60,7 @@ export const updateAddress = async (
   longitude: number
 ): Promise<{ Address: any }> => {
   try {
-    console.log('📍 Updating address:', { addressId, latitude, longitude });
+
 
     const response = await apiClient.put<{ Address: any }>(
       `/address/${addressId}`,
@@ -70,7 +70,7 @@ export const updateAddress = async (
       }
     );
 
-    console.log('✅ Address updated:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Update address error:', error.response?.data || error.message);
@@ -86,13 +86,13 @@ export const updateAddress = async (
  */
 export const getAddressById = async (addressId: number): Promise<any> => {
   try {
-    console.log(`📞 Calling: GET /address/${addressId}`);
+
     const response = await apiClient.get(`/address/${addressId}`);
-    console.log('✅ Raw address response:', response.data);
+
     
     // Handle both PascalCase and camelCase
     const address = response.data.Address || response.data.address || response.data;
-    console.log('✅ Parsed address:', address);
+
     
     return address;
   } catch (error: any) {
@@ -114,13 +114,13 @@ export const updateAddressManual = async (
   ward: string
 ): Promise<any> => {
   try {
-    console.log(`📞 Calling: PATCH /address/${addressId}/manual`);
+
     const response = await apiClient.patch(`/address/${addressId}/manual`, {
       City: city,
       District: district,
       Ward: ward,
     });
-    console.log('✅ Address updated:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Update address error:', error.response?.data || error.message);

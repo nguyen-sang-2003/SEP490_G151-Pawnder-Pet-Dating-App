@@ -14,7 +14,7 @@ export const sendOtp = async (email: string): Promise<SendOtpResponse> => {
       params: { email },
     });
     
-    console.log('OTP sent:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('Send OTP error:', error);
@@ -33,14 +33,14 @@ export const verifyOtp = async (
   otpCode: string
 ): Promise<boolean> => {
   try {
-    console.log('🔐 Verifying OTP with backend:', { email, otpCode });
+
     
     const response = await apiClient.post('/api/check-otp', {
       email,
       otp: otpCode
     });
     
-    console.log('✅ OTP verified:', response.data);
+
     return true;
   } catch (error: any) {
     console.error('❌ Verify OTP error:', error);

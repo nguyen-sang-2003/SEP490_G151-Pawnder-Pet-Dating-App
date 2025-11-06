@@ -24,14 +24,14 @@ export interface BlockResponse {
  */
 export const getBlockedUsers = async (fromUserId: number): Promise<BlockedUser[]> => {
   try {
-    console.log(`📋 Getting blocked users for user: ${fromUserId}`);
+
     const response = await apiClient.get(`/block/${fromUserId}`);
-    console.log(`✅ Got ${response.data.length} blocked users`);
+
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 404) {
       // No blocked users yet - return empty array
-      console.log('ℹ️ No blocked users found');
+
       return [];
     }
     console.error('❌ Error getting blocked users:', error);
@@ -48,9 +48,9 @@ export const blockUser = async (
   toUserId: number
 ): Promise<BlockResponse> => {
   try {
-    console.log(`🚫 Blocking user: ${fromUserId} -> ${toUserId}`);
+
     const response = await apiClient.post(`/block/${fromUserId}/${toUserId}`);
-    console.log('✅ Block successful:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error blocking user:', error);
@@ -73,9 +73,9 @@ export const unblockUser = async (
   toUserId: number
 ): Promise<BlockResponse> => {
   try {
-    console.log(`✅ Unblocking user: ${fromUserId} -> ${toUserId}`);
+
     const response = await apiClient.delete(`/block/${fromUserId}/${toUserId}`);
-    console.log('✅ Unblock successful:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error unblocking user:', error);

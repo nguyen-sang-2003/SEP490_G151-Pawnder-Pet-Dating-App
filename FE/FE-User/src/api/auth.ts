@@ -153,22 +153,22 @@ export const login = async (
   password: string,
 ): Promise<LoginResponse> => {
   try {
-    console.log('Login request:', { Email: email });
-    console.log('API Base URL:', apiClient.defaults.baseURL);
+
+
     
     const response = await apiClient.post<LoginResponse>('/api/login', {
       Email: email,
       Password: password,
     });
     
-    console.log('Login success:', response.data);
+
     
     // Store token securely (handle both PascalCase and camelCase)
     const token = response.data.Token || (response.data as any).token;
     if (token) {
-      console.log('💾 Storing token...');
+
       await storeAuthToken(token);
-      console.log('✅ Token stored successfully');
+
     } else {
       console.warn('⚠️ No token received from backend');
     }
@@ -176,9 +176,9 @@ export const login = async (
     // Store userId for badge notifications
     const userId = response.data.userId || response.data.UserId;
     if (userId) {
-      console.log('💾 Storing userId:', userId);
+
       await storeUserId(userId);
-      console.log('✅ UserId stored successfully');
+
     }
     
     return response.data;
@@ -200,15 +200,6 @@ export const login = async (
  */
 export const register = async (data: RegisterRequest): Promise<UserResponse> => {
   try {
-    console.log('Register request data:', {
-      FullName: data.FullName,
-      Gender: data.Gender,
-      Email: data.Email,
-      RoleId: data.RoleId || 3,
-      UserStatusId: data.UserStatusId || 2,
-      ProviderLogin: data.ProviderLogin || 'local',
-    });
-
     const response = await apiClient.post<UserResponse>('/user', {
       FullName: data.FullName,
       Gender: data.Gender,
@@ -219,7 +210,7 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
       ProviderLogin: data.ProviderLogin || 'local',
     });
     
-    console.log('Register response:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('Register error:', error);
@@ -258,9 +249,9 @@ export const logout = async (): Promise<void> => {
  */
 export const completeUserProfile = async (userId: number): Promise<void> => {
   try {
-    console.log(`Calling: PATCH /user/${userId}/complete-profile`);
+
     const response = await apiClient.patch(`/user/${userId}/complete-profile`);
-    console.log('✅ User profile marked as complete:', response.data);
+
   } catch (error: any) {
     console.error('Error completing profile:', error);
     console.error('Error response:', error.response?.data);

@@ -35,7 +35,6 @@ const getStoredToken = async (): Promise<string | null> => {
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   async config => {
-    // Add auth token from storage if available
     const token = await getStoredToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -52,15 +51,15 @@ apiClient.interceptors.response.use(
   response => response,
   async error => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access (e.g., redirect to login)
-      console.log('Unauthorized access - clearing token');
-      // Clear invalid token
-      try {
-        await Keychain.resetGenericPassword({
-          service: 'pawnder.auth',
-        });
-      } catch (e) {
-        console.error('Error clearing token:', e);
+      // Only clear token if it's a login/auth endpoint
+      if (error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/verify')) {
+        try {
+          await Keychain.resetGenericPassword({
+            service: 'pawnder.auth',
+          });
+        } catch (e) {
+          console.error('Error clearing token:', e);
+        }
       }
     }
     return Promise.reject(error);

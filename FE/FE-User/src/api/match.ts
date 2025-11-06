@@ -69,9 +69,9 @@ export interface BadgeCounts {
  */
 export const getMatchStats = async (userId: number): Promise<MatchStats> => {
   try {
-    console.log(`📊 Getting stats for userId: ${userId}`);
+
     const response = await client.get(`/api/match/stats/${userId}`);
-    console.log('✅ Stats received:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error fetching stats:', error);
@@ -85,9 +85,9 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
  */
 export const getBadgeCounts = async (userId: number): Promise<BadgeCounts> => {
   try {
-    console.log(`🔔 Getting badge counts for userId: ${userId}`);
+
     const response = await client.get(`/api/match/badge-counts/${userId}`);
-    console.log('✅ Badge counts received:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error fetching badge counts:', error);
@@ -101,9 +101,9 @@ export const getBadgeCounts = async (userId: number): Promise<BadgeCounts> => {
  */
 export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
   try {
-    console.log('📤 Sending like:', request);
+
     const response = await client.post('/api/match/like', request);
-    console.log('✅ Like sent:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error sending like:', error);
@@ -118,9 +118,9 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
  */
 export const getLikesReceived = async (userId: number): Promise<LikeReceivedItem[]> => {
   try {
-    console.log(`📞 Calling: GET /api/match/likes-received/${userId}`);
+
     const response = await client.get(`/api/match/likes-received/${userId}`);
-    console.log('✅ Likes received:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error fetching likes received:', error);
@@ -135,9 +135,9 @@ export const getLikesReceived = async (userId: number): Promise<LikeReceivedItem
  */
 export const respondToLike = async (request: RespondToLikeRequest): Promise<any> => {
   try {
-    console.log('📤 Responding to like:', request);
+
     const response = await client.put('/api/match/respond', request);
-    console.log('✅ Response sent:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error responding to like:', error);

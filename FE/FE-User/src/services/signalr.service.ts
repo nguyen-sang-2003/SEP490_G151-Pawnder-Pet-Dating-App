@@ -20,7 +20,7 @@ class SignalRService {
    */
   async connect(userId: number): Promise<void> {
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
-      console.log('📡 SignalR already connected');
+
       return;
     }
 
@@ -28,7 +28,7 @@ class SignalRService {
 
     // Build connection URL
     const hubUrl = `${API_BASE_URL}/chatHub`.replace('/api', '');
-    console.log('📡 Connecting to SignalR hub:', hubUrl);
+
 
     // Create connection
     this.connection = new signalR.HubConnectionBuilder()
@@ -55,7 +55,7 @@ class SignalRService {
     try {
       // Start connection
       await this.connection.start();
-      console.log('✅ SignalR connected successfully');
+
 
       // Register user after connection
       await this.registerUser(userId);
@@ -75,19 +75,19 @@ class SignalRService {
 
     // Connection closed
     this.connection.onclose((error) => {
-      console.log('📡 SignalR connection closed', error);
+
       this.handleReconnect();
     });
 
     // Reconnecting
     this.connection.onreconnecting((error) => {
-      console.log('📡 SignalR reconnecting...', error);
+
       this.notifyListeners('reconnecting', null);
     });
 
     // Reconnected
     this.connection.onreconnected((connectionId) => {
-      console.log('✅ SignalR reconnected:', connectionId);
+
       this.reconnectAttempts = 0;
       
       // Re-register user
@@ -100,60 +100,60 @@ class SignalRService {
 
     // Message received
     this.connection.on('ReceiveMessage', (data) => {
-      console.log('📨 Message received:', data);
+
       this.notifyListeners('ReceiveMessage', data);
     });
 
     // User online
     this.connection.on('UserOnline', (userId) => {
-      console.log('👤 User online:', userId);
+
       this.notifyListeners('UserOnline', userId);
     });
 
     // User offline
     this.connection.on('UserOffline', (userId) => {
-      console.log('👤 User offline:', userId);
+
       this.notifyListeners('UserOffline', userId);
     });
 
     // User joined chat
     this.connection.on('UserJoinedChat', (userId, matchId) => {
-      console.log('👤 User joined chat:', userId, matchId);
+
       this.notifyListeners('UserJoinedChat', { userId, matchId });
     });
 
     // User left chat
     this.connection.on('UserLeftChat', (userId, matchId) => {
-      console.log('👤 User left chat:', userId, matchId);
+
       this.notifyListeners('UserLeftChat', { userId, matchId });
     });
 
     // User typing
     this.connection.on('UserTyping', (data) => {
-      console.log('⌨️ User typing:', data);
+
       this.notifyListeners('UserTyping', data);
     });
 
     // Messages read
     this.connection.on('MessagesRead', (data) => {
-      console.log('👁️ Messages read:', data);
+
       this.notifyListeners('MessagesRead', data);
     });
 
     // Badge notifications
     this.connection.on('NewMessageBadge', (data) => {
-      console.log('🔔 New message badge:', data);
+
       this.notifyListeners('NewMessageBadge', data);
     });
 
     this.connection.on('NewLikeBadge', (data) => {
-      console.log('💗 New like badge:', data);
+
       this.notifyListeners('NewLikeBadge', data);
     });
 
     // Match success notification
     this.connection.on('MatchSuccess', (data) => {
-      console.log('🎉 Match success:', data);
+
       this.notifyListeners('MatchSuccess', data);
     });
   }
@@ -166,7 +166,7 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('RegisterUser', userId);
-      console.log('✅ User registered:', userId);
+
     } catch (error) {
       console.error('❌ Failed to register user:', error);
     }
@@ -183,7 +183,7 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('JoinChat', matchId, userId);
-      console.log(`✅ Joined chat room: Match_${matchId}`);
+
     } catch (error) {
       console.error('❌ Failed to join chat:', error);
       throw error;
@@ -198,7 +198,7 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('LeaveChat', matchId, userId);
-      console.log(`✅ Left chat room: Match_${matchId}`);
+
     } catch (error) {
       console.error('❌ Failed to leave chat:', error);
     }
@@ -214,7 +214,7 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('SendMessage', matchId, fromUserId, message);
-      console.log('✅ Message sent via SignalR');
+
     } catch (error) {
       console.error('❌ Failed to send message via SignalR:', error);
       throw error;
@@ -242,7 +242,7 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('MarkAsRead', matchId, userId);
-      console.log('✅ Marked messages as read');
+
     } catch (error) {
       console.error('❌ Failed to mark as read:', error);
     }
@@ -283,7 +283,7 @@ class SignalRService {
     if (this.connection) {
       try {
         await this.connection.stop();
-        console.log('📡 SignalR disconnected');
+
       } catch (error) {
         console.error('❌ Error disconnecting:', error);
       }
@@ -350,7 +350,7 @@ class SignalRService {
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
     
-    console.log(`📡 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+
     
     setTimeout(() => {
       if (this.currentUserId) {

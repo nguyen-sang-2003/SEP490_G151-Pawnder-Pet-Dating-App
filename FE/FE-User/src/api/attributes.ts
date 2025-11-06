@@ -30,9 +30,9 @@ export const getAttributes = async (): Promise<Attribute[]> => {
     params: { page: 1, pageSize: 100, includeDeleted: false }
   });
   
-  console.log('Raw attributes response:', JSON.stringify(response.data));
+
   const attrs = response.data.data || [];
-  console.log('Attributes data:', attrs);
+
   
   // Normalize to PascalCase
   return attrs.map((attr: any) => ({
@@ -50,9 +50,9 @@ export const getAttributes = async (): Promise<Attribute[]> => {
  */
 export const getAttributesForFilter = async (): Promise<AttributeForFilter[]> => {
   try {
-    console.log('📞 Calling: GET /api/attribute/for-filter');
+
     const response = await client.get('/api/attribute/for-filter');
-    console.log('✅ Attributes for filter:', response.data);
+
     
     const attrs = response.data.data || [];
     
@@ -78,7 +78,7 @@ export const getAttributesForFilter = async (): Promise<AttributeForFilter[]> =>
  */
 export const getAttributeOptions = async (attributeId: number): Promise<AttributeOption[]> => {
   const response = await client.get(`/api/attributeoption/${attributeId}`);
-  console.log(`Options for attribute ${attributeId}:`, response.data);
+
   
   const options = Array.isArray(response.data) ? response.data : [];
   

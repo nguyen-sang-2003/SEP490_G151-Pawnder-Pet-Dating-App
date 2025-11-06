@@ -177,11 +177,6 @@ namespace BE.Services
                         Timestamp = DateTime.UtcNow
                     });
                 }
-                Console.WriteLine($"[ChatHub] Sent NewMessageBadge to user {toUserId}");
-            }
-            else
-            {
-                Console.WriteLine($"[ChatHub] User {toUserId} not connected, skipping badge notification");
             }
         }
 
@@ -200,11 +195,6 @@ namespace BE.Services
                         Timestamp = DateTime.UtcNow
                     });
                 }
-                Console.WriteLine($"[ChatHub] Sent NewLikeBadge to user {toUserId}");
-            }
-            else
-            {
-                Console.WriteLine($"[ChatHub] User {toUserId} not connected, skipping badge notification");
             }
         }
 
@@ -213,8 +203,6 @@ namespace BE.Services
         /// </summary>
         public static async Task SendMatchNotification(IHubContext<ChatHub> hubContext, int toUserId, string otherUserName, int otherUserId, int matchId, string? petName, string? petPhotoUrl)
         {
-            Console.WriteLine($"[ChatHub] SendMatchNotification called - ToUser={toUserId}, OtherUserName={otherUserName ?? "NULL"}, OtherUserId={otherUserId}, PetName={petName ?? "NULL"}");
-            
             if (UserConnections.TryGetValue(toUserId, out var connections))
             {
                 var payload = new
@@ -228,17 +216,10 @@ namespace BE.Services
                     Timestamp = DateTime.UtcNow
                 };
                 
-                Console.WriteLine($"[ChatHub] Sending payload: MatchId={payload.MatchId}, OtherUserId={payload.OtherUserId}, OtherUserName={payload.OtherUserName}, PetName={payload.PetName}");
-                
                 foreach (var connectionId in connections)
                 {
                     await hubContext.Clients.Client(connectionId).SendAsync("MatchSuccess", payload);
                 }
-                Console.WriteLine($"[ChatHub] ✅ Sent MatchSuccess notification to user {toUserId} ({connections.Count} connection(s))");
-            }
-            else
-            {
-                Console.WriteLine($"[ChatHub] ⚠️ User {toUserId} not connected, skipping match notification");
             }
         }
     }

@@ -20,46 +20,35 @@ function AppWithBadges(): React.JSX.Element {
   const matchModal = useSelector(selectMatchModal);
 
   useEffect(() => {
-    // Get userId from storage or JWT token
     const initializeUser = async () => {
       let storedUserId = await getUserId();
       
-      // If no userId in storage, try to get from JWT token
       if (!storedUserId) {
-        console.log('⚠️ [App] No userId in storage, trying to get from token...');
         const token = await getAuthToken();
         if (token) {
           const userIdFromToken = getUserIdFromToken(token);
           if (userIdFromToken) {
-            console.log('✅ [App] UserId extracted from token:', userIdFromToken);
             await storeUserId(userIdFromToken);
             storedUserId = userIdFromToken;
           } else {
-            console.error('❌ [App] Failed to extract userId from token');
+            console.error('Failed to extract userId from token');
           }
         }
       }
       
       if (storedUserId) {
-        console.log('📱 [App] User ID found:', storedUserId);
         setUserId(storedUserId);
-        
-        // Connect to SignalR
         try {
           await signalRService.connect(storedUserId);
-          console.log('✅ [App] SignalR connected');
         } catch (error) {
-          console.error('❌ [App] SignalR connection failed:', error);
+          console.error('SignalR connection failed:', error);
         }
-      } else {
-        console.log('⚠️ [App] No userId available, badge notifications disabled');
       }
     };
 
     initializeUser();
 
     return () => {
-      // Cleanup SignalR connection on unmount
       signalRService.disconnect();
     };
   }, []);
@@ -69,31 +58,16 @@ function AppWithBadges(): React.JSX.Element {
 
   const handleView = () => {
     dispatch(hideMatchModal());
-    
-    // Navigate to Favorite screen to see matches
-    console.log('💖 Navigating to Favorite screen to view matches');
-    
     navigate('Favorite');
   };
 
   const handleStartChat = () => {
-    console.log('💬 [App] handleStartChat called with matchModal:', {
-      otherUserName: matchModal.otherUserName,
-      otherUserId: matchModal.otherUserId,
-      matchId: matchModal.matchId,
-      petName: matchModal.petName,
-    });
-    
     dispatch(hideMatchModal());
-    
-    // Navigate to ChatDetail screen
     navigate('ChatDetail', {
       matchId: matchModal.matchId,
       otherUserId: matchModal.otherUserId,
       userName: matchModal.otherUserName,
     });
-    
-    console.log('✅ [App] Navigated to ChatDetail with userName:', matchModal.otherUserName);
   };
 
   const handleCloseModal = () => {

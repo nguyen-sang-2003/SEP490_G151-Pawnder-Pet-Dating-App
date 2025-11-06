@@ -116,17 +116,9 @@ const AppNavigator = () => {
 
   const checkAuth = async () => {
     try {
-      console.log('🔍 [AppNavigator] Checking authentication...');
       const token = await getAuthToken();
-      console.log('🔑 [AppNavigator] Token found:', token ? 'YES' : 'NO');
-      if (token) {
-        console.log('✅ [AppNavigator] User authenticated, will show Home');
-      } else {
-        console.log('❌ [AppNavigator] No token, will show Welcome');
-      }
       setIsAuthenticated(!!token);
     } catch (error) {
-      console.log('❌ [AppNavigator] Error checking auth:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

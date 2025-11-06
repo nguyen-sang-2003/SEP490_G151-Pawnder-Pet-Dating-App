@@ -30,9 +30,9 @@ export interface UserPreferenceBatchUpsertRequest {
  */
 export const getUserPreferences = async (userId: number): Promise<UserPreference[]> => {
   try {
-    console.log(`📞 Calling: GET /user-preference/${userId}`);
+
     const response = await client.get(`/user-preference/${userId}`);
-    console.log('✅ User preferences:', response.data);
+
     
     const prefs = response.data.data || response.data || [];
     
@@ -63,11 +63,11 @@ export const saveUserPreferencesBatch = async (
   preferences: UserPreferenceBatchRequest[]
 ): Promise<{ message: string; created: number; updated: number }> => {
   try {
-    console.log(`📞 Calling: POST /user-preference/${userId}/batch`, preferences);
+
     const response = await client.post(`/user-preference/${userId}/batch`, {
       Preferences: preferences,
     });
-    console.log('✅ Preferences saved:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error saving preferences:', error);
@@ -81,9 +81,9 @@ export const saveUserPreferencesBatch = async (
  */
 export const deleteUserPreferences = async (userId: number): Promise<void> => {
   try {
-    console.log(`📞 Calling: DELETE /user-preference/${userId}`);
+
     const response = await client.delete(`/user-preference/${userId}`);
-    console.log('✅ Preferences deleted:', response.data);
+
   } catch (error: any) {
     console.error('❌ Error deleting preferences:', error);
     throw error;

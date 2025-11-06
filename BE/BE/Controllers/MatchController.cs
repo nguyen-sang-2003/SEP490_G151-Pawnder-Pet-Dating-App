@@ -28,7 +28,7 @@ namespace BE.Controllers
         {
             try
             {
-                Console.WriteLine($"[MatchController] Getting likes for userId: {userId}");
+
                 
                 // Get blocked users (both directions)
                 var blockedByMe = await _context.Blocks
@@ -43,7 +43,7 @@ namespace BE.Controllers
                 
                 var allBlockedUserIds = blockedByMe.Union(blockedMe).ToList();
                 
-                Console.WriteLine($"[MatchController] User {userId} has {allBlockedUserIds.Count} blocked relationships");
+
                 
                 // Get all match requests (both pending and accepted) excluding blocked users
                 var allMatchRequests = await _context.ChatUsers
@@ -67,7 +67,7 @@ namespace BE.Controllers
                                !allBlockedUserIds.Contains(c.ToUserId.Value))
                     .ToListAsync();
                 
-                Console.WriteLine($"[MatchController] Found {allMatchRequests.Count} match requests (after blocking filter)");
+
 
                 var result = allMatchRequests.Select(c =>
                 {
@@ -133,7 +133,7 @@ namespace BE.Controllers
         {
             try
             {
-                Console.WriteLine($"[MatchController] Getting stats for userId: {userId}");
+
                 
                 // Count matches (Accepted status where user is involved)
                 var matchesCount = await _context.ChatUsers
@@ -149,7 +149,7 @@ namespace BE.Controllers
                                && c.ToUserId == userId)
                     .CountAsync();
                 
-                Console.WriteLine($"[MatchController] Stats - Matches: {matchesCount}, Likes: {likesCount}");
+
                 
                 return Ok(new
                 {
@@ -159,7 +159,7 @@ namespace BE.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MatchController] Error getting stats: {ex.Message}");
+
                 return StatusCode(500, new { message = "Error fetching stats", error = ex.Message });
             }
         }
@@ -174,7 +174,7 @@ namespace BE.Controllers
         {
             try
             {
-                Console.WriteLine($"[MatchController] SendLike: fromUserId={request.FromUserId}, toUserId={request.ToUserId}");
+
                 
                 if (request.FromUserId == request.ToUserId)
                     return BadRequest(new { message = "Cannot like yourself" });
@@ -185,7 +185,7 @@ namespace BE.Controllers
                 
                 if (isBlocked)
                 {
-                    Console.WriteLine($"[MatchController] User {request.FromUserId} is blocked by user {request.ToUserId} - silent reject");
+
                     // Return success but don't create anything (user doesn't know they're blocked)
                     return Ok(new
                     {
@@ -206,7 +206,7 @@ namespace BE.Controllers
 
                 if (existingLike != null)
                 {
-                    Console.WriteLine($"[MatchController] Already liked this user");
+
                     return BadRequest(new { message = "Already liked this user" });
                 }
 
@@ -218,7 +218,7 @@ namespace BE.Controllers
 
                 if (reciprocalLike != null)
                 {
-                    Console.WriteLine($"[MatchController] Mutual like detected! Updating to Accepted");
+
                     // It's a match! Update to Accepted
                     reciprocalLike.Status = "Accepted";
                     reciprocalLike.UpdatedAt = DateTime.Now;
@@ -239,7 +239,7 @@ namespace BE.Controllers
                         .OrderBy(p => p.PetId)
                         .FirstOrDefaultAsync();
                     
-                    Console.WriteLine($"[MatchController] Found pets: User1Pet={pet1?.Name ?? "null"}, User2Pet={pet2?.Name ?? "null"}");
+
                     
                     var pet1Photo = pet1 != null ? await _context.PetPhotos
                         .Where(pp => pp.PetId == pet1.PetId && pp.IsDeleted == false)
@@ -252,7 +252,7 @@ namespace BE.Controllers
                         .Select(pp => pp.ImageUrl)
                         .FirstOrDefaultAsync() : null;
                     
-                    Console.WriteLine($"[MatchController] Found photos: User1Photo={pet1Photo ?? "null"}, User2Photo={pet2Photo ?? "null"}");
+
 
                     // Create notification for both users (they can view in Notification screen)
                     await CreateMatchNotification(request.FromUserId, request.ToUserId, reciprocalLike.MatchId);
@@ -260,10 +260,10 @@ namespace BE.Controllers
                     // Send real-time match notifications to both users
                     if (user1 != null && user2 != null)
                     {
-                        Console.WriteLine($"[MatchController] Sending match notification to User {request.FromUserId}: OtherUser={user2.FullName}, Pet={pet2?.Name}, Photo={pet2Photo}");
+
                         await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName, request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
                         
-                        Console.WriteLine($"[MatchController] Sending match notification to User {request.ToUserId}: OtherUser={user1.FullName}, Pet={pet1?.Name}, Photo={pet1Photo}");
+
                         await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName, request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
                     }
 
@@ -279,7 +279,7 @@ namespace BE.Controllers
                 }
 
                 // No mutual like yet, just create pending
-                Console.WriteLine($"[MatchController] Creating new pending ChatUser");
+
                 var chatUser = new ChatUser
                 {
                     FromUserId = request.FromUserId,
@@ -293,7 +293,7 @@ namespace BE.Controllers
                 _context.ChatUsers.Add(chatUser);
                 await _context.SaveChangesAsync();
                 
-                Console.WriteLine($"[MatchController] Created ChatUser with MatchId={chatUser.MatchId}");
+
 
                 // Send real-time badge notification to recipient
                 await SendLikeNotification(request.ToUserId, request.FromUserId);
@@ -324,7 +324,7 @@ namespace BE.Controllers
         {
             try
             {
-                Console.WriteLine($"[MatchController] Responding to like: matchId={request.MatchId}, action={request.Action}");
+
                 
                 // For "pass" action, allow both Pending and Accepted status (for unmatch)
                 var chatUser = request.Action.ToLower() == "pass"
@@ -333,11 +333,11 @@ namespace BE.Controllers
 
                 if (chatUser == null)
                 {
-                    Console.WriteLine($"[MatchController] ChatUser not found for matchId={request.MatchId}");
+
                     return NotFound(new { message = "Like request not found" });
                 }
 
-                Console.WriteLine($"[MatchController] Found ChatUser: Status={chatUser.Status}, FromUserId={chatUser.FromUserId}, ToUserId={chatUser.ToUserId}");
+
 
                 if (request.Action.ToLower() == "match")
                 {
@@ -361,7 +361,7 @@ namespace BE.Controllers
                         .OrderBy(p => p.PetId)
                         .FirstOrDefaultAsync();
                     
-                    Console.WriteLine($"[MatchController][RespondToLike] Found pets: User1Pet={pet1?.Name ?? "null"}, User2Pet={pet2?.Name ?? "null"}");
+
                     
                     var pet1Photo = pet1 != null ? await _context.PetPhotos
                         .Where(pp => pp.PetId == pet1.PetId && pp.IsDeleted == false)
@@ -374,7 +374,7 @@ namespace BE.Controllers
                         .Select(pp => pp.ImageUrl)
                         .FirstOrDefaultAsync() : null;
                     
-                    Console.WriteLine($"[MatchController][RespondToLike] Found photos: User1Photo={pet1Photo ?? "null"}, User2Photo={pet2Photo ?? "null"}");
+
 
                     // Create notification (users can view in Notification screen)
                     await CreateMatchNotification(chatUser.FromUserId!.Value, chatUser.ToUserId!.Value, chatUser.MatchId);
@@ -382,14 +382,14 @@ namespace BE.Controllers
                     // Send real-time match notifications to both users
                     if (user1 != null && user2 != null)
                     {
-                        Console.WriteLine($"[MatchController][RespondToLike] Sending match notification to User {chatUser.FromUserId}: OtherUser={user2.FullName}, Pet={pet2?.Name}, Photo={pet2Photo}");
+
                         await ChatHub.SendMatchNotification(_hubContext, chatUser.FromUserId.Value, user2.FullName, chatUser.ToUserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
                         
-                        Console.WriteLine($"[MatchController][RespondToLike] Sending match notification to User {chatUser.ToUserId}: OtherUser={user1.FullName}, Pet={pet1?.Name}, Photo={pet1Photo}");
+
                         await ChatHub.SendMatchNotification(_hubContext, chatUser.ToUserId.Value, user1.FullName, chatUser.FromUserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
                     }
 
-                    Console.WriteLine($"[MatchController] Match accepted!");
+
 
                     return Ok(new
                     {
@@ -402,7 +402,7 @@ namespace BE.Controllers
                 else if (request.Action.ToLower() == "pass")
                 {
                     // Reject/Unmatch - soft delete to keep data for review
-                    Console.WriteLine($"[MatchController] Passing/Unmatching - soft deleting ChatUser entry (Status={chatUser.Status})");
+
                     
                     // Soft delete the ChatUser entry (keeps messages in DB)
                     chatUser.IsDeleted = true;
@@ -410,7 +410,10 @@ namespace BE.Controllers
                     
                     await _context.SaveChangesAsync();
 
-                    Console.WriteLine($"[MatchController] ChatUser soft deleted successfully");
+                    // DO NOT notify the other user when unmatched
+                    // In dating apps, unmatch should be silent - the other person should not know
+
+
                     return Ok(new { message = chatUser.Status == "Accepted" ? "Unmatched" : "Passed" });
                 }
                 else
@@ -433,7 +436,7 @@ namespace BE.Controllers
         {
             try
             {
-                Console.WriteLine($"[MatchController] Getting badge counts for userId: {userId}");
+
 
                 // Get all accepted matches for this user
                 var acceptedMatches = await _context.ChatUsers
@@ -469,7 +472,7 @@ namespace BE.Controllers
                                && c.ToUserId == userId)
                     .CountAsync();
 
-                Console.WriteLine($"[MatchController] Badge counts - Unread: {unreadMessagesCount}, Pending Likes: {pendingLikesCount}");
+
 
                 return Ok(new
                 {
@@ -479,7 +482,7 @@ namespace BE.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MatchController] Error getting badge counts: {ex.Message}");
+
                 return StatusCode(500, new { message = "Error fetching badge counts", error = ex.Message });
             }
         }
@@ -521,7 +524,7 @@ namespace BE.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error creating notifications: {ex.Message}");
+
                 // Don't throw - notifications are not critical
             }
         }
@@ -537,7 +540,7 @@ namespace BE.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MatchController] Error sending like notification: {ex.Message}");
+
             }
         }
     }

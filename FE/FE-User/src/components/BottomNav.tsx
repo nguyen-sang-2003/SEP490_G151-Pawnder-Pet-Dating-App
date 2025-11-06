@@ -28,9 +28,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
   const favoriteBadge = useAppSelector(selectFavoriteBadge);
   
   // Debug logging
-  React.useEffect(() => {
-    console.log('🎯 [BottomNav] Badge counts updated - Chat:', chatBadge, 'Favorite:', favoriteBadge);
-  }, [chatBadge, favoriteBadge]);
 
   // Hàm điều hướng khi bấm tab
   const handlePress = (tab: Tab) => {

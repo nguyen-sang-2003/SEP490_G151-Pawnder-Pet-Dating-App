@@ -23,14 +23,11 @@ namespace BE.Controllers
 
         private int GetCurrentUserId()
         {
-            // Lấy userId từ JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!string.IsNullOrEmpty(userIdClaim))
             {
                 return int.Parse(userIdClaim);
             }
-
-            // Nếu không có token thì trả về 0
             return 0;
         }
 

@@ -15,9 +15,9 @@ export interface UserUpdateRequest {
  */
 export const getUserById = async (userId: number): Promise<UserResponse> => {
   try {
-    console.log(`📞 Calling: GET /user/${userId}`);
+
     const response = await client.get(`/user/${userId}`);
-    console.log('✅ User data:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error fetching user:', error);
@@ -35,9 +35,9 @@ export const updateUser = async (
   data: UserUpdateRequest
 ): Promise<UserResponse> => {
   try {
-    console.log(`📞 Calling: PUT /user/${userId}`, data);
+
     const response = await client.put(`/user/${userId}`, data);
-    console.log('✅ User updated:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Error updating user:', error);

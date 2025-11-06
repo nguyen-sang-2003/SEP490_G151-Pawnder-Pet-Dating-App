@@ -41,9 +41,9 @@ export interface UpdateTitleRequest {
  */
 export const getChatAISessions = async (userId: number): Promise<ChatAISession[]> => {
   try {
-    console.log('📞 Getting AI chat sessions for user:', userId);
+
     const response = await client.get(`/api/chat-ai/${userId}`);
-    console.log('✅ Got AI chat sessions:', response.data);
+
     return response.data.data || [];
   } catch (error: any) {
     console.error('❌ Error getting AI chat sessions:', error);
@@ -63,9 +63,9 @@ export const createChatAISession = async (
   request: CreateChatRequest = {}
 ): Promise<{ chatId: number; title: string; createdAt: string }> => {
   try {
-    console.log('📞 Creating new AI chat session:', { userId, request });
+
     const response = await client.post(`/api/chat-ai/${userId}`, request);
-    console.log('✅ Created AI chat session:', response.data);
+
     return response.data.data;
   } catch (error: any) {
     console.error('❌ Error creating AI chat session:', error);
@@ -85,9 +85,9 @@ export const getChatAIHistory = async (chatAiId: number): Promise<{
   messages: ChatAIMessage[];
 }> => {
   try {
-    console.log('📞 Getting AI chat history:', chatAiId);
+
     const response = await client.get(`/api/chat-ai/${chatAiId}/messages`);
-    console.log('✅ Got AI chat history:', response.data);
+
     return response.data.data;
   } catch (error: any) {
     console.error('❌ Error getting AI chat history:', error);
@@ -107,11 +107,11 @@ export const sendMessageToAI = async (
   question: string
 ): Promise<{ question: string; answer: string; timestamp: string }> => {
   try {
-    console.log('📞 Sending message to AI:', { chatAiId, question });
+
     const response = await client.post(`/api/chat-ai/${chatAiId}/messages`, {
       question,
     });
-    console.log('✅ Got AI response:', response.data);
+
     return response.data.data;
   } catch (error: any) {
     console.error('❌ Error sending message to AI:', error);
@@ -131,9 +131,9 @@ export const updateChatAITitle = async (
   title: string
 ): Promise<void> => {
   try {
-    console.log('📞 Updating AI chat title:', { chatAiId, title });
+
     const response = await client.put(`/api/chat-ai/${chatAiId}`, { title });
-    console.log('✅ Updated AI chat title:', response.data);
+
   } catch (error: any) {
     console.error('❌ Error updating AI chat title:', error);
     if (error.response?.data?.message) {
@@ -149,9 +149,9 @@ export const updateChatAITitle = async (
  */
 export const deleteChatAISession = async (chatAiId: number): Promise<void> => {
   try {
-    console.log('📞 Deleting AI chat session:', chatAiId);
+
     const response = await client.delete(`/api/chat-ai/${chatAiId}`);
-    console.log('✅ Deleted AI chat session:', response.data);
+
   } catch (error: any) {
     console.error('❌ Error deleting AI chat session:', error);
     if (error.response?.data?.message) {

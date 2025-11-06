@@ -20,14 +20,14 @@ export const reportMessage = async (
   reason: string
 ): Promise<ReportResponse> => {
   try {
-    console.log(`📞 Reporting message: userReportId=${userReportId}, contentId=${contentId}`);
+
     
     const response = await apiClient.post<ReportResponse>(
       `/api/report/${userReportId}/${contentId}`,
       { Reason: reason }
     );
     
-    console.log('✅ Message reported:', response.data);
+
     return response.data;
   } catch (error: any) {
     console.error('❌ Report message error:', error);
