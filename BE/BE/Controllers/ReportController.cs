@@ -130,46 +130,81 @@ namespace BE.Controllers
 		{
 			try
 			{
-				var reports = await _context.Reports
+				Console.WriteLine($"[GetReportsByUserId] Fetching reports for userId: {userReportId}");
+				
+				var reportsQuery = await _context.Reports
 					.Include(r => r.UserReport)
 					.Include(r => r.Content)
+						.ThenInclude(c => c.FromUser)
 					.Where(r => r.UserReportId == userReportId)
-					.Select(r => new ReportDto
+					.OrderByDescending(r => r.CreatedAt)
+					.Select(r => new
 					{
-						ReportId = r.ReportId,
-						Reason = r.Reason,
-						Status = r.Status,
-						Resolution = r.Resolution,
-						CreatedAt = r.CreatedAt,
-						UpdatedAt = r.UpdatedAt,
-						UserReport = r.UserReport != null ? new UserReportDto
+						r.ReportId,
+						r.Reason,
+						r.Status,
+						r.Resolution,
+						r.CreatedAt,
+						r.UpdatedAt,
+						r.ContentId,
+						HasContent = r.Content != null,
+						HasFromUser = r.Content != null && r.Content.FromUser != null,
+						UserReport = r.UserReport != null ? new
 						{
-							UserId = r.UserReport.UserId,
-							FullName = r.UserReport.FullName,
-							Email = r.UserReport.Email
+							r.UserReport.UserId,
+							r.UserReport.FullName,
+							r.UserReport.Email
 						} : null,
-						//Content = r.Content != null ? new ContentDto
-						//{
-						//	ContentId = r.Content.ContentId,
-						//	Message = r.Content.Message
-						//} : null
+						Content = r.Content != null ? new
+						{
+							r.Content.ContentId,
+							r.Content.Message,
+							r.Content.CreatedAt
+						} : null,
+						ReportedUser = r.Content != null && r.Content.FromUser != null ? new
+						{
+							r.Content.FromUser.UserId,
+							r.Content.FromUser.FullName,
+							r.Content.FromUser.Email
+						} : null
 					})
 					.ToListAsync();
-
-				if (!reports.Any())
+				
+				Console.WriteLine($"[GetReportsByUserId] Found {reportsQuery.Count} reports");
+				foreach (var r in reportsQuery)
 				{
-					return NotFound(new
+					Console.WriteLine($"  - Report #{r.ReportId}: ContentId={r.ContentId}, HasContent={r.HasContent}, HasFromUser={r.HasFromUser}");
+				}
+				
+				// Map to result without debug fields
+				var result = reportsQuery.Select(r => new
+				{
+					r.ReportId,
+					r.Reason,
+					r.Status,
+					r.Resolution,
+					r.CreatedAt,
+					r.UpdatedAt,
+					r.UserReport,
+					r.Content,
+					r.ReportedUser
+				}).ToList();
+
+				if (!result.Any())
+				{
+					return Ok(new
 					{
-						success = false,
-						message = $"Không tìm thấy báo cáo nào được gửi bởi người dùng có ID = {userReportId}."
+						success = true,
+						message = "Bạn chưa gửi báo cáo nào.",
+						data = new List<object>()
 					});
 				}
 
 				return Ok(new
 				{
 					success = true,
-					message = $"Lấy danh sách báo cáo từ người dùng {userReportId} thành công.",
-					data = reports
+					message = $"Lấy danh sách báo cáo thành công.",
+					data = result
 				});
 			}
 			catch (Exception ex)
