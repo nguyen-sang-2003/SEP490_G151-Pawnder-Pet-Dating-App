@@ -85,6 +85,9 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Percent)
+                .HasPrecision(5, 2)
+                .HasDefaultValueSql("0");
             entity.Property(e => e.TypeValue).HasMaxLength(50);
             entity.Property(e => e.Unit).HasMaxLength(20);
             entity.Property(e => e.UpdatedAt)
@@ -345,20 +348,51 @@ public partial class PawnderDatabaseContext : DbContext
         modelBuilder.Entity<PetPhoto>(entity =>
         {
             entity.HasKey(e => e.PhotoId).HasName("PetPhoto_pkey");
-
             entity.ToTable("PetPhoto");
+
+            // Columns
+            entity.Property(e => e.ImageUrl)                // bắt buộc có URL ảnh
+                .IsRequired()
+                .HasColumnType("text");
+
+            entity.Property(e => e.PublicId)           // Cloudinary public_id (có thể null)
+                .HasColumnType("text");
+
+            entity.Property(e => e.IsPrimary)
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.SortOrder)
+                .HasDefaultValue(0);
+
+            entity.Property(e => e.IsDeleted)
+                .HasDefaultValue(false);
 
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
+
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
 
-            entity.HasOne(d => d.Pet).WithMany(p => p.PetPhotos)
+            // Relations
+            entity.HasOne(d => d.Pet)
+                .WithMany(p => p.PetPhotos)
                 .HasForeignKey(d => d.PetId)
+                .OnDelete(DeleteBehavior.Cascade)                // xóa Pet -> xóa luôn ảnh (hard delete)
                 .HasConstraintName("PetPhoto_PetId_fkey");
+
+            // Indexes
+            entity.HasIndex(e => e.PetId)
+                .HasDatabaseName("IX_PetPhoto_PetId");
+
+            // Đảm bảo MỖI pet chỉ có 1 ảnh primary (chưa bị xóa)
+            entity.HasIndex(e => new { e.PetId, e.IsPrimary })
+                .HasDatabaseName("UX_PetPhoto_OnePrimaryPerPet")
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = FALSE");   // PostgreSQL filtered index
         });
+
 
         modelBuilder.Entity<Report>(entity =>
         {
@@ -418,7 +452,9 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
-
+            entity.Property(e => e.IsProfileComplete)       // <-- thêm
+         .HasDefaultValue(false)
+         .IsRequired();
             entity.HasOne(d => d.Address).WithMany(p => p.Users)
                 .HasForeignKey(d => d.AddressId)
                 .HasConstraintName("User_AddressId_fkey");

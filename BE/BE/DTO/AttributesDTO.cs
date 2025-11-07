@@ -13,6 +13,7 @@ namespace BE.DTO
         public string? Unit { get; init; }
         public DateTime? CreatedAt { get; init; }
         public DateTime? UpdatedAt { get; init; }
+        public List<OptionRespone> optionRespones { get; init; } = new List<OptionRespone>();
     }
 
     public record AttributeCreateRequest
@@ -43,5 +44,15 @@ namespace BE.DTO
         public string? Unit { get; init; }
 
         public bool? IsDeleted { get; init; } // cho phép bật/tắt xoá mềm khi update (tuỳ bạn dùng hay không)
+    }
+    public record OptionRespone
+    {
+        public int OptionId { get; set; }
+
+        public int? AttributeId { get; set; }
+
+        public string Name { get; set; } = null!;
+
+        public bool? IsDeleted { get; set; }
     }
 }

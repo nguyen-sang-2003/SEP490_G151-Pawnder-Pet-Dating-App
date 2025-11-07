@@ -66,6 +66,7 @@ public class UserController : ControllerBase
                 FullName = u.FullName,
                 Gender = u.Gender,
                 Email = u.Email,
+                isProfileComplete = u.IsProfileComplete,
                 ProviderLogin = u.ProviderLogin,
                 IsDeleted = u.IsDeleted ?? false,
                 CreatedAt = u.CreatedAt,
@@ -116,13 +117,12 @@ public class UserController : ControllerBase
         // Hash password – tuỳ thư viện bạn dùng. Ví dụ BCrypt.Net-Next:
         // var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
         // Nếu bạn đã hash ở nơi khác, hãy gán trực tiếp PasswordHash.
-        var hashed = req.Password; // TODO: thay bằng hash thật sự
+        var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
 
         var entity = new BE.Models.User
         {
             RoleId = req.RoleId,
             UserStatusId = req.UserStatusId,
-            AddressId = req.AddressId,
             FullName = req.FullName,
             Gender = req.Gender,
             Email = req.Email,
@@ -138,7 +138,7 @@ public class UserController : ControllerBase
 
         var resp = new UserResponse
         {
-            UserId = entity.UserId,
+            
             RoleId = entity.RoleId,
             UserStatusId = entity.UserStatusId,
             AddressId = entity.AddressId,
@@ -167,11 +167,11 @@ public class UserController : ControllerBase
         // Nếu cho phép đổi email, kiểm tra trùng
 
         u.RoleId = req.RoleId;
-        u.UserStatusId = req.UserStatusId;
+      
         u.AddressId = req.AddressId;
         u.FullName = req.FullName;
         u.Gender = req.Gender;
-        u.ProviderLogin = req.ProviderLogin;
+  
 
         if (!string.IsNullOrWhiteSpace(req.NewPassword))
         {
@@ -180,8 +180,7 @@ public class UserController : ControllerBase
             u.PasswordHash = newHash;
         }
 
-        if (req.IsDeleted.HasValue)
-            u.IsDeleted = req.IsDeleted.Value;
+      
 
         u.UpdatedAt = DateTime.Now;
 
@@ -220,4 +219,7 @@ public class UserController : ControllerBase
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
+
+    //Cap nhat nguoi dung by Admin
+
 }

@@ -1,14 +1,31 @@
 using BE.Models;
 using BE.Services;
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//Cloundinary config
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("Cloudinary"));
+
+builder.Services.AddSingleton<Cloudinary>(sp =>
+{
+    var s = sp.GetRequiredService<IOptions<CloudinarySettings>>().Value;
+    var account = new Account(s.CloudName, s.ApiKey, s.ApiSecret);
+    var cloud = new Cloudinary(account);
+    cloud.Api.Secure = true;
+    return cloud;
+});
+
+// storage abstraction
+builder.Services.AddScoped<IPhotoStorage, CloudinaryPhotoStorage>();
 // Add services to the container.
 //Address service
 builder.Services.AddHttpClient();
@@ -50,6 +67,25 @@ builder.Services.AddAuthentication(options =>
     };
 });
 builder.Services.AddAuthorization();
+//Gemini AI Service
+builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
+
+// Register Email Service 
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<EmailService>();
+
+// setup save data 
+builder.Services.AddMemoryCache();
+
+// setup verifi email
+builder.Services.Configure<KickboxSettings>(builder.Configuration.GetSection("KickboxSettings"));
+builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
+
+// realtime
+builder.Services.AddSignalR();
+
+// ??ng ký DistanceService
+builder.Services.AddScoped<BE.Services.DistanceService>();
 
 var app = builder.Build();
 
@@ -68,4 +104,21 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.MapHub<ChatHub>("/chatHub");
+
 app.Run();
+public class CloudinarySettings
+{
+    public string CloudName { get; set; } = null!;
+    public string ApiKey { get; set; } = null!;
+    public string ApiSecret { get; set; } = null!;
+    public string Folder { get; set; } = "pawnder/pets";
+}
+
+public interface IPhotoStorage
+{
+    Task<(string Url, string PublicId)> UploadAsync(int petId, IFormFile file, CancellationToken ct = default);
+    Task DeleteAsync(string publicId, CancellationToken ct = default);
+}
+
+//ádasda

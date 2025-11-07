@@ -25,7 +25,7 @@ namespace BE.Controllers
 
         // GET: api/attribute?search=&page=1&pageSize=20&includeDeleted=false
         [HttpGet]
-        
+
         public async Task<ActionResult> GetList(
             [FromQuery] string? search,
             [FromQuery] int page = 1,
@@ -65,8 +65,22 @@ namespace BE.Controllers
                         Unit = a.Unit,
                         IsDeleted = a.IsDeleted,
                         CreatedAt = a.CreatedAt,
-                        UpdatedAt = a.UpdatedAt
-                    })
+                        UpdatedAt = a.UpdatedAt,
+
+                        optionRespones = a.AttributeOptions
+                    .Where(o => includeDeleted || o.IsDeleted == false)
+                    .Select(o => new OptionRespone
+                    {
+                        OptionId = o.OptionId,
+                        AttributeId = o.AttributeId,
+                        Name = o.Name,
+                        IsDeleted = o.IsDeleted
+                    }).ToList()
+
+                    }
+                    
+                    
+                    )
                     .ToListAsync(ct);
 
                 return Ok(new
@@ -119,9 +133,9 @@ namespace BE.Controllers
         }
 
         // POST: api/attribute
-        
+
         [HttpPost]
-      
+
         public async Task<ActionResult> Create([FromBody] AttributeCreateRequest request, CancellationToken ct = default)
         {
             if (!ModelState.IsValid)
@@ -179,9 +193,9 @@ namespace BE.Controllers
         }
 
         // PUT: api/attribute/5
-     
+
         [HttpPut("{id:int}")]
-       
+
         public async Task<ActionResult> Update([FromRoute] int id, [FromBody] AttributeUpdateRequest request, CancellationToken ct = default)
         {
             if (!ModelState.IsValid)
@@ -230,6 +244,7 @@ namespace BE.Controllers
                                statusCode: 500);
             }
         }
+   
 
         // DELETE: api/attribute/5?hard=false
 

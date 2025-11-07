@@ -30,6 +30,7 @@ public partial class User
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+    public bool IsProfileComplete { get; set; } = false;   // <-- thêm
 
     public virtual Address? Address { get; set; }
 

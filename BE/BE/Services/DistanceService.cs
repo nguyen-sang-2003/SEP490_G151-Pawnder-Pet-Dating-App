@@ -15,7 +15,7 @@ namespace BE.Services
 		/// <summary>
 		/// Tính khoảng cách giữa 2 người dùng theo ID (đơn vị km)
 		/// </summary>
-		public async Task<double?> GetDistanceBetweenUsersAsync(int userId1, int userId2)
+		public async Task<double?> GetDistanceBetweenUsersAsync(int userId1, int? userId2)
 		{
 			var user1 = await _context.Users
 				.Include(u => u.Address)

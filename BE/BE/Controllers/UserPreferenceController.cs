@@ -43,7 +43,8 @@ public class UserPreferenceController : ControllerBase
                 AttributeName = up.Attribute.Name!,
                 TypeValue = up.Attribute.TypeValue,
                 Unit = up.Attribute.Unit,
-                
+                MaxValue = up.MaxValue,
+                MinValue = up.MinValue,
                 CreatedAt = up.CreatedAt,
                 UpdatedAt = up.UpdatedAt
             })
@@ -135,5 +136,25 @@ public class UserPreferenceController : ControllerBase
         };
 
         return Ok(resp);
+    }
+
+    // DELETE /user-preference/{userId}
+    [HttpDelete("{userId}")]
+    public async Task<IActionResult> DeleteUserPreferences(int userId)
+    {
+        var preferences = await _db.UserPreferences
+            .Where(p => p.UserId == userId)
+            .ToListAsync();
+
+        if (preferences == null || preferences.Count == 0)
+            return NotFound("Người dùng không có sở thích nào để xóa.");
+
+        _db.UserPreferences.RemoveRange(preferences);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            Message = $"Đã xóa {preferences.Count} sở thích của người dùng {userId}."
+        });
     }
 }
