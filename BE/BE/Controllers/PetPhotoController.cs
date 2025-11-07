@@ -115,7 +115,7 @@ namespace BE.Controllers
 
             foreach (var p in others)
             {
-                if (p.IsPrimary) { p.IsPrimary = false; p.UpdatedAt = DateTime.Now; }
+                if (p.IsPrimary) { p.IsPrimary = false; }
             }
 
             photo.IsPrimary = true;
