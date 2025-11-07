@@ -20,7 +20,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatAIHistory, sendMessageToAI } from "../../../api";
+import { getChatAIHistory, sendMessageToAI, createExpertConfirmation } from "../../../api";
 
 const { width } = Dimensions.get("window");
 
@@ -166,33 +166,72 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const handleAskExpert = (message: Message) => {
+  const handleAskExpert = async (message: Message) => {
     // Find user's question before this AI response
     const messageIndex = messages.findIndex(m => m.id === message.id);
     const userQuestion = messageIndex > 0 ? messages[messageIndex - 1] : null;
     
     Alert.alert(
-      "Ask Expert to Confirm",
-      `Do you want an expert to review this AI advice?\n\n"${message.text.substring(0, 100)}..."`,
+      "Yêu cầu chuyên gia xác nhận",
+      `Bạn muốn chuyên gia thú y xem xét lời khuyên này?\n\n"${message.text.substring(0, 80)}..."`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Hủy", style: "cancel" },
         {
-          text: "Ask Expert",
-          onPress: () => {
-            // TODO: Call API - POST /expert-confirmation/{userId}/{chatId}
-            // Send: userQuestion, aiResponse, full chat context
-            
-            Alert.alert(
-              "Request Sent!",
-              "Your request has been sent to our experts. You'll receive a notification when they respond.",
-              [
-                {
-                  text: "View My Requests",
-                  onPress: () => navigation.navigate("ExpertConfirmation" as any),
-                },
-                { text: "OK" },
-              ]
-            );
+          text: "Gửi yêu cầu",
+          onPress: async () => {
+            try {
+              const userIdStr = await AsyncStorage.getItem('userId');
+              if (!userIdStr) {
+                Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+                return;
+              }
+
+              const userId = parseInt(userIdStr);
+              
+              // Get current chatId from route or state
+              const currentChatId = route.params?.chatId;
+              if (!currentChatId || currentChatId === 'new') {
+                Alert.alert('Lỗi', 'Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia');
+                return;
+              }
+
+              const chatAiId = parseInt(currentChatId);
+
+              console.log('📤 Requesting expert confirmation:', {
+                userId,
+                chatAiId,
+                question: userQuestion?.text,
+                aiResponse: message.text
+              });
+
+              // Create expert confirmation request
+              // TODO: Cho phép user chọn expertId, hiện tại hardcode = 1 (admin/expert đầu tiên)
+              const expertId = 1; // Temporary: should let user select expert
+              
+              const fullMessage = userQuestion 
+                ? `Câu hỏi: "${userQuestion.text}"\n\nLời khuyên AI: "${message.text}"`
+                : `Lời khuyên AI: "${message.text}"`;
+
+              await createExpertConfirmation(userId, chatAiId, {
+                expertId: expertId,
+                message: fullMessage
+              });
+
+              Alert.alert(
+                "Đã gửi yêu cầu!",
+                "Yêu cầu của bạn đã được gửi đến chuyên gia. Bạn sẽ nhận được thông báo khi họ phản hồi.",
+                [
+                  {
+                    text: "Xem yêu cầu của tôi",
+                    onPress: () => navigation.navigate("ExpertConfirmation" as any),
+                  },
+                  { text: "OK" },
+                ]
+              );
+            } catch (error: any) {
+              console.error('❌ Error requesting expert:', error);
+              Alert.alert('Lỗi', error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+            }
           },
         },
       ]

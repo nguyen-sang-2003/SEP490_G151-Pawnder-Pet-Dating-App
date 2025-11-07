@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,73 +6,66 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getUserExpertConfirmations, ExpertConfirmation } from "../../../api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertConfirmation">;
 
-interface ExpertRequest {
-  id: string;
-  chatTitle: string;
-  userQuestion: string;
-  aiResponse: string;
-  expertResponse?: string;
-  status: "pending" | "answered" | "rejected";
-  createdAt: Date;
-  answeredAt?: Date;
-  expertName?: string;
-}
-
 const ExpertConfirmationScreen = ({ navigation }: Props) => {
-  // Mock data - in production: GET /expert-confirmation/{UserId}
-  const [requests] = useState<ExpertRequest[]>([
-    {
-      id: "1",
-      chatTitle: "Cat Nutrition Advice",
-      userQuestion: "What should I feed my Persian cat daily?",
-      aiResponse:
-        "I recommend feeding your Persian cat high-quality protein-rich food 2-3 times daily. Persian cats particularly need food that supports their coat health with omega-3 fatty acids.",
-      expertResponse:
-        "The AI's advice is correct! Additionally, for Persian cats, I recommend wet food to prevent kidney issues and hairball control treats. Monitor their weight closely as Persians are prone to obesity.",
-      status: "answered",
-      createdAt: new Date(Date.now() - 172800000),
-      answeredAt: new Date(Date.now() - 86400000),
-      expertName: "Dr. Nguyen Van A",
-    },
-    {
-      id: "2",
-      chatTitle: "Vaccination Questions",
-      userQuestion: "When should I vaccinate my 2-month-old kitten?",
-      aiResponse:
-        "Kittens should get their first shots at 6-8 weeks, with boosters at 12 and 16 weeks. Essential vaccines include FVRCP and rabies.",
-      status: "pending",
-      createdAt: new Date(Date.now() - 3600000),
-    },
-    {
-      id: "3",
-      chatTitle: "Behavior Training",
-      userQuestion: "How to stop my cat from scratching furniture?",
-      aiResponse:
-        "Provide scratching posts, use positive reinforcement, and try deterrent sprays on furniture.",
-      expertResponse:
-        "AI advice is good. Also ensure the scratching post is taller than the furniture and placed near the scratched areas. Trim nails regularly.",
-      status: "answered",
-      createdAt: new Date(Date.now() - 259200000),
-      answeredAt: new Date(Date.now() - 172800000),
-      expertName: "Dr. Tran Thi B",
-    },
-  ]);
+  const [requests, setRequests] = useState<ExpertConfirmation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const getStatusColor = (status: ExpertRequest["status"]) => {
-    switch (status) {
+  useFocusEffect(
+    useCallback(() => {
+      loadRequests();
+    }, [])
+  );
+
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+      
+      const userIdStr = await AsyncStorage.getItem("userId");
+      if (!userIdStr) {
+        console.error("❌ No userId found");
+        return;
+      }
+
+      const userId = parseInt(userIdStr);
+      const data = await getUserExpertConfirmations(userId);
+      setRequests(data);
+      console.log("✅ Loaded expert confirmations:", data.length);
+    } catch (error: any) {
+      console.error("❌ Error loading expert confirmations:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadRequests();
+    setRefreshing(false);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
       case "pending":
         return "#FF9800";
       case "answered":
+      case "approved":
+      case "confirmed":
         return "#4CAF50";
       case "rejected":
         return "#E94D6B";
@@ -81,11 +74,13 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
     }
   };
 
-  const getStatusIcon = (status: ExpertRequest["status"]) => {
-    switch (status) {
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
       case "pending":
         return "time-outline";
       case "answered":
+      case "approved":
+      case "confirmed":
         return "checkmark-circle";
       case "rejected":
         return "close-circle";
@@ -94,34 +89,37 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
     }
   };
 
-  const getStatusLabel = (status: ExpertRequest["status"]) => {
-    switch (status) {
+  const getStatusLabel = (status: string) => {
+    switch (status?.toLowerCase()) {
       case "pending":
-        return "Awaiting Expert";
+        return "Đang chờ";
       case "answered":
-        return "Expert Confirmed";
+      case "approved":
+      case "confirmed":
+        return "Đã trả lời";
       case "rejected":
-        return "Declined";
+        return "Bị từ chối";
       default:
-        return status;
+        return status || "Không rõ";
     }
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
     const now = new Date();
     const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
       const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-      return diffHours === 0 ? "Just now" : `${diffHours}h ago`;
+      return diffHours === 0 ? "Vừa xong" : `${diffHours} giờ trước`;
     }
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    if (diffDays === 1) return "Hôm qua";
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    return date.toLocaleDateString('vi-VN');
   };
 
-  const renderRequest = ({ item }: { item: ExpertRequest }) => (
+  const renderRequest = ({ item }: { item: ExpertConfirmation }) => (
     <View style={styles.requestCard}>
       {/* Header */}
       <View style={styles.requestHeader}>
@@ -141,52 +139,46 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       {/* Chat Info */}
       <View style={styles.chatInfo}>
         <Icon name="chatbubbles-outline" size={18} color="#9C27B0" />
-        <Text style={styles.chatTitle}>{item.chatTitle}</Text>
+        <Text style={styles.chatTitle}>Chat AI #{item.chatAiId}</Text>
       </View>
 
-      {/* User Question */}
-      <View style={styles.questionBox}>
-        <View style={styles.questionHeader}>
-          <Icon name="person-circle" size={16} color={colors.primary} />
-          <Text style={styles.questionLabel}>Your Question:</Text>
+      {/* User Request Message */}
+      {item.message && (
+        <View style={styles.questionBox}>
+          <View style={styles.questionHeader}>
+            <Icon name="document-text-outline" size={16} color={colors.primary} />
+            <Text style={styles.questionLabel}>Nội dung yêu cầu:</Text>
+          </View>
+          <Text style={styles.questionText}>{item.message}</Text>
         </View>
-        <Text style={styles.questionText}>{item.userQuestion}</Text>
-      </View>
-
-      {/* AI Response */}
-      <View style={styles.aiResponseBox}>
-        <View style={styles.aiResponseHeader}>
-          <Icon name="sparkles" size={16} color="#9C27B0" />
-          <Text style={styles.aiResponseLabel}>AI's Answer:</Text>
-        </View>
-        <Text style={styles.aiResponseText}>{item.aiResponse}</Text>
-      </View>
+      )}
 
       {/* Expert Response */}
-      {item.status === "answered" && item.expertResponse && (
+      {(item.status.toLowerCase() === "answered" || 
+        item.status.toLowerCase() === "approved" ||
+        item.status.toLowerCase() === "confirmed") && (item as any).resultMessage && (
         <View style={styles.expertResponseBox}>
           <View style={styles.expertResponseHeader}>
             <Icon name="shield-checkmark" size={18} color="#4CAF50" />
             <Text style={styles.expertResponseLabel}>
-              Expert Confirmation
-              {item.expertName && ` by ${item.expertName}`}
+              Phản hồi của chuyên gia
             </Text>
           </View>
-          <Text style={styles.expertResponseText}>{item.expertResponse}</Text>
-          {item.answeredAt && (
+          <Text style={styles.expertResponseText}>{(item as any).resultMessage}</Text>
+          {item.updatedAt && (
             <Text style={styles.expertResponseTime}>
-              {formatTime(item.answeredAt)}
+              {formatTime(item.updatedAt)}
             </Text>
           )}
         </View>
       )}
 
       {/* Pending Status */}
-      {item.status === "pending" && (
+      {item.status.toLowerCase() === "pending" && (
         <View style={styles.pendingBox}>
           <Icon name="hourglass-outline" size={20} color="#FF9800" />
           <Text style={styles.pendingText}>
-            Waiting for expert review. You'll get a notification once answered.
+            Đang chờ chuyên gia xem xét. Bạn sẽ nhận được thông báo khi có phản hồi.
           </Text>
         </View>
       )}
@@ -196,15 +188,17 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Icon name="shield-checkmark-outline" size={80} color={colors.textLabel} />
-      <Text style={styles.emptyTitle}>No Expert Requests</Text>
+      <Text style={styles.emptyTitle}>Chưa có yêu cầu chuyên gia</Text>
       <Text style={styles.emptyText}>
-        When you need expert confirmation on AI advice, your requests will appear here
+        Khi bạn cần chuyên gia xác nhận lời khuyên của AI, các yêu cầu sẽ xuất hiện ở đây
       </Text>
     </View>
   );
 
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
-  const answeredCount = requests.filter((r) => r.status === "answered").length;
+  const pendingCount = requests.filter((r) => r.status.toLowerCase() === "pending").length;
+  const answeredCount = requests.filter((r) => 
+    ["answered", "approved", "confirmed"].includes(r.status.toLowerCase())
+  ).length;
 
   return (
     <View style={styles.container}>
@@ -217,29 +211,29 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Expert Confirmations</Text>
+          <Text style={styles.headerTitle}>Yêu cầu chuyên gia</Text>
           <View style={{ width: 40 }} />
         </View>
 
         {/* Stats */}
-        {requests.length > 0 && (
+        {!loading && requests.length > 0 && (
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <Icon name="shield-checkmark" size={24} color="#4CAF50" />
               <Text style={styles.statNumber}>{answeredCount}</Text>
-              <Text style={styles.statLabel}>Answered</Text>
+              <Text style={styles.statLabel}>Đã trả lời</Text>
             </View>
 
             <View style={styles.statCard}>
               <Icon name="hourglass" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>{pendingCount}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statLabel}>Chờ xử lý</Text>
             </View>
 
             <View style={styles.statCard}>
               <Icon name="documents" size={24} color={colors.primary} />
               <Text style={styles.statNumber}>{requests.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
+              <Text style={styles.statLabel}>Tổng cộng</Text>
             </View>
           </View>
         )}
@@ -248,19 +242,35 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         <View style={styles.infoBanner}>
           <Icon name="information-circle" size={20} color="#4CAF50" />
           <Text style={styles.infoBannerText}>
-            Our certified pet experts review AI responses to ensure accuracy
+            Các chuyên gia thú y được chứng nhận sẽ xem xét câu trả lời của AI
           </Text>
         </View>
 
-        {/* Requests List */}
-        <FlatList
-          data={requests}
-          renderItem={renderRequest}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmpty}
-          showsVerticalScrollIndicator={false}
-        />
+        {/* Loading State */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Đang tải yêu cầu...</Text>
+          </View>
+        ) : (
+          /* Requests List */
+          <FlatList
+            data={requests}
+            renderItem={renderRequest}
+            keyExtractor={(item) => `${item.userId}-${item.chatAiId}-${item.expertId}`}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={renderEmpty}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
+          />
+        )}
       </LinearGradient>
     </View>
   );
@@ -495,6 +505,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#F57C00",
     lineHeight: 18,
+  },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: colors.textMedium,
+    marginTop: 16,
   },
 
   // Empty State

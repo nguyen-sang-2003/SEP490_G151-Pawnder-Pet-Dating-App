@@ -13,4 +13,5 @@ export * from './chat';
 export * from './chatai';
 export * from './block';
 export * from './report';
+export * from './expert-confirmation';
 
