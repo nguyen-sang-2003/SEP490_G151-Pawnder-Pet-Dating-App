@@ -21,8 +21,8 @@ import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from ".
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
 import { getUserPetAvatar } from "../../../utils/petAvatar";
-import { useDispatch } from "react-redux";
-import { resetChatBadge } from "../../badge/badgeSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { selectUnreadChats } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
@@ -41,6 +41,7 @@ interface ChatItem {
 
 const ChatScreen = ({ navigation }: Props) => {
   const dispatch = useDispatch<AppDispatch>();
+  const unreadChats = useSelector(selectUnreadChats); // Get list of unread matchIds
   const [searchQuery, setSearchQuery] = useState("");
   const [chatData, setChatData] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,12 +61,10 @@ const ChatScreen = ({ navigation }: Props) => {
   // Load chats when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Reset chat badge when user views this screen
-      console.log('🔔 Resetting chat badge to 0');
-      dispatch(resetChatBadge());
+      // Don't reset badge here - it will auto-update as chats are marked read
       loadChats();
       refreshOnlineUsers();
-    }, [dispatch])
+    }, [])
   );
 
   const setupSignalR = async () => {
@@ -249,10 +248,11 @@ const ChatScreen = ({ navigation }: Props) => {
 
   const renderChatItem = ({ item }: { item: ChatItem }) => {
     const isOnline = onlineUsers.has(item.otherUserId);
+    const isUnread = unreadChats.includes(item.matchId); // Check if this chat is unread
     
     return (
     <TouchableOpacity 
-      style={styles.chatItem}
+      style={[styles.chatItem, isUnread && styles.chatItemUnread]}
       onPress={() => handleChatPress(item)}
       activeOpacity={0.7}
     >
@@ -275,17 +275,15 @@ const ChatScreen = ({ navigation }: Props) => {
       </View>
       <View style={styles.chatInfo}>
         <View style={styles.chatHeader}>
-          <Text style={styles.chatName}>{item.name}</Text>
+          <Text style={[styles.chatName, isUnread && styles.chatNameUnread]}>{item.name}</Text>
           <Text style={styles.chatTime}>{item.time}</Text>
         </View>
         <View style={styles.chatFooter}>
-          <Text style={styles.lastMessage} numberOfLines={1}>
+          <Text style={[styles.lastMessage, isUnread && styles.lastMessageUnread]} numberOfLines={1}>
             {item.lastMessage}
           </Text>
-          {item.unread > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{item.unread}</Text>
-            </View>
+          {isUnread && (
+            <View style={styles.unreadDot} />
           )}
         </View>
       </View>
@@ -637,6 +635,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: colors.white,
+  },
+  
+  // Unread chat styles (Messenger-like)
+  chatItemUnread: {
+    backgroundColor: colors.white, // Slightly different background
+    borderWidth: 2,
+    borderColor: "rgba(41, 182, 246, 0.3)", // Blue highlight
+  },
+  chatNameUnread: {
+    fontWeight: "700", // Bold for unread
+    color: colors.textDark,
+  },
+  lastMessageUnread: {
+    fontWeight: "600", // Semi-bold for unread
+    color: colors.textDark,
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#29B6F6",
+    marginLeft: 8,
+    shadowColor: "#29B6F6",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.6,
+    shadowRadius: 3,
+    elevation: 3,
   },
 
   // Loading

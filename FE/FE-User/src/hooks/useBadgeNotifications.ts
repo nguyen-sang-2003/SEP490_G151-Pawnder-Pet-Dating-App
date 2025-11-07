@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../app/store';
 import { 
   setBadgeCounts, 
-  incrementChatBadge, 
+  addUnreadChat,
   incrementFavoriteBadge,
   incrementNotificationBadge,
   showMatchModal
@@ -38,7 +38,10 @@ export const useBadgeNotifications = (userId: number | null) => {
 
     // Setup SignalR listeners for real-time badge updates
     const handleNewMessageBadge = (data: any) => {
-      dispatch(incrementChatBadge());
+      const matchId = data.matchId || data.MatchId;
+      if (matchId) {
+        dispatch(addUnreadChat(matchId));
+      }
     };
 
     const handleNewLikeBadge = (data: any) => {

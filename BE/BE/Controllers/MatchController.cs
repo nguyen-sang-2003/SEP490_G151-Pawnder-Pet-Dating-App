@@ -446,22 +446,20 @@ namespace BE.Controllers
                     .Select(c => c.MatchId)
                     .ToListAsync();
 
-                // Count unread messages across all chats
-                // For simplicity: count messages from OTHER users that were created recently
-                // In a real app, you'd track read/unread status per message
-                var unreadMessagesCount = 0;
+                // Get list of matchIds with unread messages (Messenger-style)
+                // A chat is "unread" if the last message is from the other user
+                var unreadChats = new List<int>();
                 foreach (var matchId in acceptedMatches)
                 {
                     var lastMessage = await _context.ChatUserContents
-                        .Where(c => c.MatchId == matchId && c.FromUserId != userId)
+                        .Where(c => c.MatchId == matchId)
                         .OrderByDescending(c => c.CreatedAt)
                         .FirstOrDefaultAsync();
 
-                    if (lastMessage != null)
+                    if (lastMessage != null && lastMessage.FromUserId != userId)
                     {
-                        // Check if there are any messages from the other user
-                        // This is a simplified approach - you may want to track actual read status
-                        unreadMessagesCount++;
+                        // Last message is from other user = unread
+                        unreadChats.Add(matchId);
                     }
                 }
 
@@ -476,7 +474,7 @@ namespace BE.Controllers
 
                 return Ok(new
                 {
-                    chatBadge = unreadMessagesCount,
+                    unreadChats = unreadChats, // Return list of matchIds
                     favoriteBadge = pendingLikesCount
                 });
             }

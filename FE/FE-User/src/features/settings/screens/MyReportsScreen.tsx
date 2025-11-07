@@ -1,59 +1,65 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getMyReports, Report } from "../../../api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "MyReports">;
 
-interface Report {
-  id: string;
-  reportedUser: string;
-  reason: string;
-  status: "pending" | "resolved" | "rejected";
-  createdAt: Date;
-  resolution?: string;
-}
-
 const MyReportsScreen = ({ navigation }: Props) => {
-  // Mock data - in production, fetch from API: GET /report/user/{userReportId}
-  const [reports] = useState<Report[]>([
-    {
-      id: "1",
-      reportedUser: "User123",
-      reason: "Spam or Advertising",
-      status: "pending",
-      createdAt: new Date(Date.now() - 86400000 * 2),
-    },
-    {
-      id: "2",
-      reportedUser: "FakeProfile456",
-      reason: "Fake Profile",
-      status: "resolved",
-      createdAt: new Date(Date.now() - 86400000 * 7),
-      resolution: "Account has been suspended after investigation.",
-    },
-    {
-      id: "3",
-      reportedUser: "Spammer789",
-      reason: "Inappropriate Content",
-      status: "rejected",
-      createdAt: new Date(Date.now() - 86400000 * 14),
-      resolution: "No violation found after review.",
-    },
-  ]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const getStatusColor = (status: Report["status"]) => {
-    switch (status) {
+  useFocusEffect(
+    useCallback(() => {
+      loadReports();
+    }, [])
+  );
+
+  const loadReports = async () => {
+    try {
+      setLoading(true);
+      
+      const userIdStr = await AsyncStorage.getItem("userId");
+      if (!userIdStr) {
+        console.error("❌ No userId found");
+        return;
+      }
+
+      const userId = parseInt(userIdStr);
+      const data = await getMyReports(userId);
+      setReports(data);
+      console.log("✅ Loaded reports:", data.length);
+    } catch (error: any) {
+      console.error("❌ Error loading reports:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadReports();
+    setRefreshing(false);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
       case "pending":
         return "#FF9800";
       case "resolved":
@@ -65,8 +71,8 @@ const MyReportsScreen = ({ navigation }: Props) => {
     }
   };
 
-  const getStatusIcon = (status: Report["status"]) => {
-    switch (status) {
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
       case "pending":
         return "time-outline";
       case "resolved":
@@ -78,83 +84,174 @@ const MyReportsScreen = ({ navigation }: Props) => {
     }
   };
 
-  const getStatusLabel = (status: Report["status"]) => {
-    switch (status) {
+  const getStatusLabel = (status: string) => {
+    switch (status?.toLowerCase()) {
       case "pending":
-        return "Under Review";
+        return "Đang xử lý";
       case "resolved":
-        return "Resolved";
+        return "Đã xử lý";
       case "rejected":
-        return "No Action Taken";
+        return "Bị từ chối";
       default:
-        return status;
+        return status || "Không rõ";
     }
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return date.toLocaleDateString();
+    if (diffDays === 0) return "Hôm nay";
+    if (diffDays === 1) return "Hôm qua";
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
+    return date.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
-  const renderReport = ({ item }: { item: Report }) => (
-    <TouchableOpacity style={styles.reportCard}>
-      <View style={styles.reportHeader}>
-        <View style={styles.reportHeaderLeft}>
-          <Icon
-            name={getStatusIcon(item.status)}
-            size={24}
-            color={getStatusColor(item.status)}
-          />
-          <View style={styles.reportHeaderText}>
-            <Text style={styles.reportedUser}>{item.reportedUser}</Text>
-            <Text style={styles.reportDate}>{formatDate(item.createdAt)}</Text>
+  const renderReport = ({ item }: { item: Report }) => {
+    console.log('📊 Report item:', {
+      reportId: item.reportId,
+      reason: item.reason,
+      status: item.status,
+      reportedUser: item.reportedUser,
+      content: item.content,
+      hasReportedUser: !!item.reportedUser,
+      reportedUserName: item.reportedUser?.fullName,
+    });
+    
+    return (
+      <View style={styles.reportCard}>
+        {/* Header with Status */}
+        <View style={styles.reportIdRow}>
+          <View style={styles.reportIdLeft}>
+            <Icon name="flag" size={18} color={colors.error} />
+            <Text style={styles.reportTitle}>Báo cáo tin nhắn</Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: `${getStatusColor(item.status)}20` },
+            ]}
+          >
+            <Icon
+              name={getStatusIcon(item.status)}
+              size={12}
+              color={getStatusColor(item.status)}
+            />
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+              {getStatusLabel(item.status)}
+            </Text>
           </View>
         </View>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: `${getStatusColor(item.status)}15` },
-          ]}
-        >
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status)}
+
+        <View style={styles.divider} />
+
+        {/* Reported User */}
+        {item.reportedUser ? (
+          <View style={styles.infoRow}>
+            <Icon name="person-outline" size={16} color={colors.textMedium} />
+            <Text style={styles.infoLabel}>Người bị báo cáo:</Text>
+            <Text style={styles.infoValue}>
+              {item.reportedUser.fullName}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.warningBox}>
+            <Icon name="information-circle-outline" size={16} color="#FF9800" />
+            <Text style={styles.warningText}>
+              Thông tin người dùng không khả dụng (có thể đã bị xóa hoặc chặn)
+            </Text>
+          </View>
+        )}
+
+        {/* Reason */}
+        <View style={styles.infoRow}>
+          <Icon name="alert-circle-outline" size={16} color={colors.error} />
+          <Text style={styles.infoLabel}>Lý do:</Text>
+          <Text style={[styles.infoValue, { color: colors.error, fontWeight: "600" }]}>
+            {item.reason}
           </Text>
         </View>
-      </View>
 
-      <View style={styles.reportBody}>
-        <View style={styles.reasonRow}>
-          <Icon name="flag-outline" size={16} color={colors.textMedium} />
-          <Text style={styles.reasonText}>{item.reason}</Text>
-        </View>
+        {/* Message Content */}
+        {item.content ? (
+          <View style={styles.messageSection}>
+            <Text style={styles.messageSectionLabel}>Tin nhắn bị báo cáo:</Text>
+            <View style={styles.messageContentBox}>
+              <Icon name="chatbox-ellipses-outline" size={14} color={colors.textMedium} style={{ marginTop: 2 }} />
+              <Text style={styles.messageContentText} numberOfLines={3}>
+                {item.content.message}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.warningBox}>
+            <Icon name="information-circle-outline" size={16} color="#FF9800" />
+            <Text style={styles.warningText}>
+              Tin nhắn không khả dụng (có thể đã bị xóa)
+            </Text>
+          </View>
+        )}
 
+        {/* Resolution */}
         {item.resolution && (
-          <View style={styles.resolutionBox}>
-            <Text style={styles.resolutionLabel}>Response:</Text>
+          <View style={styles.resolutionSection}>
+            <View style={styles.resolutionHeader}>
+              <Icon name="document-text-outline" size={14} color="#4CAF50" />
+              <Text style={styles.resolutionHeaderText}>Kết quả xử lý:</Text>
+            </View>
             <Text style={styles.resolutionText}>{item.resolution}</Text>
           </View>
         )}
+
+        {/* Footer Date */}
+        <View style={styles.reportFooter}>
+          <Icon name="calendar-outline" size={12} color={colors.textLabel} />
+          <Text style={styles.footerDate}>{formatDate(item.createdAt)}</Text>
+        </View>
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Icon name="document-text-outline" size={80} color={colors.textLabel} />
-      <Text style={styles.emptyTitle}>No Reports Yet</Text>
+      <Text style={styles.emptyTitle}>Chưa có báo cáo nào</Text>
       <Text style={styles.emptyText}>
-        You haven't reported any users.{"\n"}
-        Your report history will appear here.
+        Bạn chưa gửi báo cáo nào.{"\n"}
+        Lịch sử báo cáo của bạn sẽ hiển thị ở đây.
       </Text>
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={gradients.background} style={styles.gradient}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-back" size={24} color={colors.textDark} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Báo cáo của tôi</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Đang tải...</Text>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -170,7 +267,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Reports</Text>
+          <Text style={styles.headerTitle}>Báo cáo của tôi</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -180,23 +277,23 @@ const MyReportsScreen = ({ navigation }: Props) => {
             <View style={styles.statCard}>
               <Icon name="flag" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>{reports.length}</Text>
-              <Text style={styles.statLabel}>Total Reports</Text>
+              <Text style={styles.statLabel}>Tổng số</Text>
             </View>
 
             <View style={styles.statCard}>
               <Icon name="checkmark-circle" size={24} color="#4CAF50" />
               <Text style={styles.statNumber}>
-                {reports.filter((r) => r.status === "resolved").length}
+                {reports.filter((r) => r.status?.toLowerCase() === "resolved").length}
               </Text>
-              <Text style={styles.statLabel}>Resolved</Text>
+              <Text style={styles.statLabel}>Đã xử lý</Text>
             </View>
 
             <View style={styles.statCard}>
               <Icon name="time" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>
-                {reports.filter((r) => r.status === "pending").length}
+                {reports.filter((r) => r.status?.toLowerCase() === "pending").length}
               </Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statLabel}>Đang xử lý</Text>
             </View>
           </View>
         )}
@@ -205,10 +302,18 @@ const MyReportsScreen = ({ navigation }: Props) => {
         <FlatList
           data={reports}
           renderItem={renderReport}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.reportId.toString()}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmpty}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         />
       </LinearGradient>
     </View>
@@ -284,75 +389,163 @@ const styles = StyleSheet.create({
   reportCard: {
     backgroundColor: colors.whiteWarm,
     borderRadius: radius.lg,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
-    ...shadows.small,
+    ...shadows.medium,
   },
-  reportHeader: {
+
+  // Report ID Row
+  reportIdRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  reportHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 12,
-  },
-  reportHeaderText: {
-    flex: 1,
-  },
-  reportedUser: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textDark,
-  },
-  reportDate: {
-    fontSize: 13,
-    color: colors.textMedium,
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  // Report Body
-  reportBody: {
-    gap: 12,
-  },
-  reasonRow: {
+  reportIdLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  reasonText: {
-    fontSize: 14,
-    color: colors.textMedium,
+  reportTitle: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: colors.textDark,
   },
-  resolutionBox: {
-    backgroundColor: colors.cardBackgroundLight,
-    padding: 12,
-    borderRadius: radius.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    gap: 4,
   },
-  resolutionLabel: {
-    fontSize: 12,
+  statusText: {
+    fontSize: 11,
     fontWeight: "600",
-    color: colors.primary,
-    marginBottom: 4,
   },
-  resolutionText: {
+
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 10,
+  },
+
+  // Info Rows
+  infoRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+    alignItems: "center",
+    gap: 6,
+  },
+  infoLabel: {
+    fontSize: 13,
+    color: colors.textMedium,
+    fontWeight: "500",
+    minWidth: 130,
+  },
+  infoValue: {
+    flex: 1,
     fontSize: 14,
     color: colors.textDark,
-    lineHeight: 20,
+    fontWeight: "600",
+  },
+
+  // Warning Box
+  warningBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF8E1",
+    borderRadius: radius.sm,
+    padding: 10,
+    marginBottom: 10,
+    gap: 8,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textDark,
+    lineHeight: 16,
+  },
+
+  // Message Section
+  messageSection: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  messageSectionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textMedium,
+    marginBottom: 6,
+  },
+  messageContentBox: {
+    backgroundColor: "#FFF3F3",
+    borderLeftWidth: 3,
+    borderLeftColor: colors.error,
+    borderRadius: radius.sm,
+    padding: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  messageContentText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textDark,
+    lineHeight: 18,
+  },
+
+  // Resolution Section
+  resolutionSection: {
+    backgroundColor: "#F1F8E9",
+    borderRadius: radius.sm,
+    padding: 10,
+    marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#4CAF50",
+  },
+  resolutionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  resolutionHeaderText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4CAF50",
+  },
+  resolutionText: {
+    fontSize: 13,
+    color: colors.textDark,
+    lineHeight: 18,
+  },
+
+  // Footer
+  reportFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  footerDate: {
+    fontSize: 11,
+    color: colors.textLabel,
+  },
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textMedium,
+    marginTop: 12,
   },
 
   // Empty State

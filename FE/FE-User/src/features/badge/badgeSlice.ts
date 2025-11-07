@@ -11,14 +11,14 @@ interface MatchModalData {
 }
 
 interface BadgeState {
-  chatBadge: number;
+  unreadChats: number[]; // Array of matchIds with unread messages
   favoriteBadge: number;
   notificationBadge: number;
   matchModal: MatchModalData;
 }
 
 const initialState: BadgeState = {
-  chatBadge: 0,
+  unreadChats: [],
   favoriteBadge: 0,
   notificationBadge: 0,
   matchModal: {
@@ -35,23 +35,27 @@ const badgeSlice = createSlice({
   name: 'badge',
   initialState,
   reducers: {
-    setBadgeCounts: (state, action: PayloadAction<{ chatBadge: number; favoriteBadge: number; notificationBadge?: number }>) => {
-      state.chatBadge = action.payload.chatBadge;
+    setBadgeCounts: (state, action: PayloadAction<{ unreadChats?: number[]; favoriteBadge: number; notificationBadge?: number }>) => {
+      if (action.payload.unreadChats !== undefined) {
+        state.unreadChats = action.payload.unreadChats;
+      }
       state.favoriteBadge = action.payload.favoriteBadge;
       if (action.payload.notificationBadge !== undefined) {
         state.notificationBadge = action.payload.notificationBadge;
       }
     },
-    incrementChatBadge: (state) => {
-      state.chatBadge += 1;
-    },
-    decrementChatBadge: (state) => {
-      if (state.chatBadge > 0) {
-        state.chatBadge -= 1;
+    addUnreadChat: (state, action: PayloadAction<number>) => {
+      const matchId = action.payload;
+      if (!state.unreadChats.includes(matchId)) {
+        state.unreadChats.push(matchId);
       }
     },
-    resetChatBadge: (state) => {
-      state.chatBadge = 0;
+    markChatAsRead: (state, action: PayloadAction<number>) => {
+      const matchId = action.payload;
+      state.unreadChats = state.unreadChats.filter(id => id !== matchId);
+    },
+    resetAllUnreadChats: (state) => {
+      state.unreadChats = [];
     },
     incrementFavoriteBadge: (state) => {
       state.favoriteBadge += 1;
@@ -76,7 +80,7 @@ const badgeSlice = createSlice({
       state.notificationBadge = 0;
     },
     resetAllBadges: (state) => {
-      state.chatBadge = 0;
+      state.unreadChats = [];
       state.favoriteBadge = 0;
       state.notificationBadge = 0;
     },
@@ -105,9 +109,9 @@ const badgeSlice = createSlice({
 
 export const {
   setBadgeCounts,
-  incrementChatBadge,
-  decrementChatBadge,
-  resetChatBadge,
+  addUnreadChat,
+  markChatAsRead,
+  resetAllUnreadChats,
   incrementFavoriteBadge,
   decrementFavoriteBadge,
   resetFavoriteBadge,
@@ -120,7 +124,8 @@ export const {
 } = badgeSlice.actions;
 
 // Selectors
-export const selectChatBadge = (state: RootState) => state.badge.chatBadge;
+export const selectUnreadChats = (state: RootState) => state.badge.unreadChats;
+export const selectChatBadge = (state: RootState) => state.badge.unreadChats.length; // Badge = count of unread chats
 export const selectFavoriteBadge = (state: RootState) => state.badge.favoriteBadge;
 export const selectNotificationBadge = (state: RootState) => state.badge.notificationBadge;
 export const selectMatchModal = (state: RootState) => state.badge.matchModal;

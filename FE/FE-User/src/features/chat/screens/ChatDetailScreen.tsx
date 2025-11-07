@@ -29,6 +29,10 @@ import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import signalRService from "../../../services/signalr.service";
 import { getUserPetAvatar } from "../../../utils/petAvatar";
+import ReportMessageModal from "../../../components/ReportMessageModal";
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../../../app/store';
+import { markChatAsRead } from '../../badge/badgeSlice';
 
 const { width, height } = Dimensions.get("window");
 
@@ -45,6 +49,7 @@ interface Message {
 
 const ChatDetailScreen = ({ navigation, route }: Props) => {
   const { matchId, otherUserId, userName: initialUserName, userAvatar } = route.params;
+  const dispatch = useDispatch<AppDispatch>();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -55,6 +60,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [myAvatar, setMyAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const [otherUserAvatar, setOtherUserAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
@@ -145,7 +151,9 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   useFocusEffect(
     useCallback(() => {
       loadMessages();
-    }, [matchId])
+      // Mark this chat as read (remove from unread list)
+      dispatch(markChatAsRead(matchId));
+    }, [matchId, dispatch])
   );
   
   const setupSignalR = async () => {
@@ -568,36 +576,35 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     if (!selectedMessage || !selectedMessage.contentId || !currentUserId) return;
     
     setShowMessageMenu(false);
-    showAlert({
-      type: 'warning',
-      title: "Báo cáo tin nhắn",
-      message: `Báo cáo tin nhắn này từ ${userName}? Sau khi báo cáo, người dùng này sẽ bị chặn và cuộc trò chuyện sẽ bị ẩn.`,
-      showCancel: true,
-      confirmText: "Báo cáo",
-      onConfirm: async () => {
-        try {
-          console.log(`🚨 Reporting message: contentId=${selectedMessage.contentId}`);
-          
-          // Report the message (backend will auto-block and delete chat)
-          await reportMessage(currentUserId, selectedMessage.contentId!, "Nội dung không phù hợp");
-          
-          showAlert({
-            type: 'success',
-            title: "Đã báo cáo",
-            message: `Đã báo cáo tin nhắn và chặn ${userName}. Cuộc trò chuyện đã bị ẩn.`,
-            onClose: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Chat' }],
-              });
-            },
+    setShowReportModal(true);
+  };
+
+  const handleSubmitReport = async (reason: string) => {
+    if (!selectedMessage || !selectedMessage.contentId || !currentUserId) return;
+    
+    setShowReportModal(false);
+    
+    try {
+      console.log(`🚨 Reporting message: contentId=${selectedMessage.contentId}, reason=${reason}`);
+      
+      // Report the message (backend will auto-block and delete chat)
+      await reportMessage(currentUserId, selectedMessage.contentId!, reason);
+      
+      showAlert({
+        type: 'success',
+        title: "Đã báo cáo",
+        message: `Đã báo cáo tin nhắn và chặn ${userName}. Cuộc trò chuyện đã bị ẩn.`,
+        onClose: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Chat' }],
           });
-        } catch (error: any) {
-          console.error('❌ Error reporting message:', error);
-          showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể gửi báo cáo. Vui lòng thử lại.' });
-        }
-      },
-    });
+        },
+      });
+    } catch (error: any) {
+      console.error('❌ Error reporting message:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể gửi báo cáo. Vui lòng thử lại.' });
+    }
   };
 
   const handleBlock = () => {
@@ -1102,6 +1109,14 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           showCancel={alertConfig.showCancel}
         />
       )}
+
+      {/* Report Message Modal */}
+      <ReportMessageModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        onSubmit={handleSubmitReport}
+        userName={userName}
+      />
     </View>
   );
 };
