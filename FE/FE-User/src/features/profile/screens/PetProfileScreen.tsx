@@ -35,6 +35,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const petIdStr = route.params?.petId || "0";
   const petId = parseInt(petIdStr, 10);
   const fromFavorite = route.params?.fromFavorite || false;
+  const fromChat = route.params?.fromChat || false;
 
   const [loading, setLoading] = useState(true);
   const [petData, setPetData] = useState<any>(null);
@@ -261,13 +262,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const handleReport = () => {
-    // TODO: Navigate to Report screen
-    navigation.navigate("Report" as any, { 
-      userId: pet.id, 
-      userName: pet.owner.name 
-    });
-  };
 
   const handleSendMatchRequest = async () => {
     try {
@@ -559,8 +553,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           )}
         </View>
 
-        {/* Action Buttons - Only show for other people's pets & not from Favorite */}
-        {!isMyPet && !fromFavorite && (
+        {/* Action Buttons - Only show for other people's pets & not from Favorite/Chat */}
+        {!isMyPet && !fromFavorite && !fromChat && (
           <View style={styles.actionsContainer}>
             {/* Main Action Button */}
             <TouchableOpacity
@@ -589,25 +583,14 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             {/* Safety Actions Row */}
             <View style={styles.safetyRow}>
               <TouchableOpacity 
-                style={styles.safetyButton}
-                onPress={handleReport}
-                activeOpacity={0.7}
-              >
-                <View style={styles.safetyIconBg}>
-                  <Icon name="flag" size={18} color="#FF9800" />
-                </View>
-                <Text style={styles.safetyButtonText}>Report</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.safetyButton}
+                style={[styles.safetyButton, styles.safetyButtonFull]}
                 onPress={handleBlock}
                 activeOpacity={0.7}
               >
                 <View style={styles.safetyIconBg}>
                   <Icon name="ban" size={18} color="#E94D6B" />
                 </View>
-                <Text style={styles.safetyButtonText}>Block</Text>
+                <Text style={styles.safetyButtonText}>Chặn</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1039,6 +1022,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     ...shadows.small,
+  },
+  safetyButtonFull: {
+    flex: 0,
+    width: "100%",
   },
   safetyIconBg: {
     width: 32,

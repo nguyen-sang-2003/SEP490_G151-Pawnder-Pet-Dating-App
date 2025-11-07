@@ -25,6 +25,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const [requests, setRequests] = useState<ExpertConfirmation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'answered' | 'pending'>('all');
 
   useFocusEffect(
     useCallback(() => {
@@ -105,51 +106,78 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   };
 
   const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Parse UTC time (backend sends UTC, add 'Z' if not present)
+    const utcString = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
+    const date = new Date(utcString);
     const now = new Date();
+    
+    // Calculate difference
     const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
+    // Same day - show relative time
     if (diffDays === 0) {
       const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-      return diffHours === 0 ? "Vừa xong" : `${diffHours} giờ trước`;
+      if (diffHours === 0) {
+        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+        return diffMinutes <= 1 ? "Vừa xong" : `${diffMinutes} phút trước`;
+      }
+      return `${diffHours} giờ trước`;
     }
+    
+    // Yesterday
     if (diffDays === 1) return "Hôm qua";
+    
+    // Within a week
     if (diffDays < 7) return `${diffDays} ngày trước`;
-    return date.toLocaleDateString('vi-VN');
+    
+    // Older - show full date time (will be in local timezone UTC+7)
+    return date.toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const renderRequest = ({ item }: { item: ExpertConfirmation }) => (
     <View style={styles.requestCard}>
-      {/* Header */}
-      <View style={styles.requestHeader}>
-        <View style={styles.statusBadge}>
+      {/* Header with Status */}
+      <View style={styles.cardHeader}>
+        <View style={styles.headerLeft}>
+          <Icon name="shield-checkmark" size={20} color="#4CAF50" />
+          <Text style={styles.cardTitle}>Yêu cầu chuyên gia</Text>
+        </View>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: `${getStatusColor(item.status)}20` },
+          ]}
+        >
           <Icon
             name={getStatusIcon(item.status)}
-            size={16}
+            size={12}
             color={getStatusColor(item.status)}
           />
           <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
             {getStatusLabel(item.status)}
           </Text>
         </View>
-        <Text style={styles.requestTime}>{formatTime(item.createdAt)}</Text>
       </View>
 
-      {/* Chat Info */}
-      <View style={styles.chatInfo}>
-        <Icon name="chatbubbles-outline" size={18} color="#9C27B0" />
-        <Text style={styles.chatTitle}>Chat AI #{item.chatAiId}</Text>
-      </View>
+      <View style={styles.divider} />
 
       {/* User Request Message */}
       {item.message && (
-        <View style={styles.questionBox}>
-          <View style={styles.questionHeader}>
-            <Icon name="document-text-outline" size={16} color={colors.primary} />
-            <Text style={styles.questionLabel}>Nội dung yêu cầu:</Text>
+        <View style={styles.messageSection}>
+          <Text style={styles.messageSectionLabel}>Nội dung yêu cầu:</Text>
+          <View style={styles.messageBox}>
+            <Icon name="document-text-outline" size={14} color={colors.textMedium} style={{ marginTop: 2 }} />
+            <Text style={styles.messageText} numberOfLines={5}>
+              {item.message}
+            </Text>
           </View>
-          <Text style={styles.questionText}>{item.message}</Text>
         </View>
       )}
 
@@ -157,17 +185,15 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       {(item.status.toLowerCase() === "answered" || 
         item.status.toLowerCase() === "approved" ||
         item.status.toLowerCase() === "confirmed") && (item as any).resultMessage && (
-        <View style={styles.expertResponseBox}>
+        <View style={styles.expertResponseSection}>
           <View style={styles.expertResponseHeader}>
-            <Icon name="shield-checkmark" size={18} color="#4CAF50" />
-            <Text style={styles.expertResponseLabel}>
-              Phản hồi của chuyên gia
-            </Text>
+            <Icon name="checkmark-circle" size={14} color="#4CAF50" />
+            <Text style={styles.expertResponseHeaderText}>Phản hồi của chuyên gia:</Text>
           </View>
           <Text style={styles.expertResponseText}>{(item as any).resultMessage}</Text>
           {item.updatedAt && (
             <Text style={styles.expertResponseTime}>
-              {formatTime(item.updatedAt)}
+              Trả lời lúc: {formatTime(item.updatedAt)}
             </Text>
           )}
         </View>
@@ -176,29 +202,56 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       {/* Pending Status */}
       {item.status.toLowerCase() === "pending" && (
         <View style={styles.pendingBox}>
-          <Icon name="hourglass-outline" size={20} color="#FF9800" />
+          <Icon name="hourglass-outline" size={16} color="#FF9800" />
           <Text style={styles.pendingText}>
             Đang chờ chuyên gia xem xét. Bạn sẽ nhận được thông báo khi có phản hồi.
           </Text>
         </View>
       )}
+
+      {/* Footer Date */}
+      <View style={styles.cardFooter}>
+        <Icon name="time-outline" size={12} color={colors.textLabel} />
+        <Text style={styles.footerDate}>{formatTime(item.createdAt)}</Text>
+      </View>
     </View>
   );
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Icon name="shield-checkmark-outline" size={80} color={colors.textLabel} />
-      <Text style={styles.emptyTitle}>Chưa có yêu cầu chuyên gia</Text>
-      <Text style={styles.emptyText}>
-        Khi bạn cần chuyên gia xác nhận lời khuyên của AI, các yêu cầu sẽ xuất hiện ở đây
-      </Text>
-    </View>
-  );
+  const renderEmpty = () => {
+    let emptyMessage = "Khi bạn cần chuyên gia xác nhận lời khuyên của AI, các yêu cầu sẽ xuất hiện ở đây";
+    let emptyTitle = "Chưa có yêu cầu chuyên gia";
+    
+    if (selectedFilter === 'answered') {
+      emptyTitle = "Chưa có yêu cầu được trả lời";
+      emptyMessage = "Các yêu cầu đã được chuyên gia trả lời sẽ xuất hiện ở đây";
+    } else if (selectedFilter === 'pending') {
+      emptyTitle = "Chưa có yêu cầu đang chờ";
+      emptyMessage = "Các yêu cầu đang chờ chuyên gia xử lý sẽ xuất hiện ở đây";
+    }
+    
+    return (
+      <View style={styles.emptyContainer}>
+        <Icon name="shield-checkmark-outline" size={80} color={colors.textLabel} />
+        <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+        <Text style={styles.emptyText}>{emptyMessage}</Text>
+      </View>
+    );
+  };
 
   const pendingCount = requests.filter((r) => r.status.toLowerCase() === "pending").length;
   const answeredCount = requests.filter((r) => 
     ["answered", "approved", "confirmed"].includes(r.status.toLowerCase())
   ).length;
+
+  // Filter requests based on selected filter
+  const filteredRequests = requests.filter((r) => {
+    if (selectedFilter === 'all') return true;
+    if (selectedFilter === 'pending') return r.status.toLowerCase() === 'pending';
+    if (selectedFilter === 'answered') {
+      return ["answered", "approved", "confirmed"].includes(r.status.toLowerCase());
+    }
+    return true;
+  });
 
   return (
     <View style={styles.container}>
@@ -215,26 +268,63 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Stats */}
+        {/* Stats - Filterable */}
         {!loading && requests.length > 0 && (
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
+            {/* Answered */}
+            <TouchableOpacity
+              style={[
+                styles.statCard,
+                selectedFilter === 'answered' && styles.statCardActive,
+              ]}
+              onPress={() => setSelectedFilter('answered')}
+              activeOpacity={0.7}
+            >
               <Icon name="shield-checkmark" size={24} color="#4CAF50" />
               <Text style={styles.statNumber}>{answeredCount}</Text>
               <Text style={styles.statLabel}>Đã trả lời</Text>
-            </View>
+            </TouchableOpacity>
 
-            <View style={styles.statCard}>
+            {/* Pending */}
+            <TouchableOpacity
+              style={[
+                styles.statCard,
+                selectedFilter === 'pending' && styles.statCardActive,
+              ]}
+              onPress={() => setSelectedFilter('pending')}
+              activeOpacity={0.7}
+            >
               <Icon name="hourglass" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>{pendingCount}</Text>
               <Text style={styles.statLabel}>Chờ xử lý</Text>
-            </View>
+            </TouchableOpacity>
 
-            <View style={styles.statCard}>
+            {/* Total (All) */}
+            <TouchableOpacity
+              style={[
+                styles.statCard,
+                selectedFilter === 'all' && styles.statCardActive,
+              ]}
+              onPress={() => setSelectedFilter('all')}
+              activeOpacity={0.7}
+            >
               <Icon name="documents" size={24} color={colors.primary} />
               <Text style={styles.statNumber}>{requests.length}</Text>
               <Text style={styles.statLabel}>Tổng cộng</Text>
-            </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Filter Info */}
+        {!loading && requests.length > 0 && (
+          <View style={styles.filterInfo}>
+            <Text style={styles.filterInfoText}>
+              {selectedFilter === 'all' 
+                ? `Hiển thị tất cả ${filteredRequests.length} yêu cầu`
+                : selectedFilter === 'answered'
+                ? `${filteredRequests.length} yêu cầu đã được trả lời`
+                : `${filteredRequests.length} yêu cầu đang chờ xử lý`}
+            </Text>
           </View>
         )}
 
@@ -255,7 +345,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         ) : (
           /* Requests List */
           <FlatList
-            data={requests}
+            data={filteredRequests}
             renderItem={renderRequest}
             keyExtractor={(item) => `${item.userId}-${item.chatAiId}-${item.expertId}`}
             contentContainerStyle={styles.listContent}
@@ -322,6 +412,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "center",
     ...shadows.small,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  statCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    transform: [{ scale: 1.02 }],
+    ...shadows.medium,
   },
   statNumber: {
     fontSize: 22,
@@ -333,6 +431,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMedium,
     marginTop: 2,
+  },
+
+  // Filter Info
+  filterInfo: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  filterInfoText: {
+    fontSize: 13,
+    color: colors.textMedium,
+    fontWeight: "600",
   },
 
   // Info Banner
@@ -363,148 +473,141 @@ const styles = StyleSheet.create({
 
   // Request Card
   requestCard: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 16,
     marginBottom: 14,
-    ...shadows.medium,
+    ...shadows.small,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
   },
-  requestHeader: {
+
+  // Card Header
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.textDark,
+  },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: radius.full,
-    backgroundColor: colors.cardBackgroundLight,
   },
   statusText: {
     fontSize: 12,
     fontWeight: "600",
   },
-  requestTime: {
-    fontSize: 12,
-    color: colors.textMedium,
-  },
 
-  // Chat Info
-  chatInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: "#F0F0F0",
     marginBottom: 12,
   },
-  chatTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#9C27B0",
-  },
 
-  // Question Box
-  questionBox: {
-    backgroundColor: colors.primaryPastel,
+  // Message Section
+  messageSection: {
+    marginBottom: 12,
+  },
+  messageSectionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textDark,
+    marginBottom: 8,
+  },
+  messageBox: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#F8F8F8",
     padding: 12,
     borderRadius: radius.md,
-    marginBottom: 10,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
   },
-  questionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 6,
-  },
-  questionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  questionText: {
+  messageText: {
+    flex: 1,
     fontSize: 14,
     color: colors.textDark,
     lineHeight: 20,
   },
 
-  // AI Response Box
-  aiResponseBox: {
-    backgroundColor: colors.purplePastel,
+  // Expert Response Section
+  expertResponseSection: {
+    backgroundColor: "#F1F8F4",
     padding: 12,
     borderRadius: radius.md,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: "#9C27B0",
-  },
-  aiResponseHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 6,
-  },
-  aiResponseLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#9C27B0",
-  },
-  aiResponseText: {
-    fontSize: 14,
-    color: colors.textDark,
-    lineHeight: 20,
-  },
-
-  // Expert Response Box
-  expertResponseBox: {
-    backgroundColor: "rgba(76, 175, 80, 0.1)",
-    padding: 14,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: "#4CAF50",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
   },
   expertResponseHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     marginBottom: 8,
   },
-  expertResponseLabel: {
+  expertResponseHeaderText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#4CAF50",
+    color: "#2E7D32",
   },
   expertResponseText: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textDark,
-    lineHeight: 22,
-    marginBottom: 8,
+    lineHeight: 20,
+    marginBottom: 6,
   },
   expertResponseTime: {
     fontSize: 11,
     color: colors.textMedium,
-    textAlign: "right",
+    fontStyle: "italic",
   },
 
   // Pending Box
   pendingBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     backgroundColor: "#FFF8E1",
     padding: 12,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: "#FFE082",
+    marginBottom: 12,
   },
   pendingText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: "#F57C00",
     lineHeight: 18,
+  },
+
+  // Card Footer
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F5F5F5",
+  },
+  footerDate: {
+    fontSize: 11,
+    color: colors.textLabel,
   },
 
   // Loading State

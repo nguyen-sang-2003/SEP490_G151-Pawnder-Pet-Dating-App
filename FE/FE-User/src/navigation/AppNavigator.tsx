@@ -79,7 +79,7 @@ export type RootStackParamList = {
   Favorite: undefined;
   Profile: undefined;
   Notification: undefined;
-  PetProfile: { petId: string; fromFavorite?: boolean };
+  PetProfile: { petId: string; fromFavorite?: boolean; fromChat?: boolean };
   EditProfile: { userId?: number };
   EditPet: { petId: string };
   AddPet: undefined;

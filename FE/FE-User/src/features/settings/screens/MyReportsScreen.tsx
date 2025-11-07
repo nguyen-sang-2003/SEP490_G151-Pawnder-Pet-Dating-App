@@ -24,6 +24,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'resolved' | 'pending'>('all');
 
   useFocusEffect(
     useCallback(() => {
@@ -98,19 +99,33 @@ const MyReportsScreen = ({ navigation }: Props) => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse UTC time (backend sends UTC, add 'Z' if not present)
+    const utcString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
+    const date = new Date(utcString);
     const now = new Date();
+    
     const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return "Hôm nay";
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+      if (diffHours === 0) {
+        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+        return diffMinutes <= 1 ? "Vừa xong" : `${diffMinutes} phút trước`;
+      }
+      return `${diffHours} giờ trước`;
+    }
     if (diffDays === 1) return "Hôm qua";
     if (diffDays < 7) return `${diffDays} ngày trước`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
-    return date.toLocaleDateString("vi-VN", {
+    
+    // Older - show full date time
+    return date.toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -219,16 +234,38 @@ const MyReportsScreen = ({ navigation }: Props) => {
     );
   };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Icon name="document-text-outline" size={80} color={colors.textLabel} />
-      <Text style={styles.emptyTitle}>Chưa có báo cáo nào</Text>
-      <Text style={styles.emptyText}>
-        Bạn chưa gửi báo cáo nào.{"\n"}
-        Lịch sử báo cáo của bạn sẽ hiển thị ở đây.
-      </Text>
-    </View>
-  );
+  const renderEmpty = () => {
+    let emptyMessage = "Bạn chưa gửi báo cáo nào.\nLịch sử báo cáo của bạn sẽ hiển thị ở đây.";
+    let emptyTitle = "Chưa có báo cáo nào";
+    
+    if (selectedFilter === 'resolved') {
+      emptyTitle = "Chưa có báo cáo được xử lý";
+      emptyMessage = "Các báo cáo đã được xử lý sẽ xuất hiện ở đây";
+    } else if (selectedFilter === 'pending') {
+      emptyTitle = "Chưa có báo cáo đang chờ";
+      emptyMessage = "Các báo cáo đang chờ xử lý sẽ xuất hiện ở đây";
+    }
+    
+    return (
+      <View style={styles.emptyContainer}>
+        <Icon name="document-text-outline" size={80} color={colors.textLabel} />
+        <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+        <Text style={styles.emptyText}>{emptyMessage}</Text>
+      </View>
+    );
+  };
+
+  // Calculate counts
+  const resolvedCount = reports.filter((r) => r.status?.toLowerCase() === "resolved").length;
+  const pendingCount = reports.filter((r) => r.status?.toLowerCase() === "pending").length;
+
+  // Filter reports based on selected filter
+  const filteredReports = reports.filter((r) => {
+    if (selectedFilter === 'all') return true;
+    if (selectedFilter === 'resolved') return r.status?.toLowerCase() === 'resolved';
+    if (selectedFilter === 'pending') return r.status?.toLowerCase() === 'pending';
+    return true;
+  });
 
   if (loading) {
     return (
@@ -271,36 +308,69 @@ const MyReportsScreen = ({ navigation }: Props) => {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Stats */}
+        {/* Stats - Filterable */}
         {reports.length > 0 && (
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
+            {/* Total */}
+            <TouchableOpacity
+              style={[
+                styles.statCard,
+                selectedFilter === 'all' && styles.statCardActive,
+              ]}
+              onPress={() => setSelectedFilter('all')}
+              activeOpacity={0.7}
+            >
               <Icon name="flag" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>{reports.length}</Text>
               <Text style={styles.statLabel}>Tổng số</Text>
-            </View>
+            </TouchableOpacity>
 
-            <View style={styles.statCard}>
+            {/* Resolved */}
+            <TouchableOpacity
+              style={[
+                styles.statCard,
+                selectedFilter === 'resolved' && styles.statCardActive,
+              ]}
+              onPress={() => setSelectedFilter('resolved')}
+              activeOpacity={0.7}
+            >
               <Icon name="checkmark-circle" size={24} color="#4CAF50" />
-              <Text style={styles.statNumber}>
-                {reports.filter((r) => r.status?.toLowerCase() === "resolved").length}
-              </Text>
+              <Text style={styles.statNumber}>{resolvedCount}</Text>
               <Text style={styles.statLabel}>Đã xử lý</Text>
-            </View>
+            </TouchableOpacity>
 
-            <View style={styles.statCard}>
+            {/* Pending */}
+            <TouchableOpacity
+              style={[
+                styles.statCard,
+                selectedFilter === 'pending' && styles.statCardActive,
+              ]}
+              onPress={() => setSelectedFilter('pending')}
+              activeOpacity={0.7}
+            >
               <Icon name="time" size={24} color="#FF9800" />
-              <Text style={styles.statNumber}>
-                {reports.filter((r) => r.status?.toLowerCase() === "pending").length}
-              </Text>
+              <Text style={styles.statNumber}>{pendingCount}</Text>
               <Text style={styles.statLabel}>Đang xử lý</Text>
-            </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Filter Info */}
+        {reports.length > 0 && (
+          <View style={styles.filterInfo}>
+            <Text style={styles.filterInfoText}>
+              {selectedFilter === 'all' 
+                ? `Hiển thị tất cả ${filteredReports.length} báo cáo`
+                : selectedFilter === 'resolved'
+                ? `${filteredReports.length} báo cáo đã được xử lý`
+                : `${filteredReports.length} báo cáo đang chờ xử lý`}
+            </Text>
           </View>
         )}
 
         {/* Reports List */}
         <FlatList
-          data={reports}
+          data={filteredReports}
           renderItem={renderReport}
           keyExtractor={(item) => item.reportId.toString()}
           contentContainerStyle={styles.listContent}
@@ -366,6 +436,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "center",
     ...shadows.small,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  statCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    transform: [{ scale: 1.02 }],
+    ...shadows.medium,
   },
   statNumber: {
     fontSize: 24,
@@ -377,6 +455,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMedium,
     marginTop: 4,
+  },
+
+  // Filter Info
+  filterInfo: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  filterInfoText: {
+    fontSize: 13,
+    color: colors.textMedium,
+    fontWeight: "600",
   },
 
   // List

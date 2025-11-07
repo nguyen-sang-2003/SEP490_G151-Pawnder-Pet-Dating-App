@@ -23,7 +23,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser, reportMessage, getUserById } from "../../../api";
+import { getChatMessages, sendMessage, deleteChat, ChatMessage, blockUser, reportMessage, getUserById, getPetsByUserId } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -523,12 +523,54 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     setShowMenuModal(false);
   };
 
-  const handleViewProfile = () => {
+  const handleViewProfile = async () => {
     closeMenu();
-    // Note: We need petId, not userId. This might need adjustment based on your data structure
-    // For now, navigate to Chat screen
-    console.log('ℹ️ View profile - need to get petId for otherUserId:', otherUserId);
-    showAlert({ type: 'info', title: 'Thông báo', message: 'Chức năng xem profile đang được phát triển' });
+    
+    try {
+      console.log('📱 Fetching pets for userId:', otherUserId);
+      
+      // Get pets of the other user
+      const pets = await getPetsByUserId(otherUserId);
+      
+      if (!pets || pets.length === 0) {
+        showAlert({ 
+          type: 'info', 
+          title: 'Thông báo', 
+          message: 'Người dùng này chưa có thông tin thú cưng' 
+        });
+        return;
+      }
+      
+      // Get the first pet (or active pet if you have that logic)
+      const firstPet = pets[0];
+      const petId = firstPet.petId || firstPet.PetId;
+      const petName = firstPet.name || firstPet.Name || 'Pet';
+      
+      if (!petId) {
+        showAlert({ 
+          type: 'error', 
+          title: 'Lỗi', 
+          message: 'Không tìm thấy thông tin thú cưng' 
+        });
+        return;
+      }
+      
+      console.log('✅ Found pet:', petId, petName);
+      
+      // Navigate to PetProfile screen (from chat = already matched)
+      navigation.navigate('PetProfile' as any, { 
+        petId: petId.toString(),
+        fromChat: true  // Hide match/report/block actions
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error loading pet profile:', error);
+      showAlert({ 
+        type: 'error', 
+        title: 'Lỗi', 
+        message: 'Không thể tải thông tin profile. Vui lòng thử lại.' 
+      });
+    }
   };
 
   const handleUnmatch = async () => {
@@ -560,15 +602,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể hủy kết nối. Vui lòng thử lại.' });
         }
       },
-    });
-  };
-
-  const handleReport = () => {
-    closeMenu();
-    // Navigate to Report screen (user report)
-    navigation.navigate("Report" as any, { 
-      userId: otherUserId.toString(), 
-      userName: userName 
     });
   };
 
@@ -1011,8 +1044,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="person-circle-outline" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={styles.menuOptionTitle}>View Full Profile</Text>
-                  <Text style={styles.menuOptionDesc}>See all pet photos & details</Text>
+                  <Text style={styles.menuOptionTitle}>Xem profile</Text>
+                  <Text style={styles.menuOptionDesc}>Xem ảnh và thông tin thú cưng</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -1027,18 +1060,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 <View style={styles.menuOptionText}>
                   <Text style={styles.menuOptionTitle}>Hủy kết nối</Text>
                   <Text style={styles.menuOptionDesc}>Ẩn kết nối này</Text>
-                </View>
-                <Icon name="chevron-forward" size={20} color={colors.textMedium} />
-              </TouchableOpacity>
-
-              {/* Report */}
-              <TouchableOpacity style={styles.menuOption} onPress={handleReport}>
-                <View style={[styles.menuIconContainer, { backgroundColor: "#FFF3E0" }]}>
-                  <Icon name="flag-outline" size={22} color="#FF9800" />
-                </View>
-                <View style={styles.menuOptionText}>
-                  <Text style={styles.menuOptionTitle}>Báo cáo</Text>
-                  <Text style={styles.menuOptionDesc}>Báo cáo hành vi không phù hợp</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
