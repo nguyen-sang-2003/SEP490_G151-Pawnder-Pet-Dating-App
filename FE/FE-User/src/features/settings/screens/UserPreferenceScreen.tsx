@@ -62,7 +62,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
       setUserId(uid);
 
       // Load attributes
-      const attrs = await getAttributesForFilter();
+      const { attributes: attrs } = await getAttributesForFilter();
       setAttributes(attrs);
       console.log('📋 Loaded attributes:', attrs);
 

@@ -305,6 +305,7 @@ namespace BE.Controllers
                         Name = a.Name,
                         TypeValue = a.TypeValue,
                         Unit = a.Unit,
+                        Percent = a.Percent,
                         Options = a.AttributeOptions
                             .Where(o => o.IsDeleted == false)
                             .Select(o => new
@@ -316,10 +317,30 @@ namespace BE.Controllers
                     })
                     .ToListAsync(ct);
 
+                // Tính các thống kê để suggest
+                var totalPercent = attributes
+                    .Where(a => a.Percent != null && a.Percent > 0)
+                    .Sum(a => a.Percent ?? 0);
+
+                var topAttributes = attributes
+                    .Where(a => a.Percent != null && a.Percent > 0)
+                    .OrderByDescending(a => a.Percent)
+                    .Take(3)
+                    .Select(a => a.Name)
+                    .ToList();
+
                 return Ok(new
                 {
                     message = "Lấy danh sách thuộc tính để filter thành công.",
-                    data = attributes
+                    data = attributes,
+                    suggestion = new
+                    {
+                        topAttributes = topAttributes,
+                        totalPercent = Math.Round(totalPercent, 1),
+                        message = topAttributes.Count > 0 
+                            ? $"Chọn filter theo {string.Join(", ", topAttributes.Take(2))} để tìm match phù hợp hơn!" 
+                            : null
+                    }
                 });
             }
             catch (Exception)

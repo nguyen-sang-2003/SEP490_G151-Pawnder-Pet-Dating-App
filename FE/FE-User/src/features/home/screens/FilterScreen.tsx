@@ -21,7 +21,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getAttributesForFilter, AttributeForFilter } from "../../../api/attributes";
+import { getAttributesForFilter, AttributeForFilter, FilterSuggestion } from "../../../api/attributes";
 import { saveUserPreferencesBatch, getUserPreferences } from "../../../api/preferences";
 
 const { width } = Dimensions.get("window");
@@ -43,6 +43,7 @@ const FilterScreen = ({ navigation }: Props) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [attributes, setAttributes] = useState<AttributeForFilter[]>([]);
+    const [suggestion, setSuggestion] = useState<FilterSuggestion | null>(null);
     const [activeFilters, setActiveFilters] = useState<{ [key: number]: ActiveFilter }>({});
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
@@ -87,8 +88,9 @@ const FilterScreen = ({ navigation }: Props) => {
             setCurrentUserId(userId);
 
             // Load attributes
-            const attributesData = await getAttributesForFilter();
+            const { attributes: attributesData, suggestion: suggestionData } = await getAttributesForFilter();
             setAttributes(attributesData);
+            setSuggestion(suggestionData);
 
             // Load existing preferences
             const preferencesData = await getUserPreferences(userId);
@@ -407,6 +409,24 @@ const FilterScreen = ({ navigation }: Props) => {
                         transform: [{ translateY: slideAnim }],
                     }}
                 >
+                    {/* Suggestion Banner */}
+                    {suggestion?.message && (
+                        <View style={styles.suggestionBanner}>
+                            <LinearGradient
+                                colors={['#E8F5E9', '#F1F8E9']}
+                                style={styles.suggestionGradient}
+                            >
+                                <View style={styles.suggestionIcon}>
+                                    <Icon name="sparkles" size={22} color="#4CAF50" />
+                                </View>
+                                <View style={styles.suggestionContent}>
+                                    <Text style={styles.suggestionTitle}>💡 Mẹo nhỏ</Text>
+                                    <Text style={styles.suggestionText}>{suggestion.message}</Text>
+                                </View>
+                            </LinearGradient>
+                        </View>
+                    )}
+
                     {/* Distance Section */}
                     {distanceAttribute && (() => {
                         const maxValue = activeFilters[distanceAttribute.AttributeId]?.maxValue || maxDistanceLimit;
@@ -564,37 +584,65 @@ const FilterScreen = ({ navigation }: Props) => {
                                 <Icon name="sparkles" size={22} color={colors.primary} />
                                 <Text style={styles.sectionTitle}>Appearance</Text>
                             </View>
-                            {stringAttributes.map((attribute) => (
-                                <View key={attribute.AttributeId} style={styles.optionCard}>
-                                    <Text style={styles.optionLabel}>{attribute.Name}</Text>
-                                    <View style={styles.chipsContainer}>
-                                        {attribute.Options?.map((option) => {
-                                            const isSelected = activeFilters[attribute.AttributeId]?.optionId === option.OptionId;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={option.OptionId}
-                                                    onPress={() => toggleOption(attribute.AttributeId, option.OptionId)}
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <LinearGradient
-                                                        colors={isSelected ? gradients.primary : ["#F5F5F5", "#F5F5F5"]}
-                                                        style={styles.chip}
-                                                        start={{ x: 0, y: 0 }}
-                                                        end={{ x: 1, y: 1 }}
+                            {stringAttributes.map((attribute) => {
+                                const percent = attribute.Percent ?? 0;
+                                const isHighWeight = percent >= 9; // >= 9%: Rất quan trọng
+                                const isMediumWeight = percent >= 7 && percent < 9; // 7-8%: Quan trọng
+                                const isRecommended = isHighWeight || isMediumWeight;
+                                
+                                // Xác định label và màu
+                                let badge = null;
+                                if (isHighWeight) {
+                                    badge = { label: 'Ưu tiên', icon: 'star', color: '#FF6B6B', bgColor: '#FFE5E5' };
+                                } else if (isMediumWeight) {
+                                    badge = { label: 'Nên chọn', icon: 'heart', color: '#FF9800', bgColor: '#FFF3E0' };
+                                }
+                                
+                                return (
+                                    <View key={attribute.AttributeId} style={[
+                                        styles.optionCard,
+                                        isRecommended && styles.optionCardHighlighted
+                                    ]}>
+                                        <View style={styles.optionLabelContainer}>
+                                            <Text style={styles.optionLabel}>{attribute.Name}</Text>
+                                            {badge && (
+                                                <View style={[styles.highWeightBadge, { backgroundColor: badge.bgColor }]}>
+                                                    <Icon name={badge.icon} size={12} color={badge.color} />
+                                                    <Text style={[styles.highWeightText, { color: badge.color }]}>
+                                                        {badge.label}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <View style={styles.chipsContainer}>
+                                            {attribute.Options?.map((option) => {
+                                                const isSelected = activeFilters[attribute.AttributeId]?.optionId === option.OptionId;
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={option.OptionId}
+                                                        onPress={() => toggleOption(attribute.AttributeId, option.OptionId)}
+                                                        activeOpacity={0.7}
                                                     >
-                                                        {isSelected && (
-                                                            <Icon name="checkmark-circle" size={16} color="#FFF" style={styles.chipIcon} />
-                                                        )}
-                                                        <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                                                            {option.Name}
-                                                        </Text>
-                                                    </LinearGradient>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
+                                                        <LinearGradient
+                                                            colors={isSelected ? gradients.primary : ["#F5F5F5", "#F5F5F5"]}
+                                                            style={styles.chip}
+                                                            start={{ x: 0, y: 0 }}
+                                                            end={{ x: 1, y: 1 }}
+                                                        >
+                                                            {isSelected && (
+                                                                <Icon name="checkmark-circle" size={16} color="#FFF" style={styles.chipIcon} />
+                                                            )}
+                                                            <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                                                                {option.Name}
+                                                            </Text>
+                                                        </LinearGradient>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </View>
                                     </View>
-                                </View>
-                            ))}
+                                );
+                            })}
                         </View>
                     )}
 
@@ -813,6 +861,43 @@ const styles = StyleSheet.create({
         ...shadows.medium,
     },
 
+    // Suggestion Banner
+    suggestionBanner: {
+        marginBottom: 24,
+        borderRadius: 16,
+        overflow: 'hidden',
+        ...shadows.medium,
+    },
+    suggestionGradient: {
+        flexDirection: 'row',
+        padding: 16,
+        alignItems: 'center',
+    },
+    suggestionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(76, 175, 80, 0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    suggestionContent: {
+        flex: 1,
+    },
+    suggestionTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#388E3C',
+        marginBottom: 4,
+    },
+    suggestionText: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#558B2F',
+        lineHeight: 18,
+    },
+
     // Option Card
     optionCard: {
         backgroundColor: "#FFF",
@@ -821,11 +906,34 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         ...shadows.medium,
     },
+    optionCardHighlighted: {
+        borderWidth: 2,
+        borderColor: '#FFE0E0',
+        backgroundColor: '#FFFAFA',
+        ...shadows.large,
+    },
+    optionLabelContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
     optionLabel: {
         fontSize: 16,
         fontWeight: "600",
         color: colors.textDark,
-        marginBottom: 16,
+    },
+    highWeightBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+        gap: 4,
+    },
+    highWeightText: {
+        fontSize: 11,
+        fontWeight: '700',
     },
     chipsContainer: {
         flexDirection: "row",

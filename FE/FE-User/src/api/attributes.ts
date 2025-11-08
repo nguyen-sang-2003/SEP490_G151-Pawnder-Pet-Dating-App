@@ -19,7 +19,14 @@ export interface AttributeForFilter {
   Name: string;
   TypeValue: string | null;
   Unit: string | null;
+  Percent?: number | null;
   Options: AttributeOption[];
+}
+
+export interface FilterSuggestion {
+  topAttributes: string[];
+  totalPercent: number;
+  message: string | null;
 }
 
 /**
@@ -48,24 +55,36 @@ export const getAttributes = async (): Promise<Attribute[]> => {
  * Get attributes for filter with options
  * Route: GET /api/attribute/for-filter
  */
-export const getAttributesForFilter = async (): Promise<AttributeForFilter[]> => {
+export const getAttributesForFilter = async (): Promise<{ 
+  attributes: AttributeForFilter[]; 
+  suggestion: FilterSuggestion 
+}> => {
   try {
 
     const response = await client.get('/api/attribute/for-filter');
 
     
     const attrs = response.data.data || [];
+    const suggestion = response.data.suggestion || { topAttributes: [], totalPercent: 0, message: null };
     
-    return attrs.map((attr: any) => ({
-      AttributeId: attr.attributeId || attr.AttributeId,
-      Name: attr.name || attr.Name,
-      TypeValue: attr.typeValue || attr.TypeValue,
-      Unit: attr.unit || attr.Unit,
-      Options: (attr.options || attr.Options || []).map((opt: any) => ({
-        OptionId: opt.optionId || opt.OptionId,
-        Name: opt.name || opt.Name,
+    return {
+      attributes: attrs.map((attr: any) => ({
+        AttributeId: attr.attributeId || attr.AttributeId,
+        Name: attr.name || attr.Name,
+        TypeValue: attr.typeValue || attr.TypeValue,
+        Unit: attr.unit || attr.Unit,
+        Percent: attr.percent ?? attr.Percent,
+        Options: (attr.options || attr.Options || []).map((opt: any) => ({
+          OptionId: opt.optionId || opt.OptionId,
+          Name: opt.name || opt.Name,
+        })),
       })),
-    }));
+      suggestion: {
+        topAttributes: suggestion.topAttributes || [],
+        totalPercent: suggestion.totalPercent || 0,
+        message: suggestion.message || null,
+      }
+    };
   } catch (error: any) {
     console.error('❌ Error fetching attributes for filter:', error);
     throw error;

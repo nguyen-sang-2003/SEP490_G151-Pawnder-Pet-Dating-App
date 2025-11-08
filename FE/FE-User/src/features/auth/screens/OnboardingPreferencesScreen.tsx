@@ -64,7 +64,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       const uid = parseInt(userIdStr, 10);
       setUserId(uid);
 
-      const attrs = await getAttributesForFilter();
+      const { attributes: attrs } = await getAttributesForFilter();
       setAttributes(attrs);
       console.log('📋 Loaded attributes:', attrs);
     } catch (error: any) {
