@@ -11,4 +11,5 @@ export { default as SettingsScreen } from "./SettingsScreen";
 export { default as BlockedUsersScreen } from "./BlockedUsersScreen";
 export { default as PaymentHistoryScreen } from "./PaymentHistoryScreen";
 export { default as PaymentMethodScreen } from "./PaymentMethodScreen";
+export { default as QRPaymentScreen } from "./QRPaymentScreen";
 export { default as ChangePasswordScreen } from "./ChangePasswordScreen";

@@ -42,6 +42,7 @@ import SettingsScreen from "../features/settings/screens/SettingsScreen";
 import BlockedUsersScreen from "../features/settings/screens/BlockedUsersScreen";
 import PaymentHistoryScreen from "../features/settings/screens/PaymentHistoryScreen";
 import PaymentMethodScreen from "../features/settings/screens/PaymentMethodScreen";
+import QRPaymentScreen from "../features/settings/screens/QRPaymentScreen";
 import ChangePasswordScreen from "../features/settings/screens/ChangePasswordScreen";
 import { getAuthToken } from "../api/auth";
 
@@ -96,6 +97,12 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   PaymentHistory: undefined;
   PaymentMethod: undefined;
+  QRPayment: {
+    planId: string;
+    planName: string;
+    amount: number;
+    duration: string;
+  };
   ChangePassword: undefined;
 };
 
@@ -179,6 +186,7 @@ const AppNavigator = () => {
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
         <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
         <Stack.Screen name="PaymentMethod" component={PaymentMethodScreen} />
+        <Stack.Screen name="QRPayment" component={QRPaymentScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       </Stack.Navigator>
     </NavigationContainer>

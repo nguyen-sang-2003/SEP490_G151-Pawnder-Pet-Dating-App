@@ -21,58 +21,52 @@ type Props = NativeStackScreenProps<RootStackParamList, "Premium">;
 interface Feature {
   icon: string;
   title: string;
-  free: boolean;
-  premium: boolean;
+  free: string;
+  premium: string;
 }
 
 const features: Feature[] = [
   {
     icon: "heart",
-    title: "Unlimited Likes",
-    free: false,
-    premium: true,
+    title: "Daily Matches",
+    free: "15/day",
+    premium: "Unlimited",
+  },
+  {
+    icon: "chatbubbles",
+    title: "AI Chat & Confirm",
+    free: "3/day",
+    premium: "Unlimited",
   },
   {
     icon: "eye",
     title: "See Who Liked You",
-    free: false,
-    premium: true,
+    free: "No",
+    premium: "Yes",
   },
   {
     icon: "filter",
     title: "Advanced Filters",
-    free: false,
-    premium: true,
-  },
-  {
-    icon: "ban",
-    title: "No Ads",
-    free: false,
-    premium: true,
+    free: "No",
+    premium: "Yes",
   },
   {
     icon: "shield-checkmark",
     title: "Verified Badge",
-    free: false,
-    premium: true,
+    free: "No",
+    premium: "Yes",
   },
   {
     icon: "paw",
-    title: "Browse Cats",
-    free: true,
-    premium: true,
-  },
-  {
-    icon: "chatbubbles",
-    title: "Chat with Matches",
-    free: true,
-    premium: true,
+    title: "Browse Pets",
+    free: "Yes",
+    premium: "Yes",
   },
   {
     icon: "notifications",
     title: "Get Notifications",
-    free: true,
-    premium: true,
+    free: "Yes",
+    premium: "Yes",
   },
 ];
 
@@ -80,25 +74,33 @@ const pricingPlans = [
   {
     id: "1month",
     duration: "1 Month",
-    price: "99,000₫",
-    pricePerMonth: "99,000₫/month",
+    price: "125,000₫",
+    pricePerMonth: "125,000₫/month",
     savings: null,
     popular: false,
   },
   {
     id: "3months",
     duration: "3 Months",
-    price: "249,000₫",
-    pricePerMonth: "83,000₫/month",
+    price: "315,000₫",
+    pricePerMonth: "105,000₫/month",
     savings: "Save 16%",
     popular: true,
   },
   {
     id: "6months",
     duration: "6 Months",
-    price: "399,000₫",
-    pricePerMonth: "66,500₫/month",
-    savings: "Save 33%",
+    price: "540,000₫",
+    pricePerMonth: "90,000₫/month",
+    savings: "Save 28%",
+    popular: false,
+  },
+  {
+    id: "12months",
+    duration: "12 Months",
+    price: "960,000₫",
+    pricePerMonth: "80,000₫/month",
+    savings: "Save 36%",
     popular: false,
   },
 ];
@@ -108,15 +110,27 @@ const PremiumScreen = ({ navigation }: Props) => {
 
   const handleSubscribe = () => {
     const plan = pricingPlans.find((p) => p.id === selectedPlan);
+    if (!plan) return;
+    
     console.log("Subscribe to:", plan);
-    // Navigate to payment screen
+    
+    // Parse amount from price string (e.g., "125,000₫" -> 125000)
+    const amount = parseInt(plan.price.replace(/[,₫]/g, ""));
+    
+    // Navigate to QR payment screen with plan details
+    navigation.navigate("QRPayment", {
+      planId: plan.id,
+      planName: `Pawnder Premium - ${plan.duration}`,
+      amount: amount,
+      duration: plan.duration,
+    });
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={["#FFD700", "#FFA500", "#FF6EA7"]}
+        colors={["#1a1a2e", "#16213e", "#0f3460"]}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -129,13 +143,22 @@ const PremiumScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
 
         <View style={styles.headerContent}>
-          <View style={styles.crownIcon}>
-            <Icon name="star" size={60} color="#FFD700" />
-          </View>
-          <Text style={styles.headerTitle}>Go Premium</Text>
+          <LinearGradient
+            colors={["#FFD700", "#FFA500", "#FF8C00"]}
+            style={styles.crownIconGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Icon name="diamond" size={48} color="#fff" />
+          </LinearGradient>
+          <Text style={styles.headerTitle}>Pawnder Premium</Text>
           <Text style={styles.headerSubtitle}>
-            Find the perfect match for your cat faster
+            Unlock unlimited possibilities for your pets
           </Text>
+          <View style={styles.priceTag}>
+            <Text style={styles.priceAmount}>125,000₫</Text>
+            <Text style={styles.priceMonth}>/month</Text>
+          </View>
         </View>
       </LinearGradient>
 
@@ -150,45 +173,53 @@ const PremiumScreen = ({ navigation }: Props) => {
           <View style={styles.benefitsGrid}>
             <View style={styles.benefitCard}>
               <LinearGradient
-                colors={["#FF6EA7", "#FF9BC0"]}
+                colors={["#667eea", "#764ba2"]}
                 style={styles.benefitGradient}
               >
-                <Icon name="heart" size={32} color="#fff" />
-                <Text style={styles.benefitTitle}>Unlimited</Text>
-                <Text style={styles.benefitDesc}>Likes</Text>
+                <View style={styles.benefitIconCircle}>
+                  <Icon name="heart" size={28} color="#667eea" />
+                </View>
+                <Text style={styles.benefitTitle}>Unlimited Matches</Text>
+                <Text style={styles.benefitDesc}>Send unlimited likes daily</Text>
               </LinearGradient>
             </View>
 
             <View style={styles.benefitCard}>
               <LinearGradient
-                colors={["#9C27B0", "#BA68C8"]}
+                colors={["#f093fb", "#f5576c"]}
                 style={styles.benefitGradient}
               >
-                <Icon name="eye" size={32} color="#fff" />
-                <Text style={styles.benefitTitle}>See Who</Text>
-                <Text style={styles.benefitDesc}>Liked You</Text>
+                <View style={styles.benefitIconCircle}>
+                  <Icon name="chatbubbles" size={28} color="#f093fb" />
+                </View>
+                <Text style={styles.benefitTitle}>Unlimited AI</Text>
+                <Text style={styles.benefitDesc}>Ask AI anytime you want</Text>
               </LinearGradient>
             </View>
 
             <View style={styles.benefitCard}>
               <LinearGradient
-                colors={["#FF9800", "#FFB74D"]}
+                colors={["#4facfe", "#00f2fe"]}
                 style={styles.benefitGradient}
               >
-                <Icon name="filter" size={32} color="#fff" />
-                <Text style={styles.benefitTitle}>Advanced</Text>
-                <Text style={styles.benefitDesc}>Filters</Text>
+                <View style={styles.benefitIconCircle}>
+                  <Icon name="eye" size={28} color="#4facfe" />
+                </View>
+                <Text style={styles.benefitTitle}>See Who Likes</Text>
+                <Text style={styles.benefitDesc}>View who liked you first</Text>
               </LinearGradient>
             </View>
 
             <View style={styles.benefitCard}>
               <LinearGradient
-                colors={["#2196F3", "#64B5F6"]}
+                colors={["#fa709a", "#fee140"]}
                 style={styles.benefitGradient}
               >
-                <Icon name="shield-checkmark" size={32} color="#fff" />
-                <Text style={styles.benefitTitle}>Verified</Text>
-                <Text style={styles.benefitDesc}>Badge</Text>
+                <View style={styles.benefitIconCircle}>
+                  <Icon name="shield-checkmark" size={28} color="#fa709a" />
+                </View>
+                <Text style={styles.benefitTitle}>Verified Badge</Text>
+                <Text style={styles.benefitDesc}>Stand out with verified</Text>
               </LinearGradient>
             </View>
           </View>
@@ -199,61 +230,49 @@ const PremiumScreen = ({ navigation }: Props) => {
           <Text style={styles.sectionTitle}>What You'll Get</Text>
 
           <View style={styles.featureDetailCard}>
-            <View style={styles.featureDetailIcon}>
-              <Icon name="heart" size={28} color="#FF6EA7" />
+            <View style={[styles.featureDetailIcon, { backgroundColor: "#667eea15" }]}>
+              <Icon name="heart" size={28} color="#667eea" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Unlimited Likes</Text>
+              <Text style={styles.featureDetailTitle}>Unlimited Matches</Text>
               <Text style={styles.featureDetailDesc}>
-                Like as many cats as you want without daily limits
+                Send unlimited match requests daily instead of just 15
               </Text>
             </View>
           </View>
 
           <View style={styles.featureDetailCard}>
-            <View style={styles.featureDetailIcon}>
-              <Icon name="eye" size={28} color="#9C27B0" />
+            <View style={[styles.featureDetailIcon, { backgroundColor: "#f093fb15" }]}>
+              <Icon name="chatbubbles" size={28} color="#f093fb" />
+            </View>
+            <View style={styles.featureDetailContent}>
+              <Text style={styles.featureDetailTitle}>Unlimited AI Assistance</Text>
+              <Text style={styles.featureDetailDesc}>
+                Get unlimited AI chat and expert confirmations daily instead of just 3
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.featureDetailCard}>
+            <View style={[styles.featureDetailIcon, { backgroundColor: "#4facfe15" }]}>
+              <Icon name="eye" size={28} color="#4facfe" />
             </View>
             <View style={styles.featureDetailContent}>
               <Text style={styles.featureDetailTitle}>See Who Liked You</Text>
               <Text style={styles.featureDetailDesc}>
-                View all cats that liked your profile before matching
+                View all pets that liked your profile before matching
               </Text>
             </View>
           </View>
 
           <View style={styles.featureDetailCard}>
-            <View style={styles.featureDetailIcon}>
-              <Icon name="filter" size={28} color="#FF9800" />
-            </View>
-            <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Advanced Filters</Text>
-              <Text style={styles.featureDetailDesc}>
-                Filter by breed, age, characteristics and preferences
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.featureDetailCard}>
-            <View style={styles.featureDetailIcon}>
-              <Icon name="shield-checkmark" size={28} color="#2196F3" />
+            <View style={[styles.featureDetailIcon, { backgroundColor: "#fa709a15" }]}>
+              <Icon name="shield-checkmark" size={28} color="#fa709a" />
             </View>
             <View style={styles.featureDetailContent}>
               <Text style={styles.featureDetailTitle}>Verified Badge</Text>
               <Text style={styles.featureDetailDesc}>
                 Get a verified badge to show your profile is authentic
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.featureDetailCard}>
-            <View style={styles.featureDetailIcon}>
-              <Icon name="ban" size={28} color="#E91E63" />
-            </View>
-            <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Ad-Free Experience</Text>
-              <Text style={styles.featureDetailDesc}>
-                Enjoy Pawnder without any advertisements
               </Text>
             </View>
           </View>
@@ -273,10 +292,10 @@ const PremiumScreen = ({ navigation }: Props) => {
               </View>
               <View style={styles.planColumn}>
                 <LinearGradient
-                  colors={["#FFD700", "#FFA500"]}
+                  colors={["#667eea", "#764ba2"]}
                   style={styles.premiumHeaderGradient}
                 >
-                  <Icon name="star" size={16} color="#fff" />
+                  <Icon name="diamond" size={16} color="#fff" />
                   <Text style={styles.premiumHeaderText}>Premium</Text>
                 </LinearGradient>
               </View>
@@ -293,20 +312,20 @@ const PremiumScreen = ({ navigation }: Props) => {
                   <Text style={styles.featureText}>{feature.title}</Text>
                 </View>
                 <View style={styles.planColumn}>
-                  <Icon
-                    name={feature.free ? "checkmark-circle" : "close-circle"}
-                    size={24}
-                    color={feature.free ? colors.success : "#E0E0E0"}
-                  />
+                  <Text style={[
+                    styles.planValueText,
+                    feature.free === "No" && styles.planValueDisabled
+                  ]}>
+                    {feature.free}
+                  </Text>
                 </View>
                 <View style={styles.planColumn}>
-                  <Icon
-                    name={
-                      feature.premium ? "checkmark-circle" : "close-circle"
-                    }
-                    size={24}
-                    color={feature.premium ? "#FFD700" : "#E0E0E0"}
-                  />
+                  <Text style={[
+                    styles.planValueText,
+                    styles.planValuePremium
+                  ]}>
+                    {feature.premium}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -329,7 +348,7 @@ const PremiumScreen = ({ navigation }: Props) => {
               {plan.popular && (
                 <View style={styles.popularBadge}>
                   <LinearGradient
-                    colors={["#FFD700", "#FFA500"]}
+                    colors={["#667eea", "#764ba2"]}
                     style={styles.popularGradient}
                   >
                     <Text style={styles.popularText}>MOST POPULAR</Text>
@@ -369,21 +388,21 @@ const PremiumScreen = ({ navigation }: Props) => {
           <TouchableOpacity
             style={styles.subscribeButton}
             onPress={handleSubscribe}
+            activeOpacity={0.9}
           >
             <LinearGradient
-              colors={["#FFD700", "#FFA500", "#FF6EA7"]}
+              colors={["#667eea", "#764ba2"]}
               style={styles.subscribeGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Icon name="star" size={24} color="#fff" />
-              <Text style={styles.subscribeText}>Subscribe Now</Text>
+              <Icon name="diamond" size={24} color="#fff" />
+              <Text style={styles.subscribeText}>Get Premium Now</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <Text style={styles.disclaimer}>
-            Gói đăng ký tự động gia hạn trừ khi bạn hủy.{"\n"}
-            Có thể hủy bất cứ lúc nào.
+            Cancel anytime • Secure payment • Instant activation
           </Text>
         </View>
 
@@ -402,42 +421,63 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingTop: 50,
-    paddingBottom: 40,
+    paddingBottom: 50,
     paddingHorizontal: 20,
   },
   closeButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-end",
   },
   headerContent: {
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 30,
   },
-  crownIcon: {
+  crownIconGradient: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
+    ...shadows.large,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: "bold",
+    fontSize: 34,
+    fontWeight: "800",
     color: "#fff",
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: "center",
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: "rgba(255,255,255,0.9)",
+    color: "rgba(255,255,255,0.85)",
     textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  priceTag: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radius.lg,
+  },
+  priceAmount: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FFD700",
+  },
+  priceMonth: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.8)",
+    marginLeft: 4,
   },
 
   // Content
@@ -463,23 +503,39 @@ const styles = StyleSheet.create({
   },
   benefitCard: {
     width: (width - 52) / 2,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     overflow: "hidden",
-    ...shadows.medium,
+    ...shadows.large,
   },
   benefitGradient: {
     padding: 20,
     alignItems: "center",
+    minHeight: 160,
+    justifyContent: "center",
+  },
+  benefitIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+    ...shadows.medium,
   },
   benefitTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#fff",
-    marginTop: 12,
+    marginTop: 8,
+    marginBottom: 4,
+    textAlign: "center",
   },
   benefitDesc: {
-    fontSize: 14,
+    fontSize: 12,
     color: "rgba(255,255,255,0.9)",
+    textAlign: "center",
+    lineHeight: 16,
   },
 
   // Feature Detail Cards
@@ -495,7 +551,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#F5F5F5",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
@@ -571,37 +626,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  planValueText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textDark,
+  },
+  planValueDisabled: {
+    color: colors.textMedium,
+    opacity: 0.5,
+  },
+  planValuePremium: {
+    color: "#667eea",
+    fontWeight: "bold",
+  },
 
   // Pricing
   pricingCard: {
     backgroundColor: colors.whiteWarm,
-    borderRadius: radius.lg,
-    padding: 16,
+    borderRadius: radius.xl,
+    padding: 20,
     marginBottom: 12,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: "transparent",
     position: "relative",
-    ...shadows.small,
+    ...shadows.medium,
   },
   pricingCardSelected: {
-    borderColor: "#FFD700",
+    borderColor: "#667eea",
+    backgroundColor: "#f8f7ff",
     ...shadows.large,
   },
   popularBadge: {
     position: "absolute",
     top: -12,
     left: 20,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     overflow: "hidden",
+    ...shadows.medium,
   },
   popularGradient: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
   },
   popularText: {
     fontSize: 11,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: "#fff",
+    letterSpacing: 0.5,
   },
   pricingContent: {
     flexDirection: "row",
@@ -614,19 +685,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   radioButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#FFD700",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2.5,
+    borderColor: "#667eea",
     justifyContent: "center",
     alignItems: "center",
   },
   radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#FFD700",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#667eea",
   },
   pricingInfo: {},
   pricingDuration: {
@@ -653,28 +724,31 @@ const styles = StyleSheet.create({
 
   // Subscribe
   subscribeButton: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     overflow: "hidden",
     ...shadows.large,
+    elevation: 8,
   },
   subscribeGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    paddingVertical: 18,
+    paddingVertical: 20,
   },
   subscribeText: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 19,
+    fontWeight: "800",
     color: "#fff",
+    letterSpacing: 0.5,
   },
   disclaimer: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textMedium,
     textAlign: "center",
-    marginTop: 12,
-    lineHeight: 18,
+    marginTop: 16,
+    lineHeight: 20,
+    fontWeight: "500",
   },
 });
 
