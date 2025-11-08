@@ -1,35 +1,64 @@
 // API Configuration
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Port được lấy từ BE/BE/Properties/launchSettings.json (http profile: 5297)
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5297';
 
-// API Endpoints
+// API Endpoints - Khớp 100% với Backend
 export const API_ENDPOINTS = {
   AUTH: {
-    LOGIN: '/auth/login',
-    LOGOUT: '/auth/logout',
-    REFRESH: '/auth/refresh',
-    FORGOT_PASSWORD: '/auth/forgot-password',
-    RESET_PASSWORD: '/auth/reset-password',
+    LOGIN: '/api/login',
+    LOGOUT: '/api/logout',
+    REFRESH: '/api/refresh',
+    FORGOT_PASSWORD: '/api/forgot-password',
+    RESET_PASSWORD: '/api/reset-password',
   },
   USERS: {
-    LIST: '/users',
-    CREATE: '/users',
-    DETAIL: (id) => `/users/${id}`,
-    UPDATE: (id) => `/users/${id}`,
-    DELETE: (id) => `/users/${id}`,
+    LIST: '/user', // GET /user?search=&roleId=&statusId=&page=1&pageSize=20
+    CREATE: '/user', // POST /user
+    DETAIL: (id) => `/user/${id}`, // GET /user/{userId}
+    UPDATE: (id) => `/user/${id}`, // PUT /user/{userId}
+    DELETE: (id) => `/user/${id}`, // DELETE /user/{userId}
+    UPDATE_BY_ADMIN: (id) => `/admin/users/${id}`, // PUT /admin/users/{id}
+    CREATE_BY_ADMIN: '/admin/users', // POST /admin/users
   },
   PETS: {
-    LIST: '/pets',
-    CREATE: '/pets',
-    DETAIL: (id) => `/pets/${id}`,
-    UPDATE: (id) => `/pets/${id}`,
-    DELETE: (id) => `/pets/${id}`,
+    LIST_BY_USER: (userId) => `/api/pet/user/${userId}`, // GET /api/pet/user/{userId}
+    DETAIL: (id) => `/api/pet/${id}`, // GET /api/pet/{petId}
+    CREATE: '/api/pet', // POST /api/pet
+    UPDATE: (id) => `/api/pet/${id}`, // PUT /api/pet/{petId}
+    DELETE: (id) => `/api/pet/${id}`, // DELETE /api/pet/{petId}
   },
   REPORTS: {
-    LIST: '/reports',
-    CREATE: '/reports',
-    DETAIL: (id) => `/reports/${id}`,
-    UPDATE: (id) => `/reports/${id}`,
-    DELETE: (id) => `/reports/${id}`,
+    LIST: '/report', // GET /report (ReportController không có [Route("api")])
+    DETAIL: (id) => `/report/${id}`, // GET /report/{reportId}
+    LIST_BY_USER: (userId) => `/report/user/${userId}`, // GET /report/user/{userReportId}
+    CREATE: (userReportId, contentId) => `/report/${userReportId}/${contentId}`, // POST /report/{userReportId}/{contentId}
+    UPDATE: (id) => `/report/${id}`, // PUT /report/{reportId}
+  },
+  NOTIFICATIONS: {
+    LIST: '/api/notification', // GET /api/notification
+    DETAIL: (id) => `/api/notification/${id}`, // GET /api/notification/{notificationId}
+    LIST_BY_USER: (userId) => `/api/notification/user/${userId}`, // GET /api/notification/user/{userId}
+    CREATE: '/api/notification', // POST /api/notification
+    DELETE: (id) => `/api/notification/${id}`, // DELETE /api/notification/{notificationId}
+  },
+  EXPERT: {
+    // ExpertController không có [Route("api")] ở controller level
+    LIST: '/expert-confirmation', // GET /expert-confirmation
+    // LƯU Ý: Backend GET detail endpoint có vấn đề - route chỉ có {userId}/{chatId} nhưng method cần expertId
+    // expertId sẽ = 0 (default) nếu không được truyền. Cần workaround ở frontend service.
+    DETAIL: (userId, chatId) => `/expert-confirmation/${userId}/${chatId}`, // GET /expert-confirmation/{userId}/{chatId}
+    LIST_BY_USER: (userId) => `/expert-confirmation/${userId}`, // GET /expert-confirmation/{userId}
+    CREATE: (userId, chatId) => `/expert-confirmation/${userId}/${chatId}`, // POST /expert-confirmation/{userId}/{chatId} (expertId trong body)
+    // LƯU Ý: Backend PUT endpoint route parameter đầu tiên là ExpertId (không phải confirmationId)
+    // Route: /expert-confirmation/{expertId:int}/{userId:int}/{chatId:int}
+    UPDATE: (expertId, userId, chatId) => `/expert-confirmation/${expertId}/${userId}/${chatId}`, // PUT /expert-confirmation/{expertId}/{userId}/{chatId}
+  },
+  PET_PHOTOS: {
+    LIST_BY_PET: (petId) => `/api/pet-photo/${petId}`, // GET /api/pet-photo/{petId}
+    UPLOAD: '/api/pet-photo', // POST /api/pet-photo (FormData: petId, files[])
+    SET_PRIMARY: (photoId) => `/api/pet-photo/${photoId}/primary`, // PUT /api/pet-photo/{photoId}/primary
+    REORDER: '/api/pet-photo/reorder', // PUT /api/pet-photo/reorder
+    DELETE: (photoId) => `/api/pet-photo/${photoId}`, // DELETE /api/pet-photo/{photoId}?hard=false
   },
 };
 

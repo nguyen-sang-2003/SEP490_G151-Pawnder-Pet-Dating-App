@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
-
 	[ApiController]
 	public class ExpertController : ControllerBase
 	{

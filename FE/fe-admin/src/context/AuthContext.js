@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-// import { AuthContextType, User } from '../types';
 import { STORAGE_KEYS, USER_ROLES } from '../constants';
-// import authService from '../services/auth/authService';
-// import { getRoleFromToken, getUserIdFromToken } from '../utils/jwtUtils';
+import authService from '../services/auth/authService';
+import userService from '../services/api/userService';
+import { getRoleFromToken, getUserIdFromToken } from '../utils/jwtUtils';
 
 // Initial state
 const initialState = {
@@ -80,68 +80,169 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
     try {
-      // Simulate API call for demo purposes
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log('🔐 Attempting login with:', { email: credentials.email });
       
-      // Mock accounts for testing
-      const mockAccounts = {
-        'admin@pawnder.com': {
-          password: 'admin123',
-          user: {
-            id: 1,
-            username: 'admin',
-            email: 'admin@pawnder.com',
-            firstName: 'Admin',
-            lastName: 'Pawnder',
-            role: USER_ROLES.ADMIN,
-            status: 'active',
-            avatar: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }
-        },
-        'expert@pawnder.com': {
-          password: '123456',
-          user: {
-            id: 2,
-            username: 'expert',
-            email: 'expert@pawnder.com',
-            firstName: 'Expert',
-            lastName: 'Pawnder',
-            role: USER_ROLES.EXPERT,
-            status: 'active',
-            avatar: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }
-        }
-      };
+      // Call backend API to login
+      const loginResponse = await authService.login(credentials);
       
-      // Check credentials
-      const account = mockAccounts[credentials.email];
-      if (!account || account.password !== credentials.password) {
-        throw new Error('Email hoặc mật khẩu không đúng');
+      console.log('✅ Login response received:', loginResponse);
+      
+      // Backend returns: { Message: string, Token: string }
+      // But JSON serializer may convert to camelCase: { message: string, token: string }
+      // Support both formats
+      const token = loginResponse.Token || loginResponse.token;
+      const message = loginResponse.Message || loginResponse.message;
+      
+      if (!loginResponse || !token) {
+        console.error('❌ Invalid login response:', loginResponse);
+        throw new Error(message || 'Đăng nhập thất bại');
       }
       
-      // Mock token
-      const mockToken = 'mock-token-' + Date.now();
-      const user = account.user;
+      console.log('✅ Token extracted:', token ? 'Token exists' : 'Token missing');
       
-      // Store in localStorage
-      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, mockToken);
+      // IMPORTANT: Save token to localStorage FIRST so apiClient interceptor can use it
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+      console.log('✅ Token saved to localStorage');
+      
+      // Decode JWT token to get userId and role
+      const userId = getUserIdFromToken(token);
+      const role = getRoleFromToken(token);
+      
+      console.log('✅ Decoded JWT:', { userId, role });
+      
+      if (!userId || !role) {
+        // Clean up token if we can't decode it
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+        console.error('❌ Failed to decode token:', { userId, role });
+        throw new Error('Không thể đọc thông tin từ token');
+      }
+      
+      // Get user details from backend (token is now in localStorage, so apiClient will include it in headers)
+      console.log('🔍 Fetching user details for userId:', userId);
+      const userResponse = await userService.getUserById(userId);
+      console.log('✅ User response received:', userResponse);
+      
+      if (!userResponse) {
+        throw new Error('Không thể lấy thông tin người dùng từ server');
+      }
+      
+      // Map backend UserResponse to frontend user format
+      // Backend UserResponse: { UserId, RoleId, FullName, Email, Gender, ... } or { userId, roleId, fullName, email, ... }
+      // Support both PascalCase and camelCase
+      const userIdFromResponse = userResponse.UserId || userResponse.userId;
+      const email = userResponse.Email || userResponse.email;
+      const fullName = userResponse.FullName || userResponse.fullName || email?.split('@')[0] || 'User';
+      const roleId = userResponse.RoleId || userResponse.roleId;
+      const userStatusId = userResponse.UserStatusId || userResponse.userStatusId;
+      const gender = userResponse.Gender || userResponse.gender;
+      const createdAt = userResponse.CreatedAt || userResponse.createdAt;
+      const updatedAt = userResponse.UpdatedAt || userResponse.updatedAt;
+      
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0] || fullName;
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Normalize role name (backend returns "Admin", "Expert", "User")
+      // Frontend expects: "Admin", "Expert", "User"
+      const normalizedRole = role === 'Admin' ? USER_ROLES.ADMIN
+        : role === 'Expert' ? USER_ROLES.EXPERT
+        : role === 'User' ? USER_ROLES.USER
+        : role;
+      
+      const user = {
+        id: userIdFromResponse,
+        username: email?.split('@')[0] || 'user',
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        fullName: fullName,
+        role: normalizedRole,
+        roleId: roleId,
+        status: userStatusId === 1 ? 'active' : 'inactive',
+        gender: gender,
+        avatar: null,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      };
+      
+      console.log('✅ User object created:', user);
+      
+      // Store user info in localStorage (token already saved above)
       localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(user));
       
       dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
     } catch (error) {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
-      throw error;
+      
+      // Parse error message from backend
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+      
+      // Clean up token if login failed
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      
+      // Detailed error logging
+      console.error('❌ Login error:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error keys:', Object.keys(error));
+      
+      if (error.response) {
+        // Backend error response (401, 500, etc.)
+        const status = error.response.status;
+        const errorData = error.response.data;
+        
+        console.error('❌ Backend error status:', status);
+        console.error('❌ Backend error data:', errorData);
+        console.error('❌ Backend error data type:', typeof errorData);
+        
+        // Backend might return string directly or object with message
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData && typeof errorData === 'object') {
+          // Try different possible message fields
+          errorMessage = errorData.message 
+            || errorData.Message 
+            || errorData.error
+            || errorData.Error
+            || errorData.title // ASP.NET Core default error format
+            || JSON.stringify(errorData) // Fallback: show full error object
+            || `Lỗi server (${status})`;
+        }
+        
+        // Special handling for 500 errors (usually database/SQL errors)
+        if (status === 500) {
+          errorMessage = 'Lỗi server. Vui lòng liên hệ quản trị viên hoặc thử lại sau.';
+          console.error('❌ Server error details:', errorData);
+        }
+      } else if (error.request) {
+        // Network error (no response received)
+        errorMessage = 'Không thể kết nối tới server. Vui lòng kiểm tra kết nối mạng và đảm bảo backend đang chạy.';
+        console.error('❌ Network error - No response received:', error.request);
+        console.error('❌ Request URL:', error.config?.url);
+        console.error('❌ Request method:', error.config?.method);
+      } else if (error.message) {
+        // Other errors (from our code)
+        errorMessage = error.message;
+        console.error('❌ Application error:', error.message);
+      }
+      
+      console.error('❌ Final error message:', errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER_INFO);
-    dispatch({ type: AUTH_ACTIONS.LOGOUT });
+  const logout = async () => {
+    try {
+      // Call backend API to logout (clear token on server)
+      await authService.logout();
+    } catch (error) {
+      // Even if logout API fails, clear local storage
+      console.error('Logout API error:', error);
+    } finally {
+      // Always clear local storage and state
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER_INFO);
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+    }
   };
 
   const updateUser = (user) => {

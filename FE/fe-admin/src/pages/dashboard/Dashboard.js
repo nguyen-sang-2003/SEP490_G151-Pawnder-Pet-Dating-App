@@ -1,90 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { mockUsers } from '../../data/mockUsers';
-import { mockPets } from '../../data/mockPets';
-import { mockReports } from '../../data/mockReports';
+import dashboardService from '../../services/api/dashboardService';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const [showUserChart, setShowUserChart] = useState(false);
   const navigate = useNavigate();
-
-  // Tính tổng số người dùng từ dữ liệu thực tế
-  const totalUsers = mockUsers.length;
   
-  // Dữ liệu biểu đồ tăng trưởng người dùng - tính từ tổng số users thực tế
-  // Tạo xu hướng tăng trưởng từ 0 đến tổng số users hiện tại (8)
-  const userChartData = [
-    { month: 'T1/2023', users: 0 },
-    { month: 'T2/2023', users: 0 },
-    { month: 'T3/2023', users: 1 },
-    { month: 'T4/2023', users: 1 },
-    { month: 'T5/2023', users: 2 },
-    { month: 'T6/2023', users: 2 },
-    { month: 'T7/2023', users: 3 },
-    { month: 'T8/2023', users: 3 },
-    { month: 'T9/2023', users: 4 },
-    { month: 'T10/2023', users: 5 },
-    { month: 'T11/2023', users: 6 },
-    { month: 'T12/2023', users: 6 },
-    { month: 'T1/2024', users: 7 },
-    { month: 'T2/2024', users: 7 },
-    { month: 'T3/2024', users: 8 },
-    { month: 'T4/2024', users: totalUsers } // Sử dụng tổng số users thực tế
-  ];
-  const formattedTotalUsers = totalUsers.toLocaleString('en-US');
+  // Dashboard data state
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalPets: 0,
+    pendingReports: 0,
+    resolvedReports: 0,
+    activeUsersToday: 0,
+    totalMatches: 0
+  });
+  
+  const [userChartData, setUserChartData] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Tính tổng số thú cưng từ dữ liệu thực tế
-  const totalPets = mockPets.length;
-  const formattedTotalPets = totalPets.toLocaleString('en-US');
-
-  // Tính số báo cáo chờ xử lý từ dữ liệu thực tế (bao gồm cả từ localStorage)
-  const getReportsWithLocalStorage = () => {
-    return mockReports.map(report => {
-      const savedStatus = localStorage.getItem(`report_status_${report.id}`);
-      const savedResolution = localStorage.getItem(`report_resolution_${report.id}`);
-      const savedUpdatedAt = localStorage.getItem(`report_updatedAt_${report.id}`);
-      
-      if (savedStatus) {
-        return {
-          ...report,
-          status: savedStatus,
-          resolution: savedResolution || report.resolution,
-          updatedAt: savedUpdatedAt || report.updatedAt
-        };
+  // Fetch dashboard data from API
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const dashboardStats = await dashboardService.getDashboardStats();
+        
+        setStats({
+          totalUsers: dashboardStats.totalUsers || 0,
+          totalPets: dashboardStats.totalPets || 0,
+          pendingReports: dashboardStats.pendingReports || 0,
+          resolvedReports: dashboardStats.resolvedReports || 0,
+          activeUsersToday: dashboardStats.activeUsersToday || 0,
+          totalMatches: 0 // Backend doesn't have matches data yet
+        });
+        
+        setUserChartData(dashboardStats.userGrowthData || []);
+        setRecentActivities(dashboardStats.recentActivities || []);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Không thể tải dữ liệu dashboard. Vui lòng thử lại sau.');
+      } finally {
+        setLoading(false);
       }
-      return report;
-    });
-  };
+    };
+    
+    fetchDashboardData();
+  }, []);
 
-  const reports = getReportsWithLocalStorage();
-  const pendingReports = reports.filter(r => r.status === 'Pending').length;
-
-  // Tính tổng số ghép đôi thành công từ dữ liệu thực tế
-  // Tổng từ tổng số matches của tất cả users
-  const totalMatches = mockUsers.reduce((sum, user) => sum + (user.totalMatches || 0), 0);
-  const formattedTotalMatches = totalMatches.toLocaleString('en-US');
-
-  // Tính số người dùng hoạt động hôm nay (lastLogin trong ngày hôm nay)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(today);
-  todayEnd.setHours(23, 59, 59, 999);
-  
-  const activeUsersToday = mockUsers.filter(user => {
-    if (!user.lastLogin) return false;
-    const lastLoginDate = new Date(user.lastLogin);
-    return lastLoginDate >= today && lastLoginDate <= todayEnd;
-  }).length;
-
-  // Tính số báo cáo đã xử lý (status = 'Resolved')
-  const resolvedReports = reports.filter(r => r.status === 'Resolved').length;
-
-  const stats = [
+  // Prepare stats array for display
+  const statsArray = [
     {
       title: 'Tổng người dùng',
-      value: formattedTotalUsers,
+      value: stats.totalUsers.toLocaleString('en-US'),
       change: '+12%',
       changeType: 'positive',
       icon: (
@@ -97,7 +71,7 @@ const Dashboard = () => {
     },
     {
       title: 'Tổng thú cưng',
-      value: formattedTotalPets,
+      value: stats.totalPets.toLocaleString('en-US'),
       change: '+8%',
       changeType: 'positive',
       icon: (
@@ -109,7 +83,7 @@ const Dashboard = () => {
     },
     {
       title: 'Báo cáo chờ xử lý',
-      value: pendingReports.toString(),
+      value: stats.pendingReports.toString(),
       change: '-3%',
       changeType: 'negative',
       icon: (
@@ -124,7 +98,7 @@ const Dashboard = () => {
     },
     {
       title: 'Ghép đôi thành công',
-      value: formattedTotalMatches,
+      value: stats.totalMatches.toLocaleString('en-US'),
       change: '+15%',
       changeType: 'positive',
       icon: (
@@ -136,36 +110,30 @@ const Dashboard = () => {
     }
   ];
 
-  const recentActivities = [
-    {
-      id: 1,
-      type: 'user',
-      message: 'Người dùng mới đăng ký: john_doe',
-      time: '5 phút trước',
-      avatar: '👤'
-    },
-    {
-      id: 2,
-      type: 'report',
-      message: 'Báo cáo mới từ user123',
-      time: '30 phút trước',
-      avatar: '⚠️'
-    },
-    {
-      id: 3,
-      type: 'user',
-      message: 'Người dùng mới đăng ký: alice_wonder',
-      time: '1 giờ trước',
-      avatar: '👤'
-    },
-    {
-      id: 4,
-      type: 'report',
-      message: 'Báo cáo mới từ bob_smith',
-      time: '2 giờ trước',
-      avatar: '⚠️'
-    }
-  ];
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <div className="dashboard-header">
+          <h1>Dashboard</h1>
+          <p>Đang tải dữ liệu...</p>
+        </div>
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <div className="spinner" style={{ margin: '0 auto' }}></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard">
+        <div className="dashboard-header">
+          <h1>Dashboard</h1>
+          <p style={{ color: '#e74c3c' }}>{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard">
@@ -175,7 +143,7 @@ const Dashboard = () => {
       </div>
       
       <div className="dashboard-stats">
-        {stats.map((stat, index) => (
+        {statsArray.map((stat, index) => (
           <div key={index} className="stat-card" style={{ '--card-color': stat.color }}>
             <div className="stat-icon" style={{ color: stat.color }}>
               {stat.icon}
@@ -207,40 +175,46 @@ const Dashboard = () => {
             <p>Số liệu người dùng theo từng tháng</p>
           </div>
           <div className="chart-wrapper">
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={userChartData}>
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fontSize: 12, fill: '#666' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 12, fill: '#666' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip 
-                  formatter={(value) => [value.toLocaleString(), 'Người dùng']}
-                  labelFormatter={(label) => `Tháng: ${label}`}
-                  contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #e1e8ed',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="users" 
-                  stroke="#FFD700" 
-                  strokeWidth={2}
-                  fill="rgba(255, 215, 0, 0.3)"
-                  dot={{ fill: '#FFD700', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: '#FFD700', strokeWidth: 2, fill: '#fff' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {userChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={userChartData}>
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fontSize: 12, fill: '#666' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12, fill: '#666' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    formatter={(value) => [value.toLocaleString(), 'Người dùng']}
+                    labelFormatter={(label) => `Tháng: ${label}`}
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e1e8ed',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="users" 
+                    stroke="#FFD700" 
+                    strokeWidth={2}
+                    fill="rgba(255, 215, 0, 0.3)"
+                    dot={{ fill: '#FFD700', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: '#FFD700', strokeWidth: 2, fill: '#fff' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                <p>Chưa có dữ liệu biểu đồ</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -257,17 +231,23 @@ const Dashboard = () => {
             </button>
           </div>
           <div className="activities-list">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="activity-item">
-                <div className="activity-avatar">
-                  {activity.avatar}
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity) => (
+                <div key={activity.id} className="activity-item">
+                  <div className="activity-avatar">
+                    {activity.avatar}
+                  </div>
+                  <div className="activity-content">
+                    <p className="activity-message">{activity.message}</p>
+                    <span className="activity-time">{activity.time}</span>
+                  </div>
                 </div>
-                <div className="activity-content">
-                  <p className="activity-message">{activity.message}</p>
-                  <span className="activity-time">{activity.time}</span>
-                </div>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                <p>Chưa có hoạt động gần đây</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
         
@@ -278,11 +258,11 @@ const Dashboard = () => {
           <div className="quick-stats">
             <div className="quick-stat">
               <span className="quick-stat-label">Người dùng hoạt động hôm nay</span>
-              <span className="quick-stat-value">{activeUsersToday.toLocaleString('en-US')}</span>
+              <span className="quick-stat-value">{stats.activeUsersToday.toLocaleString('en-US')}</span>
             </div>
             <div className="quick-stat">
               <span className="quick-stat-label">Báo cáo đã xử lý</span>
-              <span className="quick-stat-value">{resolvedReports.toLocaleString('en-US')}</span>
+              <span className="quick-stat-value">{stats.resolvedReports.toLocaleString('en-US')}</span>
             </div>
             <div className="quick-stat">
               <span className="quick-stat-label">Tỷ lệ hài lòng</span>

@@ -42,9 +42,13 @@ export const getRoleFromToken = (token) => {
   const payload = decodeJWT(token);
   if (!payload) return null;
   
-  // Backend might store role in different claims
-  // Common: 'role', 'Role', 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
-  return payload.role || payload.Role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || null;
+  // Backend uses ClaimTypes.Role which maps to:
+  // 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
+  // Also check common short names
+  return payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] 
+    || payload.role 
+    || payload.Role 
+    || null;
 };
 
 /**
@@ -56,8 +60,15 @@ export const getUserIdFromToken = (token) => {
   const payload = decodeJWT(token);
   if (!payload) return null;
   
-  // Common: 'sub', 'nameid', 'userId', 'UserId'
-  const userId = payload.sub || payload.nameid || payload.userId || payload.UserId;
+  // Backend uses ClaimTypes.NameIdentifier which maps to:
+  // 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+  // Also check common short names: 'sub', 'nameid'
+  const userId = payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
+    || payload.nameid
+    || payload.sub
+    || payload.userId
+    || payload.UserId;
+    
   return userId ? parseInt(userId) : null;
 };
 

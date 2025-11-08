@@ -27,22 +27,49 @@ apiClient.interceptors.request.use(
 // Response interceptor to handle errors
 apiClient.interceptors.response.use(
   (response) => {
+    // Return response data for successful requests
     return response.data;
   },
   (error) => {
     // Only handle response errors (network errors won't have error.response)
     if (error.response) {
-      if (error.response.status === 401) {
+      // Backend returned an error response
+      const status = error.response.status;
+      const errorData = error.response.data;
+      
+      // Log error for debugging (only for non-401 errors to avoid spam)
+      if (status !== 401) {
+        console.error('API Error Response:', {
+          status,
+          url: error.config?.url,
+          method: error.config?.method,
+          data: errorData
+        });
+      }
+      
+      if (status === 401) {
         // Token expired or invalid
-        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.USER_INFO);
-        window.location.href = '/login';
+        // Only redirect if not already on login page
+        const currentPath = window.location.pathname;
+        if (!currentPath.includes('/login')) {
+          localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+          localStorage.removeItem(STORAGE_KEYS.USER_INFO);
+          window.location.href = '/login';
+        }
       }
     } else if (error.request) {
       // Request was made but no response received (network error)
-      // Silently ignore network errors to avoid console spam
-      console.debug('Network error:', error.message);
+      console.error('Network Error - No response received:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        message: error.message
+      });
+    } else {
+      // Error setting up the request
+      console.error('Request Setup Error:', error.message);
     }
+    
+    // Always reject to allow error handling in components
     return Promise.reject(error);
   }
 );

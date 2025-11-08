@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockReports } from '../../data/mockReports';
-import { mockUsers } from '../../data/mockUsers';
+import reportService from '../../services/api/reportService';
+import userService from '../../services/api/userService';
 import { addUserNotification } from '../../data/mockUserNotifications';
 import './ReportDetail.css';
 
@@ -9,62 +9,140 @@ const ReportDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const reportId = parseInt(id);
-
-  // Helper function để lấy user info từ mockUsers
-  const getUserInfo = (userId) => {
-    const user = mockUsers.find(u => u.id === userId);
-    if (user) {
-      return {
-        userId: user.id,
-        fullName: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        username: user.username,
-        phone: user.phone,
-        avatar: user.avatar
-      };
-    }
-    return {
-      userId: userId,
-      fullName: 'Unknown User',
-      email: 'unknown@email.com',
-      username: 'unknown',
-      phone: 'N/A',
-      avatar: null
-    };
-  };
-
-  // Tìm report từ mockReports và enrich với user info từ mockUsers
-  const baseReport = mockReports.find(r => r.id === reportId);
   
-  // Đọc status từ localStorage nếu có (để giữ trạng thái đã xử lý)
-  const getInitialReport = () => {
-    if (!baseReport) return null;
-    const savedStatus = localStorage.getItem(`report_status_${reportId}`);
-    const savedResolution = localStorage.getItem(`report_resolution_${reportId}`);
-    const savedUpdatedAt = localStorage.getItem(`report_updatedAt_${reportId}`);
-    
-    return {
-      ...baseReport,
-      reporter: getUserInfo(baseReport.reporterId),
-      reportedUser: getUserInfo(baseReport.reportedUserId),
-      reportedContent: {
-        ...baseReport.reportedContent,
-        timestamp: baseReport.reportedContent.timestamp || baseReport.createdAt
-      },
-      status: savedStatus || baseReport.status || 'Pending',
-      resolution: savedResolution || baseReport.resolution || null,
-      updatedAt: savedUpdatedAt || baseReport.updatedAt,
-      attachments: [] // Có thể thêm từ API sau
+  // Report data state
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch report data from API
+  useEffect(() => {
+    const fetchReportData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        if (isNaN(reportId)) {
+          setError('ID báo cáo không hợp lệ');
+          setLoading(false);
+          return;
+        }
+        
+        const reportResponse = await reportService.getReportById(reportId);
+        
+        // Backend returns: { success, message, data: ReportDto }
+        // reportService.getReportById() already unwraps response?.data || response
+        if (!reportResponse) {
+          setError('Không tìm thấy báo cáo');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch reporter user info
+        const reporterUserId = reportResponse.UserReport?.UserId || reportResponse.userReport?.userId;
+        let reporterUser = null;
+        if (reporterUserId) {
+          try {
+            reporterUser = await userService.getUserById(reporterUserId);
+          } catch (err) {
+            console.warn('Error fetching reporter user:', err);
+          }
+        }
+        
+        const reporterFullName = reporterUser
+          ? (reporterUser.FullName || reporterUser.fullName || reporterUser.Email?.split('@')[0] || 'Unknown')
+          : (reportResponse.UserReport?.FullName || reportResponse.userReport?.fullName || 'Unknown User');
+        const reporterNameParts = reporterFullName.split(' ');
+        const reporterFirstName = reporterNameParts[0] || reporterFullName;
+        const reporterLastName = reporterNameParts.slice(1).join(' ') || '';
+        
+        // Map report to frontend format
+        const mappedReport = {
+          id: reportResponse.ReportId || reportResponse.reportId,
+          reporterId: reporterUserId,
+          reportedUserId: null, // Backend doesn't provide this in ReportDto
+          reason: reportResponse.Reason || reportResponse.reason || 'N/A',
+          status: reportResponse.Status || reportResponse.status || 'Pending',
+          resolution: reportResponse.Resolution || reportResponse.resolution || null,
+          createdAt: reportResponse.CreatedAt || reportResponse.createdAt,
+          updatedAt: reportResponse.UpdatedAt || reportResponse.updatedAt,
+          description: reportResponse.Reason || reportResponse.reason || 'N/A',
+          // Reporter info
+          reporter: {
+            userId: reporterUserId,
+            fullName: reporterFullName,
+            firstName: reporterFirstName,
+            lastName: reporterLastName,
+            email: reportResponse.UserReport?.Email || reportResponse.userReport?.email || reporterUser?.Email || reporterUser?.email || 'unknown@email.com',
+            username: reporterUser?.Email?.split('@')[0] || reportResponse.UserReport?.Email?.split('@')[0] || 'unknown',
+            phone: null, // Backend doesn't have phone
+            avatar: null // Backend doesn't have avatar
+          },
+          // Reported user info (unknown since backend doesn't provide Content/FromUserId)
+          reportedUser: {
+            userId: null,
+            fullName: 'Unknown User',
+            firstName: 'Unknown',
+            lastName: 'User',
+            email: 'unknown@email.com',
+            username: 'unknown',
+            phone: null,
+            avatar: null
+          },
+          // Reported content (not available from backend)
+          reportedContent: {
+            type: 'Message',
+            message: 'N/A', // Backend doesn't return Content in ReportDto
+            timestamp: reportResponse.CreatedAt || reportResponse.createdAt
+          }
+        };
+        
+        setReport(mappedReport);
+      } catch (err) {
+        console.error('Error fetching report data:', err);
+        setError('Không thể tải thông tin báo cáo. Vui lòng thử lại sau.');
+      } finally {
+        setLoading(false);
+      }
     };
-  };
+    
+    fetchReportData();
+  }, [reportId]);
 
-  const [report, setReport] = useState(getInitialReport());
-
-  if (!report) {
+  if (loading) {
     return (
       <div className="report-detail-page">
+        <div className="page-header">
+          <button onClick={() => navigate('/reports')} className="back-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Quay lại danh sách
+          </button>
+          <h1>Chi tiết báo cáo #{id}</h1>
+        </div>
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <div className="spinner" style={{ margin: '0 auto' }}></div>
+          <p>Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !report) {
+    return (
+      <div className="report-detail-page">
+        <div className="page-header">
+          <button onClick={() => navigate('/reports')} className="back-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Quay lại danh sách
+          </button>
+          <h1>Chi tiết báo cáo #{id}</h1>
+        </div>
         <div className="error-message">
-          <h2>Không tìm thấy báo cáo</h2>
+          <h2>{error || 'Không tìm thấy báo cáo'}</h2>
           <p>Báo cáo với ID {id} không tồn tại.</p>
           <button onClick={() => navigate('/reports')} className="back-btn">
             Quay lại danh sách
@@ -75,6 +153,7 @@ const ReportDetail = () => {
   }
 
   const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString('vi-VN');
   };
 
@@ -119,74 +198,92 @@ const ReportDetail = () => {
     return reasonIcons[reason] || '📋';
   };
 
-  const handleResolve = () => {
-    const newStatus = 'Resolved';
-    const newResolution = 'Báo cáo đã được xử lý thành công.';
-    const newUpdatedAt = new Date().toISOString();
-    
-    // Lưu status vào localStorage
-    localStorage.setItem(`report_status_${reportId}`, newStatus);
-    localStorage.setItem(`report_resolution_${reportId}`, newResolution);
-    localStorage.setItem(`report_updatedAt_${reportId}`, newUpdatedAt);
-    
-    // Gửi notification cho người báo cáo (reporter)
-    if (report && report.reporterId) {
-      const notification = {
-        userId: report.reporterId, // Người báo cáo sẽ nhận notification
-        type: 'report_resolved',
-        title: 'Báo cáo của bạn đã được xử lý',
-        message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xử lý thành công. Người dùng bị báo cáo đã được xử lý theo quy định.`,
-        data: {
-          reportId: reportId,
-          status: newStatus,
-          resolution: newResolution
-        }
-      };
-      addUserNotification(notification);
+  const handleResolve = async () => {
+    try {
+      const newStatus = 'Resolved';
+      const newResolution = 'Báo cáo đã được xử lý thành công.';
+      
+      // Update report via API
+      const updatedReport = await reportService.resolveReport(reportId, newResolution);
+      
+      // Update local state
+      const newUpdatedAt = updatedReport?.UpdatedAt || updatedReport?.updatedAt || new Date().toISOString();
+      
+      setReport(prev => prev ? {
+        ...prev,
+        status: newStatus,
+        resolution: newResolution,
+        updatedAt: newUpdatedAt
+      } : null);
+      
+      // Gửi notification cho người báo cáo (reporter)
+      if (report && report.reporterId) {
+        const notification = {
+          userId: report.reporterId,
+          type: 'report_resolved',
+          title: 'Báo cáo của bạn đã được xử lý',
+          message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xử lý thành công. Người dùng bị báo cáo đã được xử lý theo quy định.`,
+          data: {
+            reportId: reportId,
+            status: newStatus,
+            resolution: newResolution
+          }
+        };
+        addUserNotification(notification);
+      }
+      
+      // Navigate back to reports list after a short delay
+      setTimeout(() => {
+        navigate('/reports');
+      }, 1500);
+    } catch (err) {
+      console.error('Error resolving report:', err);
+      alert('Không thể xử lý báo cáo. Vui lòng thử lại sau.');
     }
-    
-    // Cập nhật state
-    setReport(prev => prev ? {
-      ...prev,
-      status: newStatus,
-      resolution: newResolution,
-      updatedAt: newUpdatedAt
-    } : null);
   };
 
-  const handleReject = () => {
-    const newStatus = 'Rejected';
-    const newResolution = 'Báo cáo đã bị từ chối.';
-    const newUpdatedAt = new Date().toISOString();
-    
-    // Lưu status vào localStorage
-    localStorage.setItem(`report_status_${reportId}`, newStatus);
-    localStorage.setItem(`report_resolution_${reportId}`, newResolution);
-    localStorage.setItem(`report_updatedAt_${reportId}`, newUpdatedAt);
-    
-    // Gửi notification cho người báo cáo (reporter)
-    if (report && report.reporterId) {
-      const notification = {
-        userId: report.reporterId, // Người báo cáo sẽ nhận notification
-        type: 'report_rejected',
-        title: 'Báo cáo của bạn đã được xem xét',
-        message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xem xét. Sau khi kiểm tra, chúng tôi không tìm thấy bằng chứng vi phạm. Người dùng bị báo cáo không sai và không bị xử lý.`,
-        data: {
-          reportId: reportId,
-          status: newStatus,
-          resolution: newResolution
-        }
-      };
-      addUserNotification(notification);
+  const handleReject = async () => {
+    try {
+      const newStatus = 'Rejected';
+      const newResolution = 'Báo cáo đã bị từ chối.';
+      
+      // Update report via API
+      const updatedReport = await reportService.rejectReport(reportId, newResolution);
+      
+      // Update local state
+      const newUpdatedAt = updatedReport?.UpdatedAt || updatedReport?.updatedAt || new Date().toISOString();
+      
+      setReport(prev => prev ? {
+        ...prev,
+        status: newStatus,
+        resolution: newResolution,
+        updatedAt: newUpdatedAt
+      } : null);
+      
+      // Gửi notification cho người báo cáo (reporter)
+      if (report && report.reporterId) {
+        const notification = {
+          userId: report.reporterId,
+          type: 'report_rejected',
+          title: 'Báo cáo của bạn đã được xem xét',
+          message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xem xét. Sau khi kiểm tra, chúng tôi không tìm thấy bằng chứng vi phạm. Người dùng bị báo cáo không sai và không bị xử lý.`,
+          data: {
+            reportId: reportId,
+            status: newStatus,
+            resolution: newResolution
+          }
+        };
+        addUserNotification(notification);
+      }
+      
+      // Navigate back to reports list after a short delay
+      setTimeout(() => {
+        navigate('/reports');
+      }, 1500);
+    } catch (err) {
+      console.error('Error rejecting report:', err);
+      alert('Không thể từ chối báo cáo. Vui lòng thử lại sau.');
     }
-    
-    // Cập nhật state
-    setReport(prev => prev ? {
-      ...prev,
-      status: newStatus,
-      resolution: newResolution,
-      updatedAt: newUpdatedAt
-    } : null);
   };
 
   return (
@@ -299,7 +396,7 @@ const ReportDetail = () => {
                 <p>{formatDateTime(report.createdAt)}</p>
               </div>
             </div>
-            {report.updatedAt !== report.createdAt && (
+            {report.updatedAt && report.createdAt && report.updatedAt !== report.createdAt && (
               <div className="timeline-item">
                 <div className="timeline-icon">🔄</div>
                 <div className="timeline-content">
@@ -308,7 +405,7 @@ const ReportDetail = () => {
                 </div>
               </div>
             )}
-            {report.resolution && (
+            {report.resolution && report.updatedAt && (
               <div className="timeline-item">
                 <div className="timeline-icon">✅</div>
                 <div className="timeline-content">
@@ -331,7 +428,7 @@ const ReportDetail = () => {
         )}
 
         {/* Actions */}
-        {report.status === 'Pending' && (
+        {(report.status || '').toLowerCase() === 'pending' && (
           <div className="action-section">
             <button 
               className="action-btn resolve-btn"

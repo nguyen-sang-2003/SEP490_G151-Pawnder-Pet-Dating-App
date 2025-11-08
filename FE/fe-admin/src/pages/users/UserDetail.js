@@ -1,167 +1,193 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockUsers } from '../../data/mockUsers';
-import { mockPets } from '../../data/mockPets';
+import userService from '../../services/api/userService';
+import petService from '../../services/api/petService';
+import { STORAGE_KEYS } from '../../constants';
 import './UserDetail.css';
+
+// UserStatusId mapping (from database: 1 = "Bị khóa", 2 = "Tài khoản thường", 3 = "Tài khoản VIP")
+const USER_STATUS = {
+  BANNED: 1,
+  NORMAL: 2,
+  PREMIUM: 3
+};
 
 const UserDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
-
-  // Tìm user từ mockUsers
-  const baseUser = mockUsers.find(u => u.id === parseInt(id));
   
-  // Lấy pets từ mockPets dựa trên ownerId
-  const getUserPets = (userId) => {
-    return mockPets.filter(pet => pet.ownerId === userId).map(pet => ({
-      id: pet.id,
-      name: pet.name,
-      species: pet.species,
-      breed: pet.breed
-    }));
-  };
+  // User data state
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data bổ sung cho các field không có trong mockUsers
-  // (Trong thực tế sẽ fetch từ API hoặc thêm vào mockUsers)
-  const getAdditionalUserData = (userId) => {
-    const userPets = getUserPets(userId); // Lấy pets từ mockPets
-    
-    const additionalData = {
-      1: {
-        bio: 'Tôi là một người yêu thích động vật và muốn tìm bạn đồng hành cho những chú thú cưng của mình. Tôi có kinh nghiệm chăm sóc mèo trong nhiều năm.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: '1-5 years',
-          location: 'TP.HCM',
-          activityLevel: 'Moderate'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: [
-          { id: 1, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-25T14:30:00Z' },
-          { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-20T09:15:00Z' },
-          { id: 3, petName: 'Simba', ownerName: 'Emma Brown', matchedAt: '2024-10-18T16:45:00Z' }
-        ]
-      },
-      2: {
-        bio: 'Tôi là một người yêu mèo và có kinh nghiệm chăm sóc mèo Persian. Tôi thích tạo ra một môi trường yên tĩnh và thoải mái cho thú cưng.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: '2-4 years',
-          location: 'TP.HCM',
-          activityLevel: 'Low'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: [
-          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-25T14:30:00Z' },
-          { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-22T11:20:00Z' }
-        ]
-      },
-      3: {
-        bio: 'Tôi đang tìm hiểu về việc nuôi thú cưng và muốn học hỏi kinh nghiệm từ những người có kinh nghiệm.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: 'Any',
-          location: 'TP.HCM',
-          activityLevel: 'High'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: []
-      },
-      4: {
-        bio: 'Tôi là người yêu thích mèo và có kinh nghiệm nuôi nhiều loại mèo khác nhau. Tôi thích hoạt động ngoài trời cùng thú cưng.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: '2-6 years',
-          location: 'TP.HCM',
-          activityLevel: 'High'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: [
-          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-26T10:00:00Z' },
-          { id: 2, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-24T15:30:00Z' }
-        ]
-      },
-      5: {
-        bio: 'Tôi là người mới bắt đầu nuôi thú cưng và đang học hỏi cách chăm sóc tốt nhất.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: '1-3 years',
-          location: 'TP.HCM',
-          activityLevel: 'Moderate'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: [
-          { id: 1, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-23T12:00:00Z' }
-        ]
-      },
-      6: {
-        bio: 'Tôi yêu mèo, có kinh nghiệm chăm sóc mèo. Tôi thích tạo môi trường vui vẻ và năng động cho thú cưng.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: '1-4 years',
-          location: 'TP.HCM',
-          activityLevel: 'Moderate'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: [
-          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-27T14:00:00Z' },
-          { id: 2, petName: 'Whiskers', ownerName: 'Sarah Jones', matchedAt: '2024-10-25T11:00:00Z' }
-        ]
-      },
-      7: {
-        bio: 'Tôi là người yêu thích mèo và có kinh nghiệm nuôi mèo trong nhiều năm.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: '2-5 years',
-          location: 'TP.HCM',
-          activityLevel: 'Low'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: [
-          { id: 1, petName: 'Luna', ownerName: 'Alice Wonder', matchedAt: '2024-10-22T16:00:00Z' }
-        ]
-      },
-      8: {
-        bio: 'Tôi đang tìm hiểu về việc nuôi thú cưng và chuẩn bị đón nhận một thành viên mới trong gia đình.',
-        preferences: {
-          petSpecies: ['Cat'],
-          petAge: 'Any',
-          location: 'TP.HCM',
-          activityLevel: 'Moderate'
-        },
-        pets: userPets, // Sử dụng pets từ mockPets
-        matches: [
-          { id: 1, petName: 'Buddy', ownerName: 'John Doe', matchedAt: '2024-10-21T10:00:00Z' }
-        ]
+  // Fetch user data from API
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const userId = parseInt(id);
+        if (isNaN(userId)) {
+          setError('ID người dùng không hợp lệ');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch user and pets in parallel
+        const [userResponse, petsResponse] = await Promise.all([
+          userService.getUserById(userId).catch(err => {
+            console.error('Error fetching user:', err);
+            return null;
+          }),
+          petService.getPetsByUser(userId).catch(err => {
+            console.warn('Error fetching pets:', err);
+            return [];
+          })
+        ]);
+        
+        if (!userResponse) {
+          setError('Không tìm thấy người dùng');
+          setLoading(false);
+          return;
+        }
+        
+        // Map UserResponse to frontend format
+        const fullName = userResponse.FullName || userResponse.fullName || userResponse.Email?.split('@')[0] || 'User';
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || fullName;
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Map UserStatusId to status string
+        let status = 'NORMAL';
+        const userStatusId = userResponse.UserStatusId || userResponse.userStatusId;
+        if (userStatusId === USER_STATUS.PREMIUM) {
+          status = 'PREMIUM';
+        } else if (userStatusId === USER_STATUS.BANNED) {
+          status = 'BANNED';
+        }
+        
+        // Check if user is banned (from localStorage)
+        const savedBans = localStorage.getItem(STORAGE_KEYS.USER_BANS);
+        let isBannedFromStorage = false;
+        if (savedBans) {
+          try {
+            const bans = JSON.parse(savedBans);
+            isBannedFromStorage = bans[userId] !== undefined;
+            if (isBannedFromStorage) {
+              status = 'BANNED';
+            }
+          } catch (err) {
+            console.error('Error parsing user bans:', err);
+          }
+        }
+        
+        // Map pets
+        const pets = Array.isArray(petsResponse) ? petsResponse.map(pet => ({
+          id: pet.PetId || pet.petId,
+          name: pet.Name || pet.name || 'Unknown',
+          breed: pet.Breed || pet.breed || 'Unknown',
+          species: 'Cat', // App chỉ có mèo
+          gender: pet.Gender || pet.gender,
+          age: pet.Age || pet.age,
+          description: pet.Description || pet.description,
+          isActive: pet.IsActive || pet.isActive,
+          photo: pet.UrlImageAvatar || pet.urlImageAvatar
+        })) : [];
+        
+        // Map user data
+        const mappedUser = {
+          id: userResponse.UserId || userResponse.userId,
+          username: userResponse.Email?.split('@')[0] || 'user',
+          email: userResponse.Email || userResponse.email,
+          firstName,
+          lastName,
+          fullName,
+          status,
+          roleId: userResponse.RoleId || userResponse.roleId,
+          userStatusId: userStatusId,
+          gender: userResponse.Gender || userResponse.gender || 'Unknown',
+          isVerified: userResponse.isProfileComplete || userResponse.IsProfileComplete || false,
+          avatar: null, // Backend doesn't have avatar
+          phone: null, // Backend doesn't have phone
+          address: null, // Backend doesn't have address (only AddressId)
+          dateOfBirth: null, // Backend doesn't have dateOfBirth
+          createdAt: userResponse.CreatedAt || userResponse.createdAt,
+          updatedAt: userResponse.UpdatedAt || userResponse.updatedAt,
+          lastLogin: null, // Backend doesn't have lastLogin
+          totalPets: pets.length,
+          totalMatches: 0, // Backend doesn't have matches data
+          // Additional data not in backend
+          bio: 'Chưa có thông tin giới thiệu.',
+          preferences: {
+            petSpecies: ['Cat'],
+            petAge: 'Any',
+            location: 'TP.HCM',
+            activityLevel: 'Moderate'
+          },
+          pets: pets,
+          matches: [] // Backend doesn't have matches data
+        };
+        
+        // Get role name (need to map from roleId)
+        // RoleId 1 = Admin, 2 = Expert, 3 = User (from database)
+        const roleId = userResponse.RoleId || userResponse.roleId;
+        if (roleId === 1) {
+          mappedUser.role = 'Admin';
+        } else if (roleId === 2) {
+          mappedUser.role = 'Expert';
+        } else {
+          mappedUser.role = 'User';
+        }
+        
+        setUser(mappedUser);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        setError('Không thể tải thông tin người dùng. Vui lòng thử lại sau.');
+      } finally {
+        setLoading(false);
       }
     };
     
-    return additionalData[userId] || {
-      bio: 'Chưa có thông tin giới thiệu.',
-      preferences: {
-        petSpecies: ['Cat'],
-        petAge: 'Any',
-        location: 'TP.HCM',
-        activityLevel: 'Moderate'
-      },
-      pets: userPets, // Sử dụng pets từ mockPets
-      matches: []
-    };
-  };
+    fetchUserData();
+  }, [id]);
 
-  // Kết hợp baseUser với additional data
-  const user = baseUser ? {
-    ...baseUser,
-    ...getAdditionalUserData(baseUser.id)
-    // Giữ nguyên status từ mockUsers (NORMAL/PREMIUM)
-  } : null;
-
-  if (!user) {
+  if (loading) {
     return (
       <div className="user-detail-page">
+        <div className="page-header">
+          <button onClick={() => navigate('/users')} className="back-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Quay lại danh sách
+          </button>
+          <h1>Chi tiết người dùng</h1>
+        </div>
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <div className="spinner" style={{ margin: '0 auto' }}></div>
+          <p>Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <div className="user-detail-page">
+        <div className="page-header">
+          <button onClick={() => navigate('/users')} className="back-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Quay lại danh sách
+          </button>
+          <h1>Chi tiết người dùng</h1>
+        </div>
         <div className="error-message">
-          <h2>Không tìm thấy người dùng</h2>
+          <h2>{error || 'Không tìm thấy người dùng'}</h2>
           <p>Người dùng với ID {id} không tồn tại.</p>
           <button onClick={() => navigate('/users')} className="back-btn">
             Quay lại danh sách
@@ -214,6 +240,7 @@ const UserDetail = () => {
   };
 
   const getAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 'N/A';
     return new Date().getFullYear() - new Date(dateOfBirth).getFullYear();
   };
 
@@ -260,8 +287,12 @@ const UserDetail = () => {
               {getGenderIcon(user.gender)} {user.firstName} {user.lastName}
             </h2>
             <p className="user-username">@{user.username}</p>
-            <p className="user-age">{getAge(user.dateOfBirth)} tuổi • {user.gender}</p>
-            <p className="user-location">📍 {user.address}</p>
+            <p className="user-age">
+              {user.dateOfBirth ? `${getAge(user.dateOfBirth)} tuổi` : 'N/A'} • {user.gender || 'N/A'}
+            </p>
+            {user.address && (
+              <p className="user-location">📍 {user.address}</p>
+            )}
           </div>
 
           <div className="user-stats">
@@ -274,7 +305,7 @@ const UserDetail = () => {
               <span className="stat-label">Ghép đôi</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{formatDate(user.createdAt)}</span>
+              <span className="stat-number">{user.createdAt ? formatDate(user.createdAt) : 'N/A'}</span>
               <span className="stat-label">Tham gia</span>
             </div>
           </div>
@@ -307,31 +338,37 @@ const UserDetail = () => {
                   </div>
                   <div className="info-item">
                     <span className="label">Số điện thoại:</span>
-                    <span className="value">{user.phone}</span>
+                    <span className="value">{user.phone || 'N/A'}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="label">Địa chỉ:</span>
-                    <span className="value">{user.address}</span>
-                  </div>
+                  {user.address && (
+                    <div className="info-item">
+                      <span className="label">Địa chỉ:</span>
+                      <span className="value">{user.address}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="info-card">
                   <h3>Thông tin cá nhân</h3>
-                  <div className="info-item">
-                    <span className="label">Ngày sinh:</span>
-                    <span className="value">{formatDate(user.dateOfBirth)}</span>
-                  </div>
+                  {user.dateOfBirth && (
+                    <div className="info-item">
+                      <span className="label">Ngày sinh:</span>
+                      <span className="value">{formatDate(user.dateOfBirth)}</span>
+                    </div>
+                  )}
                   <div className="info-item">
                     <span className="label">Giới tính:</span>
-                    <span className="value">{user.gender}</span>
+                    <span className="value">{user.gender || 'N/A'}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="label">Tuổi:</span>
-                    <span className="value">{getAge(user.dateOfBirth)} tuổi</span>
-                  </div>
+                  {user.dateOfBirth && (
+                    <div className="info-item">
+                      <span className="label">Tuổi:</span>
+                      <span className="value">{getAge(user.dateOfBirth)} tuổi</span>
+                    </div>
+                  )}
                   <div className="info-item">
                     <span className="label">Vai trò:</span>
-                    <span className="value">{user.role}</span>
+                    <span className="value">{user.role || 'User'}</span>
                   </div>
                 </div>
 
@@ -347,20 +384,24 @@ const UserDetail = () => {
                   </div>
                   <div className="info-item">
                     <span className="label">Đăng nhập cuối:</span>
-                    <span className="value">{formatDateTime(user.lastLogin)}</span>
+                    <span className="value">{user.lastLogin ? formatDateTime(user.lastLogin) : 'Chưa đăng nhập'}</span>
                   </div>
                 </div>
 
                 <div className="info-card">
                   <h3>Thời gian</h3>
-                  <div className="info-item">
-                    <span className="label">Ngày tạo:</span>
-                    <span className="value">{formatDateTime(user.createdAt)}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">Cập nhật cuối:</span>
-                    <span className="value">{formatDateTime(user.updatedAt)}</span>
-                  </div>
+                  {user.createdAt && (
+                    <div className="info-item">
+                      <span className="label">Ngày tạo:</span>
+                      <span className="value">{formatDateTime(user.createdAt)}</span>
+                    </div>
+                  )}
+                  {user.updatedAt && (
+                    <div className="info-item">
+                      <span className="label">Cập nhật cuối:</span>
+                      <span className="value">{formatDateTime(user.updatedAt)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -462,29 +503,35 @@ const UserDetail = () => {
               </div>
               
               <div className="activity-timeline">
-                <div className="timeline-item">
-                  <div className="timeline-icon">👤</div>
-                  <div className="timeline-content">
-                    <h4>Đăng nhập lần cuối</h4>
-                    <p>{formatDateTime(user.lastLogin)}</p>
+                {user.lastLogin && (
+                  <div className="timeline-item">
+                    <div className="timeline-icon">👤</div>
+                    <div className="timeline-content">
+                      <h4>Đăng nhập lần cuối</h4>
+                      <p>{formatDateTime(user.lastLogin)}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                <div className="timeline-item">
-                  <div className="timeline-icon">📝</div>
-                  <div className="timeline-content">
-                    <h4>Cập nhật thông tin</h4>
-                    <p>{formatDateTime(user.updatedAt)}</p>
+                {user.updatedAt && (
+                  <div className="timeline-item">
+                    <div className="timeline-icon">📝</div>
+                    <div className="timeline-content">
+                      <h4>Cập nhật thông tin</h4>
+                      <p>{formatDateTime(user.updatedAt)}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                <div className="timeline-item">
-                  <div className="timeline-icon">🎉</div>
-                  <div className="timeline-content">
-                    <h4>Tham gia Pawnder</h4>
-                    <p>{formatDateTime(user.createdAt)}</p>
+                {user.createdAt && (
+                  <div className="timeline-item">
+                    <div className="timeline-icon">🎉</div>
+                    <div className="timeline-content">
+                      <h4>Tham gia Pawnder</h4>
+                      <p>{formatDateTime(user.createdAt)}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}

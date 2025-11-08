@@ -224,6 +224,31 @@ body.dark-theme .error-message p {
   object-fit: cover;
 }
 
+/* No Photos State */
+.no-photos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  background: rgba(255, 182, 193, 0.1);
+  border-radius: 12px;
+  border: 2px dashed rgba(255, 182, 193, 0.3);
+}
+
+.no-photos-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.no-photos p {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
 /* Dark theme */
 body.dark-theme .photos-section {
   background: rgba(30, 30, 30, 0.9);
@@ -253,6 +278,15 @@ body.dark-theme .thumbnail-item:hover {
 body.dark-theme .thumbnail-item.active {
   border-color: #f72585;
   box-shadow: 0 4px 12px rgba(247, 37, 133, 0.3);
+}
+
+body.dark-theme .no-photos {
+  background: rgba(247, 37, 133, 0.1);
+  border-color: rgba(247, 37, 133, 0.3);
+}
+
+body.dark-theme .no-photos p {
+  color: #ccc;
 }
 
 /* Info Section */

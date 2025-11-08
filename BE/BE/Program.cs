@@ -64,6 +64,20 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSection["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
     };
+    
+    // Allow CORS preflight requests to pass through without authentication
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // Skip authentication for OPTIONS requests (CORS preflight)
+            if (context.Request.Method == "OPTIONS")
+            {
+                context.Token = null;
+            }
+            return System.Threading.Tasks.Task.CompletedTask;
+        }
+    };
 });
 builder.Services.AddAuthorization();
 
@@ -78,22 +92,53 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<KickboxSettings>(builder.Configuration.GetSection("KickboxSettings"));
 builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
 
+// Add CORS - Must be configured before building the app
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromSeconds(3600)); // Cache preflight for 1 hour
+    });
+    
+    // Also add named policy for explicit use
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromSeconds(3600));
+    });
+});
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+// IMPORTANT: Middleware order matters!
+
+// 1. CORS must be FIRST, before any other middleware
+app.UseCors();
+
+// 2. Routing (required for endpoint routing)
+app.UseRouting();
+
+// 3. Swagger (in development)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    // Disable HTTPS redirection in development to allow HTTP requests
 }
 
-app.UseHttpsRedirection();
-
+// 4. Authentication and Authorization
 app.UseAuthentication();
-
 app.UseAuthorization();
 
+// 5. Map controllers
 app.MapControllers();
 
 app.Run();
