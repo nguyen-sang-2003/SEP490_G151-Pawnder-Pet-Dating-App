@@ -1,4 +1,5 @@
 ﻿using BE.Models;
+using BE.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,10 +10,12 @@ namespace BE.Controllers
     public class ChatUserController : Controller
     {
         private readonly PawnderDatabaseContext _context;
+        private readonly DailyLimitService _limitService;
 
-        public ChatUserController(PawnderDatabaseContext context)
+        public ChatUserController(PawnderDatabaseContext context, DailyLimitService limitService)
         {
             _context = context;
+            _limitService = limitService;
         }
 
         // GET /invite/{toUserId}
@@ -61,6 +64,18 @@ namespace BE.Controllers
             if (fromUserId == toUserId)
                 return BadRequest(new { message = "Không thể gửi yêu cầu cho chính mình." });
 
+            // Kiểm tra limit trước khi gửi request match
+            bool canPerform = await _limitService.CanPerformAction(fromUserId, "request_match");
+            if (!canPerform)
+            {
+                int remaining = await _limitService.GetRemainingCount(fromUserId, "request_match");
+                return BadRequest(new 
+                { 
+                    message = "Đã vượt quá giới hạn gửi lời mời kết bạn trong ngày.",
+                    remaining = remaining
+                });
+            }
+
             //gui 
             var existing1 = await _context.ChatUsers.FirstOrDefaultAsync(c =>
                 c.FromUserId == fromUserId && c.ToUserId == toUserId && c.IsDeleted == false);
@@ -76,13 +91,16 @@ namespace BE.Controllers
                 existing2.Status = "Accepted";
                 _context.ChatUsers.Update(existing2);
                 await _context.SaveChangesAsync();
+
+                // Ghi nhận action (nếu match thành công ngay lập tức thì vẫn tính là đã dùng 1 lần)
+                await _limitService.RecordAction(fromUserId, "request_match");
+
                 return Ok(new
                 {
                     existing2.MatchId,
                     existing2.FromUserId,
                     existing2.ToUserId,
-                    existing2.Status,
-                    existing2.CreatedAt
+                    existing2.Status
                 });
             }
 
@@ -97,6 +115,9 @@ namespace BE.Controllers
 
             _context.ChatUsers.Add(chatUser);
             await _context.SaveChangesAsync();
+
+            // Ghi nhận action đã thực hiện
+            bool recorded = await _limitService.RecordAction(fromUserId, "request_match");
 
             return Ok(new
             {

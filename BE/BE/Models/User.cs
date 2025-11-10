@@ -46,6 +46,8 @@ public partial class User
 
     public virtual ICollection<ChatUser> ChatUserToUsers { get; set; } = new List<ChatUser>();
 
+    public virtual ICollection<DailyLimit> DailyLimits { get; set; } = new List<DailyLimit>();
+
     public virtual ICollection<ExpertConfirmation> ExpertConfirmationExperts { get; set; } = new List<ExpertConfirmation>();
 
     public virtual ICollection<ExpertConfirmation> ExpertConfirmationUsers { get; set; } = new List<ExpertConfirmation>();

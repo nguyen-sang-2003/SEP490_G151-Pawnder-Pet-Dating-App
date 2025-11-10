@@ -31,6 +31,8 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<ChatUserContent> ChatUserContents { get; set; }
 
+    public virtual DbSet<DailyLimit> DailyLimits { get; set; }
+
     public virtual DbSet<ExpertConfirmation> ExpertConfirmations { get; set; }
 
     public virtual DbSet<Notification> Notifications { get; set; }
@@ -223,6 +225,26 @@ public partial class PawnderDatabaseContext : DbContext
             entity.HasOne(d => d.Match).WithMany(p => p.ChatUserContents)
                 .HasForeignKey(d => d.MatchId)
                 .HasConstraintName("ChatUserContent_MatchId_fkey");
+        });
+
+        modelBuilder.Entity<DailyLimit>(entity =>
+        {
+            entity.HasKey(e => e.LimitId).HasName("DailyLimit_pkey");
+
+            entity.ToTable("DailyLimit");
+
+            entity.HasIndex(e => new { e.UserId, e.ActionType, e.ActionDate }, "DailyLimit_UserId_ActionType_ActionDate_key").IsUnique();
+
+            entity.Property(e => e.ActionType).HasMaxLength(100);
+            entity.Property(e => e.Count).HasDefaultValue(1);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.User).WithMany(p => p.DailyLimits)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("DailyLimit_UserId_fkey");
         });
 
         modelBuilder.Entity<ExpertConfirmation>(entity =>

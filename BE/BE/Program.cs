@@ -84,8 +84,11 @@ builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
 // realtime
 builder.Services.AddSignalR();
 
-// ??ng ký DistanceService
+// Register DistanceService
 builder.Services.AddScoped<BE.Services.DistanceService>();
+
+// Register DailyLimitService
+builder.Services.AddScoped<BE.Services.DailyLimitService>();
 
 var app = builder.Build();
 
@@ -120,5 +123,3 @@ public interface IPhotoStorage
     Task<(string Url, string PublicId)> UploadAsync(int petId, IFormFile file, CancellationToken ct = default);
     Task DeleteAsync(string publicId, CancellationToken ct = default);
 }
-
-//ádasda
