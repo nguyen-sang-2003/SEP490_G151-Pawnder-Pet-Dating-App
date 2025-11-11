@@ -174,20 +174,29 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       }, 100);
       
     } catch (error: any) {
+      // Remove user message on any error
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      
       // Check if it's a 429 limit error
       if (error.response?.status === 429) {
         const errorData = error.response?.data;
         setAILimitMessage(errorData?.message || "Bạn đã hết lượt hỏi AI hôm nay!");
         setShowAIChatLimitModal(true);
-        
-        // Remove user message on limit error
-        setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        // Timeout error
+        Alert.alert(
+          'AI đang quá tải', 
+          'AI đang mất nhiều thời gian để xử lý. Vui lòng thử lại sau vài giây.'
+        );
+      } else if (error.response?.status === 500) {
+        // Backend error with custom message
+        const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra với AI. Vui lòng thử lại.';
+        Alert.alert('Lỗi', errorMsg);
       } else {
+        // Generic error
         console.error('❌ Error sending message to AI:', error);
-        Alert.alert('Lỗi', error.message || 'Không thể gửi tin nhắn');
-        
-        // Remove user message on error
-        setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+        const errorMsg = error.response?.data?.message || error.message || 'Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối.';
+        Alert.alert('Lỗi', errorMsg);
       }
     } finally {
       setIsTyping(false);
@@ -258,6 +267,11 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         const limitMsg = responseData.message || 'Bạn đã hết lượt xác nhận chuyên gia hôm nay!';
         setExpertLimitMessage(limitMsg);
         setShowExpertLimitModal(true);
+      } else if (error.response?.status === 400) {
+        // Show error message from backend
+        const errorMsg = error.response?.data?.Message || error.response?.data?.message || '';
+        setErrorMessage(errorMsg || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setShowErrorAlert(true);
       } else {
         console.error('❌ Error requesting expert:', error);
         setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
@@ -310,7 +324,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               </View>
               <Text style={styles.aiMessageText}>{item.text}</Text>
               
-              {/* Ask Expert Button - Hide if already sent */}
+              {/* Ask Expert Button - Hide only for specific message that was sent */}
               {item.id !== "welcome" && !sentToExpertIds.has(item.id) && (
                 <TouchableOpacity
                   style={styles.askExpertButton}
@@ -326,7 +340,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                 </TouchableOpacity>
               )}
               
-              {/* Show "Sent to Expert" badge if already sent */}
+              {/* Show "Sent to Expert" badge if this specific message was sent */}
               {item.id !== "welcome" && sentToExpertIds.has(item.id) && (
                 <View style={styles.sentToExpertBadge}>
                   <Icon name="checkmark-circle" size={16} color={colors.success} />

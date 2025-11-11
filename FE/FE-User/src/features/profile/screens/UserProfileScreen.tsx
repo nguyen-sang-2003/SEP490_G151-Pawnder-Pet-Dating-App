@@ -26,6 +26,7 @@ import { getItem } from "../../../utils/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getVipStatus } from "../../../api/payment";
+import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 
 const { width } = Dimensions.get("window");
 
@@ -378,6 +379,10 @@ const UserProfileScreen = ({ navigation }: Props) => {
             // Set new active pet
             const newActivePet = petsData.find(p => (p.PetId || p.petId) === petId);
             setActivePet(newActivePet || null);
+            
+            // Refresh badges for the new active pet
+            console.log('🔄 Refreshing badges after setting active pet...');
+            await refreshBadgesForActivePet(userId);
           }
               
           // Show success message

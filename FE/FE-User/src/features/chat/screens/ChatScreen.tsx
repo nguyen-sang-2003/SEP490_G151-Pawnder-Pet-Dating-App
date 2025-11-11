@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
@@ -64,9 +65,11 @@ const ChatScreen = ({ navigation }: Props) => {
   // Load chats when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Don't reset badge here - it will auto-update as chats are marked read
       loadChats();
       refreshOnlineUsers();
+      
+      // Don't refresh badges here - they are managed by useBadgeNotifications hook
+      // and ChatDetailScreen marks chats as read locally
     }, [])
   );
 

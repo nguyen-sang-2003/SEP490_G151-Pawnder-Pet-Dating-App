@@ -482,20 +482,28 @@ namespace BE.Controllers
 
         /// <summary>
         /// Get badge counts for user (unread messages + pending likes)
-        /// GET /api/match/badge-counts/{userId}
+        /// GET /api/match/badge-counts/{userId}?petId={petId}
         /// </summary>
         [HttpGet("badge-counts/{userId}")]
-        public async Task<IActionResult> GetBadgeCounts(int userId)
+        public async Task<IActionResult> GetBadgeCounts(int userId, [FromQuery] int? petId = null)
         {
             try
             {
 
 
                 // Get all accepted matches for this user
-                var acceptedMatches = await _context.ChatUsers
+                var query = _context.ChatUsers
                     .Where(c => c.IsDeleted == false 
                                && c.Status == "Accepted" 
-                               && (c.FromUserId == userId || c.ToUserId == userId))
+                               && (c.FromUserId == userId || c.ToUserId == userId));
+                
+                // Filter by petId if provided (only matches involving this pet)
+                if (petId.HasValue)
+                {
+                    query = query.Where(c => c.FromPetId == petId.Value || c.ToPetId == petId.Value);
+                }
+                
+                var acceptedMatches = await query
                     .Select(c => c.MatchId)
                     .ToListAsync();
 
@@ -517,11 +525,18 @@ namespace BE.Controllers
                 }
 
                 // Count pending likes (people who liked you)
-                var pendingLikesCount = await _context.ChatUsers
+                var pendingLikesQuery = _context.ChatUsers
                     .Where(c => c.IsDeleted == false 
                                && c.Status == "Pending" 
-                               && c.ToUserId == userId)
-                    .CountAsync();
+                               && c.ToUserId == userId);
+                
+                // Filter by petId if provided
+                if (petId.HasValue)
+                {
+                    pendingLikesQuery = pendingLikesQuery.Where(c => c.ToPetId == petId.Value);
+                }
+                
+                var pendingLikesCount = await pendingLikesQuery.CountAsync();
 
 
 

@@ -83,12 +83,15 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
 
 /**
  * Get badge counts for user (unread messages + pending likes)
- * GET /api/match/badge-counts/{userId}
+ * GET /api/match/badge-counts/{userId}?petId={petId}
  */
-export const getBadgeCounts = async (userId: number): Promise<BadgeCounts> => {
+export const getBadgeCounts = async (userId: number, petId?: number): Promise<BadgeCounts> => {
   try {
 
-    const response = await client.get(`/api/match/badge-counts/${userId}`);
+    const url = petId 
+      ? `/api/match/badge-counts/${userId}?petId=${petId}`
+      : `/api/match/badge-counts/${userId}`;
+    const response = await client.get(url);
 
     return response.data;
   } catch (error: any) {

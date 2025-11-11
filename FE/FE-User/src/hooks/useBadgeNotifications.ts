@@ -10,6 +10,7 @@ import {
 } from '../features/badge/badgeSlice';
 import signalRService from '../services/signalr.service';
 import { getBadgeCounts } from '../api/match';
+import { getPetsByUserId } from '../api/pet';
 
 /**
  * Custom hook to manage badge notifications
@@ -37,9 +38,37 @@ export const useBadgeNotifications = (userId: number | null) => {
     fetchBadgeCounts();
 
     // Setup SignalR listeners for real-time badge updates
-    const handleNewMessageBadge = (data: any) => {
+    const handleNewMessageBadge = async (data: any) => {
       const matchId = data.matchId || data.MatchId;
-      if (matchId) {
+      const fromPetId = data.fromPetId || data.FromPetId;
+      const toPetId = data.toPetId || data.ToPetId;
+      
+      if (!matchId) return;
+      
+      // Check if this message is for the user's active pet
+      try {
+        const userPets = await getPetsByUserId(userId);
+        const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
+        
+        if (activePet) {
+          const activePetId = activePet.PetId || activePet.petId;
+          
+          // Only show badge if the message is for the active pet
+          // The message is relevant if active pet matches either fromPetId or toPetId
+          if (activePetId === fromPetId || activePetId === toPetId) {
+            console.log(`📬 New message for active pet ${activePetId}, showing badge`);
+            dispatch(addUnreadChat(matchId));
+          } else {
+            console.log(`🔕 Message for pet ${fromPetId}/${toPetId}, but active pet is ${activePetId} - ignoring`);
+          }
+        } else {
+          // No active pet, show all notifications (fallback)
+          console.log(`⚠️ No active pet found, showing all notifications`);
+          dispatch(addUnreadChat(matchId));
+        }
+      } catch (error) {
+        console.error('Error checking active pet for notification:', error);
+        // On error, show notification (fallback)
         dispatch(addUnreadChat(matchId));
       }
     };

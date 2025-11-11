@@ -21,6 +21,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { getLikesReceived, respondToLike, LikeReceivedItem } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
@@ -64,6 +65,8 @@ const FavoriteScreen = ({ navigation }: Props) => {
       console.log('🔔 Resetting favorite badge to 0');
       dispatch(resetFavoriteBadge());
       loadLikes();
+      
+      // Don't refresh badges here - they are managed by useBadgeNotifications hook
     }, [dispatch])
   );
 

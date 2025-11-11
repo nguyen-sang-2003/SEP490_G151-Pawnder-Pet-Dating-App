@@ -114,13 +114,13 @@ namespace BE.Controllers
                 
                 Console.WriteLine($"[SendMessage] Broadcast complete");
 
-                // Notify the recipient about new message badge
+                // Notify the recipient about new message badge (with pet IDs for filtering)
                 var toUserId = match.FromUserId == fromUserId ? match.ToUserId : match.FromUserId;
                 if (toUserId.HasValue)
                 {
                     try
                     {
-                        await ChatHub.SendNewMessageBadge(_hubContext, toUserId.Value, matchId);
+                        await ChatHub.SendNewMessageBadge(_hubContext, toUserId.Value, matchId, match.FromPetId, match.ToPetId);
                     }
                     catch (Exception notifEx)
                     {

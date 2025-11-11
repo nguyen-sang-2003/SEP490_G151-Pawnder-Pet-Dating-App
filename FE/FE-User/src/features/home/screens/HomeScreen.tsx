@@ -29,6 +29,7 @@ import { selectNotificationBadge } from "../../badge/badgeSlice";
 import { getVipStatus } from "../../../api/payment";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
 import signalRService from "../../../services/signalr.service";
+import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - 24; // Padding 12px each side
@@ -84,9 +85,21 @@ const HomeScreen = ({ navigation }: Props) => {
         currentUserIdRef.current = currentUserId;
     }, [currentUserId]);
 
+    // Track previous pet ID to detect actual pet switches
+    const prevActivePetIdRef = useRef<number | null>(null);
+    
     useEffect(() => {
         activePetIdRef.current = activePetId;
-    }, [activePetId]);
+        
+        // Only refresh badges when pet ACTUALLY changes (not on initial mount)
+        if (activePetId && currentUserId && prevActivePetIdRef.current !== null && prevActivePetIdRef.current !== activePetId) {
+            console.log(`🔄 Pet switched from ${prevActivePetIdRef.current} to ${activePetId}, refreshing badges...`);
+            refreshBadgesForActivePet(currentUserId);
+        }
+        
+        // Update previous pet ID
+        prevActivePetIdRef.current = activePetId;
+    }, [activePetId, currentUserId]);
 
     useEffect(() => {
         currentIndexRef.current = currentIndex;
@@ -434,6 +447,7 @@ const HomeScreen = ({ navigation }: Props) => {
     useFocusEffect(
         useCallback(() => {
             loadPets();
+            // Badges are refreshed automatically when activePetId changes (useEffect above)
         }, [])
     );
 

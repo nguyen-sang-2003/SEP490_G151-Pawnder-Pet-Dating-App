@@ -111,10 +111,12 @@ export const sendMessageToAI = async (
   question: string
 ): Promise<{ question: string; answer: string; timestamp: string }> => {
   try {
-
-    const response = await apiClient.post(`/api/chat-ai/${chatAiId}/messages`, {
-      question,
-    });
+    // AI requests need longer timeout (50 seconds) because backend calls Gemini API (45s timeout)
+    const response = await apiClient.post(
+      `/api/chat-ai/${chatAiId}/messages`, 
+      { question },
+      { timeout: 50000 } // 50 seconds
+    );
 
     return response.data.data;
   } catch (error: any) {
