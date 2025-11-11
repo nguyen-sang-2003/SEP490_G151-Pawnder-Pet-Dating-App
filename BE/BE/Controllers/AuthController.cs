@@ -39,6 +39,58 @@ namespace BE.Controllers
             if (!isPasswordValid)
                 return Unauthorized("Sai mật khẩu");
             
+            // Ban checking logic (temporary or permanent)
+            var now = DateTime.Now;
+            var activeBan = await _context.UserBanHistories
+                .AsNoTracking()
+                .Where(b => b.UserId == user.UserId && b.IsActive == true)
+                .OrderByDescending(b => b.BanStart)
+                .FirstOrDefaultAsync();
+
+            if (activeBan != null)
+            {
+                var stillBanned = !activeBan.BanEnd.HasValue || activeBan.BanEnd.Value > now;
+                if (stillBanned)
+                {
+                    var message = activeBan.BanEnd.HasValue
+                        ? "Tài khoản đang bị khóa tạm thời"
+                        : "Tài khoản đã bị khóa vĩnh viễn";
+                    return StatusCode(StatusCodes.Status403Forbidden, new
+                    {
+                        Message = message,
+                        BanStart = activeBan.BanStart,
+                        BanEnd = activeBan.BanEnd,
+                        Reason = activeBan.BanReason
+                    });
+                }
+                else
+                {
+                    // Auto-deactivate expired ban
+                    var banToDeactivate = await _context.UserBanHistories
+                        .FirstOrDefaultAsync(b => b.BanId == activeBan.BanId);
+                    if (banToDeactivate != null && banToDeactivate.IsActive == true)
+                    {
+                        banToDeactivate.IsActive = false;
+                        banToDeactivate.UpdatedAt = now;
+                        // Also set user status based on payment history (VIP vs Thường)
+                        var hasPaymentHistory = await _context.PaymentHistories
+                            .AsNoTracking()
+                            .AnyAsync(ph => ph.UserId == user.UserId);
+                        var targetStatusName = hasPaymentHistory ? "Tài khoản VIP" : "Tài khoản thường";
+                        var targetStatus = await _context.UserStatuses
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, targetStatusName));
+                        if (targetStatus != null)
+                        {
+                            user.UserStatusId = targetStatus.UserStatusId;
+                            user.UpdatedAt = now;
+                            _context.Users.Update(user);
+                        }
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+            
             // Tạo Access Token (ngắn hạn - 30 phút)
             var accessToken = _tokenService.GenerateAccessToken(user.UserId, user.Role?.RoleName ?? "User");
             

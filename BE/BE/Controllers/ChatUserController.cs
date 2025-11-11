@@ -18,17 +18,37 @@ namespace BE.Controllers
             _limitService = limitService;
         }
 
-        // GET /invite/{toUserId}
-        [HttpGet("invite/{toUserId}")]
-        public async Task<IActionResult> GetInvites(int toUserId)
+        // GET /invite/{userId} – lấy tất cả lời mời gửi tới các pet của user
+        [HttpGet("invite/{userId}")]
+        public async Task<IActionResult> GetInvites(int userId)
         {
+            var petIds = await _context.Pets
+                .Where(p => p.UserId == userId && (p.IsDeleted == false))
+                .Select(p => p.PetId)
+                .ToListAsync();
+
+            if (!petIds.Any())
+            {
+                return Ok(new List<object>());
+            }
+
+            var petIdSet = petIds.ToHashSet();
+
             var invites = await _context.ChatUsers
-                .Include(c => c.FromUser)
-                .Where(c => c.ToUserId == toUserId && c.Status == "Pending")
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .Where(c =>
+                    c.Status == "Pending" &&
+                    c.IsDeleted == false &&
+                    c.ToPetId.HasValue &&
+                    petIdSet.Contains(c.ToPetId.Value))
                 .Select(c => new
                 {
                     matchId = c.MatchId,
-                    fromUserId = c.FromUserId,
+                    fromPetId = c.FromPetId,
+                    fromPetName = c.FromPet != null ? c.FromPet.Name : null,
+                    toPetId = c.ToPetId,
+                    toPetName = c.ToPet != null ? c.ToPet.Name : null,
                     status = c.Status,
                     createdAt = c.CreatedAt
                 })
@@ -37,32 +57,63 @@ namespace BE.Controllers
             return Ok(invites);
         }
 
-        // GET /chat/{toUserId}
-        [HttpGet("chat/{UserId}")]
-        public async Task<IActionResult> GetChats(int UserId)
+        // GET /chat/{userId} – lấy tất cả đoạn chat Accepted của các pet thuộc user
+        [HttpGet("chat/{userId}")]
+        public async Task<IActionResult> GetChats(int userId)
         {
-            var invites = await _context.ChatUsers
-                .Include(c => c.FromUser)
-                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted")
+            var petIds = await _context.Pets
+                .Where(p => p.UserId == userId && p.IsDeleted == false)
+                .Select(p => p.PetId)
+                .ToListAsync();
+
+            if (!petIds.Any())
+            {
+                return Ok(new List<object>());
+            }
+
+            var petIdSet = petIds.ToHashSet();
+
+            var chats = await _context.ChatUsers
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .Where(c =>
+                    c.Status == "Accepted" &&
+                    c.IsDeleted == false &&
+                    (
+                        (c.FromPetId.HasValue && petIdSet.Contains(c.FromPetId.Value)) ||
+                        (c.ToPetId.HasValue && petIdSet.Contains(c.ToPetId.Value))
+                    ))
                 .Select(c => new
                 {
                     matchId = c.MatchId,
-                    fromUserId = c.FromUserId,
-                    toUserId = c.ToUserId,
+                    fromPetId = c.FromPetId,
+                    fromPetName = c.FromPet != null ? c.FromPet.Name : null,
+                    toPetId = c.ToPetId,
+                    toPetName = c.ToPet != null ? c.ToPet.Name : null,
                     status = c.Status,
                     createdAt = c.CreatedAt
                 })
                 .ToListAsync();
 
-            return Ok(invites);
+            return Ok(chats);
         }
 
-        // POST /invite/{fromUserId}/{toUserId}
-        [HttpPost("invite/{fromUserId}/{toUserId}")]
-        public async Task<IActionResult> CreateFriendRequest(int fromUserId, int toUserId)
+        // POST /invite/{fromPetId}/{toPetId}
+        [HttpPost("invite/{fromPetId}/{toPetId}")]
+        public async Task<IActionResult> CreateFriendRequest(int fromPetId, int toPetId)
         {
-            if (fromUserId == toUserId)
+            if (fromPetId == toPetId)
                 return BadRequest(new { message = "Không thể gửi yêu cầu cho chính mình." });
+
+            // Lấy UserId từ Pet để kiểm tra limit
+            var fromPet = await _context.Pets
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.PetId == fromPetId);
+            
+            if (fromPet == null || fromPet.User == null)
+                return NotFound(new { message = "Không tìm thấy pet hoặc user của pet." });
+
+            int fromUserId = fromPet.User.UserId;
 
             // Kiểm tra limit trước khi gửi request match
             bool canPerform = await _limitService.CanPerformAction(fromUserId, "request_match");
@@ -78,14 +129,14 @@ namespace BE.Controllers
 
             //gui 
             var existing1 = await _context.ChatUsers.FirstOrDefaultAsync(c =>
-                c.FromUserId == fromUserId && c.ToUserId == toUserId && c.IsDeleted == false);
+                c.FromPetId == fromPetId && c.ToPetId == toPetId && c.IsDeleted == false);
 
             if (existing1 != null)
                 return BadRequest(new { message = "Yêu cầu này đã tồn tại." });
             
             //da nhan
             var existing2 = await _context.ChatUsers.FirstOrDefaultAsync(c =>
-                c.FromUserId == toUserId && c.ToUserId == fromUserId && c.IsDeleted == false);
+                c.FromPetId == toPetId && c.ToPetId == fromPetId && c.IsDeleted == false);
             if (existing2 != null)
             {
                 existing2.Status = "Accepted";
@@ -98,16 +149,16 @@ namespace BE.Controllers
                 return Ok(new
                 {
                     existing2.MatchId,
-                    existing2.FromUserId,
-                    existing2.ToUserId,
+                    existing2.FromPetId,
+                    existing2.ToPetId,
                     existing2.Status
                 });
             }
 
             var chatUser = new ChatUser
             {
-                FromUserId = fromUserId,
-                ToUserId = toUserId,
+                FromPetId = fromPetId,
+                ToPetId = toPetId,
                 Status = "Pending",
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
@@ -122,8 +173,8 @@ namespace BE.Controllers
             return Ok(new
             {
                 chatUser.MatchId,
-                chatUser.FromUserId,
-                chatUser.ToUserId,
+                chatUser.FromPetId,
+                chatUser.ToPetId,
                 chatUser.Status,
                 chatUser.CreatedAt
             });
@@ -147,8 +198,8 @@ namespace BE.Controllers
             return Ok(new
             {
                 chatUser.MatchId,
-                chatUser.FromUserId,
-                chatUser.ToUserId,
+                chatUser.FromPetId,
+                chatUser.ToPetId,
                 chatUser.Status,
                 chatUser.UpdatedAt
             });

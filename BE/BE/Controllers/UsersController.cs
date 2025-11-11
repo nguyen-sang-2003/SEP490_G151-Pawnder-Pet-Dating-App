@@ -39,6 +39,9 @@ public class UserController : ControllerBase
         if (!includeDeleted)
             q = q.Where(u => u.IsDeleted == null || u.IsDeleted == false);
 
+        // Exclude Admin users from the listing
+        q = q.Where(u => u.Role == null || u.Role.RoleName != "Admin");
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
