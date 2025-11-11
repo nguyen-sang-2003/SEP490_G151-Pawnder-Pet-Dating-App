@@ -549,10 +549,10 @@ VALUES
 -- ===========================
 INSERT INTO "ChatUserContent" ("MatchId", "FromPetId", "Message")
 VALUES
-((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Matched'),
+((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
  (SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
  'Chào bạn, tôi muốn nhờ bạn tư vấn cho thú cưng của tôi!'),
-((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Matched'),
+((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
  (SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
  'Chào bạn, tôi rất sẵn lòng giúp!');
 

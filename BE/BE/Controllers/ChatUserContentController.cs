@@ -30,14 +30,15 @@ namespace BE.Controllers
             }
 
             var messages = await _context.ChatUserContents
+                .Include(c => c.FromPet)
                 .Where(c => c.MatchId == matchId)
                 .OrderBy(c => c.CreatedAt)
                 .Select(c => new
                 {
                     c.ContentId,
                     c.MatchId,
-                    c.FromUserId,
-                    FromUserName = c.FromUser != null ? c.FromUser.FullName : null,
+                    c.FromPetId,
+                    FromPetName = c.FromPet != null ? c.FromPet.Name : null,
                     c.Message,
                     c.CreatedAt
                 })
@@ -49,9 +50,9 @@ namespace BE.Controllers
             return Ok(messages);
         }
 
-        // POST /chat-user-content/{matchId}/{fromUserId}
-        [HttpPost("chat-user-content/{matchId}/{fromUserId}")]
-        public async Task<IActionResult> SendMessage(int matchId, int fromUserId, [FromBody] string message)
+        // POST /chat-user-content/{matchId}/{fromPetId}
+        [HttpPost("chat-user-content/{matchId}/{fromPetId}")]
+        public async Task<IActionResult> SendMessage(int matchId, int fromPetId, [FromBody] string message)
         {
 
             if (string.IsNullOrWhiteSpace(message))
@@ -61,10 +62,14 @@ namespace BE.Controllers
             if (match == null)
                 return NotFound(new { message = "Không tồn tại đoạn chat." });
 
+            // Kiểm tra fromPetId có thuộc match này không
+            if (match.FromPetId != fromPetId && match.ToPetId != fromPetId)
+                return BadRequest(new { message = "Pet không thuộc cuộc chat này." });
+
             var chatMessage = new ChatUserContent
             {
                 MatchId = matchId,
-                FromUserId = fromUserId,
+                FromPetId = fromPetId,
                 Message = message,
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
@@ -77,7 +82,7 @@ namespace BE.Controllers
             await _hubContext.Clients.All.SendAsync($"ReceiveMessage_{matchId}", new
             {
                 MatchId = matchId,
-                FromUserId = fromUserId,
+                FromPetId = fromPetId,
                 Message = message,
                 CreatedAt = chatMessage.CreatedAt
             });
