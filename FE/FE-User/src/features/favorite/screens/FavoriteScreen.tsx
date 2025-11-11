@@ -334,11 +334,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   </Text>
                 </View>
                 <View style={styles.metaRow}>
-                  <Icon name="paw" size={14} color={colors.white} />
+                  <Icon name="paw" size={16} color={colors.white} />
                   <Text style={styles.metaText}>{item.age} • {item.breed}</Text>
                 </View>
                 <View style={styles.ownerRow}>
-                  <Icon name="person-outline" size={14} color={colors.white} />
+                  <Icon name="person-outline" size={16} color={colors.white} />
                   <Text style={styles.ownerTextOnImage}>{item.ownerName}</Text>
                 </View>
               </View>
@@ -364,7 +364,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Icon name="chatbubble" size={18} color={colors.white} />
+                    <Icon name="chatbubble" size={25} color={colors.white} />
                     <Text style={styles.actionTextWhite}>Send Message</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -377,12 +377,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   }}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient
-                    colors={["#FF6B6B", "#FF8E8E"]}
-                    style={styles.unmatchIconGradient}
-                  >
-                    <Icon name="close-circle-outline" size={16} color={colors.white} />
-                  </LinearGradient>
+                  <Icon name="close-circle" size={20} color="#FF6B6B" />
                   <Text style={styles.actionTextDanger}>Unmatch</Text>
                 </TouchableOpacity>
               </>
@@ -705,7 +700,7 @@ const styles = StyleSheet.create({
   // Image Container
   imageContainer: {
     width: "100%",
-    height: 180,
+    height: 240,
     position: "relative",
     backgroundColor: "#F0F0F0",
   },
@@ -803,12 +798,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    paddingBottom: 10,
+    paddingHorizontal: 14,
+    paddingTop: 20,
+    paddingBottom: 14,
   },
   imageInfo: {
-    gap: 4,
+    gap: 6,
   },
   petNameRow: {
     flexDirection: "row",
@@ -816,12 +811,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   catNameOnImage: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "bold",
     color: colors.white,
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   maleSymbol: {
     color: "#64B5F6",
@@ -835,9 +830,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    fontSize: 11,
+    fontSize: 13,
     color: colors.white,
-    fontWeight: "500",
+    fontWeight: "600",
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   ownerRow: {
     flexDirection: "row",
@@ -845,23 +843,26 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ownerTextOnImage: {
-    fontSize: 11,
+    fontSize: 13,
     color: colors.white,
-    fontWeight: "500",
+    fontWeight: "600",
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 
   // Actions Container
   actionsContainer: {
     flexDirection: "row",
-    gap: 8,
-    padding: 10,
+    gap: 10,
+    padding: 12,
     backgroundColor: colors.white,
   },
 
   // Action Buttons - Matched State
   actionBtnChat: {
     flex: 1,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     overflow: "hidden",
     ...shadows.button,
   },
@@ -869,12 +870,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
   },
   actionTextWhite: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
     color: colors.white,
     letterSpacing: 0.3,
   },
@@ -882,25 +884,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.whiteWarm,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,107,107,0.3)",
-  },
-  unmatchIconGradient: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: "#FFF5F5",
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: "#FFE0E0",
+    ...shadows.small,
   },
   actionTextDanger: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#FF6B6B",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FF5252",
+    letterSpacing: 0.3,
   },
 
   // Action Buttons - Not Matched State

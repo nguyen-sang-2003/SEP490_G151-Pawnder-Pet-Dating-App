@@ -41,8 +41,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       console.error('ERROR: petId is undefined!');
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không tìm thấy thông tin Pet. Vui lòng thử lại.',
+        title: 'Error',
+        message: 'Pet information not found. Please try again.',
         onClose: () => navigation.goBack(),
       });
       return;
@@ -122,8 +122,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       console.error('Error loading attributes:', error);
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không thể tải thông tin thuộc tính. Vui lòng thử lại.',
+        title: 'Error',
+        message: 'Failed to load characteristics. Please try again.',
       });
     } finally {
       setLoading(false);
@@ -168,33 +168,23 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       console.log(`Total promises: ${savePromises.length}`);
       await Promise.all(savePromises);
 
-      console.log(`✅ Pet characteristics ${isFromProfile ? 'updated' : 'saved'} successfully`);
+      console.log(`✅ Pet characteristics saved successfully`);
 
-      if (isFromProfile) {
-        // Navigate back to EditPet if editing from profile
-        showAlert({
-          type: 'success',
-          title: 'Thành công! 🎉',
-          message: 'Đã cập nhật đặc điểm thú cưng!',
-          onClose: () => navigation.goBack(),
-        });
-      } else {
-        // Navigate to AddPetPhotos if creating new pet
-        showAlert({
-          type: 'success',
-          title: 'Thành công! 🎉',
-          message: 'Đặc điểm thú cưng đã được lưu. Bây giờ hãy thêm ảnh!',
-          confirmText: 'Tiếp tục',
-          onClose: () => {
-            navigation.navigate("AddPetPhotos", { petId, isFromProfile });
-          },
-        });
-      }
+      // Always navigate to AddPetPhotos (step 3)
+      showAlert({
+        type: 'success',
+        title: 'Success!',
+        message: 'Characteristics saved! Now let\'s add some photos.',
+        confirmText: 'Continue',
+        onClose: () => {
+          navigation.navigate("AddPetPhotos", { petId, isFromProfile });
+        },
+      });
     } catch (error: any) {
       console.error('Error saving characteristics:', error);
       console.error('Error response:', error.response?.data);
       
-      let errorMessage = 'Không thể lưu đặc điểm. Vui lòng thử lại.';
+      let errorMessage = 'Failed to save characteristics. Please try again.';
       
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -204,7 +194,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       
       showAlert({
         type: 'error',
-        title: 'Lỗi',
+        title: 'Error',
         message: errorMessage,
       });
     } finally {
@@ -216,11 +206,10 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     if (isFromProfile) {
       navigation.goBack();
     } else {
-      // Nếu chưa hoàn thành profile, không cho back
       showAlert({
         type: 'warning',
-        title: 'Cần hoàn thành hồ sơ',
-        message: 'Bạn cần hoàn tất tạo thú cưng để tiếp tục sử dụng app.',
+        title: 'Complete Profile',
+        message: 'You need to complete your pet profile to continue.',
       });
     }
   };
@@ -252,12 +241,22 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          {!isFromProfile && <Text style={styles.stepText}>Step 2 of 3</Text>}
+          
+          {/* Step Indicator - Always show in Add Pet flow */}
+          <View style={styles.stepIndicatorContainer}>
+            <View style={styles.stepBarsContainer}>
+              <View style={[styles.stepBar, styles.stepBarActive]} />
+              <View style={[styles.stepBar, styles.stepBarActive]} />
+              <View style={[styles.stepBar, styles.stepBarInactive]} />
+            </View>
+            <Text style={styles.stepText}>Step 2 of 3</Text>
+          </View>
+          
           <Text style={styles.title}>
-            {isFromProfile ? 'Edit Pet Characteristics 🎨' : 'Pet Characteristics 🎨'}
+            {isFromProfile ? 'Edit Characteristics' : 'Pet Characteristics'}
           </Text>
           <Text style={styles.subtitle}>
-            {isFromProfile ? 'Update your pet\'s characteristics' : 'Help others know more about your pet'}
+            {isFromProfile ? 'Update your pet\'s details' : 'Help others get to know your pet better'}
           </Text>
         </View>
 
@@ -279,51 +278,59 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 
                 {isNumeric ? (
                   // Numeric Input
-                  <TextInput
-                    style={styles.numericInput}
-                    placeholder={`Nhập ${attr.Name?.toLowerCase() || 'giá trị'}`}
-                    placeholderTextColor={colors.textLabel}
-                    keyboardType="decimal-pad"
-                    value={numericValues[attr.AttributeId!] || ''}
-                    onChangeText={(text) => {
-                      if (attr.AttributeId) {
-                        setNumericValues({ ...numericValues, [attr.AttributeId]: text });
-                      }
-                    }}
-                  />
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.numericInput}
+                      placeholder={`Enter ${attr.Name?.toLowerCase() || 'value'}`}
+                      placeholderTextColor={colors.textLabel}
+                      keyboardType="decimal-pad"
+                      value={numericValues[attr.AttributeId!] || ''}
+                      onChangeText={(text) => {
+                        if (attr.AttributeId) {
+                          setNumericValues({ ...numericValues, [attr.AttributeId]: text });
+                        }
+                      }}
+                    />
+                    {attr.Unit && (
+                      <Text style={styles.unitLabel}>{attr.Unit}</Text>
+                    )}
+                  </View>
                 ) : (
-                  // Option Selection
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsScroll}>
-                    <View style={styles.optionsRow}>
-                      {attributeOptions[attr.AttributeId]?.map((option) => {
-                        if (!option.OptionId) return null;
-                        
-                        return (
-                          <TouchableOpacity
-                            key={`option-${option.OptionId}`}
+                  // Option Selection - Chips
+                  <View style={styles.optionsContainer}>
+                    {attributeOptions[attr.AttributeId]?.map((option) => {
+                      if (!option.OptionId) return null;
+                      const isSelected = selectedOptions[attr.AttributeId!] === option.OptionId;
+                      
+                      return (
+                        <TouchableOpacity
+                          key={`option-${option.OptionId}`}
+                          style={[
+                            styles.optionChip,
+                            isSelected && styles.optionChipActive,
+                          ]}
+                          onPress={() => {
+                            if (attr.AttributeId && option.OptionId) {
+                              setSelectedOptions({ ...selectedOptions, [attr.AttributeId]: option.OptionId });
+                            }
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          {isSelected && (
+                            <Icon name="checkmark-circle" size={16} color={colors.white} style={styles.checkIcon} />
+                          )}
+                          <Text
                             style={[
-                              styles.optionBtn,
-                              selectedOptions[attr.AttributeId!] === option.OptionId && styles.optionBtnActive,
+                              styles.optionText,
+                              isSelected && styles.optionTextActive,
                             ]}
-                            onPress={() => {
-                              if (attr.AttributeId && option.OptionId) {
-                                setSelectedOptions({ ...selectedOptions, [attr.AttributeId]: option.OptionId });
-                              }
-                            }}
                           >
-                            <Text
-                              style={[
-                                styles.optionText,
-                                selectedOptions[attr.AttributeId!] === option.OptionId && styles.optionTextActive,
-                              ]}
-                            >
-                              {option.Name || 'Unknown'}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </ScrollView>
+                            {option.Name || 'Unknown'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 )}
               </View>
             );
@@ -331,9 +338,11 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
           {/* Info Card */}
           <View style={styles.infoCard}>
-            <Icon name="information-circle" size={24} color={colors.primary} />
+            <View style={styles.infoIcon}>
+              <Icon name="bulb" size={20} color={colors.primary} />
+            </View>
             <Text style={styles.infoText}>
-              These characteristics help match your pet with compatible friends! You can always update them later.
+              These details help us find the perfect matches for your pet. You can update anytime.
             </Text>
           </View>
 
@@ -353,8 +362,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>Continue</Text>
-                  <Icon name="arrow-forward" size={20} color={colors.white} />
+                  <Text style={styles.buttonText}>{isFromProfile ? 'Save Changes' : 'Continue'}</Text>
+                  <Icon name="arrow-forward" size={22} color={colors.white} />
                 </>
               )}
             </LinearGradient>
@@ -394,102 +403,158 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    marginBottom: 32,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
     ...shadows.small,
   },
+  stepIndicatorContainer: {
+    marginBottom: 24,
+  },
+  stepBarsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  stepBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  stepBarActive: {
+    backgroundColor: colors.primary,
+  },
+  stepBarInactive: {
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
   stepText: {
-    fontSize: 14,
-    color: colors.primary,
+    fontSize: 12,
+    color: colors.textMedium,
     fontWeight: "600",
-    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   title: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: "bold",
     color: colors.textDark,
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 17,
     color: colors.textMedium,
+    lineHeight: 24,
   },
 
   // Form
   form: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingBottom: 40,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 32,
   },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: colors.textDark,
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: 0.2,
   },
 
-  // Dynamic Options
-  optionsScroll: {
-    flexGrow: 0,
+  // Input Container
+  inputContainer: {
+    position: 'relative',
   },
-  optionsRow: {
+  
+  // Option Chips
+  optionsContainer: {
     flexDirection: "row",
-    gap: 8,
-    paddingRight: 20,
+    flexWrap: "wrap",
+    gap: 10,
   },
-  optionBtn: {
+  optionChip: {
     backgroundColor: colors.whiteWarm,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: radius.md,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: radius.xl,
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: 'rgba(0,0,0,0.06)',
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     ...shadows.small,
   },
-  optionBtnActive: {
+  optionChipActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
+    ...shadows.medium,
+  },
+  checkIcon: {
+    marginRight: 2,
   },
   optionText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     color: colors.textDark,
   },
   optionTextActive: {
     color: colors.white,
+    fontWeight: "700",
   },
 
   // Numeric Input
   numericInput: {
     backgroundColor: colors.whiteWarm,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
+    borderRadius: radius.lg,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    paddingRight: 60,
+    fontSize: 16,
     color: colors.textDark,
+    borderWidth: 2,
+    borderColor: 'transparent',
     ...shadows.small,
   },
 
+  unitLabel: {
+    position: 'absolute',
+    right: 18,
+    top: 18,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textMedium,
+  },
+  
   // Info Card
   infoCard: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    backgroundColor: colors.cardBackgroundLight,
-    borderRadius: radius.md,
-    padding: 16,
-    marginBottom: 24,
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: radius.lg,
+    padding: 18,
+    marginTop: 8,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  infoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,107,129,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoText: {
     flex: 1,
@@ -500,23 +565,24 @@ const styles = StyleSheet.create({
 
   // Buttons
   btnShadow: {
-    marginTop: 12,
-    borderRadius: radius.lg,
+    marginTop: 8,
+    borderRadius: radius.xl,
     ...shadows.large,
   },
   button: {
     flexDirection: "row",
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 32,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
   },
   buttonText: {
     color: colors.white,
     fontWeight: "700",
-    fontSize: 16,
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
   skipBtn: {
     marginTop: 16,

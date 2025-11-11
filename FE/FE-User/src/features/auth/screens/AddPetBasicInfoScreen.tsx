@@ -35,8 +35,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (!petName.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Thiếu thông tin',
-        message: 'Vui lòng nhập tên thú cưng!',
+        title: 'Name Required',
+        message: 'Please enter your pet\'s name to continue.',
       });
       return;
     }
@@ -49,8 +49,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       if (!userIdStr) {
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: 'Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.',
+          title: 'Error',
+          message: 'User information not found. Please login again.',
         });
         return;
       }
@@ -83,13 +83,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Thành công! 🎉',
-        message: `${petName} đã được tạo. Tiếp tục thêm thông tin chi tiết!`,
-        confirmText: 'Tiếp tục',
+        title: 'Success!',
+        message: `${petName}'s profile created. Let's add more details!`,
+        confirmText: 'Continue',
         onClose: () => {
-          // Pass isFromProfile từ route params để giữ nguyên flow
-          // isFromProfile = false: đăng ký lần đầu → sau khi save photos sẽ navigate to OnboardingPreferences (bắt buộc)
-          // isFromProfile = true: thêm pet từ Profile → sau khi save photos sẽ navigate to Profile (không cần setup preferences)
           navigation.navigate("AddPetCharacteristics", { petId, isFromProfile });
         },
       });
@@ -97,8 +94,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       console.error('Error creating pet:', error);
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.message || 'Không thể tạo thú cưng. Vui lòng thử lại.',
+        title: 'Error',
+        message: error.message || 'Failed to create pet profile. Please try again.',
       });
     } finally {
       setLoading(false);
@@ -109,11 +106,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (isFromProfile) {
       navigation.navigate("Profile");
     } else {
-      // Nếu chưa hoàn thành profile, không cho back
       showAlert({
         type: 'warning',
-        title: 'Cần hoàn thành hồ sơ',
-        message: 'Bạn cần tạo ít nhất 1 thú cưng để tiếp tục sử dụng app.',
+        title: 'Complete Profile',
+        message: 'You need to create at least one pet profile to continue.',
       });
     }
   };
@@ -131,10 +127,20 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.stepText}>Step 1 of 3</Text>
-          <Text style={styles.title}>Basic Pet Info 🐱</Text>
+          
+          {/* Step Indicator - Always show in Add Pet flow */}
+          <View style={styles.stepIndicatorContainer}>
+            <View style={styles.stepBarsContainer}>
+              <View style={[styles.stepBar, styles.stepBarActive]} />
+              <View style={[styles.stepBar, styles.stepBarInactive]} />
+              <View style={[styles.stepBar, styles.stepBarInactive]} />
+            </View>
+            <Text style={styles.stepText}>Step 1 of 3</Text>
+          </View>
+          
+          <Text style={styles.title}>Pet Profile</Text>
           <Text style={styles.subtitle}>
-            Let's start with the basics
+            Tell us about your furry friend
           </Text>
         </View>
 
@@ -142,51 +148,67 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         <View style={styles.form}>
           {/* Pet Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Pet Name *</Text>
-            <TextInput
-              placeholder="Enter your pet's name"
-              style={styles.input}
-              placeholderTextColor={colors.textLabel}
-              value={petName}
-              onChangeText={setPetName}
-            />
+            <Text style={styles.label}>Name</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                placeholder="What's your pet's name?"
+                style={styles.input}
+                placeholderTextColor={colors.textLabel}
+                value={petName}
+                onChangeText={setPetName}
+                autoCapitalize="words"
+              />
+              {petName.length > 0 && (
+                <Icon name="checkmark-circle" size={20} color={colors.success} style={styles.inputIcon} />
+              )}
+            </View>
           </View>
 
           {/* Breed */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Breed (Optional)</Text>
-            <TextInput
-              placeholder="e.g., Persian, British Shorthair, Ragdoll..."
-              style={styles.input}
-              placeholderTextColor={colors.textLabel}
-              value={breed}
-              onChangeText={setBreed}
-            />
+            <Text style={styles.label}>Breed</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                placeholder="e.g., Persian, British Shorthair"
+                style={styles.input}
+                placeholderTextColor={colors.textLabel}
+                value={breed}
+                onChangeText={setBreed}
+                autoCapitalize="words"
+              />
+            </View>
+            <Text style={styles.helperText}>Optional</Text>
           </View>
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description (Optional)</Text>
-            <TextInput
-              placeholder="Tell us about your pet's personality... (playful, calm, friendly, etc.)"
-              style={[styles.input, styles.textArea]}
-              placeholderTextColor={colors.textLabel}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
+            <Text style={styles.label}>About</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                placeholder="Describe your pet's personality and traits..."
+                style={[styles.input, styles.textArea]}
+                placeholderTextColor={colors.textLabel}
+                value={description}
+                onChangeText={(text) => setDescription(text.slice(0, 200))}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                maxLength={200}
+              />
+            </View>
+            <View style={styles.charCount}>
+              <Text style={styles.helperText}>Optional • {description.length}/200</Text>
+            </View>
           </View>
 
           {/* Buttons */}
           <TouchableOpacity
-            style={styles.btnShadow}
+            style={[styles.btnShadow, !petName.trim() && styles.btnDisabled]}
             onPress={handleContinue}
-            disabled={loading}
+            disabled={loading || !petName.trim()}
           >
             <LinearGradient
-              colors={gradients.auth.buttonPrimary}
+              colors={!petName.trim() ? ['#E0E0E0', '#BDBDBD'] : gradients.auth.buttonPrimary}
               style={styles.button}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -196,7 +218,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
               ) : (
                 <>
                   <Text style={styles.buttonText}>Continue</Text>
-                  <Icon name="arrow-forward" size={20} color={colors.white} />
+                  <Icon name="arrow-forward" size={22} color={colors.white} />
                 </>
               )}
             </LinearGradient>
@@ -227,93 +249,129 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    marginBottom: 32,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
     ...shadows.small,
   },
+  stepIndicatorContainer: {
+    marginBottom: 24,
+  },
+  stepBarsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  stepBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  stepBarActive: {
+    backgroundColor: colors.primary,
+  },
+  stepBarInactive: {
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
   stepText: {
-    fontSize: 14,
-    color: colors.primary,
+    fontSize: 12,
+    color: colors.textMedium,
     fontWeight: "600",
-    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   title: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: "bold",
     color: colors.textDark,
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 17,
     color: colors.textMedium,
+    lineHeight: 24,
   },
 
   // Form
   form: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingBottom: 40,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 28,
   },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: colors.textDark,
-    marginBottom: 8,
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  inputContainer: {
+    position: 'relative',
   },
   input: {
     backgroundColor: colors.whiteWarm,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
+    borderRadius: radius.lg,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    fontSize: 16,
     color: colors.textDark,
+    borderWidth: 2,
+    borderColor: 'transparent',
     ...shadows.small,
   },
+  inputIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 18,
+  },
   textArea: {
-    height: 100,
-    paddingTop: 14,
+    height: 120,
+    paddingTop: 16,
+  },
+  helperText: {
+    fontSize: 13,
+    color: colors.textLabel,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  charCount: {
+    alignItems: 'flex-end',
   },
 
   // Buttons
   btnShadow: {
-    marginTop: 12,
-    borderRadius: radius.lg,
+    marginTop: 24,
+    borderRadius: radius.xl,
     ...shadows.large,
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
   button: {
     flexDirection: "row",
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 32,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
   },
   buttonText: {
     color: colors.white,
     fontWeight: "700",
-    fontSize: 16,
-  },
-  skipBtn: {
-    marginTop: 16,
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  skipText: {
-    fontSize: 14,
-    color: colors.textMedium,
-    textDecorationLine: "underline",
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
 });
 

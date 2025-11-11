@@ -42,7 +42,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
   const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
-      showAlert({ type: 'warning', title: "Giới hạn ảnh", message: `Chỉ có thể thêm tối đa ${maxPhotos} ảnh` });
+      showAlert({ type: 'warning', title: "Photo Limit", message: `Maximum ${maxPhotos} photos allowed` });
       return;
     }
     
@@ -50,7 +50,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       const result = await launchImageLibrary({
         mediaType: 'photo',
         quality: 0.8,
-        selectionLimit: maxPhotos - photos.length, // Allow multiple selection up to limit
+        selectionLimit: maxPhotos - photos.length,
       });
 
       if (result.didCancel) {
@@ -60,7 +60,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
       if (result.errorCode) {
         console.error('ImagePicker Error: ', result.errorMessage);
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
+        showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
         return;
       }
 
@@ -76,7 +76,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
+      showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
     }
   };
 
@@ -95,8 +95,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     if (photos.length < 3) {
       showAlert({
         type: 'warning',
-        title: 'Chưa đủ ảnh',
-        message: `Vui lòng thêm ít nhất 3 ảnh cho thú cưng! (Hiện tại: ${photos.length}/3)`,
+        title: 'More Photos Needed',
+        message: `Please add at least 3 photos! (Current: ${photos.length}/3)`,
       });
       return;
     }
@@ -104,12 +104,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     try {
       setUploading(true);
 
-      // Upload photos to backend using multipart/form-data
       await uploadPetPhotosMultipart(petId, photos);
-
       console.log('✅ Pet photos uploaded successfully');
 
-      // Mark user profile as complete (if not from profile)
       if (!isFromProfile) {
         try {
           const userIdStr = await getItem('userId');
@@ -131,20 +128,18 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           }
         } catch (err) {
           console.warn('Failed to mark profile complete, but continuing:', err);
-          // Don't block user if this fails
         }
       }
 
       showAlert({
         type: 'success',
-        title: 'Hoàn tất! 🎉',
-        message: 'Thú cưng của bạn đã được tạo thành công!',
-        confirmText: isFromProfile ? 'Về trang cá nhân' : 'Tiếp tục',
+        title: 'Success!',
+        message: 'Your pet profile has been created successfully!',
+        confirmText: isFromProfile ? 'Go to Profile' : 'Continue',
         onClose: () => {
           if (isFromProfile) {
             navigation.navigate("Profile");
           } else {
-            // Navigate to OnboardingPreferences for new users
             navigation.replace("OnboardingPreferences");
           }
         },
@@ -153,8 +148,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       console.error('Error uploading photos:', error);
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.message || 'Không thể tải ảnh lên. Vui lòng thử lại.',
+        title: 'Error',
+        message: error.message || 'Unable to upload photos. Please try again.',
       });
     } finally {
       setUploading(false);
@@ -165,11 +160,10 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     if (isFromProfile) {
       navigation.goBack();
     } else {
-      // Nếu chưa hoàn thành profile, không cho back
       showAlert({
         type: 'warning',
-        title: 'Cần hoàn thành hồ sơ',
-        message: 'Bạn cần hoàn tất tạo thú cưng để tiếp tục sử dụng app.',
+        title: 'Complete Profile',
+        message: 'You need to complete your pet profile to continue.',
       });
     }
   };
@@ -181,45 +175,34 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Icon name="arrow-back" size={24} color={colors.textDark} />
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.stepText}>Step 3 of 3</Text>
-          <Text style={styles.title}>Add Pet Photos 📸</Text>
-          <Text style={styles.subtitle}>
-            Add at least 3 photos (up to {maxPhotos})
-          </Text>
-        </View>
-      </View>
-
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Photo Counter */}
-        <View style={styles.photoCounterContainer}>
-          <View style={[
-            styles.photoCounterBadge,
-            photos.length >= 3 && styles.photoCounterBadgeComplete
-          ]}>
-            <Icon 
-              name={photos.length >= 3 ? "checkmark-circle" : "images"} 
-              size={20} 
-              color={photos.length >= 3 ? "#FFF" : colors.primary} 
-            />
-            <Text style={[
-              styles.photoCounterText,
-              photos.length >= 3 && styles.photoCounterTextComplete
-            ]}>
-              {photos.length}/3 photos {photos.length >= 3 ? '✓' : ''}
-            </Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <Icon name="arrow-back" size={24} color={colors.textDark} />
+          </TouchableOpacity>
+          
+          {/* Step Indicator */}
+          <View style={styles.stepIndicatorContainer}>
+            <View style={styles.stepBarsContainer}>
+              <View style={[styles.stepBar, styles.stepBarActive]} />
+              <View style={[styles.stepBar, styles.stepBarActive]} />
+              <View style={[styles.stepBar, styles.stepBarActive]} />
+            </View>
+            <Text style={styles.stepText}>Step 3 of 3</Text>
           </View>
+          
+          <Text style={styles.title}>
+            {isFromProfile ? 'Pet Photos' : 'Add Photos'}
+          </Text>
+          <Text style={styles.subtitle}>
+            Add at least 3 photos to showcase your pet
+          </Text>
         </View>
-
         {/* Photos Grid */}
         <View style={styles.photosContainer}>
           <View style={styles.photosGrid}>
@@ -230,59 +213,67 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                   style={styles.removeButton}
                   onPress={() => handleRemovePhoto(photo.id)}
                 >
-                  <Icon name="close-circle" size={28} color={colors.error} />
+                  <View style={styles.removeButtonInner}>
+                    <Icon name="close" size={16} color={colors.white} />
+                  </View>
                 </TouchableOpacity>
               </View>
             ))}
             
-            {/* Add Photo Buttons */}
+            {/* Add Photo Button */}
             {photos.length < maxPhotos && (
               <TouchableOpacity
                 style={styles.addPhotoButton}
                 onPress={handleAddPhoto}
+                activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={gradients.auth.buttonSecondary}
-                  style={styles.addPhotoGradient}
-                >
-                  <Icon name="camera" size={32} color={colors.white} />
+                <View style={styles.addPhotoContent}>
+                  <Icon name="add" size={36} color={colors.primary} />
                   <Text style={styles.addPhotoText}>Add Photo</Text>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             )}
           </View>
 
           {/* Photo Counter */}
           <View style={styles.counterContainer}>
-            <Icon name="images" size={20} color={colors.primary} />
-            <Text style={styles.counterText}>
-              {photos.length} / {maxPhotos} photos
-            </Text>
+            <View style={[
+              styles.counterBadge,
+              photos.length >= 3 && styles.counterBadgeComplete
+            ]}>
+              <Icon 
+                name={photos.length >= 3 ? "checkmark-circle" : "images"} 
+                size={18} 
+                color={photos.length >= 3 ? colors.success : colors.textMedium} 
+              />
+              <Text style={[
+                styles.counterText,
+                photos.length >= 3 && styles.counterTextComplete
+              ]}>
+                {photos.length}/{maxPhotos} photos{photos.length >= 3 ? ' (Ready!)' : ` (${3 - photos.length} more needed)`}
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Tips Card */}
         <View style={styles.tipsCard}>
-          <View style={styles.tipsHeader}>
-            <Icon name="bulb" size={24} color="#FFA500" />
-            <Text style={styles.tipsTitle}>Photo Tips</Text>
+          <View style={styles.tipsIcon}>
+            <Icon name="bulb" size={20} color={colors.primary} />
           </View>
+          <Text style={styles.tipsTitle}>Photo Tips</Text>
           <View style={styles.tipsList}>
             <View style={styles.tipItem}>
-              <Icon name="checkmark-circle" size={18} color={colors.primary} />
+              <View style={styles.tipDot} />
               <Text style={styles.tipText}>Use clear, well-lit photos</Text>
             </View>
             <View style={styles.tipItem}>
-              <Icon name="checkmark-circle" size={18} color={colors.primary} />
-              <Text style={styles.tipText}>Show your cat's personality</Text>
+              <View style={styles.tipDot} />
+              <Text style={styles.tipText}>Show your pet's personality</Text>
             </View>
             <View style={styles.tipItem}>
-              <Icon name="checkmark-circle" size={18} color={colors.primary} />
+              <View style={styles.tipDot} />
               <Text style={styles.tipText}>Include full body and close-up shots</Text>
-            </View>
-            <View style={styles.tipItem}>
-              <Icon name="checkmark-circle" size={18} color={colors.primary} />
-              <Text style={styles.tipText}>Avoid blurry or dark images</Text>
             </View>
           </View>
         </View>
@@ -291,12 +282,12 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       {/* Bottom Buttons */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
-          style={[styles.btnShadow, { flex: 1 }]}
+          style={[styles.btnShadow, photos.length < 3 && styles.btnDisabled]}
           onPress={handleNext}
-          disabled={uploading}
+          disabled={uploading || photos.length < 3}
         >
           <LinearGradient
-            colors={gradients.auth.buttonPrimary}
+            colors={photos.length < 3 ? [colors.textLight, colors.textLight] : gradients.auth.buttonPrimary}
             style={styles.button}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -305,8 +296,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               <ActivityIndicator color={colors.white} />
             ) : (
               <>
-                <Text style={styles.buttonText}>Finish</Text>
-                <Icon name="checkmark-circle" size={20} color={colors.white} />
+                <Text style={styles.buttonText}>{isFromProfile ? 'Save Photos' : 'Finish'}</Text>
+                <Icon name="checkmark-circle" size={22} color={colors.white} />
               </>
             )}
           </LinearGradient>
@@ -333,81 +324,74 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingTop: 50,
     paddingBottom: 140,
   },
 
   // Header
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    marginBottom: 32,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
     ...shadows.small,
   },
-  headerTextContainer: {},
+  stepIndicatorContainer: {
+    marginBottom: 24,
+  },
+  stepBarsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  stepBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  stepBarActive: {
+    backgroundColor: colors.primary,
+  },
+  stepBarInactive: {
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
   stepText: {
-    fontSize: 14,
-    color: colors.primary,
+    fontSize: 12,
+    color: colors.textMedium,
     fontWeight: "600",
-    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: "bold",
     color: colors.textDark,
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 17,
     color: colors.textMedium,
-  },
-
-  // Photo Counter
-  photoCounterContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  photoCounterBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 20,
-    gap: 8,
-    ...shadows.small,
-  },
-  photoCounterBadgeComplete: {
-    backgroundColor: colors.primary,
-  },
-  photoCounterText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  photoCounterTextComplete: {
-    color: colors.white,
+    lineHeight: 24,
   },
 
   // Photos
   photosContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    marginBottom: 32,
   },
   photosGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
+    gap: 14,
+    marginBottom: 20,
   },
   photoWrapper: {
     position: "relative",
@@ -415,78 +399,112 @@ const styles = StyleSheet.create({
   photo: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.cardBackground,
   },
   removeButton: {
     position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: colors.white,
+    top: 6,
+    right: 6,
+  },
+  removeButtonInner: {
+    width: 28,
+    height: 28,
     borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: "center",
+    alignItems: "center",
     ...shadows.medium,
   },
   addPhotoButton: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
-    borderRadius: radius.md,
-    overflow: "hidden",
+    borderRadius: radius.lg,
+    backgroundColor: colors.whiteWarm,
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.06)',
+    borderStyle: 'dashed',
+    ...shadows.small,
   },
-  addPhotoGradient: {
+  addPhotoContent: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   addPhotoText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
-    color: colors.white,
+    color: colors.textMedium,
   },
 
   // Counter
   counterContainer: {
+    alignItems: "center",
+  },
+  counterBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.whiteWarm,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: radius.md,
-    ...shadows.small,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  counterBadgeComplete: {
+    backgroundColor: 'rgba(76,175,80,0.1)',
+    borderColor: 'rgba(76,175,80,0.2)',
   },
   counterText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
-    color: colors.textDark,
+    color: colors.textMedium,
+  },
+  counterTextComplete: {
+    color: colors.success,
+    fontWeight: "700",
   },
 
   // Tips Card
   tipsCard: {
-    marginHorizontal: 20,
-    backgroundColor: colors.whiteWarm,
+    marginHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.7)',
     borderRadius: radius.lg,
     padding: 20,
-    ...shadows.medium,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  tipsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
+  tipsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,107,129,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   tipsTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
     color: colors.textDark,
+    marginBottom: 16,
   },
   tipsList: {
     gap: 12,
   },
   tipItem: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
+  },
+  tipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+    marginTop: 7,
   },
   tipText: {
     flex: 1,
@@ -501,31 +519,35 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    paddingBottom: 24,
     backgroundColor: colors.whiteWarm,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     ...shadows.large,
   },
   btnShadow: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     ...shadows.large,
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
   button: {
     flexDirection: "row",
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 32,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
   },
   buttonText: {
     color: colors.white,
     fontWeight: "700",
-    fontSize: 16,
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
   skipBtn: {
     marginTop: 12,

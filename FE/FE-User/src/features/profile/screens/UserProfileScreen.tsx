@@ -52,6 +52,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
   const [petPhotos, setPetPhotos] = useState<any[]>([]);
   const [isVip, setIsVip] = useState(false);
+  const [showAllCharacteristics, setShowAllCharacteristics] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Fetch user and pets data - wrapped in useCallback
@@ -133,8 +134,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
   // Load characteristics and photos for active pet
   useEffect(() => {
     const loadPetDetails = async () => {
-      // Reset photo index when pet changes
+      // Reset photo index and characteristics collapse state when pet changes
       setActivePhotoIndex(0);
+      setShowAllCharacteristics(false);
       
       if (!activePet) {
         setCharacteristics([]);
@@ -557,7 +559,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
               <Text style={styles.sectionSubtitle}>{characteristics.length} attributes</Text>
             </View>
             <View style={styles.characteristicsGrid}>
-              {characteristics.map((char, index) => (
+              {(showAllCharacteristics ? characteristics : characteristics.slice(0, 6)).map((char, index) => (
                 <View key={index} style={styles.characteristicCard}>
                   <View style={styles.characteristicHeader}>
                     <Icon 
@@ -585,6 +587,23 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 </View>
               ))}
             </View>
+            
+            {/* Show More/Less Button */}
+            {characteristics.length > 6 && (
+              <TouchableOpacity
+                style={styles.showMoreButton}
+                onPress={() => setShowAllCharacteristics(!showAllCharacteristics)}
+              >
+                <Text style={styles.showMoreText}>
+                  {showAllCharacteristics ? 'Show Less' : `Show ${characteristics.length - 6} More`}
+                </Text>
+                <Icon 
+                  name={showAllCharacteristics ? 'chevron-up' : 'chevron-down'} 
+                  size={18} 
+                  color={colors.primary} 
+                />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1017,6 +1036,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textLabel,
     fontStyle: "italic",
+  },
+  showMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: colors.cardBackground,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    ...shadows.small,
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
   },
 
   // Gender
