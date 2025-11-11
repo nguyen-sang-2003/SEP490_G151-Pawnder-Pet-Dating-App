@@ -71,27 +71,19 @@ const SignInScreen = ({ navigation }: Props) => {
 
     setLoading(true);
     try {
-      const response = await login(email.trim(), pass);
+      const response = await login(email.trim(), pass.trim());
       
       // Save userId to AsyncStorage (handle both PascalCase and camelCase)
       const userId = response.UserId || (response as any).userId;
       if (userId) {
         await setItem('userId', userId.toString());
-        console.log('💾 UserId saved to storage:', userId);
       }
-      
-      // Check if profile is complete
-      console.log('📋 Login response:', JSON.stringify(response, null, 2));
       
       // Handle both PascalCase and camelCase from BE
       const isComplete = response.IsProfileComplete ?? (response as any).isProfileComplete ?? false;
       
-      console.log('🔍 IsProfileComplete value:', isComplete);
-      console.log('🔍 IsProfileComplete type:', typeof isComplete);
-      
       if (isComplete === true) {
         // Profile complete -> Go to Home
-        console.log('✅ Profile is complete, going to Home');
         showAlert({
           type: 'success',
           title: 'Chào mừng! 🎉',
@@ -100,7 +92,6 @@ const SignInScreen = ({ navigation }: Props) => {
         });
       } else {
         // Profile incomplete -> Continue onboarding
-        console.log('⚠️ Profile is NOT complete, going to AddPetBasicInfo');
         showAlert({
           type: 'info',
           title: 'Hoàn thành hồ sơ',

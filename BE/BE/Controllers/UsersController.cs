@@ -119,22 +119,26 @@ public class UserController : ControllerBase
         [FromBody] UserCreateRequest req,
         CancellationToken ct = default)
     {
+        // Trim email and password to avoid whitespace issues
+        var email = req.Email?.Trim();
+        var password = req.Password?.Trim();
+        
         // unique email
         var emailExists = await _db.Users
-            .AnyAsync(u => u.Email == req.Email && (u.IsDeleted == null || u.IsDeleted == false), ct);
+            .AnyAsync(u => u.Email == email && (u.IsDeleted == null || u.IsDeleted == false), ct);
         if (emailExists)
             return Conflict(new { message = "Email đã tồn tại" });
 
-        // Hash password using PasswordService (SHA256 - same as Login)
-        var hashed = _passwordService.HashPassword(req.Password);
+        // Hash password using PasswordService (BCrypt)
+        var hashed = _passwordService.HashPassword(password);
 
         var entity = new BE.Models.User
         {
             RoleId = req.RoleId,
             UserStatusId = req.UserStatusId,
-            FullName = req.FullName,
+            FullName = req.FullName?.Trim(),
             Gender = req.Gender,
-            Email = req.Email,
+            Email = email,
             PasswordHash = hashed,
             ProviderLogin = req.ProviderLogin,
             IsDeleted = false,
@@ -275,13 +279,16 @@ public class UserController : ControllerBase
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.NewPassword))
                 return BadRequest(new { message = "Email và mật khẩu mới là bắt buộc." });
 
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email && (u.IsDeleted == null || u.IsDeleted == false), ct);
+            var email = request.Email.Trim();
+            var newPassword = request.NewPassword.Trim();
+            
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email && (u.IsDeleted == null || u.IsDeleted == false), ct);
             
             if (user == null)
                 return NotFound(new { message = "Email không tồn tại." });
 
             // Hash new password
-            user.PasswordHash = _passwordService.HashPassword(request.NewPassword);
+            user.PasswordHash = _passwordService.HashPassword(newPassword);
             user.TokenJwt = null; // Clear old token for security
             user.UpdatedAt = DateTime.Now;
 

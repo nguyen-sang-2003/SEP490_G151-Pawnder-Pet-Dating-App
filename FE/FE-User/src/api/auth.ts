@@ -10,8 +10,10 @@ export interface LoginRequest {
 export interface LoginResponse {
   Message?: string;
   message?: string;
-  Token?: string;
-  token?: string;
+  AccessToken?: string;
+  accessToken?: string;
+  RefreshToken?: string;
+  refreshToken?: string;
   UserId?: number;
   userId?: number;
   FullName?: string;
@@ -163,15 +165,13 @@ export const login = async (
     
 
     
-    // Store token securely (handle both PascalCase and camelCase)
-    const token = response.data.Token || (response.data as any).token;
-    if (token) {
-
-      await storeAuthToken(token);
-
-    } else {
-      console.warn('⚠️ No token received from backend');
+    // Store access token securely (handle both PascalCase and camelCase)
+    const accessToken = response.data.accessToken || (response.data as any).AccessToken;
+    if (accessToken) {
+      await storeAuthToken(accessToken);
     }
+    
+    // Note: RefreshToken is also available in response.data.refreshToken if needed
     
     // Store userId for badge notifications
     const userId = response.data.userId || response.data.UserId;
@@ -183,15 +183,11 @@ export const login = async (
     
     return response.data;
   } catch (error: any) {
-    console.error('Login error:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
-    console.error('Full URL:', error.config?.url);
-    
+    // Only throw user-friendly error message
     if (error.response?.data) {
       throw new Error(error.response.data);
     }
-    throw error;
+    throw new Error('Không thể kết nối đến máy chủ. Vui lòng thử lại.');
   }
 };
 
@@ -213,17 +209,13 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
 
     return response.data;
   } catch (error: any) {
-    console.error('Register error:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
-    
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
     if (error.response?.data) {
       throw new Error(JSON.stringify(error.response.data));
     }
-    throw error;
+    throw new Error('Không thể đăng ký. Vui lòng thử lại.');
   }
 };
 
@@ -249,14 +241,9 @@ export const logout = async (): Promise<void> => {
  */
 export const completeUserProfile = async (userId: number): Promise<void> => {
   try {
-
-    const response = await apiClient.patch(`/user/${userId}/complete-profile`);
-
+    await apiClient.patch(`/user/${userId}/complete-profile`);
   } catch (error: any) {
-    console.error('Error completing profile:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
-    throw error;
+    throw new Error('Không thể cập nhật hồ sơ. Vui lòng thử lại.');
   }
 };
 

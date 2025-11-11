@@ -28,13 +28,17 @@ namespace BE.Controllers
         [HttpPost("login")]
         public async Task<ActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == request.Email);
+            // Trim email and password to avoid whitespace issues
+            var email = request.Email?.Trim();
+            var password = request.Password?.Trim();
+            
+            var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == email);
             if (user == null)
             {
                 return Unauthorized("Tài khoản không tồn tại");
             }
 
-            bool isPasswordValid = _passwordService.VerifyPassword(request.Password, user.PasswordHash);
+            bool isPasswordValid = _passwordService.VerifyPassword(password, user.PasswordHash);
 
             if (!isPasswordValid)
                 return Unauthorized("Sai mật khẩu");
@@ -42,7 +46,7 @@ namespace BE.Controllers
             // Auto-upgrade legacy SHA256 passwords to BCrypt
             if (_passwordService.IsLegacyHash(user.PasswordHash))
             {
-                user.PasswordHash = _passwordService.HashPassword(request.Password);
+                user.PasswordHash = _passwordService.HashPassword(password);
             }
             
             // Tạo Access Token (ngắn hạn - 15 phút)
