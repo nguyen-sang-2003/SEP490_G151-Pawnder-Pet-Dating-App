@@ -27,6 +27,12 @@ public partial class Pet
 
     public DateTime? UpdatedAt { get; set; }
 
+    public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
+
+    public virtual ICollection<ChatUser> ChatUserFromPets { get; set; } = new List<ChatUser>();
+
+    public virtual ICollection<ChatUser> ChatUserToPets { get; set; } = new List<ChatUser>();
+
     public virtual ICollection<PetCharacteristic> PetCharacteristics { get; set; } = new List<PetCharacteristic>();
 
     public virtual ICollection<PetPhoto> PetPhotos { get; set; } = new List<PetPhoto>();

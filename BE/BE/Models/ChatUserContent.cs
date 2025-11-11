@@ -9,7 +9,7 @@ public partial class ChatUserContent
 
     public int? MatchId { get; set; }
 
-    public int? FromUserId { get; set; }
+    public int? FromPetId { get; set; }
 
     public string? Message { get; set; }
 
@@ -17,7 +17,7 @@ public partial class ChatUserContent
 
     public DateTime? UpdatedAt { get; set; }
 
-    public virtual User? FromUser { get; set; }
+    public virtual Pet? FromPet { get; set; }
 
     public virtual ChatUser? Match { get; set; }
 
