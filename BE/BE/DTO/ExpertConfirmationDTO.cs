@@ -33,4 +33,27 @@
 		public string? Status { get; set; }          
 		public string? Message { get; set; }         
 	}
+
+	public class ReassignExpertConfirmationRequest
+	{
+		public int UserId { get; set; }
+		public int ChatAiId { get; set; }
+		public int? FromExpertId { get; set; }
+		public int ToExpertId { get; set; }
+		public string? Message { get; set; }
+		// If true, keep the old Status; otherwise reset to "pending"
+		public bool KeepStatus { get; set; } = false;
+	}
+
+	public class ReassignExpertConfirmationResponse
+	{
+		public int UserId { get; set; }
+		public int ChatAiId { get; set; }
+		public int ExpertId { get; set; }
+		public string? Status { get; set; }
+		public string? Message { get; set; }
+		public DateTime? CreatedAt { get; set; }
+		public DateTime? UpdatedAt { get; set; }
+		public string ResultMessage { get; set; } = "Đã chuyển yêu cầu xác nhận sang chuyên gia khác.";
+	}
 }

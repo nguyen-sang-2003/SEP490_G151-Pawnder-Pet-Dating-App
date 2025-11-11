@@ -18,6 +18,87 @@ namespace BE.Controllers
             _db = db;
         }
 
+        // Admin reassign expert confirmation to another expert
+        [HttpPost("expert-confirmation/reassign")]
+        public async Task<ActionResult<ReassignExpertConfirmationResponse>> ReassignExpertConfirmation(
+            [FromBody] ReassignExpertConfirmationRequest req,
+            CancellationToken ct = default)
+        {
+            var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == req.UserId, ct);
+            if (user == null) return NotFound(new { message = "Không tìm thấy user." });
+
+            var chat = await _db.ChatAis.AsNoTracking().FirstOrDefaultAsync(c => c.ChatAiid == req.ChatAiId, ct);
+            if (chat == null) return NotFound(new { message = "Không tìm thấy ChatAI." });
+
+            var toExpert = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == req.ToExpertId, ct);
+            if (toExpert == null) return NotFound(new { message = "Không tìm thấy chuyên gia đích." });
+
+            // Find existing confirmation; optionally constrain by FromExpertId if provided
+            var existingQuery = _db.ExpertConfirmations
+                .Where(ec => ec.UserId == req.UserId && ec.ChatAiid == req.ChatAiId);
+            if (req.FromExpertId.HasValue)
+            {
+                existingQuery = existingQuery.Where(ec => ec.ExpertId == req.FromExpertId.Value);
+            }
+            var existing = await existingQuery.FirstOrDefaultAsync(ct);
+            if (existing == null)
+            {
+                return NotFound(new { message = "Không tìm thấy yêu cầu xác nhận hiện tại để chuyển." });
+            }
+            // Only allow reassign when current status is 'pending'
+            if (!string.Equals(existing.Status, "pending", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Chỉ cho phép chuyển yêu cầu khi trạng thái là 'pending'." });
+            }
+
+            // If already assigned to target expert, short-circuit
+            if (existing.ExpertId == req.ToExpertId)
+            {
+                return Ok(new ReassignExpertConfirmationResponse
+                {
+                    UserId = existing.UserId,
+                    ChatAiId = existing.ChatAiid,
+                    ExpertId = existing.ExpertId,
+                    Status = existing.Status,
+                    Message = existing.Message,
+                    CreatedAt = existing.CreatedAt,
+                    UpdatedAt = existing.UpdatedAt,
+                    ResultMessage = "Yêu cầu đã thuộc về chuyên gia này."
+                });
+            }
+
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            var newStatus = req.KeepStatus ? existing.Status : "pending";
+            var newMessage = string.IsNullOrWhiteSpace(req.Message) ? existing.Message : req.Message;
+
+            // Remove the old composite-key row and create a new one with new ExpertId
+            _db.ExpertConfirmations.Remove(existing);
+            var reassigned = new ExpertConfirmation
+            {
+                UserId = req.UserId,
+                ChatAiid = req.ChatAiId,
+                ExpertId = req.ToExpertId,
+                Status = newStatus,
+                Message = newMessage,
+                CreatedAt = existing.CreatedAt ?? now,
+                UpdatedAt = now
+            };
+            _db.ExpertConfirmations.Add(reassigned);
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new ReassignExpertConfirmationResponse
+            {
+                UserId = reassigned.UserId,
+                ChatAiId = reassigned.ChatAiid,
+                ExpertId = reassigned.ExpertId,
+                Status = reassigned.Status,
+                Message = reassigned.Message,
+                CreatedAt = reassigned.CreatedAt,
+                UpdatedAt = reassigned.UpdatedAt,
+                ResultMessage = "Đã chuyển yêu cầu xác nhận sang chuyên gia khác."
+            });
+        }
+
         // Ban a user by days or permanently
         [HttpPost("{id:int}/ban")]
         public async Task<ActionResult> BanUser([FromRoute] int id, [FromBody] BanUserRequest req, CancellationToken ct = default)
