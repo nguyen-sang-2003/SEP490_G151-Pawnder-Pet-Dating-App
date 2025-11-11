@@ -61,6 +61,20 @@ ALTER TABLE "User"
 -- ===========================
 -- TABLE: Attribute
 -- ===========================
+CREATE TABLE "UserBanHistory" (
+    "BanId" SERIAL PRIMARY KEY,
+    "UserId" INT NOT NULL REFERENCES "User"("UserId") ON DELETE CASCADE,
+    "BanStart" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "BanEnd" TIMESTAMP, 
+    "BanReason" TEXT,
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW(),
+    "IsActive" BOOLEAN DEFAULT TRUE
+);
+
+-- ===========================
+-- TABLE: Attribute
+-- ===========================
 CREATE TABLE "Attribute" (
     "AttributeId" SERIAL PRIMARY KEY,
     "Name" VARCHAR(100) NOT NULL,

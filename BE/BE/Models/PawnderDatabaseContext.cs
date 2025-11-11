@@ -51,6 +51,8 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<UserBanHistory> UserBanHistories { get; set; }
+
     public virtual DbSet<UserPreference> UserPreferences { get; set; }
 
     public virtual DbSet<UserStatus> UserStatuses { get; set; }
@@ -488,6 +490,29 @@ public partial class PawnderDatabaseContext : DbContext
             entity.HasOne(d => d.UserStatus).WithMany(p => p.Users)
                 .HasForeignKey(d => d.UserStatusId)
                 .HasConstraintName("User_UserStatusId_fkey");
+        });
+
+        modelBuilder.Entity<UserBanHistory>(entity =>
+        {
+            entity.HasKey(e => e.BanId).HasName("UserBanHistory_pkey");
+
+            entity.ToTable("UserBanHistory");
+
+            entity.Property(e => e.BanEnd).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.BanStart)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserBanHistories)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("UserBanHistory_UserId_fkey");
         });
 
         modelBuilder.Entity<UserPreference>(entity =>

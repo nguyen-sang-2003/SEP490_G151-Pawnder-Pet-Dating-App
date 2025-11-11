@@ -30,6 +30,7 @@ public partial class User
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+
     public bool IsProfileComplete { get; set; } = false;   // <-- thêm
 
     public virtual Address? Address { get; set; }
@@ -61,6 +62,8 @@ public partial class User
     public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
 
     public virtual Role? Role { get; set; }
+
+    public virtual ICollection<UserBanHistory> UserBanHistories { get; set; } = new List<UserBanHistory>();
 
     public virtual ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
 
