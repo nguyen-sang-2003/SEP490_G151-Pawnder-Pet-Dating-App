@@ -256,6 +256,18 @@ CREATE TABLE "Notification" (
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
 
+-- ===========================
+-- TABLE: Daily Limit
+-- ===========================
+CREATE TABLE "DailyLimit" (
+    "LimitId" SERIAL PRIMARY KEY,
+    "UserId" INTEGER NOT NULL REFERENCES "User"("UserId"),
+    "ActionType" VARCHAR(100) NOT NULL,   
+    "ActionDate" DATE NOT NULL,         
+    "Count" INTEGER DEFAULT 1,          
+    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE("UserId", "ActionType", "ActionDate")
+);
 
 
 -- ========================
