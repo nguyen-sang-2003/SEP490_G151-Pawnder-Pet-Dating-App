@@ -58,23 +58,18 @@ export const createExpertConfirmation = async (
   data: ExpertConfirmationCreateRequest
 ): Promise<ExpertConfirmationResponse> => {
   try {
-    console.log('📤 Creating expert confirmation:', { userId, chatId, data });
-    
     const response = await apiClient.post<ExpertConfirmationResponse>(
       `/expert-confirmation/${userId}/${chatId}`,
       data
     );
-    
-    console.log('✅ Expert confirmation created:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Create expert confirmation error:', error);
-    console.error('Error response:', error.response?.data);
-    
-    if (error.response?.data?.Message) {
-      throw new Error(error.response.data.Message);
+    // Don't log 429 limit errors (handled by UI modal)
+    if (error.response?.status !== 429) {
+      console.error('❌ Create expert confirmation error:', error);
     }
-    throw new Error('Không thể tạo yêu cầu chuyên gia. Vui lòng thử lại.');
+    // Pass through the original error for UI handling
+    throw error;
   }
 };
 

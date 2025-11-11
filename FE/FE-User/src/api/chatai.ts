@@ -1,4 +1,4 @@
-import client from './client';
+import apiClient from './client';
 
 /**
  * Chat AI API endpoints
@@ -42,11 +42,11 @@ export interface UpdateTitleRequest {
 export const getChatAISessions = async (userId: number): Promise<ChatAISession[]> => {
   try {
 
-    const response = await client.get(`/api/chat-ai/${userId}`);
+    const response = await apiClient.get(`/api/chat-ai/${userId}`);
 
     return response.data.data || [];
   } catch (error: any) {
-    console.error('❌ Error getting AI chat sessions:', error);
+    // Silent fail - let UI handle the error
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -63,15 +63,19 @@ export const createChatAISession = async (
   request: CreateChatRequest = {}
 ): Promise<{ chatId: number; title: string; createdAt: string }> => {
   try {
-
-    const response = await client.post(`/api/chat-ai/${userId}`, request);
-
+    const response = await apiClient.post(`/api/chat-ai/${userId}`, request);
     return response.data.data;
   } catch (error: any) {
-    console.error('❌ Error creating AI chat session:', error);
+    
+    // Handle specific errors
+    if (error.response?.status === 401) {
+      throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
+    
     throw new Error('Không thể tạo cuộc trò chuyện mới');
   }
 };
@@ -86,11 +90,11 @@ export const getChatAIHistory = async (chatAiId: number): Promise<{
 }> => {
   try {
 
-    const response = await client.get(`/api/chat-ai/${chatAiId}/messages`);
+    const response = await apiClient.get(`/api/chat-ai/${chatAiId}/messages`);
 
     return response.data.data;
   } catch (error: any) {
-    console.error('❌ Error getting AI chat history:', error);
+    // Silent fail - let UI handle the error
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -108,17 +112,14 @@ export const sendMessageToAI = async (
 ): Promise<{ question: string; answer: string; timestamp: string }> => {
   try {
 
-    const response = await client.post(`/api/chat-ai/${chatAiId}/messages`, {
+    const response = await apiClient.post(`/api/chat-ai/${chatAiId}/messages`, {
       question,
     });
 
     return response.data.data;
   } catch (error: any) {
-    console.error('❌ Error sending message to AI:', error);
-    if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    }
-    throw new Error('Không thể gửi tin nhắn đến AI');
+    // Silent fail for all errors (handled by UI modal or screen)
+    throw error;
   }
 };
 
@@ -132,10 +133,10 @@ export const updateChatAITitle = async (
 ): Promise<void> => {
   try {
 
-    const response = await client.put(`/api/chat-ai/${chatAiId}`, { title });
+    const response = await apiClient.put(`/api/chat-ai/${chatAiId}`, { title });
 
   } catch (error: any) {
-    console.error('❌ Error updating AI chat title:', error);
+    // Silent fail - let UI handle the error
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -150,10 +151,10 @@ export const updateChatAITitle = async (
 export const deleteChatAISession = async (chatAiId: number): Promise<void> => {
   try {
 
-    const response = await client.delete(`/api/chat-ai/${chatAiId}`);
+    const response = await apiClient.delete(`/api/chat-ai/${chatAiId}`);
 
   } catch (error: any) {
-    console.error('❌ Error deleting AI chat session:', error);
+    // Silent fail - let UI handle the error
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

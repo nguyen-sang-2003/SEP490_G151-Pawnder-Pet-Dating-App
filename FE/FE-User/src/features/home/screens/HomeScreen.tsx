@@ -11,6 +11,7 @@ import {
     SafeAreaView,
     StatusBar,
     ActivityIndicator,
+    Modal,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -20,11 +21,14 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getPetsForMatching, PetForMatching, getRecommendedPets, RecommendedPet } from "../../../api/pet";
+import { getPetsForMatching, PetForMatching, getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../../api/pet";
 import { sendLike } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppSelector } from "../../../app/hooks";
 import { selectNotificationBadge } from "../../badge/badgeSlice";
+import { getVipStatus } from "../../../api/payment";
+import { LimitReachedModal } from "../../../components/LimitReachedModal";
+import signalRService from "../../../services/signalr.service";
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - 24; // Padding 12px each side
@@ -47,6 +51,7 @@ interface PetProfile {
   owner: string;
   ownerId: number; // Add ownerId for API calls
   matchPercent: number; // Match percentage (0-100)
+  ownerIsVip?: boolean; // VIP status of pet owner
 }
 
 const HomeScreen = ({ navigation }: Props) => {
@@ -58,11 +63,16 @@ const HomeScreen = ({ navigation }: Props) => {
     const [showMatchModal, setShowMatchModal] = useState(false);
     const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [activePetId, setActivePetId] = useState<number | null>(null); // User's active pet ID
+    const [vipCache, setVipCache] = useState<{ [userId: number]: boolean }>({});
+    const [showMatchLimitModal, setShowMatchLimitModal] = useState(false);
+    const [limitMessage, setLimitMessage] = useState("");
     
 
     // Use refs to access latest values in PanResponder callbacks
     const petsRef = useRef<PetProfile[]>([]);
     const currentUserIdRef = useRef<number | null>(null);
+    const activePetIdRef = useRef<number | null>(null);
     const currentIndexRef = useRef(0);
 
     // Update refs when state changes
@@ -75,8 +85,68 @@ const HomeScreen = ({ navigation }: Props) => {
     }, [currentUserId]);
 
     useEffect(() => {
+        activePetIdRef.current = activePetId;
+    }, [activePetId]);
+
+    useEffect(() => {
         currentIndexRef.current = currentIndex;
     }, [currentIndex]);
+
+    // Setup SignalR connection for match notifications
+    useEffect(() => {
+        const userId = currentUserIdRef.current;
+        if (!userId) return;
+
+        // Match success handler
+        const handleMatchSuccess = (data: any) => {
+            console.log('🎉 Match notification received:', data);
+            
+            // Create a temporary PetProfile for the matched pet
+            const matchedPetData: PetProfile = {
+                id: data.MatchId?.toString() || '0',
+                name: data.PetName || 'Unknown Pet',
+                age: '',
+                breed: '',
+                gender: 'male',
+                distance: '',
+                bio: '',
+                image: data.PetPhotoUrl ? { uri: data.PetPhotoUrl } : require("../../../assets/cat_avatar.png"),
+                images: data.PetPhotoUrl ? [{ uri: data.PetPhotoUrl }] : [require("../../../assets/cat_avatar.png")],
+                personality: [],
+                owner: data.OtherUserName || 'Someone',
+                ownerId: data.OtherUserId || 0,
+                matchPercent: 100,
+            };
+            
+            // Show match modal
+            setMatchedPet(matchedPetData);
+            setShowMatchModal(true);
+            
+            // Auto hide after 4 seconds
+            setTimeout(() => {
+                setShowMatchModal(false);
+                setMatchedPet(null);
+            }, 4000);
+        };
+
+        // Setup SignalR
+        const setupSignalR = async () => {
+            try {
+                await signalRService.connect(userId);
+                console.log('✅ SignalR connected in HomeScreen');
+                signalRService.on('MatchSuccess', handleMatchSuccess);
+            } catch (error) {
+                console.error('❌ Failed to setup SignalR:', error);
+            }
+        };
+
+        setupSignalR();
+
+        // Cleanup listener on unmount
+        return () => {
+            signalRService.off('MatchSuccess', handleMatchSuccess);
+        };
+    }, [currentUserId, navigation]);
 
     const position = useRef(new Animated.ValueXY()).current;
     const rotate = position.x.interpolate({
@@ -191,8 +261,11 @@ const HomeScreen = ({ navigation }: Props) => {
         if (direction === "right") {
             // Send like via API
             try {
+                const latestActivePetId = activePetIdRef.current;
+                
                 console.log("❤️ Sending like for pet:", {
-                    petId: currentPet.id,
+                    fromPetId: latestActivePetId,
+                    toPetId: currentPet.id,
                     petName: currentPet.name,
                     ownerId: currentPet.ownerId,
                     fromUserId: latestUserId
@@ -205,9 +278,18 @@ const HomeScreen = ({ navigation }: Props) => {
                     return;
                 }
                 
+                if (!latestActivePetId) {
+                    console.error("❌ No active pet - cannot send like");
+                    position.setValue({ x: 0, y: 0 });
+                    setCurrentIndex(prev => prev + 1);
+                    return;
+                }
+                
                 const response = await sendLike({
                     fromUserId: latestUserId,
-                    toUserId: currentPet.ownerId
+                    toUserId: currentPet.ownerId,
+                    fromPetId: latestActivePetId,
+                    toPetId: parseInt(currentPet.id)
                 });
                 
                 console.log("✅ Like sent successfully:", response);
@@ -222,8 +304,20 @@ const HomeScreen = ({ navigation }: Props) => {
                         setMatchedPet(null);
                     }, 4000);
                 }
-            } catch (error) {
-                console.error("❌ Error sending like:", error);
+            } catch (error: any) {
+                // Check if it's a 429 limit error
+                if (error.response?.status === 429) {
+                    const errorData = error.response?.data;
+                    setLimitMessage(errorData?.message || "Bạn đã hết lượt gửi match hôm nay!");
+                    setShowMatchLimitModal(true);
+                    
+                    // Reset card position
+                    position.setValue({ x: 0, y: 0 });
+                    return; // Don't advance to next card
+                } else {
+                    // Only log non-limit errors
+                    console.error("❌ Error sending like:", error);
+                }
             }
         } else if (direction === "left") {
             // Just pass - no need to save to database
@@ -258,6 +352,17 @@ const HomeScreen = ({ navigation }: Props) => {
 
             setCurrentUserId(userId);
             
+            // Get user's active pet ID
+            const userPets = await getPetsByUserId(userId);
+            const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
+            if (activePet) {
+                const petId = activePet.PetId || activePet.petId;
+                setActivePetId(petId ?? null); // Convert undefined to null
+                console.log('🐾 User active pet:', petId);
+            } else {
+                console.log('⚠️ No active pet found for user');
+            }
+            
             // Luôn dùng recommendation API
             // Nếu chưa có filter → trả về tất cả pets (matchPercent = 0)
             // Nếu có filter → sắp xếp theo matchPercent
@@ -290,7 +395,31 @@ const HomeScreen = ({ navigation }: Props) => {
                     };
                 });
 
-            setPets(formattedPets);
+            // Check VIP status for all unique owners
+            const uniqueOwnerIds = Array.from(new Set(formattedPets.map(p => p.ownerId)));
+            const vipStatuses: { [userId: number]: boolean } = {};
+            
+            await Promise.all(
+                uniqueOwnerIds.map(async (ownerId) => {
+                    try {                
+                        const status = await getVipStatus(ownerId);
+                        vipStatuses[ownerId] = status.isVip;
+                    } catch (error: any) {
+                        vipStatuses[ownerId] = false;
+                    }
+                })
+            );
+
+            // Update VIP cache
+            setVipCache(prev => ({ ...prev, ...vipStatuses }));
+
+            // Add VIP status to pets
+            const petsWithVip = formattedPets.map(pet => ({
+                ...pet,
+                ownerIsVip: vipStatuses[pet.ownerId] || false,
+            }));
+
+            setPets(petsWithVip);
             setCurrentIndex(0);
             setCurrentPhotoIndices({});
         } catch (error) {
@@ -494,6 +623,11 @@ const HomeScreen = ({ navigation }: Props) => {
                             <View style={styles.ownerInfo}>
                                 <Icon name="person-outline" size={14} color={colors.white} />
                                 <Text style={styles.ownerText}>Owner: {pet.owner}</Text>
+                                {pet.ownerIsVip && (
+                                    <View style={styles.vipBadgeSmall}>
+                                        <Icon name="diamond" size={12} color="#FFD700" />
+                                    </View>
+                                )}
                             </View>
 
                             {/* Action Buttons on Card */}
@@ -693,9 +827,9 @@ const HomeScreen = ({ navigation }: Props) => {
                         style={styles.matchGradient}
                     >
                         <Icon name="heart" size={80} color={colors.white} />
-                        <Text style={styles.matchTitle}>It's a Match!</Text>
+                        <Text style={styles.matchTitle}>It's a Match! 🎉</Text>
                         <Text style={styles.matchText}>
-                            You and {matchedPet.owner} liked each other's pets
+                            You and {matchedPet.owner}'s pet {matchedPet.name} liked each other!
                         </Text>
                         <TouchableOpacity
                             style={styles.sendMessageButton}
@@ -719,6 +853,14 @@ const HomeScreen = ({ navigation }: Props) => {
                     </LinearGradient>
                 </View>
             )}
+
+            {/* Match Limit Modal */}
+            <LimitReachedModal
+                visible={showMatchLimitModal}
+                onClose={() => setShowMatchLimitModal(false)}
+                message={limitMessage}
+                actionType="match"
+            />
 
             {/* Bottom Navigation */}
             <BottomNav active="Home" />
@@ -1054,6 +1196,15 @@ const styles = StyleSheet.create({
         textShadowColor: "rgba(0, 0, 0, 0.6)",
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 4,
+    },
+    vipBadgeSmall: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: "rgba(0, 0, 0, 0.3)",
+        justifyContent: "center",
+        alignItems: "center",
+        marginLeft: 6,
     },
 
     // Card Actions (X and Heart buttons)

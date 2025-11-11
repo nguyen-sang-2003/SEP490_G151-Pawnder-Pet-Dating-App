@@ -22,6 +22,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getChatAIHistory, sendMessageToAI, createExpertConfirmation } from "../../../api";
 import CustomAlert from "../../../components/CustomAlert";
+import { LimitReachedModal } from "../../../components/LimitReachedModal";
 
 const { width } = Dimensions.get("window");
 
@@ -52,6 +53,15 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  
+  // Limit modal states
+  const [showAIChatLimitModal, setShowAIChatLimitModal] = useState(false);
+  const [aiLimitMessage, setAILimitMessage] = useState("");
+  const [showExpertLimitModal, setShowExpertLimitModal] = useState(false);
+  const [expertLimitMessage, setExpertLimitMessage] = useState("");
+  
+  // Track which messages have been sent to expert
+  const [sentToExpertIds, setSentToExpertIds] = useState<Set<string>>(new Set());
 
   // Load chat history on mount
   useEffect(() => {
@@ -164,11 +174,21 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       }, 100);
       
     } catch (error: any) {
-      console.error('❌ Error sending message to AI:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể gửi tin nhắn');
-      
-      // Remove user message on error
-      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      // Check if it's a 429 limit error
+      if (error.response?.status === 429) {
+        const errorData = error.response?.data;
+        setAILimitMessage(errorData?.message || "Bạn đã hết lượt hỏi AI hôm nay!");
+        setShowAIChatLimitModal(true);
+        
+        // Remove user message on limit error
+        setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      } else {
+        console.error('❌ Error sending message to AI:', error);
+        Alert.alert('Lỗi', error.message || 'Không thể gửi tin nhắn');
+        
+        // Remove user message on error
+        setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      }
     } finally {
       setIsTyping(false);
     }
@@ -225,13 +245,24 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         message: fullMessage
       });
 
+      // Mark this message as sent to expert
+      setSentToExpertIds(prev => new Set(prev).add(selectedMessage.id));
+
       // Show success
       setShowSuccessAlert(true);
       
     } catch (error: any) {
-      console.error('❌ Error requesting expert:', error);
-      setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
-      setShowErrorAlert(true);
+      // Check if it's a 429 (daily limit reached)
+      if (error.response?.status === 429) {
+        const responseData = error.response.data;
+        const limitMsg = responseData.message || 'Bạn đã hết lượt xác nhận chuyên gia hôm nay!';
+        setExpertLimitMessage(limitMsg);
+        setShowExpertLimitModal(true);
+      } else {
+        console.error('❌ Error requesting expert:', error);
+        setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setShowErrorAlert(true);
+      }
     }
   };
 
@@ -279,8 +310,8 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               </View>
               <Text style={styles.aiMessageText}>{item.text}</Text>
               
-              {/* Ask Expert Button */}
-              {item.id !== "welcome" && (
+              {/* Ask Expert Button - Hide if already sent */}
+              {item.id !== "welcome" && !sentToExpertIds.has(item.id) && (
                 <TouchableOpacity
                   style={styles.askExpertButton}
                   onPress={() => handleAskExpert(item)}
@@ -293,6 +324,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.askExpertText}>Ask Expert to Confirm</Text>
                   </LinearGradient>
                 </TouchableOpacity>
+              )}
+              
+              {/* Show "Sent to Expert" badge if already sent */}
+              {item.id !== "welcome" && sentToExpertIds.has(item.id) && (
+                <View style={styles.sentToExpertBadge}>
+                  <Icon name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.sentToExpertText}>Sent to Expert</Text>
+                </View>
               )}
             </View>
           ) : (
@@ -517,6 +556,22 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         confirmText="Đóng"
         onClose={() => setShowErrorAlert(false)}
       />
+
+      {/* AI Chat Limit Modal */}
+      <LimitReachedModal
+        visible={showAIChatLimitModal}
+        onClose={() => setShowAIChatLimitModal(false)}
+        message={aiLimitMessage}
+        actionType="ai_chat"
+      />
+
+      {/* Expert Confirmation Limit Modal */}
+      <LimitReachedModal
+        visible={showExpertLimitModal}
+        onClose={() => setShowExpertLimitModal(false)}
+        message={expertLimitMessage}
+        actionType="expert_confirm"
+      />
     </View>
   );
 };
@@ -704,6 +759,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: colors.white,
+  },
+  
+  // Sent to Expert Badge
+  sentToExpertBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#E8F5E9",
+    borderRadius: radius.md,
+    alignSelf: "flex-start",
+  },
+  sentToExpertText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.success,
   },
 
   userBubbleGradient: {

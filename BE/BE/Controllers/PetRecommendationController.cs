@@ -12,7 +12,9 @@ namespace BE.Controllers
         private readonly PawnderDatabaseContext _context;
         private readonly DistanceService _distanceService;
 
-        public PetRecommendationController(PawnderDatabaseContext context, DistanceService distanceService)
+        public PetRecommendationController(
+            PawnderDatabaseContext context, 
+            DistanceService distanceService)
         {
             _context = context;
             _distanceService = distanceService;
@@ -153,44 +155,64 @@ namespace BE.Controllers
                 .OrderByDescending(p => p.TotalPercent > 0 ? p.Score / p.TotalPercent : 0)
                 .ThenBy(p => p.Distance ?? double.MaxValue)
                 .Take(20)
-                .Select(p => new
-                {
-                    PetId = p.Pet.PetId,
-                    UserId = p.Pet.UserId,
-                    Name = p.Pet.Name,
-                    Breed = p.Pet.Breed,
-                    Gender = p.Pet.Gender,
-                    Age = p.Pet.Age,
-                    Description = p.Pet.Description,
-                    MatchPercent = p.TotalPercent > 0 ? Math.Round((decimal)(p.Score / p.TotalPercent) * 100, 1) : 0,
-                    MatchScore = p.Score,
-                    TotalPercent = p.TotalPercent,
-                    DistanceKm = p.Distance != null ? Math.Round(p.Distance.Value, 2) : (double?)null,
-                    Photos = p.Pet.PetPhotos
-                        .OrderBy(photo => photo.SortOrder)
-                        .Select(photo => photo.ImageUrl)
-                        .ToList(),
-                    Owner = p.Pet.User != null ? new
+                .Select(p => {
+                    // Get Age from Characteristics if Pet.Age is null
+                    int? age = p.Pet.Age;
+                    if (age == null)
                     {
-                        UserId = p.Pet.User.UserId,
-                        FullName = p.Pet.User.FullName,
-                        Gender = p.Pet.User.Gender,
-                        Address = p.Pet.User.Address != null ? new
+                        var ageChar = p.Pet.PetCharacteristics
+                            .FirstOrDefault(pc => pc.Attribute != null && 
+                                                 (pc.Attribute.Name.ToLower() == "tuổi" || 
+                                                  pc.Attribute.Name.ToLower() == "age"));
+                        if (ageChar != null && ageChar.Value.HasValue)
                         {
-                            City = p.Pet.User.Address.City,
-                            District = p.Pet.User.Address.District
+                            age = (int)Math.Round((double)ageChar.Value.Value);
+                        }
+                    }
+                    
+                    return new
+                    {
+                        PetId = p.Pet.PetId,
+                        UserId = p.Pet.UserId,
+                        Name = p.Pet.Name,
+                        Breed = p.Pet.Breed,
+                        Gender = p.Pet.Gender,
+                        Age = age,
+                        Description = p.Pet.Description,
+                        MatchPercent = p.TotalPercent > 0 ? Math.Round((decimal)(p.Score / p.TotalPercent) * 100, 1) : 0,
+                        MatchScore = p.Score,
+                        TotalPercent = p.TotalPercent,
+                        DistanceKm = p.Distance != null ? Math.Round(p.Distance.Value, 2) : (double?)null,
+                        Photos = p.Pet.PetPhotos
+                            .Where(photo => !string.IsNullOrEmpty(photo.ImageUrl)) // Filter empty URLs
+                            .OrderBy(photo => photo.SortOrder)
+                            .Select(photo => photo.ImageUrl)
+                            .ToList(),
+                        Owner = p.Pet.User != null ? new
+                        {
+                            UserId = p.Pet.User.UserId,
+                            FullName = p.Pet.User.FullName,
+                            Gender = p.Pet.User.Gender,
+                            Address = p.Pet.User.Address != null ? new
+                            {
+                                City = p.Pet.User.Address.City,
+                                District = p.Pet.User.Address.District
+                            } : null
                         } : null
-                    } : null
+                    };
                 })
                 .ToList();
 
             var hasPreferences = attributePreferences.Count > 0;
+            var resultCount = result.Count;
+            var preferencesCount = attributePreferences.Count;
+            
             return Ok(new
             {
                 message = hasPreferences 
-                    ? $"Tìm thấy {result.Count} thú cưng (sorted by {attributePreferences.Count} preferences)."
-                    : $"Hiển thị {result.Count} thú cưng (chưa có filter).",
-                totalPreferences = attributePreferences.Count,
+                    ? $"Tìm thấy {resultCount} thú cưng (sorted by {preferencesCount} preferences)."
+                    : $"Hiển thị {resultCount} thú cưng (chưa có filter).",
+                totalPreferences = preferencesCount,
                 hasPreferences = hasPreferences,
                 data = result
             });

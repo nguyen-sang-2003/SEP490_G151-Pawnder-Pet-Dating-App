@@ -12,19 +12,25 @@ namespace BE.Controllers
     {
         private readonly PawnderDatabaseContext _context;
         private readonly IHubContext<ChatHub> _hubContext;
+        private readonly DailyLimitService _dailyLimitService;
 
-        public MatchController(PawnderDatabaseContext context, IHubContext<ChatHub> hubContext)
+        public MatchController(
+            PawnderDatabaseContext context, 
+            IHubContext<ChatHub> hubContext,
+            DailyLimitService dailyLimitService)
         {
             _context = context;
             _hubContext = hubContext;
+            _dailyLimitService = dailyLimitService;
         }
 
         /// <summary>
         /// Get likes received with pet information
-        /// GET /api/match/likes-received/{userId}
+        /// GET /api/match/likes-received/{userId}?petId={petId}
+        /// Optional petId parameter to filter likes for specific pet
         /// </summary>
         [HttpGet("likes-received/{userId}")]
-        public async Task<IActionResult> GetLikesReceived(int userId)
+        public async Task<IActionResult> GetLikesReceived(int userId, [FromQuery] int? petId = null)
         {
             try
             {
@@ -45,18 +51,22 @@ namespace BE.Controllers
                 
 
                 
-                // Get all match requests (both pending and accepted) excluding blocked users
-                var allMatchRequests = await _context.ChatUsers
+                // Build query for match requests (both pending and accepted) excluding blocked users
+                var query = _context.ChatUsers
                     .Include(c => c.FromUser)
                         .ThenInclude(u => u!.Address)
                     .Include(c => c.FromUser)
-                        .ThenInclude(u => u!.Pets.Where(p => p.IsActive == true && p.IsDeleted == false))
-                            .ThenInclude(p => p.PetPhotos)
+                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
+                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                     .Include(c => c.ToUser)
                         .ThenInclude(u => u!.Address)
                     .Include(c => c.ToUser)
-                        .ThenInclude(u => u!.Pets.Where(p => p.IsActive == true && p.IsDeleted == false))
-                            .ThenInclude(p => p.PetPhotos)
+                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
+                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                    .Include(c => c.FromPet)
+                        .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                    .Include(c => c.ToPet)
+                        .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                     .Where(c => c.IsDeleted == false && 
                                (
                                    (c.ToUserId == userId && c.Status == "Pending") || 
@@ -64,8 +74,15 @@ namespace BE.Controllers
                                ) &&
                                c.FromUserId != null && c.ToUserId != null &&
                                !allBlockedUserIds.Contains(c.FromUserId.Value) &&
-                               !allBlockedUserIds.Contains(c.ToUserId.Value))
-                    .ToListAsync();
+                               !allBlockedUserIds.Contains(c.ToUserId.Value));
+
+                // Filter by petId if provided (only show likes where this pet is involved)
+                if (petId.HasValue)
+                {
+                    query = query.Where(c => c.FromPetId == petId.Value || c.ToPetId == petId.Value);
+                }
+
+                var allMatchRequests = await query.ToListAsync();
                 
 
 
@@ -74,9 +91,10 @@ namespace BE.Controllers
                     // Determine if this is a match (Accepted) or pending like
                     bool isMatch = c.Status == "Accepted";
                     
-                    // Get the OTHER user (not current user)
+                    // Get the OTHER user and pet (from match, not active pet)
                     var otherUser = c.ToUserId == userId ? c.FromUser : c.ToUser;
-                    var otherUserPet = otherUser?.Pets?.FirstOrDefault(p => p.IsActive == true && p.IsDeleted == false);
+                    var otherPetId = c.ToUserId == userId ? c.FromPetId : c.ToPetId;
+                    var otherUserPet = otherUser?.Pets?.FirstOrDefault(p => p.PetId == otherPetId && p.IsDeleted == false);
 
                     return new
                     {
@@ -174,6 +192,18 @@ namespace BE.Controllers
         {
             try
             {
+                // 🔒 CHECK DAILY LIMIT (Free: 20, VIP: 100)
+                bool canMatch = await _dailyLimitService.CanPerformAction(request.FromUserId, "request_match");
+                if (!canMatch)
+                {
+                    int remaining = await _dailyLimitService.GetRemainingCount(request.FromUserId, "request_match");
+                    return StatusCode(429, new 
+                    { 
+                        message = "Bạn đã hết lượt gửi match hôm nay! Nâng cấp lên VIP để sử dụng không giới hạn.",
+                        remaining = remaining,
+                        actionType = "request_match"
+                    });
+                }
 
                 
                 if (request.FromUserId == request.ToUserId)
@@ -198,22 +228,27 @@ namespace BE.Controllers
                     });
                 }
 
-                // Check if already exists (sent by current user)
+                // Check if already exists (sent by current user with SAME pet pair)
                 var existingLike = await _context.ChatUsers
                     .FirstOrDefaultAsync(c => c.FromUserId == request.FromUserId 
                                             && c.ToUserId == request.ToUserId 
+                                            && c.FromPetId == request.FromPetId
+                                            && c.ToPetId == request.ToPetId
                                             && c.IsDeleted == false);
 
                 if (existingLike != null)
                 {
 
-                    return BadRequest(new { message = "Already liked this user" });
+                    return BadRequest(new { message = "Already liked this pet" });
                 }
 
-                // Check if the other user already liked us (mutual like)
+                // Check if the other user already liked us (mutual like with REVERSED pet pair)
+                // Pet A likes Pet B, check if Pet B already liked Pet A
                 var reciprocalLike = await _context.ChatUsers
                     .FirstOrDefaultAsync(c => c.FromUserId == request.ToUserId 
                                             && c.ToUserId == request.FromUserId 
+                                            && c.FromPetId == request.ToPetId // Their from pet = our to pet
+                                            && c.ToPetId == request.FromPetId // Their to pet = our from pet
                                             && c.IsDeleted == false);
 
                 if (reciprocalLike != null)
@@ -225,32 +260,37 @@ namespace BE.Controllers
                     _context.ChatUsers.Update(reciprocalLike);
                     await _context.SaveChangesAsync();
 
+                    // 📝 RECORD ACTION TO DAILY LIMIT (mutual match)
+                    await _dailyLimitService.RecordAction(request.FromUserId, "request_match");
+                    int remaining = await _dailyLimitService.GetRemainingCount(request.FromUserId, "request_match");
+                    Console.WriteLine($"✅ Mutual match recorded. User {request.FromUserId} has {remaining} matches remaining today.");
+
                     // Get user names and pets for notifications
                     var user1 = await _context.Users.FindAsync(request.FromUserId);
                     var user2 = await _context.Users.FindAsync(request.ToUserId);
                     
-                    // Get pets with photos
+                    // Get pets involved in this match (use FromPetId and ToPetId) with photos
                     var pet1 = await _context.Pets
-                        .Where(p => p.UserId == request.FromUserId && p.IsDeleted == false)
-                        .OrderBy(p => p.PetId)
+                        .Include(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                        .Where(p => p.PetId == request.FromPetId && p.IsDeleted == false)
                         .FirstOrDefaultAsync();
                     var pet2 = await _context.Pets
-                        .Where(p => p.UserId == request.ToUserId && p.IsDeleted == false)
-                        .OrderBy(p => p.PetId)
+                        .Include(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                        .Where(p => p.PetId == request.ToPetId && p.IsDeleted == false)
                         .FirstOrDefaultAsync();
                     
 
                     
-                    var pet1Photo = pet1 != null ? await _context.PetPhotos
-                        .Where(pp => pp.PetId == pet1.PetId && pp.IsDeleted == false)
-                        .OrderBy(pp => pp.PhotoId)
+                    var pet1Photo = pet1?.PetPhotos
+                        ?.OrderBy(pp => pp.SortOrder)
+                        .ThenBy(pp => pp.PhotoId)
                         .Select(pp => pp.ImageUrl)
-                        .FirstOrDefaultAsync() : null;
-                    var pet2Photo = pet2 != null ? await _context.PetPhotos
-                        .Where(pp => pp.PetId == pet2.PetId && pp.IsDeleted == false)
-                        .OrderBy(pp => pp.PhotoId)
+                        .FirstOrDefault();
+                    var pet2Photo = pet2?.PetPhotos
+                        ?.OrderBy(pp => pp.SortOrder)
+                        .ThenBy(pp => pp.PhotoId)
                         .Select(pp => pp.ImageUrl)
-                        .FirstOrDefaultAsync() : null;
+                        .FirstOrDefault();
                     
 
 
@@ -284,6 +324,8 @@ namespace BE.Controllers
                 {
                     FromUserId = request.FromUserId,
                     ToUserId = request.ToUserId,
+                    FromPetId = request.FromPetId, // Track which pet sent the like
+                    ToPetId = request.ToPetId, // Track which pet received the like
                     Status = "Pending",
                     IsDeleted = false,
                     CreatedAt = DateTime.Now,
@@ -293,10 +335,20 @@ namespace BE.Controllers
                 _context.ChatUsers.Add(chatUser);
                 await _context.SaveChangesAsync();
                 
+                // 📝 RECORD ACTION TO DAILY LIMIT
+                bool recorded = await _dailyLimitService.RecordAction(request.FromUserId, "request_match");
+                if (recorded)
+                {
+                    int remaining = await _dailyLimitService.GetRemainingCount(request.FromUserId, "request_match");
+                    Console.WriteLine($"✅ Match recorded. User {request.FromUserId} has {remaining} matches remaining today.");
+                }
 
 
                 // Send real-time badge notification to recipient
                 await SendLikeNotification(request.ToUserId, request.FromUserId);
+
+                // Get remaining count for response
+                int remainingMatches = await _dailyLimitService.GetRemainingCount(request.FromUserId, "request_match");
 
                 return Ok(new
                 {
@@ -305,7 +357,8 @@ namespace BE.Controllers
                     toUserId = chatUser.ToUserId,
                     status = chatUser.Status,
                     isMatch = false,
-                    message = "Like sent"
+                    message = "Like sent",
+                    remainingMatches = remainingMatches // Trả về số lượt còn lại
                 });
             }
             catch (Exception ex)
@@ -351,28 +404,28 @@ namespace BE.Controllers
                     var user1 = await _context.Users.FindAsync(chatUser.FromUserId);
                     var user2 = await _context.Users.FindAsync(chatUser.ToUserId);
                     
-                    // Get pets with photos
+                    // Get pets involved in this match (use FromPetId and ToPetId from ChatUser) with photos
                     var pet1 = await _context.Pets
-                        .Where(p => p.UserId == chatUser.FromUserId && p.IsDeleted == false)
-                        .OrderBy(p => p.PetId)
+                        .Include(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                        .Where(p => p.PetId == chatUser.FromPetId && p.IsDeleted == false)
                         .FirstOrDefaultAsync();
                     var pet2 = await _context.Pets
-                        .Where(p => p.UserId == chatUser.ToUserId && p.IsDeleted == false)
-                        .OrderBy(p => p.PetId)
+                        .Include(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                        .Where(p => p.PetId == chatUser.ToPetId && p.IsDeleted == false)
                         .FirstOrDefaultAsync();
                     
 
                     
-                    var pet1Photo = pet1 != null ? await _context.PetPhotos
-                        .Where(pp => pp.PetId == pet1.PetId && pp.IsDeleted == false)
-                        .OrderBy(pp => pp.PhotoId)
+                    var pet1Photo = pet1?.PetPhotos
+                        ?.OrderBy(pp => pp.SortOrder)
+                        .ThenBy(pp => pp.PhotoId)
                         .Select(pp => pp.ImageUrl)
-                        .FirstOrDefaultAsync() : null;
-                    var pet2Photo = pet2 != null ? await _context.PetPhotos
-                        .Where(pp => pp.PetId == pet2.PetId && pp.IsDeleted == false)
-                        .OrderBy(pp => pp.PhotoId)
+                        .FirstOrDefault();
+                    var pet2Photo = pet2?.PetPhotos
+                        ?.OrderBy(pp => pp.SortOrder)
+                        .ThenBy(pp => pp.PhotoId)
                         .Select(pp => pp.ImageUrl)
-                        .FirstOrDefaultAsync() : null;
+                        .FirstOrDefault();
                     
 
 
@@ -548,6 +601,8 @@ namespace BE.Controllers
     {
         public int FromUserId { get; set; }
         public int ToUserId { get; set; }
+        public int FromPetId { get; set; } // Pet that is sending the like
+        public int ToPetId { get; set; } // Pet that is receiving the like
     }
 
     public class RespondRequest

@@ -1,21 +1,29 @@
 ﻿using BE.Services;
+using BE.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
 
 namespace BE.Controllers
 {
 	[ApiController]
+	[Route("api/payment-history")]
 	public class PaymentHistoryController : ControllerBase
 	{
 		private readonly IHttpClientFactory _httpClientFactory;
 		private readonly IConfiguration _configuration;
+		private readonly PawnderDatabaseContext _context;
 
-		public PaymentHistoryController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+		public PaymentHistoryController(
+			IHttpClientFactory httpClientFactory, 
+			IConfiguration configuration,
+			PawnderDatabaseContext context)
 		{
 			_httpClientFactory = httpClientFactory;
 			_configuration = configuration;
+			_context = context;
 		}
 
 		// Endpoint tạo QR từ config, nhận số tiền và ghi chú
@@ -86,5 +94,173 @@ namespace BE.Controllers
 			// Cập nhật trạng thái thanh toán đơn hàng
 			return Ok();
 		}
+
+		/// <summary>
+		/// POST /api/payment-history
+		/// Tạo payment history (tạm thời không cần verify thanh toán thật)
+		/// </summary>
+		[HttpPost]
+		public async Task<IActionResult> CreatePaymentHistory([FromBody] CreatePaymentHistoryRequest request)
+		{
+			try
+			{
+				// Validate user exists
+				var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == request.UserId);
+				if (user == null)
+					return NotFound(new { message = "User không tồn tại" });
+
+				// Calculate dates based on duration (in months)
+				var startDate = DateOnly.FromDateTime(DateTime.Now);
+				var endDate = startDate.AddMonths(request.DurationMonths);
+
+				// Create payment history record
+				var paymentHistory = new PaymentHistory
+				{
+					UserId = request.UserId,
+					StatusService = "active",
+					StartDate = startDate,
+					EndDate = endDate,
+					CreatedAt = DateTime.Now,
+					UpdatedAt = DateTime.Now
+				};
+
+				_context.PaymentHistories.Add(paymentHistory);
+				await _context.SaveChangesAsync();
+
+				return Ok(new
+				{
+					success = true,
+					message = "Thanh toán thành công! Tài khoản VIP đã được kích hoạt.",
+					data = new
+					{
+						historyId = paymentHistory.HistoryId,
+						userId = paymentHistory.UserId,
+						statusService = paymentHistory.StatusService,
+						startDate = paymentHistory.StartDate,
+						endDate = paymentHistory.EndDate,
+						durationMonths = request.DurationMonths
+					}
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi tạo payment history",
+					error = ex.Message
+				});
+			}
+		}
+
+		/// <summary>
+		/// GET /api/payment-history/user/{userId}
+		/// Lấy payment history của user
+		/// </summary>
+		[HttpGet("user/{userId:int}")]
+		public async Task<IActionResult> GetPaymentHistoryByUserId(int userId)
+		{
+			try
+			{
+				var histories = await _context.PaymentHistories
+					.Where(ph => ph.UserId == userId)
+					.OrderByDescending(ph => ph.CreatedAt)
+					.Select(ph => new
+					{
+						historyId = ph.HistoryId,
+						userId = ph.UserId,
+						statusService = ph.StatusService,
+						startDate = ph.StartDate,
+						endDate = ph.EndDate,
+						createdAt = ph.CreatedAt,
+						updatedAt = ph.UpdatedAt
+					})
+					.ToListAsync();
+
+				return Ok(new
+				{
+					success = true,
+					data = histories
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi lấy payment history",
+					error = ex.Message
+				});
+			}
+		}
+
+		/// <summary>
+		/// GET /api/payment-history/user/{userId}/vip-status
+		/// Check xem user có VIP active không
+		/// </summary>
+		[HttpGet("user/{userId:int}/vip-status")]
+		public async Task<IActionResult> GetVipStatus(int userId)
+		{
+			try
+			{
+				var today = DateOnly.FromDateTime(DateTime.Now);
+
+				var activeSubscription = await _context.PaymentHistories
+					.Where(ph => ph.UserId == userId
+						&& ph.StatusService != null
+						&& ph.StatusService.ToLower().Contains("active")
+						&& ph.StartDate <= today
+						&& ph.EndDate >= today)
+					.OrderByDescending(ph => ph.EndDate)
+					.Select(ph => new
+					{
+						historyId = ph.HistoryId,
+						statusService = ph.StatusService,
+						startDate = ph.StartDate,
+						endDate = ph.EndDate,
+						daysRemaining = ph.EndDate.HasValue 
+							? ph.EndDate.Value.DayNumber - today.DayNumber 
+							: 0
+					})
+					.FirstOrDefaultAsync();
+
+				if (activeSubscription != null)
+				{
+					return Ok(new
+					{
+						success = true,
+						isVip = true,
+						subscription = activeSubscription
+					});
+				}
+
+				return Ok(new
+				{
+					success = true,
+					isVip = false,
+					subscription = (object?)null
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi check VIP status",
+					error = ex.Message
+				});
+			}
+		}
+	}
+
+	/// <summary>
+	/// DTO for creating payment history
+	/// </summary>
+	public record CreatePaymentHistoryRequest
+	{
+		public int UserId { get; init; }
+		public int DurationMonths { get; init; }  // 1, 3, 6, hoặc 12 tháng
+		public decimal Amount { get; init; }       // Số tiền thanh toán
+		public string? PlanName { get; init; }     // Tên gói (VD: "Premium 3 tháng")
 	}
 }

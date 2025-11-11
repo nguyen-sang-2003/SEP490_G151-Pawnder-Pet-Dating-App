@@ -37,20 +37,49 @@ namespace BE.Controllers
             return Ok(invites);
         }
 
-        // GET /chat/{toUserId}
+        // GET /chat/{toUserId}?petId={petId}
+        // Optional petId parameter to filter chats by specific pet
         [HttpGet("chat/{UserId}")]
-        public async Task<IActionResult> GetChats(int UserId)
+        public async Task<IActionResult> GetChats(int UserId, [FromQuery] int? petId = null)
         {
-            var invites = await _context.ChatUsers
+            var query = _context.ChatUsers
                 .Include(c => c.FromUser)
-                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted" && c.IsDeleted == false)
+                .Include(c => c.ToUser)
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted" && c.IsDeleted == false);
+
+            // Filter by petId if provided (only show chats where this pet is involved)
+            if (petId.HasValue)
+            {
+                query = query.Where(c => c.FromPetId == petId.Value || c.ToPetId == petId.Value);
+            }
+
+            var invites = await query
                 .Select(c => new
                 {
                     matchId = c.MatchId,
                     fromUserId = c.FromUserId,
                     toUserId = c.ToUserId,
+                    fromPetId = c.FromPetId,
+                    toPetId = c.ToPetId,
                     status = c.Status,
-                    createdAt = c.CreatedAt
+                    createdAt = c.CreatedAt,
+                    // Return pet info for display
+                    fromPet = c.FromPet != null ? new
+                    {
+                        petId = c.FromPet.PetId,
+                        name = c.FromPet.Name,
+                        breed = c.FromPet.Breed,
+                        gender = c.FromPet.Gender
+                    } : null,
+                    toPet = c.ToPet != null ? new
+                    {
+                        petId = c.ToPet.PetId,
+                        name = c.ToPet.Name,
+                        breed = c.ToPet.Breed,
+                        gender = c.ToPet.Gender
+                    } : null
                 })
                 .ToListAsync();
 

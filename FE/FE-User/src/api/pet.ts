@@ -3,7 +3,7 @@ import client from './client';
 export interface CreatePetRequest {
   UserId: number;
   Name: string;
-  Gender: string;
+  Gender?: string; // Optional - will be added in Characteristics screen
   Description?: string;
   Breed?: string;
   Age?: number;
@@ -364,6 +364,19 @@ export const getRecommendedPets = async (userId: number): Promise<RecommendedPet
   } catch (error: any) {
     console.error('❌ Error fetching recommended pets:', error);
     console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+/**
+ * Delete a pet (soft delete)
+ * DELETE /api/pet/{petId}
+ */
+export const deletePet = async (petId: number): Promise<void> => {
+  try {
+    await client.delete(`/api/pet/${petId}`);
+  } catch (error: any) {
+    console.error('❌ Error deleting pet:', error);
     throw error;
   }
 };

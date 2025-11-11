@@ -8,12 +8,13 @@ namespace BE.Services
         private readonly PawnderDatabaseContext _context;
 
         // Định nghĩa limit cho từng loại action
+        // 🧪 TEST MODE: Giảm limits để dễ test
         private readonly Dictionary<string, (int NormalLimit, int VipLimit)> _actionLimits = new()
         {
-            { "request_match", (20, 100) },        // Request match: thường 20, VIP 100
-            { "ai_chat_question", (30, 150) },     // AI chat question: thường 30, VIP 150
-            { "expert_confirm", (3, 10) },         // Expert confirm: thường 3, VIP 10
-            { "ai_filter", (10, 50) }              // AI filter: thường 10, VIP 50
+            { "request_match", (2, 10) },          // Request match: thường 3, VIP 10 (Production: 20, 100)
+            { "ai_chat_question", (2, 15) },       // AI chat question: thường 5, VIP 15 (Production: 30, 150)
+            { "expert_confirm", (1, 5) }           // Expert confirm: thường 2, VIP 5 (Production: 3, 10)
+            // ❌ ai_filter: REMOVED - không giới hạn, user có thể filter pet thoải mái
         };
 
         public DailyLimitService(PawnderDatabaseContext context)

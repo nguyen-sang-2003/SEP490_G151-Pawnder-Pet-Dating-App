@@ -14,11 +14,16 @@ namespace BE.Controllers
     {
         private readonly IGeminiAIService _geminiService;
         private readonly PawnderDatabaseContext _context;
+        private readonly DailyLimitService _dailyLimitService;
 
-        public ChatAIController(IGeminiAIService geminiService, PawnderDatabaseContext context)
+        public ChatAIController(
+            IGeminiAIService geminiService, 
+            PawnderDatabaseContext context,
+            DailyLimitService dailyLimitService)
         {
             _geminiService = geminiService;
             _context = context;
+            _dailyLimitService = dailyLimitService;
         }
 
         private int GetCurrentUserId()
@@ -257,7 +262,26 @@ namespace BE.Controllers
                     return BadRequest(new { success = false, message = "Câu hỏi không được để trống" });
                 }
 
+                // 🔒 CHECK DAILY LIMIT (Free: 30, VIP: 150)
+                bool canAsk = await _dailyLimitService.CanPerformAction(userId, "ai_chat_question");
+                if (!canAsk)
+                {
+                    int remaining = await _dailyLimitService.GetRemainingCount(userId, "ai_chat_question");
+                    return StatusCode(429, new 
+                    { 
+                        success = false,
+                        message = "Bạn đã hết lượt hỏi AI hôm nay! Nâng cấp lên VIP để sử dụng không giới hạn.",
+                        remaining = remaining,
+                        actionType = "ai_chat_question"
+                    });
+                }
+
                 var answer = await _geminiService.SendMessageAsync(userId, chatAiId, request.Question);
+
+                // 📝 RECORD ACTION TO DAILY LIMIT
+                await _dailyLimitService.RecordAction(userId, "ai_chat_question");
+                int remainingQuestions = await _dailyLimitService.GetRemainingCount(userId, "ai_chat_question");
+                Console.WriteLine($"✅ AI question recorded. User {userId} has {remainingQuestions} questions remaining today.");
 
                 return Ok(new
                 {
@@ -267,7 +291,8 @@ namespace BE.Controllers
                         question = request.Question,
                         answer = answer,
                         timestamp = DateTime.Now
-                    }
+                    },
+                    remainingQuestions = remainingQuestions // Trả về số lượt còn lại
                 });
             }
             catch (Exception ex)

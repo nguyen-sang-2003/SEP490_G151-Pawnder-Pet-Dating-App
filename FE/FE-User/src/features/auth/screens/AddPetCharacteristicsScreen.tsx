@@ -32,6 +32,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+  
+  // Track which characteristics already exist (for UPDATE vs CREATE decision)
+  const [existingCharacteristicIds, setExistingCharacteristicIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!petId) {
@@ -86,8 +89,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           
           const tempSelectedOptions: Record<number, number> = {};
           const tempNumericValues: Record<number, string> = {};
+          const tempExistingIds = new Set<number>();
           
           existingChars.forEach((char: any) => {
+            if (char.attributeId) {
+              tempExistingIds.add(char.attributeId);
+            }
+            
             if (char.optionValue && char.attributeId) {
               // Find the option by name
               const options = optionsMap[char.attributeId];
@@ -101,8 +109,11 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             }
           });
           
+          setExistingCharacteristicIds(tempExistingIds);
           setSelectedOptions(tempSelectedOptions);
           setNumericValues(tempNumericValues);
+          
+          console.log('📋 Existing characteristic IDs:', Array.from(tempExistingIds));
         } catch (error) {
           console.log('⚠️ No existing characteristics or error loading:', error);
         }
@@ -124,13 +135,16 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       setSaving(true);
 
       const savePromises: Promise<any>[] = [];
-      const apiFunction = isFromProfile ? updatePetCharacteristic : createPetCharacteristic;
 
       // Save selected options (string types)
       Object.entries(selectedOptions).forEach(([attributeId, optionId]) => {
-        console.log(`${isFromProfile ? 'Updating' : 'Creating'} option: attributeId=${attributeId}, optionId=${optionId}`);
+        const attrId = parseInt(attributeId, 10);
+        const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
+        const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
+        
+        console.log(`${shouldUpdate ? 'Updating' : 'Creating'} option: attributeId=${attributeId}, optionId=${optionId}`);
         savePromises.push(
-          apiFunction(petId, parseInt(attributeId, 10), { OptionId: optionId })
+          apiFunction(petId, attrId, { OptionId: optionId })
         );
       });
 
@@ -139,9 +153,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         if (value && value.trim()) {
           const numValue = parseFloat(value);
           if (!isNaN(numValue)) {
-            console.log(`${isFromProfile ? 'Updating' : 'Creating'} numeric: attributeId=${attributeId}, value=${numValue}`);
+            const attrId = parseInt(attributeId, 10);
+            const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
+            const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
+            
+            console.log(`${shouldUpdate ? 'Updating' : 'Creating'} numeric: attributeId=${attributeId}, value=${numValue}`);
             savePromises.push(
-              apiFunction(petId, parseInt(attributeId, 10), { Value: numValue })
+              apiFunction(petId, attrId, { Value: numValue })
             );
           }
         }

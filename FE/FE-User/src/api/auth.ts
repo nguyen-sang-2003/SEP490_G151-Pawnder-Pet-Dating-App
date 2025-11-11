@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, storeTokens } from './client';
 import * as Keychain from 'react-native-keychain';
 
 // Types based on backend DTOs
@@ -163,22 +163,18 @@ export const login = async (
       Password: password,
     });
     
-
+    // Store both access token and refresh token (handle both PascalCase and camelCase)
+    const accessToken = response.data.AccessToken || response.data.accessToken;
+    const refreshToken = response.data.RefreshToken || response.data.refreshToken;
     
-    // Store access token securely (handle both PascalCase and camelCase)
-    const accessToken = response.data.accessToken || (response.data as any).AccessToken;
-    if (accessToken) {
-      await storeAuthToken(accessToken);
+    if (accessToken && refreshToken) {
+      await storeTokens(accessToken, refreshToken);
     }
-    
-    // Note: RefreshToken is also available in response.data.refreshToken if needed
     
     // Store userId for badge notifications
     const userId = response.data.userId || response.data.UserId;
     if (userId) {
-
       await storeUserId(userId);
-
     }
     
     return response.data;
@@ -225,11 +221,14 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
 export const logout = async (): Promise<void> => {
   try {
     await apiClient.post('/logout');
+    // Clear both tokens
     await removeAuthToken();
+    await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
     await removeUserId();
   } catch (error) {
-    // Even if API call fails, remove local token and userId
+    // Even if API call fails, remove local tokens and userId
     await removeAuthToken();
+    await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
     await removeUserId();
     throw error;
   }

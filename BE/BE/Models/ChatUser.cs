@@ -11,6 +11,10 @@ public partial class ChatUser
 
     public int? ToUserId { get; set; }
 
+    public int? FromPetId { get; set; }
+
+    public int? ToPetId { get; set; }
+
     public string? Status { get; set; }
 
     public bool? IsDeleted { get; set; }
@@ -24,4 +28,8 @@ public partial class ChatUser
     public virtual User? FromUser { get; set; }
 
     public virtual User? ToUser { get; set; }
+
+    public virtual Pet? FromPet { get; set; }
+
+    public virtual Pet? ToPet { get; set; }
 }

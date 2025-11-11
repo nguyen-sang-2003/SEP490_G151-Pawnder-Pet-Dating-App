@@ -23,9 +23,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "AddPetBasicInfo">;
 
 const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
   const [petName, setPetName] = useState("");
-  const [gender, setGender] = useState<"Male" | "Female" | "">("");
   const [breed, setBreed] = useState("");
-  const [age, setAge] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
@@ -39,15 +37,6 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         type: 'warning',
         title: 'Thiếu thông tin',
         message: 'Vui lòng nhập tên thú cưng!',
-      });
-      return;
-    }
-
-    if (!gender) {
-      showAlert({
-        type: 'warning',
-        title: 'Thiếu thông tin',
-        message: 'Vui lòng chọn giới tính!',
       });
       return;
     }
@@ -68,15 +57,16 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       const userId = parseInt(userIdStr, 10);
 
-      // Create pet
+      // Create pet (Gender default to "Male", user will update in Characteristics screen)
+      // IsActive: false by default - user can manually set active later
+      // Only first pet during registration will be auto-active (handled by backend or onboarding)
       const petData = {
         UserId: userId,
         Name: petName.trim(),
-        Gender: gender,
+        Gender: "Male", // Temporary default, will be updated in Characteristics screen
         Breed: breed.trim() || undefined,
-        Age: age.trim() ? parseInt(age.trim(), 10) : undefined,
         Description: description.trim() || undefined,
-        IsActive: true,
+        IsActive: isFromProfile ? false : true, // Auto-active only for first pet (registration), not when adding from profile
       };
 
       console.log('Creating pet with data:', petData);
@@ -97,7 +87,9 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         message: `${petName} đã được tạo. Tiếp tục thêm thông tin chi tiết!`,
         confirmText: 'Tiếp tục',
         onClose: () => {
-          // Navigate to characteristics screen with petId
+          // Pass isFromProfile từ route params để giữ nguyên flow
+          // isFromProfile = false: đăng ký lần đầu → sau khi save photos sẽ navigate to OnboardingPreferences (bắt buộc)
+          // isFromProfile = true: thêm pet từ Profile → sau khi save photos sẽ navigate to Profile (không cần setup preferences)
           navigation.navigate("AddPetCharacteristics", { petId, isFromProfile });
         },
       });
@@ -160,56 +152,6 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
             />
           </View>
 
-          {/* Gender Selection */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Gender *</Text>
-            <View style={styles.genderRow}>
-              <TouchableOpacity
-                style={[
-                  styles.genderBtn,
-                  gender === "Male" && styles.genderBtnActive,
-                ]}
-                onPress={() => setGender("Male")}
-              >
-                <Icon
-                  name="male"
-                  size={24}
-                  color={gender === "Male" ? colors.white : colors.male}
-                />
-                <Text
-                  style={[
-                    styles.genderText,
-                    gender === "Male" && styles.genderTextActive,
-                  ]}
-                >
-                  Male
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.genderBtn,
-                  gender === "Female" && styles.genderBtnActive,
-                ]}
-                onPress={() => setGender("Female")}
-              >
-                <Icon
-                  name="female"
-                  size={24}
-                  color={gender === "Female" ? colors.white : colors.female}
-                />
-                <Text
-                  style={[
-                    styles.genderText,
-                    gender === "Female" && styles.genderTextActive,
-                  ]}
-                >
-                  Female
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* Breed */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Breed (Optional)</Text>
@@ -219,19 +161,6 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
               placeholderTextColor={colors.textLabel}
               value={breed}
               onChangeText={setBreed}
-            />
-          </View>
-
-          {/* Age */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Age (Optional)</Text>
-            <TextInput
-              placeholder="Enter age in years (e.g., 2)"
-              style={styles.input}
-              placeholderTextColor={colors.textLabel}
-              value={age}
-              onChangeText={setAge}
-              keyboardType="number-pad"
             />
           </View>
 
@@ -354,37 +283,6 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     paddingTop: 14,
-  },
-
-  // Gender
-  genderRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  genderBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: colors.whiteWarm,
-    paddingVertical: 14,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: "transparent",
-    ...shadows.small,
-  },
-  genderBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  genderText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textDark,
-  },
-  genderTextActive: {
-    color: colors.white,
   },
 
   // Buttons

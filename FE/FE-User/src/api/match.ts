@@ -3,6 +3,8 @@ import client from './client';
 export interface LikeRequest {
   fromUserId: number;
   toUserId: number;
+  fromPetId: number; // Pet that is sending the like
+  toPetId: number; // Pet that is receiving the like
 }
 
 export interface LikeResponse {
@@ -106,8 +108,11 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error sending like:', error);
-    console.error('Error response:', error.response?.data);
+    // Don't log 429 limit errors (handled by UI modal)
+    if (error.response?.status !== 429) {
+      console.error('❌ Error sending like:', error);
+      console.error('Error response:', error.response?.data);
+    }
     throw error;
   }
 };
@@ -116,10 +121,13 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
  * Get likes received (people who liked you)
  * GET /api/match/likes-received/{userId}
  */
-export const getLikesReceived = async (userId: number): Promise<LikeReceivedItem[]> => {
+export const getLikesReceived = async (userId: number, petId?: number): Promise<LikeReceivedItem[]> => {
   try {
 
-    const response = await client.get(`/api/match/likes-received/${userId}`);
+    const url = petId 
+      ? `/api/match/likes-received/${userId}?petId=${petId}`
+      : `/api/match/likes-received/${userId}`;
+    const response = await client.get(url);
 
     return response.data;
   } catch (error: any) {

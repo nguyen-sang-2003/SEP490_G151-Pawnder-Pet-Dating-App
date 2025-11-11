@@ -26,6 +26,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
 import { resetFavoriteBadge, showMatchModal } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
+import { getPetsByUserId } from "../../../api/pet";
 
 const { width, height } = Dimensions.get("window");
 const CARD_PADDING = 16;
@@ -79,14 +80,36 @@ const FavoriteScreen = ({ navigation }: Props) => {
       const userId = parseInt(userIdStr);
       console.log('📞 Loading likes for user:', userId);
       
-      const likesData = await getLikesReceived(userId);
+      // Get user's active pet ID
+      let activePetId: number | undefined;
+      try {
+        const userPets = await getPetsByUserId(userId);
+        const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
+        if (activePet) {
+          activePetId = activePet.PetId || activePet.petId;
+          console.log('🐾 Active pet for likes filtering:', activePetId);
+        } else {
+          console.log('⚠️ No active pet found - showing all likes');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not get active pet - showing all likes');
+      }
+      
+      const likesData = await getLikesReceived(userId, activePetId);
       console.log('✅ Received likes:', likesData);
 
       // Convert API data to LikeCat format
       const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => {
         const photos = item.petPhotos && item.petPhotos.length > 0
-          ? item.petPhotos.map((url: string) => ({ uri: url }))
+          ? item.petPhotos
+              .filter((url: string) => url && url.trim() !== '') // Filter empty URLs
+              .map((url: string) => ({ uri: url }))
           : [require("../../../assets/cat_avatar.png")];
+        
+        // Fallback if all URLs are invalid
+        if (photos.length === 0) {
+          photos.push(require("../../../assets/cat_avatar.png"));
+        }
         
         return {
           id: item.matchId.toString(),                      // matchId for match/unmatch actions

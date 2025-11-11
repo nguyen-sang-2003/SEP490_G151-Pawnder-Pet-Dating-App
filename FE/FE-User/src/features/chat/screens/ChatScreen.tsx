@@ -20,10 +20,12 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
-import { getUserPetAvatar } from "../../../utils/petAvatar";
+import { getUserPetAvatar, getPetAvatar } from "../../../utils/petAvatar";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUnreadChats } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
+import { getVipStatus } from "../../../api/payment";
+import { getPetsByUserId } from "../../../api/pet";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -37,6 +39,7 @@ interface ChatItem {
   unread: number;
   avatar: any;
   isAI?: boolean;
+  isVip?: boolean;       // VIP status of other user
 }
 
 const ChatScreen = ({ navigation }: Props) => {
@@ -138,22 +141,51 @@ const ChatScreen = ({ navigation }: Props) => {
       setCurrentUserId(userId);
       console.log('👤 Current user:', userId);
       
-      // Get accepted matches (chats)
-      const chats = await getChats(userId);
+      // Get user's active pet ID
+      let activePetId: number | undefined;
+      try {
+        const userPets = await getPetsByUserId(userId);
+        const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
+        if (activePet) {
+          activePetId = activePet.PetId || activePet.petId;
+          console.log('🐾 Active pet for chat filtering:', activePetId);
+        } else {
+          console.log('⚠️ No active pet found - showing all chats');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not get active pet - showing all chats');
+      }
+      
+      // Get accepted matches (chats), filtered by active pet if available
+      const chats = await getChats(userId, activePetId);
       console.log('💬 Got chats:', chats);
       
       // For each chat, get the other user's info and last message
       const chatItems = await Promise.all(
         chats.map(async (chat) => {
-          // Determine the other user ID
+          // Determine the other user ID and pet ID
           const otherUserId = chat.fromUserId === userId ? chat.toUserId : chat.fromUserId;
+          const otherPetId = chat.fromUserId === userId ? chat.toPetId : chat.fromPetId;
           
           try {
             // Get other user's info
             const otherUser = await getUserById(otherUserId);
             
-            // Get pet avatar
-            const userAvatar = await getUserPetAvatar(otherUserId);
+            // Get pet avatar (use petId from match, not active pet)
+            const userAvatar = otherPetId 
+              ? await getPetAvatar(otherPetId)
+              : await getUserPetAvatar(otherUserId);
+            
+            // Check VIP status
+            let isVip = false;
+            try {
+              console.log(`💎 Checking VIP for chat user ${otherUserId}...`);
+              const vipStatus = await getVipStatus(otherUserId);
+              console.log(`💎 Chat user ${otherUserId} VIP:`, vipStatus.isVip);
+              isVip = vipStatus.isVip;
+            } catch (error: any) {
+              console.error(`❌ Failed to get VIP status for chat user ${otherUserId}:`, error?.response?.data || error?.message || error);
+            }
             
             // Get last message
             let lastMessage = "Start chatting!";
@@ -179,6 +211,7 @@ const ChatScreen = ({ navigation }: Props) => {
               time: formatTime(lastMessageTime),
               unread: 0, // Unread count requires DB changes - keep simple for now
               avatar: userAvatar,
+              isVip: isVip,
             } as ChatItem;
           } catch (error) {
             console.error('Error loading user/messages for chat:', chat.matchId, error);
@@ -275,7 +308,14 @@ const ChatScreen = ({ navigation }: Props) => {
       </View>
       <View style={styles.chatInfo}>
         <View style={styles.chatHeader}>
-          <Text style={[styles.chatName, isUnread && styles.chatNameUnread]}>{item.name}</Text>
+          <View style={styles.chatNameContainer}>
+            <Text style={[styles.chatName, isUnread && styles.chatNameUnread]}>{item.name}</Text>
+            {item.isVip && (
+              <View style={styles.vipBadgeChat}>
+                <Icon name="diamond" size={12} color="#FFD700" />
+              </View>
+            )}
+          </View>
           <Text style={styles.chatTime}>{item.time}</Text>
         </View>
         <View style={styles.chatFooter}>
@@ -597,10 +637,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
+  chatNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
   chatName: {
     fontSize: 16,
     fontWeight: "600",
     color: colors.textDark,
+  },
+  vipBadgeChat: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(255, 215, 0, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   chatTime: {
     fontSize: 12,
