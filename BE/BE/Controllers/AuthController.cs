@@ -28,16 +28,28 @@ namespace BE.Controllers
         [HttpPost("login")]
         public async Task<ActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == request.Email);
+            // Trim email and password to avoid whitespace issues
+            var email = request.Email?.Trim();
+            var password = request.Password?.Trim();
+            
+            var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == email);
             if (user == null)
             {
                 return Unauthorized("Tài khoản không tồn tại");
             }
 
-            bool isPasswordValid = _passwordService.VerifyPassword(request.Password, user.PasswordHash);
+            bool isPasswordValid = _passwordService.VerifyPassword(password, user.PasswordHash);
 
             if (!isPasswordValid)
                 return Unauthorized("Sai mật khẩu");
+            
+            // Auto-upgrade legacy SHA256 passwords to BCrypt
+            if (_passwordService.IsLegacyHash(user.PasswordHash))
+            {
+                user.PasswordHash = _passwordService.HashPassword(password);
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+            }
             
             // Ban checking logic (temporary or permanent)
             var now = DateTime.Now;
@@ -91,7 +103,7 @@ namespace BE.Controllers
                 }
             }
             
-            // Tạo Access Token (ngắn hạn - 30 phút)
+            // Tạo Access Token
             var accessToken = _tokenService.GenerateAccessToken(user.UserId, user.Role?.RoleName ?? "User");
             
             // Kiểm tra Refresh Token hiện tại có hợp lệ không
@@ -128,7 +140,12 @@ namespace BE.Controllers
             return Ok(new
             {
                 Message = "Đăng nhập thành công",
-                AccessToken = accessToken
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                UserId = user.UserId,
+                FullName = user.FullName,
+                Email = user.Email,
+                IsProfileComplete = user.IsProfileComplete
             });
         }
 

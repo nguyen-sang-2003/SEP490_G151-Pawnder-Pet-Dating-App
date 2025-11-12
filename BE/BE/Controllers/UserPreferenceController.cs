@@ -36,6 +36,7 @@ public class UserPreferenceController : ControllerBase
             .AsNoTracking()
             .Where(up => up.UserId == userId)
             .Include(up => up.Attribute)
+            .Include(up => up.Option)
             .OrderBy(up => up.AttributeId)
             .Select(up => new UserPreferenceResponse
             {
@@ -43,6 +44,8 @@ public class UserPreferenceController : ControllerBase
                 AttributeName = up.Attribute.Name!,
                 TypeValue = up.Attribute.TypeValue,
                 Unit = up.Attribute.Unit,
+                OptionId = up.OptionId,
+                OptionName = up.Option != null ? up.Option.Name : null,
                 MaxValue = up.MaxValue,
                 MinValue = up.MinValue,
                 CreatedAt = up.CreatedAt,
@@ -50,7 +53,7 @@ public class UserPreferenceController : ControllerBase
             })
             .ToListAsync(ct);
 
-        return Ok(items);
+        return Ok(new { message = "Lấy sở thích thành công.", data = items });
     }
 
     // POST /user-preference/{userId}/{attributeId}
@@ -155,6 +158,118 @@ public class UserPreferenceController : ControllerBase
         return Ok(new
         {
             Message = $"Đã xóa {preferences.Count} sở thích của người dùng {userId}."
+        });
+    }
+
+    // POST /user-preference/{userId}/batch
+    // Lưu hoặc cập nhật nhiều preferences cùng lúc
+    [HttpPost("{userId:int}/batch")]
+    public async Task<IActionResult> UpsertBatch(
+        int userId,
+        [FromBody] UserPreferenceBatchUpsertRequest request,
+        CancellationToken ct = default)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        // Kiểm tra user tồn tại
+        var userExists = await _db.Users
+            .AnyAsync(u => u.UserId == userId && (u.IsDeleted == null || u.IsDeleted == false), ct);
+        if (!userExists)
+            return NotFound(new { message = "User không tồn tại." });
+
+        // Validate tất cả attributes tồn tại
+        var attributeIds = request.Preferences.Select(p => p.AttributeId).Distinct().ToList();
+        var validAttributes = await _db.Attributes
+            .Where(a => attributeIds.Contains(a.AttributeId) && a.IsDeleted == false)
+            .Select(a => a.AttributeId)
+            .ToListAsync(ct);
+
+        if (validAttributes.Count != attributeIds.Count)
+            return BadRequest(new { message = "Có attribute không hợp lệ hoặc đã bị xóa." });
+
+        // Lấy tất cả preferences hiện tại của user
+        var existingPreferences = await _db.UserPreferences
+            .Where(up => up.UserId == userId)
+            .ToListAsync(ct);
+
+        // Nếu request.Preferences rỗng, xóa hết preferences cũ
+        if (request.Preferences == null || request.Preferences.Count == 0)
+        {
+            if (existingPreferences.Count > 0)
+            {
+                _db.UserPreferences.RemoveRange(existingPreferences);
+                await _db.SaveChangesAsync(ct);
+                return Ok(new
+                {
+                    message = $"Đã xóa tất cả {existingPreferences.Count} sở thích.",
+                    created = 0,
+                    updated = 0,
+                    deleted = existingPreferences.Count
+                });
+            }
+            return Ok(new
+            {
+                message = "Không có sở thích nào để xóa.",
+                created = 0,
+                updated = 0,
+                deleted = 0
+            });
+        }
+
+        var now = DateTime.Now;
+        var created = 0;
+        var updated = 0;
+
+        // Get list of attributeIds in the request
+        var requestAttributeIds = request.Preferences.Select(p => p.AttributeId).ToHashSet();
+
+        // Delete preferences that are not in the request
+        var prefsToDelete = existingPreferences.Where(ep => !requestAttributeIds.Contains(ep.AttributeId)).ToList();
+        if (prefsToDelete.Count > 0)
+        {
+            _db.UserPreferences.RemoveRange(prefsToDelete);
+        }
+
+        foreach (var pref in request.Preferences)
+        {
+            var existing = existingPreferences.FirstOrDefault(ep => ep.AttributeId == pref.AttributeId);
+
+            if (existing != null)
+            {
+                // Update existing
+                existing.OptionId = pref.OptionId;
+                existing.MinValue = pref.MinValue;
+                existing.MaxValue = pref.MaxValue;
+                existing.UpdatedAt = now;
+                updated++;
+            }
+            else
+            {
+                // Create new
+                var newPref = new UserPreference
+                {
+                    UserId = userId,
+                    AttributeId = pref.AttributeId,
+                    OptionId = pref.OptionId,
+                    MinValue = pref.MinValue,
+                    MaxValue = pref.MaxValue,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                _db.UserPreferences.Add(newPref);
+                created++;
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            message = $"Lưu sở thích thành công. Tạo mới: {created}, Cập nhật: {updated}, Xóa: {prefsToDelete.Count}",
+            created,
+            updated,
+            deleted = prefsToDelete.Count
         });
     }
 }

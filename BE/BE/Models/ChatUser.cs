@@ -11,6 +11,10 @@ public partial class ChatUser
 
     public int? ToPetId { get; set; }
 
+    public int? FromPetId { get; set; }
+
+    public int? ToPetId { get; set; }
+
     public string? Status { get; set; }
 
     public bool? IsDeleted { get; set; }
@@ -20,6 +24,10 @@ public partial class ChatUser
     public DateTime? UpdatedAt { get; set; }
 
     public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
+
+    public virtual Pet? FromPet { get; set; }
+
+    public virtual User? ToUser { get; set; }
 
     public virtual Pet? FromPet { get; set; }
 

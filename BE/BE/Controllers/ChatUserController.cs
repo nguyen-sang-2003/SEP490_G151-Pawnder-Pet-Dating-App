@@ -57,9 +57,9 @@ namespace BE.Controllers
             return Ok(invites);
         }
 
-        // GET /chat/{userId} – lấy tất cả đoạn chat Accepted của các pet thuộc user
+        // GET /chat/{userId}?petId={petId} – lấy tất cả đoạn chat Accepted của các pet thuộc user, optionally filter by pet
         [HttpGet("chat/{userId}")]
-        public async Task<IActionResult> GetChats(int userId)
+        public async Task<IActionResult> GetChats(int userId, [FromQuery] int? petId = null)
         {
             var petIds = await _context.Pets
                 .Where(p => p.UserId == userId && p.IsDeleted == false)
@@ -73,25 +73,51 @@ namespace BE.Controllers
 
             var petIdSet = petIds.ToHashSet();
 
+            if (petId.HasValue && !petIdSet.Contains(petId.Value))
+            {
+                return BadRequest(new { message = "Pet không thuộc người dùng này." });
+            }
+
+            var filterSet = petId.HasValue ? new HashSet<int> { petId.Value } : petIdSet;
+
             var chats = await _context.ChatUsers
+                .Include(c => c.FromUser)
+                .Include(c => c.ToUser)
                 .Include(c => c.FromPet)
                 .Include(c => c.ToPet)
                 .Where(c =>
                     c.Status == "Accepted" &&
                     c.IsDeleted == false &&
                     (
-                        (c.FromPetId.HasValue && petIdSet.Contains(c.FromPetId.Value)) ||
-                        (c.ToPetId.HasValue && petIdSet.Contains(c.ToPetId.Value))
+                        (c.FromPetId.HasValue && filterSet.Contains(c.FromPetId.Value)) ||
+                        (c.ToPetId.HasValue && filterSet.Contains(c.ToPetId.Value))
                     ))
                 .Select(c => new
                 {
                     matchId = c.MatchId,
+                    fromUserId = c.FromUserId,
+                    toUserId = c.ToUserId,
                     fromPetId = c.FromPetId,
-                    fromPetName = c.FromPet != null ? c.FromPet.Name : null,
                     toPetId = c.ToPetId,
+                    fromPetName = c.FromPet != null ? c.FromPet.Name : null,
                     toPetName = c.ToPet != null ? c.ToPet.Name : null,
                     status = c.Status,
-                    createdAt = c.CreatedAt
+                    createdAt = c.CreatedAt,
+                    // Return pet info for display
+                    fromPet = c.FromPet != null ? new
+                    {
+                        petId = c.FromPet.PetId,
+                        name = c.FromPet.Name,
+                        breed = c.FromPet.Breed,
+                        gender = c.FromPet.Gender
+                    } : null,
+                    toPet = c.ToPet != null ? new
+                    {
+                        petId = c.ToPet.PetId,
+                        name = c.ToPet.Name,
+                        breed = c.ToPet.Breed,
+                        gender = c.ToPet.Gender
+                    } : null
                 })
                 .ToListAsync();
 
@@ -161,7 +187,7 @@ namespace BE.Controllers
                 ToPetId = toPetId,
                 Status = "Pending",
                 IsDeleted = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
             };
 
             _context.ChatUsers.Add(chatUser);
@@ -190,7 +216,7 @@ namespace BE.Controllers
                 return NotFound(new { message = "Không tìm thấy yêu cầu kết bạn." });
 
             chatUser.Status = "Accepted";
-            chatUser.UpdatedAt = DateTime.Now;
+            chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             _context.ChatUsers.Update(chatUser);
             await _context.SaveChangesAsync();
@@ -223,15 +249,20 @@ namespace BE.Controllers
         [HttpDelete("chat/{matchId}")]
         public async Task<IActionResult> DeleteChat(int matchId)
         {
-            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.Status == "Accepted");
+            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.IsDeleted == false);
             if (chatUser == null)
                 return NotFound(new { message = "Không tìm thấy đoạn chat." });
 
+            Console.WriteLine($"[ChatUserController] Soft deleting chat matchId: {matchId}, Status: {chatUser.Status}");
+
+            // Soft delete the ChatUser entry (keeps messages in DB for review)
             chatUser.IsDeleted = true;
-            _context.ChatUsers.Update(chatUser);
+            chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Đã xóa yêu đoạn chat." });
+            Console.WriteLine($"[ChatUserController] Chat soft deleted successfully");
+            return Ok(new { message = "Đã ẩn đoạn chat." });
         }
     }
 }

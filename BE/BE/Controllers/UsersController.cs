@@ -1,6 +1,7 @@
 ﻿using System.Net.Mime;
 using BE.DTO;
 using BE.Models;
+using BE.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace BE.Controllers;
 public class UserController : ControllerBase
 {
     private readonly PawnderDatabaseContext _db;
+    private readonly PasswordService _passwordService;
 
     public UserController(PawnderDatabaseContext db)
     {
         _db = db;
+        _passwordService = new PasswordService();
     }
 
     // GET /user?search=&roleId=&statusId=&page=1&pageSize=20&includeDeleted=false
@@ -84,10 +87,18 @@ public class UserController : ControllerBase
     [HttpGet("{userId:int}")]
     public async Task<ActionResult<UserResponse>> GetUser(int userId, CancellationToken ct = default)
     {
+        Console.WriteLine($"[UsersController] GetUser called with userId: {userId}");
+        
         var u = await _db.Users.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.UserId == userId, ct);
+            .FirstOrDefaultAsync(x => x.UserId == userId && (x.IsDeleted == null || x.IsDeleted == false), ct);
 
-        if (u is null) return NotFound();
+        if (u is null)
+        {
+            Console.WriteLine($"[UsersController] User not found for userId: {userId}");
+            return NotFound();
+        }
+        
+        Console.WriteLine($"[UsersController] User found: {u.FullName}");
 
         return Ok(new UserResponse
         {
@@ -111,24 +122,26 @@ public class UserController : ControllerBase
         [FromBody] UserCreateRequest req,
         CancellationToken ct = default)
     {
+        // Trim email and password to avoid whitespace issues
+        var email = req.Email?.Trim();
+        var password = req.Password?.Trim();
+        
         // unique email
         var emailExists = await _db.Users
-            .AnyAsync(u => u.Email == req.Email && (u.IsDeleted == null || u.IsDeleted == false), ct);
+            .AnyAsync(u => u.Email == email && (u.IsDeleted == null || u.IsDeleted == false), ct);
         if (emailExists)
             return Conflict(new { message = "Email đã tồn tại" });
 
-        // Hash password – tuỳ thư viện bạn dùng. Ví dụ BCrypt.Net-Next:
-        // var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
-        // Nếu bạn đã hash ở nơi khác, hãy gán trực tiếp PasswordHash.
-        var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
+        // Hash password using PasswordService (BCrypt)
+        var hashed = _passwordService.HashPassword(password);
 
         var entity = new BE.Models.User
         {
             RoleId = req.RoleId,
             UserStatusId = req.UserStatusId,
-            FullName = req.FullName,
+            FullName = req.FullName?.Trim(),
             Gender = req.Gender,
-            Email = req.Email,
+            Email = email,
             PasswordHash = hashed,
             ProviderLogin = req.ProviderLogin,
             IsDeleted = false,
@@ -141,7 +154,7 @@ public class UserController : ControllerBase
 
         var resp = new UserResponse
         {
-            
+            UserId = entity.UserId,
             RoleId = entity.RoleId,
             UserStatusId = entity.UserStatusId,
             AddressId = entity.AddressId,
@@ -154,7 +167,7 @@ public class UserController : ControllerBase
             UpdatedAt = entity.UpdatedAt
         };
 
-        return CreatedAtAction(nameof(GetUser), new { userId = resp.UserId }, resp);
+        return CreatedAtAction(nameof(GetUser), new { userId = entity.UserId }, resp);
     }
 
     // PUT /user/{userId}
@@ -171,7 +184,13 @@ public class UserController : ControllerBase
 
         u.RoleId = req.RoleId;
       
-        u.AddressId = req.AddressId;
+        // IMPORTANT: Only update AddressId if explicitly provided
+        // Address is managed separately via Address API (GPS/manual)
+        if (req.AddressId.HasValue)
+        {
+            u.AddressId = req.AddressId;
+        }
+        
         u.FullName = req.FullName;
         u.Gender = req.Gender;
   
@@ -225,4 +244,65 @@ public class UserController : ControllerBase
 
     //Cap nhat nguoi dung by Admin
 
+    // PATCH /user/{id}/complete-profile
+    [HttpPatch("{id:int}/complete-profile")]
+    public async Task<ActionResult> CompleteProfile(int id, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == id, ct);
+            
+            if (user == null)
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            user.IsProfileComplete = true;
+            user.UpdatedAt = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new { 
+                message = "Đã hoàn thành hồ sơ.",
+                isProfileComplete = true
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Lỗi: {ex.Message}" });
+        }
+    }
+
+    // PUT /user/reset-password
+    [HttpPut("reset-password")]
+    public async Task<ActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request, 
+        CancellationToken ct = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.NewPassword))
+                return BadRequest(new { message = "Email và mật khẩu mới là bắt buộc." });
+
+            var email = request.Email.Trim();
+            var newPassword = request.NewPassword.Trim();
+            
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email && (u.IsDeleted == null || u.IsDeleted == false), ct);
+            
+            if (user == null)
+                return NotFound(new { message = "Email không tồn tại." });
+
+            // Hash new password
+            user.PasswordHash = _passwordService.HashPassword(newPassword);
+            user.TokenJwt = null; // Clear old token for security
+            user.UpdatedAt = DateTime.Now;
+
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new { message = "Đặt lại mật khẩu thành công." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Lỗi: {ex.Message}" });
+        }
+    }
 }
+

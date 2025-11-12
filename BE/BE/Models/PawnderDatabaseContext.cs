@@ -202,9 +202,17 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasForeignKey(d => d.FromPetId)
                 .HasConstraintName("ChatUser_FromPetId_fkey");
 
-            entity.HasOne(d => d.ToPet).WithMany(p => p.ChatUserToPets)
+            entity.HasOne(d => d.ToUser).WithMany(p => p.ChatUserToUsers)
+                .HasForeignKey(d => d.ToUserId)
+                .HasConstraintName("ChatUser_ToUserId_fkey");
+
+            entity.HasOne(d => d.FromPet).WithMany()
+                .HasForeignKey(d => d.FromPetId)
+                .HasConstraintName("FK_ChatUser_FromPet");
+
+            entity.HasOne(d => d.ToPet).WithMany()
                 .HasForeignKey(d => d.ToPetId)
-                .HasConstraintName("ChatUser_ToPetId_fkey");
+                .HasConstraintName("FK_ChatUser_ToPet");
         });
 
         modelBuilder.Entity<ChatUserContent>(entity =>

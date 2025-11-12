@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore: bỏ qua warning type
@@ -15,6 +16,10 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import HeartsBackground from "../components/HeartsBackground";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { register, sendOtp } from "../../../api";
+import { gradients } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SignUp">;
 
@@ -25,12 +30,128 @@ const SignUpScreen = ({ navigation }: Props) => {
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
   const [agree, setAgree] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+
+  const handleSignUp = async () => {
+    // Validation
+    if (!fullName.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng nhập họ tên của bạn 👤',
+      });
+      return;
+    }
+
+    if (!gender) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng chọn giới tính 👫',
+      });
+      return;
+    }
+
+    if (!email.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng nhập email 📧',
+      });
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      showAlert({
+        type: 'error',
+        title: 'Email không hợp lệ',
+        message: 'Vui lòng nhập đúng định dạng email 📧',
+      });
+      return;
+    }
+
+    if (!pass) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu mật khẩu',
+        message: 'Vui lòng nhập mật khẩu 🔒',
+      });
+      return;
+    }
+
+    if (pass.length < 6) {
+      showAlert({
+        type: 'error',
+        title: 'Mật khẩu quá ngắn',
+        message: 'Mật khẩu phải có ít nhất 6 ký tự 🔐',
+      });
+      return;
+    }
+
+    if (pass !== confirm) {
+      showAlert({
+        type: 'error',
+        title: 'Mật khẩu không khớp',
+        message: 'Mật khẩu xác nhận không giống mật khẩu đã nhập 🔑',
+      });
+      return;
+    }
+
+    if (!agree) {
+      showAlert({
+        type: 'warning',
+        title: 'Chưa đồng ý điều khoản',
+        message: 'Vui lòng đồng ý với điều khoản và chính sách để tiếp tục 📋',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Prepare user data
+      const userData = {
+        FullName: fullName.trim(),
+        Gender: gender,
+        Email: email.trim(),
+        Password: pass.trim(),
+      };
+
+      // Send OTP to email
+      await sendOtp(email.trim());
+
+      showAlert({
+        type: 'success',
+        title: 'Kiểm tra email! 📧',
+        message: 'Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và nhập mã xác thực.',
+        confirmText: 'Xác thực ngay',
+        onClose: () => navigation.navigate("OTPVerification", { 
+          email: email.trim(),
+          userData: userData // Pass user data to OTP screen
+        }),
+      });
+    } catch (error: any) {
+      let errorMessage = "Không thể gửi mã OTP. Vui lòng thử lại.";
+      
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showAlert({
+        type: 'error',
+        title: 'Đăng ký thất bại 😿',
+        message: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <LinearGradient
-      colors={["#FDE8EF", "#F9C9D6"]}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
+      colors={gradients.auth.signup}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       {/* Background tim */}
@@ -47,7 +168,7 @@ const SignUpScreen = ({ navigation }: Props) => {
       {/* Avatar + Circle */}
       <View style={styles.circleWrapper}>
         <LinearGradient
-          colors={["#FF6EA7", "#FFC2D6"]}
+          colors={gradients.auth.buttonSecondary}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.circle}
@@ -150,15 +271,20 @@ const SignUpScreen = ({ navigation }: Props) => {
         <TouchableOpacity 
           activeOpacity={0.9} 
           style={styles.btnShadow}
-          onPress={() => navigation.replace("AddPetInfo")}
+          onPress={handleSignUp}
+          disabled={loading}
         >
           <LinearGradient
-            colors={["#FF7AAE", "#FF9BC0"]}
+            colors={gradients.auth.buttonPrimary}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.button}
           >
-            <Text style={styles.buttonText}>Sign Up</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign Up</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 
@@ -172,6 +298,18 @@ const SignUpScreen = ({ navigation }: Props) => {
           </Text>
         </Text>
       </View>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+        />
+      )}
     </LinearGradient>
   );
 };

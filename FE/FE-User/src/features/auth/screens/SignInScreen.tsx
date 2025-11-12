@@ -6,18 +6,26 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import * as Animatable from "react-native-animatable";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import HeartsBackground from "../components/HeartsBackground";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { login } from "../../../api";
+import { setItem } from "../../../utils/storage";
+import { gradients } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SignIn">;
 
 const SignInScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const buttonRef = useRef<Animatable.View & View>(null);
 
@@ -32,11 +40,82 @@ const SignInScreen = ({ navigation }: Props) => {
     );
   };
 
+  const handleSignIn = async () => {
+    // Validation
+    if (!email.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Oops!',
+        message: 'Vui lòng nhập email của bạn 📧',
+      });
+      return;
+    }
+
+    if (!pass.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Oops!',
+        message: 'Vui lòng nhập mật khẩu 🔒',
+      });
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      showAlert({
+        type: 'error',
+        title: 'Email không hợp lệ',
+        message: 'Vui lòng nhập đúng định dạng email 📧',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await login(email.trim(), pass.trim());
+      
+      // Save userId to AsyncStorage (handle both PascalCase and camelCase)
+      const userId = response.UserId || (response as any).userId;
+      if (userId) {
+        await setItem('userId', userId.toString());
+      }
+      
+      // Handle both PascalCase and camelCase from BE
+      const isComplete = response.IsProfileComplete ?? (response as any).isProfileComplete ?? false;
+      
+      if (isComplete === true) {
+        // Profile complete -> Go to Home
+        showAlert({
+          type: 'success',
+          title: 'Chào mừng! 🎉',
+          message: response.Message || 'Đăng nhập thành công',
+          onClose: () => navigation.replace("Home"),
+        });
+      } else {
+        // Profile incomplete -> Continue onboarding
+        showAlert({
+          type: 'info',
+          title: 'Hoàn thành hồ sơ',
+          message: 'Hãy hoàn thành thông tin thú cưng để sử dụng ứng dụng!',
+          confirmText: 'Tiếp tục',
+          onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
+        });
+      }
+    } catch (error: any) {
+      showAlert({
+        type: 'error',
+        title: 'Đăng nhập thất bại 😿',
+        message: error.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <LinearGradient
-      colors={["#FDE8EF", "#F9C9D6"]}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
+      colors={gradients.auth.welcome}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       {/* nhiều trái tim tách thành component riêng */}
@@ -44,7 +123,7 @@ const SignInScreen = ({ navigation }: Props) => {
 
       {/* Avatar + Circle */}
       <View style={styles.circleWrapper}>
-        <LinearGradient colors={["#FF6EA7", "#FFC2D6"]} style={styles.circle} />
+        <LinearGradient colors={gradients.auth.buttonPrimary} style={styles.circle} />
         <Image
           source={require("../../../assets/cat_avatar_signin.png")}
           style={styles.avatar}
@@ -72,16 +151,23 @@ const SignInScreen = ({ navigation }: Props) => {
         />
 
         <Animatable.View ref={buttonRef} style={styles.btnShadow}>
-          <TouchableOpacity activeOpacity={0.9} onPressIn={handlePressIn} 
-            onPress={() => navigation.replace("AddPetInfo")}
+          <TouchableOpacity 
+            activeOpacity={0.9} 
+            onPressIn={handlePressIn} 
+            onPress={handleSignIn}
+            disabled={loading}
           >
             <LinearGradient
-              colors={["#FF6EA7", "#FF9BC0"]}
+              colors={gradients.auth.buttonPrimary}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Sign in →</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Sign in →</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </Animatable.View>
@@ -93,9 +179,26 @@ const SignInScreen = ({ navigation }: Props) => {
           >
             Register Now!
           </Text>{" "}
-          / <Text style={[styles.link, { color: "#666" }]}>Forgot password</Text>
+          / <Text 
+            style={[styles.link, { color: "#666" }]}
+            onPress={() => navigation.navigate("ForgotPassword")}
+          >
+            Forgot password
+          </Text>
         </Text>
       </View>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+        />
+      )}
     </LinearGradient>
   );
 };

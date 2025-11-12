@@ -54,43 +54,93 @@ namespace BE.Controllers
         [HttpPost("chat-user-content/{matchId}/{fromPetId}")]
         public async Task<IActionResult> SendMessage(int matchId, int fromPetId, [FromBody] string message)
         {
-
-            if (string.IsNullOrWhiteSpace(message))
-                return BadRequest(new { message = "Tin nhắn không được để trống." });
-
-            var match = await _context.ChatUsers.FirstOrDefaultAsync(c => c.MatchId==matchId && c.Status == "Accepted" && c.IsDeleted == false);
-            if (match == null)
-                return NotFound(new { message = "Không tồn tại đoạn chat." });
-
-            // Kiểm tra fromPetId có thuộc match này không
-            if (match.FromPetId != fromPetId && match.ToPetId != fromPetId)
-                return BadRequest(new { message = "Pet không thuộc cuộc chat này." });
-
-            var chatMessage = new ChatUserContent
+            try
             {
-                MatchId = matchId,
-                FromPetId = fromPetId,
-                Message = message,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
-            };
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    return BadRequest(new { message = "Tin nhắn không được để trống." });
+                }
 
-            _context.ChatUserContents.Add(chatMessage);
-            await _context.SaveChangesAsync();
+                var match = await _context.ChatUsers.FirstOrDefaultAsync(c => c.MatchId == matchId && c.Status == "Accepted" && c.IsDeleted == false);
+                if (match == null)
+                {
+                    return NotFound(new { message = "Không tồn tại đoạn chat." });
+                }
 
-            // ✅ Gửi realtime tới 2 người trong cuộc chat
-            await _hubContext.Clients.All.SendAsync($"ReceiveMessage_{matchId}", new
+                if (match.FromPetId != fromPetId && match.ToPetId != fromPetId)
+                {
+                    return BadRequest(new { message = "Pet không thuộc cuộc chat này." });
+                }
+
+                var now = DateTime.Now;
+                var chatMessage = new ChatUserContent
+                {
+                    MatchId = matchId,
+                    FromPetId = fromPetId,
+                    Message = message,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                _context.ChatUserContents.Add(chatMessage);
+                await _context.SaveChangesAsync();
+
+                var groupName = $"Match_{matchId}";
+                await _hubContext.Clients.Group(groupName).SendAsync("ReceiveMessage", new
+                {
+                    MatchId = matchId,
+                    FromPetId = fromPetId,
+                    Message = message,
+                    CreatedAt = chatMessage.CreatedAt
+                });
+
+                int? toUserId = null;
+                if (match.FromPetId == fromPetId)
+                {
+                    toUserId = match.ToUserId;
+                }
+                else if (match.ToPetId == fromPetId)
+                {
+                    toUserId = match.FromUserId;
+                }
+
+                if (toUserId.HasValue)
+                {
+                    try
+                    {
+                        await ChatHub.SendNewMessageBadge(_hubContext, toUserId.Value, matchId, match.FromPetId, match.ToPetId);
+                    }
+                    catch (Exception notifEx)
+                    {
+                        Console.WriteLine($"[SendMessage] Error sending badge notification: {notifEx.Message}");
+                    }
+                }
+
+                return Ok(new
+                {
+                    message = "Gửi tin nhắn thành công.",
+                    contentId = chatMessage.ContentId,
+                    createdAt = chatMessage.CreatedAt
+                });
+            }
+            catch (Exception ex)
             {
-                MatchId = matchId,
-                FromPetId = fromPetId,
-                Message = message,
-                CreatedAt = chatMessage.CreatedAt
-            });
+                Console.WriteLine($"[SendMessage] ERROR: {ex.Message}");
+                Console.WriteLine($"[SendMessage] Stack: {ex.StackTrace}");
+                
+                var innerEx = ex.InnerException;
+                while (innerEx != null)
+                {
+                    Console.WriteLine($"[SendMessage] Inner Exception: {innerEx.Message}");
+                    innerEx = innerEx.InnerException;
+                }
 
-            return Ok(new
-            {
-                message = "Gửi tin nhắn thành công."
-            });
+                return StatusCode(500, new { 
+                    message = "Lỗi server khi gửi tin nhắn",
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message
+                });
+            }
         }
 
     }

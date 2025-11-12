@@ -286,5 +286,69 @@ namespace BE.Controllers
                                statusCode: 500);
             }
         }
+
+        // GET: api/attribute/for-filter
+        // Endpoint đặc biệt để lấy attributes dành cho filter preferences
+        [HttpGet("for-filter")]
+        public async Task<ActionResult> GetAttributesForFilter(CancellationToken ct = default)
+        {
+            try
+            {
+                var attributes = await _db.Attributes
+                    .AsNoTracking()
+                    .Where(a => a.IsDeleted == false)
+                    .Include(a => a.AttributeOptions.Where(o => o.IsDeleted == false))
+                    .OrderBy(a => a.AttributeId)
+                    .Select(a => new
+                    {
+                        AttributeId = a.AttributeId,
+                        Name = a.Name,
+                        TypeValue = a.TypeValue,
+                        Unit = a.Unit,
+                        Percent = a.Percent,
+                        Options = a.AttributeOptions
+                            .Where(o => o.IsDeleted == false)
+                            .Select(o => new
+                            {
+                                OptionId = o.OptionId,
+                                Name = o.Name
+                            })
+                            .ToList()
+                    })
+                    .ToListAsync(ct);
+
+                // Tính các thống kê để suggest
+                var totalPercent = attributes
+                    .Where(a => a.Percent != null && a.Percent > 0)
+                    .Sum(a => a.Percent ?? 0);
+
+                var topAttributes = attributes
+                    .Where(a => a.Percent != null && a.Percent > 0)
+                    .OrderByDescending(a => a.Percent)
+                    .Take(3)
+                    .Select(a => a.Name)
+                    .ToList();
+
+                return Ok(new
+                {
+                    message = "Lấy danh sách thuộc tính để filter thành công.",
+                    data = attributes,
+                    suggestion = new
+                    {
+                        topAttributes = topAttributes,
+                        totalPercent = Math.Round(totalPercent, 1),
+                        message = topAttributes.Count > 0 
+                            ? $"Chọn filter theo {string.Join(", ", topAttributes.Take(2))} để tìm match phù hợp hơn!" 
+                            : null
+                    }
+                });
+            }
+            catch (Exception)
+            {
+                return Problem(title: "Lỗi hệ thống",
+                               detail: "Đã xảy ra lỗi khi lấy danh sách thuộc tính.",
+                               statusCode: 500);
+            }
+        }
     }
 }

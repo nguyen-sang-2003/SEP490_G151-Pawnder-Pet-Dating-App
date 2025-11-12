@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Models;
+using BE.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,9 +12,12 @@ namespace BE.Controllers
 	public class ExpertController : ControllerBase
 	{
 		private readonly PawnderDatabaseContext _context;
-		public ExpertController(PawnderDatabaseContext context)
+		private readonly DailyLimitService _dailyLimitService;
+		
+		public ExpertController(PawnderDatabaseContext context, DailyLimitService dailyLimitService)
 		{
 			_context = context;
+			_dailyLimitService = dailyLimitService;
 		}
 
 		//// GET: /api/expert-confirmation
@@ -123,19 +127,32 @@ namespace BE.Controllers
 			}
 		}
 
-		[HttpPost("expert-confirmation/{userId}/{chatId}")]
-		public async Task<ActionResult<ExpertConfirmationResponseDTO>> CreateExpertConfirmation(
-	int userId, int chatId, [FromBody] ExpertConfirmationCreateDTO dto)
+	[HttpPost("expert-confirmation/{userId}/{chatId}")]
+	public async Task<ActionResult<ExpertConfirmationResponseDTO>> CreateExpertConfirmation(
+int userId, int chatId, [FromBody] ExpertConfirmationCreateDTO dto)
+	{
+		try
 		{
-			try
+			// 🔒 CHECK DAILY LIMIT (Free: 3, VIP: 10)
+			bool canConfirm = await _dailyLimitService.CanPerformAction(userId, "expert_confirm");
+			if (!canConfirm)
 			{
-				var user = await _context.Users.FindAsync(userId);
-				if (user == null)
-					return NotFound(new { Message = "Người dùng không tồn tại." });
+				int remaining = await _dailyLimitService.GetRemainingCount(userId, "expert_confirm");
+				return StatusCode(429, new 
+				{ 
+					Message = "Bạn đã hết lượt yêu cầu chuyên gia xác nhận hôm nay! Nâng cấp lên VIP để sử dụng không giới hạn.",
+					Remaining = remaining,
+					ActionType = "expert_confirm"
+				});
+			}
 
-				var chat = await _context.ChatAis.FindAsync(chatId);
-				if (chat == null)
-					return NotFound(new { Message = "Chat AI không tồn tại." });
+			var user = await _context.Users.FindAsync(userId);
+			if (user == null)
+				return NotFound(new { Message = "Người dùng không tồn tại." });
+
+			var chat = await _context.ChatAis.FindAsync(chatId);
+			if (chat == null)
+				return NotFound(new { Message = "Chat AI không tồn tại." });
 
 				var expert = await _context.Users.FindAsync(dto.ExpertId);
 				if (expert == null)
@@ -159,10 +176,15 @@ namespace BE.Controllers
 					UpdatedAt = now
 				};
 
-				_context.ExpertConfirmations.Add(expertConfirmation);
-				await _context.SaveChangesAsync();
+			_context.ExpertConfirmations.Add(expertConfirmation);
+			await _context.SaveChangesAsync();
 
-				var response = new ExpertConfirmationResponseDTO
+			// 📝 RECORD ACTION TO DAILY LIMIT
+			await _dailyLimitService.RecordAction(userId, "expert_confirm");
+			int remainingConfirms = await _dailyLimitService.GetRemainingCount(userId, "expert_confirm");
+			Console.WriteLine($"✅ Expert confirm recorded. User {userId} has {remainingConfirms} confirms remaining today.");
+
+			var response = new ExpertConfirmationResponseDTO
 				{
 					UserId = expertConfirmation.UserId,
 					ChatAiId = expertConfirmation.ChatAiid,

@@ -73,7 +73,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
         public async Task<string> SendMessageAsync(int userId, int chatAiId, string question)
         {
-            // Kiểm tra chat session
+            // Kiểm tra chat session (chỉ cho phép truy cập chat của chính mình)
             var chatAi = await _context.ChatAis
                 .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId && c.IsDeleted == false);
 
@@ -95,10 +95,11 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             promptBuilder.AppendLine(GetCatCareSystemPrompt());
             promptBuilder.AppendLine("\n---\n");
 
-            // Thêm lịch sử (10 cặp Q&A gần nhất)
+            // Thêm lịch sử (3 cặp Q&A gần nhất - giảm để Gemini xử lý nhanh hơn)
+            // Lý do: History càng dài → tokens càng nhiều → Gemini càng chậm
             var recentHistory = history
                 .Where(h => !string.IsNullOrEmpty(h.Question) && !string.IsNullOrEmpty(h.Answer))
-                .TakeLast(10)
+                .TakeLast(3)
                 .ToList();
 
             if (recentHistory.Any())
@@ -115,9 +116,30 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             promptBuilder.AppendLine($"User: {question}");
             promptBuilder.AppendLine("Assistant:");
 
-            // Gọi Gemini
-            var response = await model.GenerateContent(promptBuilder.ToString());
-            var answer = response.Text;
+            // Gọi Gemini với timeout 45 giây (đủ lớn nhưng không quá lâu)
+            string answer;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                Console.WriteLine($"🤖 [Chat {chatAiId}] Calling Gemini API... (history: {recentHistory.Count} pairs)");
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+                var response = await model.GenerateContent(promptBuilder.ToString(), cancellationToken: cts.Token);
+                answer = response.Text;
+                stopwatch.Stop();
+                Console.WriteLine($"✅ [Chat {chatAiId}] Gemini responded in {stopwatch.ElapsedMilliseconds}ms");
+            }
+            catch (OperationCanceledException)
+            {
+                stopwatch.Stop();
+                Console.WriteLine($"⏱️ [Chat {chatAiId}] Gemini timeout after 45s (history: {recentHistory.Count} pairs)");
+                throw new Exception("AI đang quá tải. Vui lòng thử lại sau.");
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                Console.WriteLine($"❌ [Chat {chatAiId}] Gemini error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                throw new Exception("Không thể kết nối với AI. Vui lòng thử lại sau.");
+            }
 
             // Lưu Q&A
             var content = new ChatAicontent

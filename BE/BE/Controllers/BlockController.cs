@@ -66,23 +66,42 @@ namespace BE.Controllers
 					return NotFound(new { Message = "Người dùng không tồn tại." });
 				}
 
-				var existingBlock = await _context.Blocks
-					.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
+			var existingBlock = await _context.Blocks
+				.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
 
-				if (existingBlock != null)
-				{
-					return Conflict(new { Message = "Người dùng này đã bị chặn trước đó." });
-				}
+			if (existingBlock != null)
+			{
+				return Conflict(new { Message = "Người dùng này đã bị chặn trước đó." });
+			}
 
-				var block = new Block
-				{
-					FromUserId = fromUserId,
-					ToUserId = toUserId,
-					CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-				};
+		// Check if there's an existing match/chat between these users (any direction)
+		var existingChat = await _context.ChatUsers
+			.FirstOrDefaultAsync(c => 
+				c.IsDeleted == false &&
+				((c.FromUserId == fromUserId && c.ToUserId == toUserId) ||
+				(c.FromUserId == toUserId && c.ToUserId == fromUserId)));
 
-				_context.Blocks.Add(block);
-				await _context.SaveChangesAsync();
+		if (existingChat != null)
+		{
+			Console.WriteLine($"[BlockController] Found existing chat (MatchId: {existingChat.MatchId}), soft deleting...");
+			
+			// Soft delete the ChatUser entry (keeps messages in DB)
+			existingChat.IsDeleted = true;
+			existingChat.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+			
+			Console.WriteLine($"[BlockController] Soft deleted ChatUser entry (unmatch)");
+		}
+
+			// Create the block
+			var block = new Block
+			{
+				FromUserId = fromUserId,
+				ToUserId = toUserId,
+				CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+			};
+
+			_context.Blocks.Add(block);
+			await _context.SaveChangesAsync();
 
 				return Ok(new
 				{
