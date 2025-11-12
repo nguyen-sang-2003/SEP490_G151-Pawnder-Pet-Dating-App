@@ -98,7 +98,7 @@ namespace BE.Services
         /// <summary>
         /// Send a message to a specific chat room
         /// </summary>
-        public async Task SendMessage(int matchId, int fromUserId, string message)
+    public async Task SendMessage(int matchId, int fromUserId, string message, int? fromPetId = null)
         {
             var groupName = $"Match_{matchId}";
             
@@ -108,7 +108,8 @@ namespace BE.Services
             await Clients.Group(groupName).SendAsync("ReceiveMessage", new
             {
                 MatchId = matchId,
-                FromPetId = fromPetId,
+            FromUserId = fromUserId,
+            FromPetId = fromPetId,
                 Message = message,
                 CreatedAt = DateTime.UtcNow
             });
