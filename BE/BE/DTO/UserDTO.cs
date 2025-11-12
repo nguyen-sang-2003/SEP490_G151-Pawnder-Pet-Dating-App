@@ -104,6 +104,15 @@
 
        
     }
+
+    public record ResetPasswordRequest
+    {
+        [Required, EmailAddress]
+        public string Email { get; init; } = null!;
+
+        [Required, StringLength(100, MinimumLength = 6)]
+        public string NewPassword { get; init; } = null!;
+    }
   
     public record PagedResult<T>(IReadOnlyList<T> Items, int Total, int Page, int PageSize);
 }

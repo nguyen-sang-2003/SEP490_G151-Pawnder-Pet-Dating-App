@@ -40,7 +40,7 @@ namespace BE.Controllers
         {
             var invites = await _context.ChatUsers
                 .Include(c => c.FromUser)
-                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted")
+                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted" && c.IsDeleted == false)
                 .Select(c => new
                 {
                     matchId = c.MatchId,
@@ -92,7 +92,7 @@ namespace BE.Controllers
                 ToUserId = toUserId,
                 Status = "Pending",
                 IsDeleted = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
             };
 
             _context.ChatUsers.Add(chatUser);
@@ -118,7 +118,7 @@ namespace BE.Controllers
                 return NotFound(new { message = "Không tìm thấy yêu cầu kết bạn." });
 
             chatUser.Status = "Accepted";
-            chatUser.UpdatedAt = DateTime.Now;
+            chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             _context.ChatUsers.Update(chatUser);
             await _context.SaveChangesAsync();
@@ -151,15 +151,20 @@ namespace BE.Controllers
         [HttpDelete("chat/{matchId}")]
         public async Task<IActionResult> DeleteChat(int matchId)
         {
-            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.Status == "Accepted");
+            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.IsDeleted == false);
             if (chatUser == null)
                 return NotFound(new { message = "Không tìm thấy đoạn chat." });
 
+            Console.WriteLine($"[ChatUserController] Soft deleting chat matchId: {matchId}, Status: {chatUser.Status}");
+
+            // Soft delete the ChatUser entry (keeps messages in DB for review)
             chatUser.IsDeleted = true;
-            _context.ChatUsers.Update(chatUser);
+            chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Đã xóa yêu đoạn chat." });
+            Console.WriteLine($"[ChatUserController] Chat soft deleted successfully");
+            return Ok(new { message = "Đã ẩn đoạn chat." });
         }
     }
 }

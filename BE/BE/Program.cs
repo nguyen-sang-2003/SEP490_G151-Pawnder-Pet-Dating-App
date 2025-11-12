@@ -11,6 +11,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//Cloundinary config
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("Cloudinary"));
 
@@ -80,6 +81,8 @@ builder.Services.AddAuthentication(options =>
     };
 });
 builder.Services.AddAuthorization();
+//Gemini AI Service
+builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 
 // Register Email Service 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
@@ -114,6 +117,11 @@ builder.Services.AddCors(options =>
               .SetPreflightMaxAge(TimeSpan.FromSeconds(3600));
     });
 });
+// realtime
+builder.Services.AddSignalR();
+
+// ??ng k� DistanceService
+builder.Services.AddScoped<BE.Services.DistanceService>();
 
 var app = builder.Build();
 
@@ -140,6 +148,8 @@ app.UseAuthorization();
 
 // 5. Map controllers
 app.MapControllers();
+
+app.MapHub<ChatHub>("/chatHub");
 
 app.Run();
 public class CloudinarySettings

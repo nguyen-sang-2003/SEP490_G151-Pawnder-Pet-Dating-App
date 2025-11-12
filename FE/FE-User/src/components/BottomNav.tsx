@@ -1,15 +1,19 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Platform, Text } from "react-native";
 // @ts-ignore: bỏ qua lỗi type cho Ionicons
 import Icon from "react-native-vector-icons/Ionicons";
+import LinearGradient from "react-native-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { colors, gradients, shadows } from "../theme";
+import { useAppSelector } from "../app/hooks";
+import { selectChatBadge, selectFavoriteBadge } from "../features/badge/badgeSlice";
 
 // Đồng bộ Tab với RootStackParamList
 export type Tab = keyof Pick<
   RootStackParamList,
-  "Home" | "Match" | "Chat" | "Favorite" | "Profile"
+  "Home" | "Chat" | "Favorite" | "Profile"
 >;
 
 interface BottomNavProps {
@@ -18,77 +22,202 @@ interface BottomNavProps {
 
 const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  
+  // Get badge counts from Redux
+  const chatBadge = useAppSelector(selectChatBadge);
+  const favoriteBadge = useAppSelector(selectFavoriteBadge);
+  
+  // Debug logging
 
   // Hàm điều hướng khi bấm tab
   const handlePress = (tab: Tab) => {
-    navigation.navigate(tab);
+    if (tab === "Chat") {
+      navigation.navigate("Chat", {});
+    } else {
+      navigation.navigate(tab as any);
+    }
   };
 
+  // Nav items config - Each tab has unique gradient from theme
+  const navItems = [
+    { 
+      key: "Home" as Tab, 
+      icon: "paw", 
+      iconOutline: "paw-outline",
+      gradient: gradients.home,
+      gradientLight: ["rgba(233, 30, 99, 0.25)", "rgba(255, 107, 157, 0.25)"],
+      shadowColor: colors.homeStart,
+    },
+    { 
+      key: "Chat" as Tab, 
+      icon: "chatbubbles", 
+      iconOutline: "chatbubbles-outline",
+      gradient: gradients.chat,
+      gradientLight: ["rgba(255, 154, 118, 0.25)", "rgba(255, 126, 179, 0.25)"],
+      shadowColor: colors.chatStart,
+    },
+    { 
+      key: "Favorite" as Tab, 
+      icon: "heart", 
+      iconOutline: "heart-outline",
+      gradient: gradients.favorite,
+      gradientLight: ["rgba(255, 126, 168, 0.25)", "rgba(255, 189, 212, 0.25)"],
+      shadowColor: colors.favoriteStart,
+    },
+    { 
+      key: "Profile" as Tab, 
+      icon: "person", 
+      iconOutline: "person-outline",
+      gradient: gradients.profile,
+      gradientLight: ["rgba(255, 168, 204, 0.25)", "rgba(255, 224, 240, 0.25)"],
+      shadowColor: colors.profileStart,
+    },
+  ];
+
   return (
-    <View style={styles.bottomNav}>
-      <TouchableOpacity style={styles.navItem} onPress={() => handlePress("Home")}>
-        <Icon name="home" size={24} color={active === "Home" ? "#FF6EA7" : "#333"} />
-        <Text style={[styles.navText, active === "Home" && { color: "#FF6EA7" }]}>
-          Home
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navItem} onPress={() => handlePress("Match")}>
-        <Icon name="paw" size={24} color={active === "Match" ? "#FF6EA7" : "#333"} />
-        <Text style={[styles.navText, active === "Match" && { color: "#FF6EA7" }]}>
-          Match
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navItem} onPress={() => handlePress("Chat")}>
-        <Icon
-          name="chatbubble-ellipses"
-          size={24}
-          color={active === "Chat" ? "#FF6EA7" : "#333"}
-        />
-        <Text style={[styles.navText, active === "Chat" && { color: "#FF6EA7" }]}>
-          Chat
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navItem} onPress={() => handlePress("Favorite")}>
-        <Icon name="heart" size={24} color={active === "Favorite" ? "#FF6EA7" : "#333"} />
-        <Text style={[styles.navText, active === "Favorite" && { color: "#FF6EA7" }]}>
-          Favorite
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navItem} onPress={() => handlePress("Profile")}>
-        <Icon name="person" size={24} color={active === "Profile" ? "#FF6EA7" : "#333"} />
-        <Text style={[styles.navText, active === "Profile" && { color: "#FF6EA7" }]}>
-          Profile
-        </Text>
-      </TouchableOpacity>
+    <View style={styles.bottomNavContainer}>
+      <View style={styles.bottomNav}>
+        {navItems.map((item) => {
+          const isActive = active === item.key;
+          
+          // Determine badge count for this tab
+          let badgeCount = 0;
+          if (item.key === "Chat") {
+            badgeCount = chatBadge;
+          } else if (item.key === "Favorite") {
+            badgeCount = favoriteBadge;
+          }
+          
+          return (
+            <TouchableOpacity
+              key={item.key}
+              style={styles.navItem}
+              onPress={() => handlePress(item.key)}
+              activeOpacity={0.7}
+            >
+              <View>
+                {isActive ? (
+                  <LinearGradient
+                    colors={item.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      styles.activeBackground,
+                      {
+                        shadowColor: item.shadowColor,
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 16,
+                        elevation: 10,
+                      }
+                    ]}
+                  >
+                    <Icon 
+                      name={item.icon} 
+                      size={28} 
+                      color={colors.white} 
+                    />
+                  </LinearGradient>
+                ) : (
+                  <View style={styles.inactiveBackground}>
+                    <Icon 
+                      name={item.iconOutline} 
+                      size={28} 
+                      color={colors.textLight} 
+                    />
+                  </View>
+                )}
+                
+                {/* Badge indicator */}
+                {badgeCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  bottomNav: {
+  // Dating App Style Bottom Nav - Modern & Clean
+  bottomNavContainer: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === "ios" ? 24 : 16,
+    backgroundColor: "transparent",
+  },
+  bottomNav: {
+    backgroundColor: colors.white,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
     paddingVertical: 10,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: -2 },
+    paddingHorizontal: 8,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 157, 0.15)",
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activeBackground: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    // Shadow applied inline for each tab color
+  },
+  inactiveBackground: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FF3B30",
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.white,
+    shadowColor: "#FF3B30",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
     elevation: 6,
   },
-  navItem: { alignItems: "center" },
-  navText: { fontSize: 12, marginTop: 4, color: "#333" },
+  badgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
 });
 
 export default BottomNav;

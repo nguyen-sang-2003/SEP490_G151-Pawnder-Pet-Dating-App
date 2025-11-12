@@ -1,4 +1,5 @@
 import {configureStore} from '@reduxjs/toolkit';
+import badgeReducer from '../features/badge/badgeSlice';
 
 // Import your reducers here
 // import authReducer from '../features/auth/authSlice';
@@ -7,6 +8,7 @@ export const store = configureStore({
   reducer: {
     // Add your reducers here
     // auth: authReducer,
+    badge: badgeReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

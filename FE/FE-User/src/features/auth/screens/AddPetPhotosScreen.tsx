@@ -1,0 +1,543 @@
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Dimensions,
+  ActivityIndicator,
+} from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+// @ts-ignore
+import Icon from "react-native-vector-icons/Ionicons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../../../navigation/AppNavigator";
+import { colors, gradients, radius, shadows } from "../../../theme";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import CustomAlert from "../../../components/CustomAlert";
+import { uploadPetPhotosMultipart, completeUserProfile } from "../../../api";
+import { getItem } from "../../../utils/storage";
+import { launchImageLibrary, Asset } from 'react-native-image-picker';
+
+const { width } = Dimensions.get("window");
+const PHOTO_SIZE = (width - 60) / 3; // 3 columns with padding
+
+type Props = NativeStackScreenProps<RootStackParamList, "AddPetPhotos">;
+
+interface Photo {
+  id: string;
+  uri: string;
+  fileName?: string;
+  type?: string;
+}
+
+const AddPetPhotosScreen = ({ navigation, route }: Props) => {
+  const { petId, isFromProfile } = route.params;
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const maxPhotos = 6;
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+
+  const handleAddPhoto = async () => {
+    if (photos.length >= maxPhotos) {
+      showAlert({ type: 'warning', title: "Giới hạn ảnh", message: `Chỉ có thể thêm tối đa ${maxPhotos} ảnh` });
+      return;
+    }
+    
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: maxPhotos - photos.length, // Allow multiple selection up to limit
+      });
+
+      if (result.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      }
+
+      if (result.errorCode) {
+        console.error('ImagePicker Error: ', result.errorMessage);
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const newPhotos: Photo[] = result.assets.map((asset: Asset) => ({
+          id: Date.now().toString() + Math.random().toString(),
+          uri: asset.uri || '',
+          fileName: asset.fileName,
+          type: asset.type,
+        }));
+        
+        setPhotos([...photos, ...newPhotos]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
+    }
+  };
+
+  const handleRemovePhoto = (id: string) => {
+    showAlert({
+      type: 'warning',
+      title: "Remove Photo",
+      message: "Are you sure you want to remove this photo?",
+      showCancel: true,
+      confirmText: "Remove",
+      onConfirm: () => setPhotos((prev) => prev.filter((photo) => photo.id !== id)),
+    });
+  };
+
+  const handleNext = async () => {
+    if (photos.length < 3) {
+      showAlert({
+        type: 'warning',
+        title: 'Chưa đủ ảnh',
+        message: `Vui lòng thêm ít nhất 3 ảnh cho thú cưng! (Hiện tại: ${photos.length}/3)`,
+      });
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      // Upload photos to backend using multipart/form-data
+      await uploadPetPhotosMultipart(petId, photos);
+
+      console.log('✅ Pet photos uploaded successfully');
+
+      // Mark user profile as complete (if not from profile)
+      if (!isFromProfile) {
+        try {
+          const userIdStr = await getItem('userId');
+          console.log('Retrieved userId from storage:', userIdStr);
+          
+          if (userIdStr) {
+            const userId = parseInt(userIdStr, 10);
+            console.log('Parsed userId:', userId);
+            
+            if (isNaN(userId) || userId <= 0) {
+              console.error('Invalid userId:', userId);
+              throw new Error('Invalid userId');
+            }
+            
+            await completeUserProfile(userId);
+            console.log('✅ User profile marked as complete');
+          } else {
+            console.warn('No userId found in storage');
+          }
+        } catch (err) {
+          console.warn('Failed to mark profile complete, but continuing:', err);
+          // Don't block user if this fails
+        }
+      }
+
+      showAlert({
+        type: 'success',
+        title: 'Hoàn tất! 🎉',
+        message: 'Thú cưng của bạn đã được tạo thành công!',
+        confirmText: isFromProfile ? 'Về trang cá nhân' : 'Tiếp tục',
+        onClose: () => {
+          if (isFromProfile) {
+            navigation.navigate("Profile");
+          } else {
+            // Navigate to OnboardingPreferences for new users
+            navigation.replace("OnboardingPreferences");
+          }
+        },
+      });
+    } catch (error: any) {
+      console.error('Error uploading photos:', error);
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.message || 'Không thể tải ảnh lên. Vui lòng thử lại.',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (isFromProfile) {
+      navigation.goBack();
+    } else {
+      // Nếu chưa hoàn thành profile, không cho back
+      showAlert({
+        type: 'warning',
+        title: 'Cần hoàn thành hồ sơ',
+        message: 'Bạn cần hoàn tất tạo thú cưng để tiếp tục sử dụng app.',
+      });
+    }
+  };
+
+  return (
+    <LinearGradient
+      colors={gradients.auth.signup}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Icon name="arrow-back" size={24} color={colors.textDark} />
+        </TouchableOpacity>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.stepText}>Step 3 of 3</Text>
+          <Text style={styles.title}>Add Pet Photos 📸</Text>
+          <Text style={styles.subtitle}>
+            Add at least 3 photos (up to {maxPhotos})
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Photo Counter */}
+        <View style={styles.photoCounterContainer}>
+          <View style={[
+            styles.photoCounterBadge,
+            photos.length >= 3 && styles.photoCounterBadgeComplete
+          ]}>
+            <Icon 
+              name={photos.length >= 3 ? "checkmark-circle" : "images"} 
+              size={20} 
+              color={photos.length >= 3 ? "#FFF" : colors.primary} 
+            />
+            <Text style={[
+              styles.photoCounterText,
+              photos.length >= 3 && styles.photoCounterTextComplete
+            ]}>
+              {photos.length}/3 photos {photos.length >= 3 ? '✓' : ''}
+            </Text>
+          </View>
+        </View>
+
+        {/* Photos Grid */}
+        <View style={styles.photosContainer}>
+          <View style={styles.photosGrid}>
+            {photos.map((photo) => (
+              <View key={photo.id} style={styles.photoWrapper}>
+                <Image source={{ uri: photo.uri }} style={styles.photo} />
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => handleRemovePhoto(photo.id)}
+                >
+                  <Icon name="close-circle" size={28} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            
+            {/* Add Photo Buttons */}
+            {photos.length < maxPhotos && (
+              <TouchableOpacity
+                style={styles.addPhotoButton}
+                onPress={handleAddPhoto}
+              >
+                <LinearGradient
+                  colors={gradients.auth.buttonSecondary}
+                  style={styles.addPhotoGradient}
+                >
+                  <Icon name="camera" size={32} color={colors.white} />
+                  <Text style={styles.addPhotoText}>Add Photo</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Photo Counter */}
+          <View style={styles.counterContainer}>
+            <Icon name="images" size={20} color={colors.primary} />
+            <Text style={styles.counterText}>
+              {photos.length} / {maxPhotos} photos
+            </Text>
+          </View>
+        </View>
+
+        {/* Tips Card */}
+        <View style={styles.tipsCard}>
+          <View style={styles.tipsHeader}>
+            <Icon name="bulb" size={24} color="#FFA500" />
+            <Text style={styles.tipsTitle}>Photo Tips</Text>
+          </View>
+          <View style={styles.tipsList}>
+            <View style={styles.tipItem}>
+              <Icon name="checkmark-circle" size={18} color={colors.primary} />
+              <Text style={styles.tipText}>Use clear, well-lit photos</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Icon name="checkmark-circle" size={18} color={colors.primary} />
+              <Text style={styles.tipText}>Show your cat's personality</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Icon name="checkmark-circle" size={18} color={colors.primary} />
+              <Text style={styles.tipText}>Include full body and close-up shots</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Icon name="checkmark-circle" size={18} color={colors.primary} />
+              <Text style={styles.tipText}>Avoid blurry or dark images</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Buttons */}
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={[styles.btnShadow, { flex: 1 }]}
+          onPress={handleNext}
+          disabled={uploading}
+        >
+          <LinearGradient
+            colors={gradients.auth.buttonPrimary}
+            style={styles.button}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            {uploading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Finish</Text>
+                <Icon name="checkmark-circle" size={20} color={colors.white} />
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+        />
+      )}
+    </LinearGradient>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 140,
+  },
+
+  // Header
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.whiteWarm,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    ...shadows.small,
+  },
+  headerTextContainer: {},
+  stepText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: colors.textDark,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: colors.textMedium,
+  },
+
+  // Photo Counter
+  photoCounterContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  photoCounterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    gap: 8,
+    ...shadows.small,
+  },
+  photoCounterBadgeComplete: {
+    backgroundColor: colors.primary,
+  },
+  photoCounterText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textDark,
+  },
+  photoCounterTextComplete: {
+    color: colors.white,
+  },
+
+  // Photos
+  photosContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  photosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
+  },
+  photoWrapper: {
+    position: "relative",
+  },
+  photo: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: radius.md,
+    backgroundColor: colors.cardBackground,
+  },
+  removeButton: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    ...shadows.medium,
+  },
+  addPhotoButton: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  addPhotoGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  addPhotoText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.white,
+  },
+
+  // Counter
+  counterContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.whiteWarm,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    ...shadows.small,
+  },
+  counterText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textDark,
+  },
+
+  // Tips Card
+  tipsCard: {
+    marginHorizontal: 20,
+    backgroundColor: colors.whiteWarm,
+    borderRadius: radius.lg,
+    padding: 20,
+    ...shadows.medium,
+  },
+  tipsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  tipsTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.textDark,
+  },
+  tipsList: {
+    gap: 12,
+  },
+  tipItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textMedium,
+    lineHeight: 20,
+  },
+
+  // Bottom Buttons
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 20,
+    backgroundColor: colors.whiteWarm,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    ...shadows.large,
+  },
+  btnShadow: {
+    borderRadius: radius.lg,
+    ...shadows.large,
+  },
+  button: {
+    flexDirection: "row",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: radius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  buttonText: {
+    color: colors.white,
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  skipBtn: {
+    marginTop: 12,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  skipText: {
+    fontSize: 14,
+    color: colors.textMedium,
+    textDecorationLine: "underline",
+  },
+});
+
+export default AddPetPhotosScreen;
+

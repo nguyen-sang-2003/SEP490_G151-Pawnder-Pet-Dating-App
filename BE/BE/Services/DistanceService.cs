@@ -15,7 +15,7 @@ namespace BE.Services
 		/// <summary>
 		/// Tính khoảng cách giữa 2 người dùng theo ID (đơn vị km)
 		/// </summary>
-		public async Task<double?> GetDistanceBetweenUsersAsync(int userId1, int userId2)
+		public async Task<double?> GetDistanceBetweenUsersAsync(int userId1, int? userId2)
 		{
 			var user1 = await _context.Users
 				.Include(u => u.Address)
@@ -26,17 +26,27 @@ namespace BE.Services
 				.FirstOrDefaultAsync(u => u.UserId == userId2);
 
 			if (user1?.Address == null || user2?.Address == null)
+			{
+				Console.WriteLine($"⚠️ Missing address - User1 (ID: {userId1}) has address: {user1?.Address != null}, User2 (ID: {userId2}) has address: {user2?.Address != null}");
 				return null;
+			}
 
 			var addr1 = user1.Address;
 			var addr2 = user2.Address;
 
-			return CalculateDistanceKm(
+			Console.WriteLine($"📍 User1 (ID: {userId1}): Lat={addr1.Latitude}, Lon={addr1.Longitude}");
+			Console.WriteLine($"📍 User2 (ID: {userId2}): Lat={addr2.Latitude}, Lon={addr2.Longitude}");
+
+			var distance = CalculateDistanceKm(
 				(double)addr1.Latitude!,
 				(double)addr1.Longitude!,
 				(double)addr2.Latitude!,
 				(double)addr2.Longitude!
 			);
+			
+			Console.WriteLine($"📏 Calculated distance: {distance} km");
+			
+			return distance;
 		}
 
 		/// <summary>
