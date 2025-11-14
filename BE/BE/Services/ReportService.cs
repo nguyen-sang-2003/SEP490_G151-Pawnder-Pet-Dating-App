@@ -43,15 +43,17 @@ namespace BE.Services
                 throw new KeyNotFoundException($"User with ID {userReportId} not found.");
 
             // Business logic: Validate content
-            var content = await _context.ChatUserContents.FindAsync([contentId], ct);
+            var content = await _context.ChatUserContents
+                .Include(c => c.FromPet)
+                .FirstOrDefaultAsync(c => c.ContentId == contentId, ct);
             if (content == null)
                 throw new KeyNotFoundException($"Content with ID {contentId} not found.");
 
-            // Business logic: Get reported user
-            if (!content.FromUserId.HasValue)
+            // Business logic: Get reported user from pet
+            if (content.FromPet == null || content.FromPet.UserId == null)
                 throw new InvalidOperationException("Invalid message sender.");
 
-            int reportedUserId = content.FromUserId.Value;
+            int reportedUserId = content.FromPet.UserId.Value;
 
             if (userReportId == reportedUserId)
                 throw new InvalidOperationException("Cannot report yourself.");
@@ -87,10 +89,13 @@ namespace BE.Services
 
             // Business logic: SOFT DELETE CHAT
             var existingChat = await _context.ChatUsers
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
                 .FirstOrDefaultAsync(c =>
                     c.IsDeleted == false &&
-                    ((c.FromUserId == userReportId && c.ToUserId == reportedUserId) ||
-                    (c.FromUserId == reportedUserId && c.ToUserId == userReportId)), ct);
+                    c.FromPet != null && c.ToPet != null &&
+                    ((c.FromPet.UserId == userReportId && c.ToPet.UserId == reportedUserId) ||
+                    (c.FromPet.UserId == reportedUserId && c.ToPet.UserId == userReportId)), ct);
 
             if (existingChat != null)
             {

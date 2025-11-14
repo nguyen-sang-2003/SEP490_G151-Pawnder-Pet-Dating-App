@@ -40,10 +40,13 @@ namespace BE.Services
 
             // Business logic: Soft delete existing chat/match if exists
             var existingChat = await _context.ChatUsers
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
                 .FirstOrDefaultAsync(c =>
                     c.IsDeleted == false &&
-                    ((c.FromUserId == fromUserId && c.ToUserId == toUserId) ||
-                    (c.FromUserId == toUserId && c.ToUserId == fromUserId)), ct);
+                    c.FromPet != null && c.ToPet != null &&
+                    ((c.FromPet.UserId == fromUserId && c.ToPet.UserId == toUserId) ||
+                    (c.FromPet.UserId == toUserId && c.ToPet.UserId == fromUserId)), ct);
 
             if (existingChat != null)
             {
