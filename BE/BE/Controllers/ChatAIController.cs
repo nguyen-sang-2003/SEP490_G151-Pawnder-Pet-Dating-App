@@ -1,29 +1,23 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using BE.Services;
-using BE.Models;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho ChatAI - chỉ nhận request và trả response
+    /// </summary>
     [ApiController]
     [Route("api/chat-ai")]
     [Authorize]
     public class ChatAIController : ControllerBase
     {
-        private readonly IGeminiAIService _geminiService;
-        private readonly PawnderDatabaseContext _context;
-        private readonly DailyLimitService _dailyLimitService;
+        private readonly IChatAIService _chatAIService;
 
-        public ChatAIController(
-            IGeminiAIService geminiService, 
-            PawnderDatabaseContext context,
-            DailyLimitService dailyLimitService)
+        public ChatAIController(IChatAIService chatAIService)
         {
-            _geminiService = geminiService;
-            _context = context;
-            _dailyLimitService = dailyLimitService;
+            _chatAIService = chatAIService;
         }
 
         private int GetCurrentUserId()
@@ -36,45 +30,21 @@ namespace BE.Controllers
             return 0;
         }
 
-        /// <summary>
-        /// GET: /api/chat-ai/{userId} - Lấy tất cả cuộc trò chuyện của user
-        /// </summary>
+        // GET: /api/chat-ai/{userId}
         [HttpGet("{userId}")]
-        public async Task<IActionResult> GetAllChats(int userId)
+        public async Task<IActionResult> GetAllChats(int userId, CancellationToken ct = default)
         {
             try
             {
                 var currentUserId = GetCurrentUserId();
                 
-                // Kiểm tra authentication
                 if (currentUserId == 0)
-                {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
                 
-                // Kiểm tra authorization - chỉ được xem chat của chính mình
                 if (currentUserId != userId)
-                {
                     return Forbid();
-                }
 
-                var chats = await _context.ChatAis
-                    .Where(c => c.UserId == userId && c.IsDeleted == false)
-                    .OrderByDescending(c => c.UpdatedAt)
-                    .Select(c => new
-                    {
-                        c.ChatAiid,
-                        c.Title,
-                        c.CreatedAt,
-                        c.UpdatedAt,
-                        MessageCount = c.ChatAicontents.Count(),
-                        LastQuestion = c.ChatAicontents
-                            .OrderByDescending(m => m.CreatedAt)
-                            .Select(m => m.Question)
-                            .FirstOrDefault()
-                    })
-                    .ToListAsync();
-
+                var chats = await _chatAIService.GetAllChatsAsync(userId, ct);
                 return Ok(new { success = true, data = chats });
             }
             catch (Exception ex)
@@ -83,39 +53,25 @@ namespace BE.Controllers
             }
         }
 
-        /// <summary>
-        /// POST: /api/chat-ai/{userId} - Tạo cuộc trò chuyện mới với AI
-        /// </summary>
+        // POST: /api/chat-ai/{userId}
         [HttpPost("{userId}")]
-        public async Task<IActionResult> CreateChat(int userId, [FromBody] CreateChatRequest request)
+        public async Task<IActionResult> CreateChat(int userId, [FromBody] CreateChatRequest request, CancellationToken ct = default)
         {
             try
             {
                 var currentUserId = GetCurrentUserId();
                 
-                // Kiểm tra authentication
                 if (currentUserId == 0)
-                {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
                 
-                // Kiểm tra authorization - chỉ được tạo chat cho chính mình
                 if (currentUserId != userId)
-                {
                     return Forbid();
-                }
 
-                var chat = await _geminiService.CreateChatSessionAsync(userId, request.Title);
-
+                var data = await _chatAIService.CreateChatAsync(userId, request.Title, ct);
                 return Ok(new
                 {
                     success = true,
-                    data = new
-                    {
-                        chatId = chat.ChatAiid,
-                        title = chat.Title,
-                        createdAt = chat.CreatedAt
-                    },
+                    data = data,
                     message = "Tạo cuộc trò chuyện thành công"
                 });
             }
@@ -125,40 +81,27 @@ namespace BE.Controllers
             }
         }
 
-        /// <summary>
-        /// PUT: /api/chat-ai/{chatAiId} - Cập nhật title của cuộc trò chuyện
-        /// </summary>
+        // PUT: /api/chat-ai/{chatAiId}
         [HttpPut("{chatAiId}")]
-        public async Task<IActionResult> UpdateChatTitle(int chatAiId, [FromBody] UpdateChatTitleRequest request)
+        public async Task<IActionResult> UpdateChatTitle(int chatAiId, [FromBody] UpdateChatTitleRequest request, CancellationToken ct = default)
         {
             try
             {
                 var userId = GetCurrentUserId();
                 
-                // Kiểm tra authentication
                 if (userId == 0)
-                {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-                
-                var chat = await _context.ChatAis
-                    .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId && c.IsDeleted == false);
 
-                if (chat == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy cuộc trò chuyện" });
-                }
-
-                if (string.IsNullOrWhiteSpace(request.Title))
-                {
-                    return BadRequest(new { success = false, message = "Tiêu đề không được để trống" });
-                }
-
-                chat.Title = request.Title;
-                chat.UpdatedAt = DateTime.Now;
-                await _context.SaveChangesAsync();
-
+                var success = await _chatAIService.UpdateChatTitleAsync(chatAiId, userId, request.Title, ct);
                 return Ok(new { success = true, message = "Cập nhật tiêu đề thành công" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -166,80 +109,43 @@ namespace BE.Controllers
             }
         }
 
-        /// <summary>
-        /// DELETE: /api/chat-ai/{chatAiId} - Xóa cuộc trò chuyện
-        /// </summary>
+        // DELETE: /api/chat-ai/{chatAiId}
         [HttpDelete("{chatAiId}")]
-        public async Task<IActionResult> DeleteChat(int chatAiId)
+        public async Task<IActionResult> DeleteChat(int chatAiId, CancellationToken ct = default)
         {
             try
             {
                 var userId = GetCurrentUserId();
-                var chat = await _context.ChatAis
-                    .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && (userId == 0 || c.UserId == userId));
-
-                if (chat == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy cuộc trò chuyện" });
-                }
-
-                chat.IsDeleted = true;
-                chat.UpdatedAt = DateTime.Now;
-                
-                _context.ChatAis.Update(chat);
-                await _context.SaveChangesAsync();
-
+                var success = await _chatAIService.DeleteChatAsync(chatAiId, userId, ct);
                 return Ok(new { success = true, message = "Xóa cuộc trò chuyện thành công" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Delete chat error: {ex.Message}");
-                Console.WriteLine($"❌ Inner exception: {ex.InnerException?.Message}");
                 return StatusCode(500, new { success = false, message = ex.InnerException?.Message ?? ex.Message });
             }
         }
 
-        /// <summary>
-        /// GET: /api/chat-ai/{chatAiId}/messages - Lấy lịch sử tin nhắn
-        /// </summary>
+        // GET: /api/chat-ai/{chatAiId}/messages
         [HttpGet("{chatAiId}/messages")]
-        public async Task<IActionResult> GetChatHistory(int chatAiId)
+        public async Task<IActionResult> GetChatHistory(int chatAiId, CancellationToken ct = default)
         {
             try
             {
                 var userId = GetCurrentUserId();
                 
-                // Kiểm tra authentication
                 if (userId == 0)
-                {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-                
-                var chat = await _context.ChatAis
-                    .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId && c.IsDeleted == false);
 
-                if (chat == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy cuộc trò chuyện" });
-                }
-
-                var messages = await _geminiService.GetChatHistoryAsync(chatAiId);
-
-                return Ok(new
-                {
-                    success = true,
-                    data = new
-                    {
-                        chatTitle = chat.Title,
-                        messages = messages.Select(m => new
-                        {
-                            contentId = m.ContentId,
-                            question = m.Question,
-                            answer = m.Answer,
-                            createdAt = m.CreatedAt
-                        })
-                    }
-                });
+                var data = await _chatAIService.GetChatHistoryAsync(chatAiId, userId, ct);
+                return Ok(new { success = true, data = data });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -247,53 +153,37 @@ namespace BE.Controllers
             }
         }
 
-        /// <summary>
-        /// POST: /api/chat-ai/{chatAiId}/messages - Gửi câu hỏi cho AI
-        /// </summary>
+        // POST: /api/chat-ai/{chatAiId}/messages
         [HttpPost("{chatAiId}/messages")]
-        public async Task<IActionResult> SendMessage(int chatAiId, [FromBody] SendMessageRequest request)
+        public async Task<IActionResult> SendMessage(int chatAiId, [FromBody] SendMessageRequest request, CancellationToken ct = default)
         {
             try
             {
                 var userId = GetCurrentUserId();
 
-                if (string.IsNullOrWhiteSpace(request.Question))
-                {
-                    return BadRequest(new { success = false, message = "Câu hỏi không được để trống" });
-                }
-
-                // 🔒 CHECK DAILY LIMIT (Free: 30, VIP: 150)
-                bool canAsk = await _dailyLimitService.CanPerformAction(userId, "ai_chat_question");
-                if (!canAsk)
-                {
-                    int remaining = await _dailyLimitService.GetRemainingCount(userId, "ai_chat_question");
-                    return StatusCode(429, new 
-                    { 
-                        success = false,
-                        message = "Bạn đã hết lượt hỏi AI hôm nay! Nâng cấp lên VIP để sử dụng không giới hạn.",
-                        remaining = remaining,
-                        actionType = "ai_chat_question"
-                    });
-                }
-
-                var answer = await _geminiService.SendMessageAsync(userId, chatAiId, request.Question);
-
-                // 📝 RECORD ACTION TO DAILY LIMIT
-                await _dailyLimitService.RecordAction(userId, "ai_chat_question");
-                int remainingQuestions = await _dailyLimitService.GetRemainingCount(userId, "ai_chat_question");
-                Console.WriteLine($"✅ AI question recorded. User {userId} has {remainingQuestions} questions remaining today.");
-
+                var data = await _chatAIService.SendMessageAsync(chatAiId, userId, request.Question, ct);
                 return Ok(new
                 {
                     success = true,
-                    data = new
-                    {
-                        question = request.Question,
-                        answer = answer,
-                        timestamp = DateTime.Now
-                    },
-                    remainingQuestions = remainingQuestions // Trả về số lượt còn lại
+                    data = data
                 });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.Contains("hết lượt"))
+                {
+                    return StatusCode(429, new
+                    {
+                        success = false,
+                        message = ex.Message,
+                        actionType = "ai_chat_question"
+                    });
+                }
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -306,9 +196,7 @@ namespace BE.Controllers
         }
     }
 
-    // ============================================
     // DTOs
-    // ============================================
     public class CreateChatRequest
     {
         public string? Title { get; set; }
@@ -316,11 +204,11 @@ namespace BE.Controllers
 
     public class UpdateChatTitleRequest
     {
-        public string Title { get; set; }
+        public string Title { get; set; } = null!;
     }
 
     public class SendMessageRequest
     {
-        public string Question { get; set; }
+        public string Question { get; set; } = null!;
     }
 }
