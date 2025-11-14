@@ -538,12 +538,20 @@ namespace BE.Controllers
                 
                 var pendingLikesCount = await pendingLikesQuery.CountAsync();
 
-
+                // Count unread notifications (only admin and expert notifications)
+                // Match notifications are NOT stored in DB
+                // Type values: "system" or "expert_reply"
+                var unreadNotificationsCount = await _context.Notifications
+                    .Where(n => n.UserId == userId 
+                               && n.IsRead == false 
+                               && (n.Type == "system" || n.Type == "expert_reply" || n.Type == "expert"))
+                    .CountAsync();
 
                 return Ok(new
                 {
                     unreadChats = unreadChats, // Return list of matchIds
-                    favoriteBadge = pendingLikesCount
+                    favoriteBadge = pendingLikesCount,
+                    notificationBadge = unreadNotificationsCount
                 });
             }
             catch (Exception ex)
@@ -555,44 +563,15 @@ namespace BE.Controllers
 
         /// <summary>
         /// Helper method to create match notifications for both users
+        /// NOTE: Match notifications are NOT saved to DB - only real-time SignalR notifications
+        /// Notification table is only for admin and expert notifications
         /// </summary>
         private async Task CreateMatchNotification(int userId1, int userId2, int matchId)
         {
-            try
-            {
-                var user1 = await _context.Users.FindAsync(userId1);
-                var user2 = await _context.Users.FindAsync(userId2);
-
-                if (user1 != null && user2 != null)
-                {
-                    // Notification for user 1
-                    var notification1 = new Notification
-                    {
-                        UserId = userId1,
-                        Title = "New Match! 🎉",
-                        Message = $"You matched with {user2.FullName}! Start chatting now.",
-                        CreatedAt = DateTime.Now
-                    };
-
-                    // Notification for user 2
-                    var notification2 = new Notification
-                    {
-                        UserId = userId2,
-                        Title = "New Match! 🎉",
-                        Message = $"You matched with {user1.FullName}! Start chatting now.",
-                        CreatedAt = DateTime.Now
-                    };
-
-                    _context.Notifications.Add(notification1);
-                    _context.Notifications.Add(notification2);
-                    await _context.SaveChangesAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-
-                // Don't throw - notifications are not critical
-            }
+            // Match notifications are handled by SignalR real-time only
+            // No need to save to database
+            // Users can see their matches in the Chat/Favorite tabs
+            await Task.CompletedTask;
         }
 
         /// <summary>

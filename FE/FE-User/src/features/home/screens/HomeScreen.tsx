@@ -825,9 +825,13 @@ const HomeScreen = ({ navigation }: Props) => {
                         onPress={() => navigation.navigate("Notification")}
                     >
                         <Icon name="notifications-outline" size={26} color={colors.textDark} />
-                        <View style={styles.notificationBadge}>
-                            <Text style={styles.notificationBadgeText}>2</Text>
-                        </View>
+                        {notificationBadge > 0 && (
+                            <View style={styles.notificationBadge}>
+                                <Text style={styles.notificationBadgeText}>
+                                    {notificationBadge > 99 ? '99+' : notificationBadge}
+                                </Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
                 </View>

@@ -1,4 +1,4 @@
-﻿using BE.DTO;
+using BE.DTO;
 using BE.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -66,6 +66,7 @@ namespace BE.Controllers
         [HttpGet("user/{userId:int}")]
         public async Task<IActionResult> GetNotificationsByUserId(int userId)
         {
+            // Return all notifications (filter removed for now)
             var notifications = await _context.Notifications
                 .Where(n => n.UserId == userId)
                 .OrderByDescending(n => n.CreatedAt)
@@ -94,6 +95,58 @@ namespace BE.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetNotificationById), new { notificationId = notification.NotificationId }, notification);
+        }
+
+        // PUT /notification/{notificationId}/read
+        [Authorize(Roles = "User")]
+        [HttpPut("{notificationId:int}/read")]
+        public async Task<IActionResult> MarkAsRead(int notificationId)
+        {
+            var notification = await _context.Notifications.FindAsync(notificationId);
+            if (notification == null)
+                return NotFound(new { Message = "Không tìm thấy thông báo" });
+
+            notification.IsRead = true;
+            notification.UpdatedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Đã đánh dấu đã đọc" });
+        }
+
+        // PUT /notification/user/{userId}/read-all
+        [Authorize(Roles = "User")]
+        [HttpPut("user/{userId:int}/read-all")]
+        public async Task<IActionResult> MarkAllAsRead(int userId)
+        {
+            var notifications = await _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .ToListAsync();
+
+            foreach (var notification in notifications)
+            {
+                notification.IsRead = true;
+                notification.UpdatedAt = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = $"Đã đánh dấu {notifications.Count} thông báo đã đọc" });
+        }
+
+        // GET /notification/user/{userId}/unread-count
+        [Authorize(Roles = "User")]
+        [HttpGet("user/{userId:int}/unread-count")]
+        public async Task<IActionResult> GetUnreadCount(int userId)
+        {
+            // Only count admin and expert notifications
+            // Type values: "system" or "expert"
+            var count = await _context.Notifications
+                .Where(n => n.UserId == userId 
+                           && !n.IsRead 
+                           && (n.Type == "system" || n.Type == "expert"))
+                .CountAsync();
+
+            return Ok(new { count });
         }
 
         // DELETE /notification/{notificationId}

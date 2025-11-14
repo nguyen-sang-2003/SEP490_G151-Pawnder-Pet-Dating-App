@@ -63,6 +63,7 @@ export interface MatchStats {
 export interface BadgeCounts {
   unreadChats: number[]; // List of matchIds with unread messages
   favoriteBadge: number;
+  notificationBadge: number;
 }
 
 /**

@@ -84,7 +84,10 @@ export const useBadgeNotifications = (userId: number | null) => {
       const petName = data.petName || data.PetName;
       const petPhotoUrl = data.petPhotoUrl || data.PetPhotoUrl;
       
-      dispatch(incrementNotificationBadge());
+      // Don't increment notification badge for matches
+      // Notification badge is only for admin and expert notifications
+      // dispatch(incrementNotificationBadge());
+      
       dispatch(showMatchModal({
         otherUserName,
         otherUserId,
