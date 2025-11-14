@@ -63,7 +63,8 @@ namespace BE.Repositories
             return await _dbSet
                 .Include(r => r.UserReport)
                 .Include(r => r.Content)
-                    .ThenInclude(c => c.FromUser)
+                    .ThenInclude(c => c.FromPet)
+                        .ThenInclude(p => p.User)
                 .Where(r => r.UserReportId == userReportId)
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new
@@ -87,11 +88,11 @@ namespace BE.Repositories
                         r.Content.Message,
                         r.Content.CreatedAt
                     } : null,
-                    ReportedUser = r.Content != null && r.Content.FromUser != null ? new
+                    ReportedUser = r.Content != null && r.Content.FromPet != null && r.Content.FromPet.User != null ? new
                     {
-                        r.Content.FromUser.UserId,
-                        r.Content.FromUser.FullName,
-                        r.Content.FromUser.Email
+                        r.Content.FromPet.User.UserId,
+                        r.Content.FromPet.User.FullName,
+                        r.Content.FromPet.User.Email
                     } : null
                 })
                 .ToListAsync(ct);

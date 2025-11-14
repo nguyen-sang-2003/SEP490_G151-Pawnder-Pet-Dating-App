@@ -198,14 +198,6 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.ChatUserFromUsers)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("ChatUser_FromUserId_fkey");
-
-            entity.HasOne(d => d.ToUser).WithMany(p => p.ChatUserToUsers)
-                .HasForeignKey(d => d.ToUserId)
-                .HasConstraintName("ChatUser_ToUserId_fkey");
-
             entity.HasOne(d => d.FromPet).WithMany(p => p.ChatUserFromPets)
                 .HasForeignKey(d => d.FromPetId)
                 .HasConstraintName("ChatUser_FromPetId_fkey");
@@ -227,10 +219,6 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
-
-            entity.HasOne(d => d.FromUser).WithMany()
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("ChatUserContent_FromUserId_fkey");
 
             entity.HasOne(d => d.FromPet).WithMany(p => p.ChatUserContents)
                 .HasForeignKey(d => d.FromPetId)

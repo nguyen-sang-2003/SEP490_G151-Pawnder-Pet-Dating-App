@@ -28,18 +28,33 @@ namespace BE.Services
         public async Task<IEnumerable<object>> GetPetsForMatchingAsync(int userId, CancellationToken ct = default)
         {
             // Business logic: Lấy danh sách users đã match và blocked
+            var userPetIds = await _context.Pets
+                .Where(p => p.UserId == userId && p.IsDeleted == false)
+                .Select(p => p.PetId)
+                .ToListAsync(ct);
+
             var sentToUsers = await _context.ChatUsers
-                .Where(c => c.FromUserId == userId && c.IsDeleted == false)
-                .Select(c => c.ToUserId)
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .Where(c => c.IsDeleted == false 
+                           && c.FromPet != null && c.ToPet != null
+                           && userPetIds.Contains(c.FromPetId ?? -1))
+                .Select(c => c.ToPet!.UserId)
                 .Where(id => id.HasValue)
                 .Select(id => id!.Value)
+                .Distinct()
                 .ToListAsync(ct);
 
             var receivedFromUsers = await _context.ChatUsers
-                .Where(c => c.ToUserId == userId && c.IsDeleted == false)
-                .Select(c => c.FromUserId)
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .Where(c => c.IsDeleted == false 
+                           && c.FromPet != null && c.ToPet != null
+                           && userPetIds.Contains(c.ToPetId ?? -1))
+                .Select(c => c.FromPet!.UserId)
                 .Where(id => id.HasValue)
                 .Select(id => id!.Value)
+                .Distinct()
                 .ToListAsync(ct);
 
             var alreadyMatchedUserIds = sentToUsers.Union(receivedFromUsers).ToList();

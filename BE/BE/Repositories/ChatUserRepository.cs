@@ -67,10 +67,10 @@ namespace BE.Repositories
             var filterSet = petId.HasValue ? new HashSet<int> { petId.Value } : petIdSet;
 
             return await _dbSet
-                .Include(c => c.FromUser)
-                .Include(c => c.ToUser)
                 .Include(c => c.FromPet)
+                    .ThenInclude(p => p.User)
                 .Include(c => c.ToPet)
+                    .ThenInclude(p => p.User)
                 .Where(c =>
                     c.Status == "Accepted" &&
                     c.IsDeleted == false &&
@@ -81,12 +81,12 @@ namespace BE.Repositories
                 .Select(c => new
                 {
                     matchId = c.MatchId,
-                    fromUserId = c.FromUserId,
-                    toUserId = c.ToUserId,
                     fromPetId = c.FromPetId,
                     toPetId = c.ToPetId,
                     fromPetName = c.FromPet != null ? c.FromPet.Name : null,
                     toPetName = c.ToPet != null ? c.ToPet.Name : null,
+                    fromUserId = c.FromPet != null && c.FromPet.User != null ? c.FromPet.User.UserId : (int?)null,
+                    toUserId = c.ToPet != null && c.ToPet.User != null ? c.ToPet.User.UserId : (int?)null,
                     status = c.Status,
                     createdAt = c.CreatedAt,
                     fromPet = c.FromPet != null ? new
