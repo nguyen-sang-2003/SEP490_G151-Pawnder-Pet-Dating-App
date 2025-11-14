@@ -1,31 +1,31 @@
-using BE.Services;
-using Microsoft.AspNetCore.Authorization;
+using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Mime;
-using System.Security.Claims;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho DailyLimits - chỉ nhận request và trả response
+    /// </summary>
     [ApiController]
     [Route("api/daily-limits")]
     [Produces(MediaTypeNames.Application.Json)]
     public class DailyLimitsController : ControllerBase
     {
-        private readonly DailyLimitService _limitService;
+        private readonly IDailyLimitService _limitService;
 
-        public DailyLimitsController(DailyLimitService limitService)
+        public DailyLimitsController(IDailyLimitService limitService)
         {
             _limitService = limitService;
         }
 
         // GET /api/daily-limits/{userId}/{actionType}/remaining
-        // Lấy số lần còn lại cho action type cụ thể
         [HttpGet("{userId:int}/{actionType}/remaining")]
-        public async Task<ActionResult> GetRemainingCount(int userId, string actionType)
+        public async Task<ActionResult> GetRemainingCount(int userId, string actionType, CancellationToken ct = default)
         {
             try
             {
-                int remaining = await _limitService.GetRemainingCount(userId, actionType);
+                int remaining = await _limitService.GetRemainingCountAsync(userId, actionType, ct);
                 
                 return Ok(new
                 {

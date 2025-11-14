@@ -1,9 +1,10 @@
 using BE.Models;
+using BE.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace BE.Services
 {
-    public class DailyLimitService
+    public class DailyLimitService : IDailyLimitService
     {
         private readonly PawnderDatabaseContext _context;
 
@@ -130,6 +131,11 @@ namespace BE.Services
 
         // Lấy số lần còn lại cho action type
         public async Task<int> GetRemainingCount(int userId, string actionType)
+        {
+            return await GetRemainingCountAsync(userId, actionType);
+        }
+
+        public async Task<int> GetRemainingCountAsync(int userId, string actionType, CancellationToken ct = default)
         {
             int limit = await GetLimitForActionAsync(userId, actionType);
             if (limit == -1) return 0; // Action type không hợp lệ
