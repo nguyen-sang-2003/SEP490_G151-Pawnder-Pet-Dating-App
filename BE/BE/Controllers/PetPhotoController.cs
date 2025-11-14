@@ -1,171 +1,110 @@
 ﻿using BE.DTO;
-using BE.Models;
+using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho PetPhoto - chỉ nhận request và trả response
+    /// </summary>
     [ApiController]
-    [Route("api")]
+    [Route("api/petphoto")]
     public class PetPhotoController : ControllerBase
     {
-        private readonly PawnderDatabaseContext _context;
-        private readonly IPhotoStorage _storage;
-        private const int MaxPhotosPerPet = 6;
+        private readonly IPetPhotoService _photoService;
 
-        public PetPhotoController(PawnderDatabaseContext context, IPhotoStorage storage)
+        public PetPhotoController(IPetPhotoService photoService)
         {
-            _context = context;
-            _storage = storage;
+            _photoService = photoService;
         }
 
-        // GET /pet-photo/{petId}
-        [HttpGet("pet-photo/{petId:int}")]
-        public async Task<IActionResult> GetAllByPet(int petId)
+        // GET /api/petphoto/{petId}
+        [HttpGet("{petId:int}")]
+        public async Task<IActionResult> GetAllByPet(int petId, CancellationToken ct = default)
         {
-            var pet = await _context.Pets.FindAsync(petId);
-            if (pet == null || pet.IsDeleted == true)
-                return NotFound(new { message = "Không tìm thấy pet." });
-
-            var photos = await _context.PetPhotos
-                .Where(p => p.PetId == petId && p.IsDeleted == false)
-                .OrderByDescending(p => p.IsPrimary).ThenBy(p => p.SortOrder).ThenBy(p => p.PhotoId)
-                .Select(p => new PetPhotoResponse
-                {
-                    PhotoId = p.PhotoId,
-                    PetId = p.PetId,
-                    Url = p.ImageUrl,
-                    IsPrimary = p.IsPrimary,
-                    SortOrder = p.SortOrder
-                })
-                .ToListAsync();
-
-            return Ok(photos);
+            try
+            {
+                var photos = await _photoService.GetPhotosByPetIdAsync(petId, ct);
+                return Ok(photos);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
-        // POST /pet-photo  (multipart/form-data: petId, files[])
-        [HttpPost("pet-photo")]
+        // POST /api/petphoto (multipart/form-data: petId, files[])
+        [HttpPost]
         [RequestSizeLimit(20_000_000)]
-        public async Task<IActionResult> Upload([FromForm] int petId, [FromForm] List<IFormFile> files, CancellationToken ct)
+        public async Task<IActionResult> Upload([FromForm] int petId, [FromForm] List<IFormFile> files, CancellationToken ct = default)
         {
-            if (files == null || files.Count == 0)
-                return BadRequest(new { message = "Chưa chọn ảnh." });
-
-            var pet = await _context.Pets.FindAsync(petId);
-            if (pet == null || pet.IsDeleted == true)
-                return NotFound(new { message = "Không tìm thấy pet." });
-
-            var existingCount = await _context.PetPhotos.CountAsync(p => p.PetId == petId && p.IsDeleted == false, ct);
-            if (existingCount + files.Count > MaxPhotosPerPet)
-                return BadRequest(new { message = $"Tối đa {MaxPhotosPerPet} ảnh cho mỗi pet." });
-
-            var saved = new List<PetPhotoResponse>();
-
-            foreach (var file in files)
+            try
             {
-                // 1) Upload Cloudinary
-                var (url, publicId) = await _storage.UploadAsync(petId, file, ct);
-
-                // 2) Tính SortOrder
-                var maxSort = await _context.PetPhotos
-                    .Where(p => p.PetId == petId && p.IsDeleted == false)
-                    .MaxAsync(p => (int?)p.SortOrder, ct) ?? -1;
-
-                // 3) Lưu DB
-                var photo = new PetPhoto
-                {
-                    PetId = petId,
-                    ImageUrl = url,
-                    PublicId = publicId,
-                    IsPrimary = existingCount == 0 && saved.Count == 0,
-                    SortOrder = maxSort + 1,
-                    IsDeleted = false,
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now
-                };
-
-                _context.PetPhotos.Add(photo);
-                await _context.SaveChangesAsync(ct);
-
-                saved.Add(new PetPhotoResponse
-                {
-                    PhotoId = photo.PhotoId,
-                    PetId = petId,
-                    Url = url,
-                    IsPrimary = photo.IsPrimary,
-                    SortOrder = photo.SortOrder
-                });
+                var saved = await _photoService.UploadPhotosAsync(petId, files, ct);
+                return Ok(new { message = "Tải ảnh thành công.", photos = saved });
             }
-
-            return Ok(new { message = "Tải ảnh thành công.", photos = saved });
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
-        // PUT /pet-photo/{photoId}/primary
-        [HttpPut("pet-photo/{photoId:int}/primary")]
-        public async Task<IActionResult> SetPrimary(int photoId, CancellationToken ct)
+        // PUT /api/petphoto/reorder
+        [HttpPut("reorder")]
+        public async Task<IActionResult> Reorder([FromBody] List<ReorderPhotoRequest> items, CancellationToken ct = default)
         {
-            var photo = await _context.PetPhotos.FindAsync([photoId], ct);
-            if (photo == null || photo.IsDeleted) return NotFound(new { message = "Không tìm thấy ảnh." });
-
-            var petId = photo.PetId;
-
-            var others = await _context.PetPhotos
-                .Where(p => p.PetId == petId && p.PhotoId != photoId && p.IsDeleted == false)
-                .ToListAsync(ct);
-
-            foreach (var p in others)
+            try
             {
-                if (p.IsPrimary) { p.IsPrimary = false; photo.UpdatedAt = DateTime.Now; }
+                var success = await _photoService.ReorderPhotosAsync(items, ct);
+                return Ok(new { message = "Cập nhật thứ tự ảnh thành công." });
             }
-
-            photo.IsPrimary = true;
-            photo.UpdatedAt = DateTime.Now;
-
-            await _context.SaveChangesAsync(ct);
-            return Ok(new { message = "Đặt ảnh đại diện thành công." });
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
-        // PUT /pet-photo/reorder
-        [HttpPut("pet-photo/reorder")]
-        public async Task<IActionResult> Reorder([FromBody] List<ReorderPhotoRequest> items, CancellationToken ct)
-        {
-            if (items == null || items.Count == 0)
-                return BadRequest(new { message = "Danh sách trống." });
-
-            var ids = items.Select(i => i.PhotoId).ToList();
-            var photos = await _context.PetPhotos.Where(p => ids.Contains(p.PhotoId) && p.IsDeleted == false).ToListAsync(ct);
-            if (photos.Count != ids.Count) return NotFound(new { message = "Có ảnh không tồn tại." });
-
-            var byId = items.ToDictionary(i => i.PhotoId, i => i.SortOrder);
-            foreach (var p in photos)
-            {
-                p.SortOrder = byId[p.PhotoId];
-                p.UpdatedAt = DateTime.Now;
-            }
-
-            await _context.SaveChangesAsync(ct);
-            return Ok(new { message = "Cập nhật thứ tự ảnh thành công." });
-        }
-
-        // DELETE /pet-photo/{photoId}  (xóa mềm + optional xóa trên Cloudinary)
-        [HttpDelete("pet-photo/{photoId:int}")]
+        // DELETE /api/petphoto/{photoId}
+        [HttpDelete("{photoId:int}")]
         public async Task<IActionResult> Delete(int photoId, [FromQuery] bool hard = false, CancellationToken ct = default)
         {
-            var photo = await _context.PetPhotos.FindAsync([photoId], ct);
-            if (photo == null || photo.IsDeleted) return NotFound(new { message = "Không tìm thấy ảnh." });
-
-            photo.IsDeleted = true;
-            photo.UpdatedAt = DateTime.Now;
-            _context.PetPhotos.Update(photo);
-            await _context.SaveChangesAsync(ct);
-
-            // Nếu muốn "xoá hẳn" khỏi Cloudinary: /pet-photo/{id}?hard=true
-            if (hard && !string.IsNullOrWhiteSpace(photo.PublicId))
+            try
             {
-                await _storage.DeleteAsync(photo.PublicId, ct);
-            }
+                var success = await _photoService.DeletePhotoAsync(photoId, hard, ct);
+                
+                if (!success)
+                    return NotFound(new { message = "Không tìm thấy ảnh." });
 
-            return Ok(new { message = "Xóa ảnh thành công." });
+                return Ok(new { message = "Xóa ảnh thành công." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
     }
 }
