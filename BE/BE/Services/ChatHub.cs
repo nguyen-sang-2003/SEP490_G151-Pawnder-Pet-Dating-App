@@ -6,7 +6,7 @@ namespace BE.Services
     public class ChatHub : Hub
     {
         // Track user connections (userId -> list of connectionIds)
-        private static readonly ConcurrentDictionary<int, HashSet<string>> UserConnections = new();
+        public static readonly ConcurrentDictionary<int, HashSet<string>> UserConnections = new();
         
         // Track which users are online
         private static readonly ConcurrentDictionary<int, DateTime> OnlineUsers = new();

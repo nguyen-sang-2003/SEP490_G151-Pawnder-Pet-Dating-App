@@ -47,6 +47,8 @@ export interface LikeReceivedItem {
   matchId: number;
   fromUserId: number;
   toUserId?: number;
+  fromPetId?: number; // Pet ID of sender
+  toPetId?: number;   // Pet ID of receiver (for filtering)
   status: string;
   createdAt: string;
   isMatch: boolean;

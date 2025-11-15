@@ -47,6 +47,28 @@ namespace BE.Services
             return notification;
         }
 
+        public async Task<bool> MarkAsReadAsync(int notificationId, CancellationToken ct = default)
+        {
+            var notification = await _notificationRepository.GetByIdAsync(notificationId, ct);
+            if (notification == null)
+                return false;
+
+            notification.IsRead = true;
+            notification.UpdatedAt = DateTime.Now;
+            await _notificationRepository.UpdateAsync(notification, ct);
+            return true;
+        }
+
+        public async Task<int> MarkAllAsReadAsync(int userId, CancellationToken ct = default)
+        {
+            return await _notificationRepository.MarkAllAsReadAsync(userId, ct);
+        }
+
+        public async Task<int> GetUnreadCountAsync(int userId, CancellationToken ct = default)
+        {
+            return await _notificationRepository.GetUnreadCountAsync(userId, ct);
+        }
+
         public async Task<bool> DeleteNotificationAsync(int notificationId, CancellationToken ct = default)
         {
             var notification = await _notificationRepository.GetByIdAsync(notificationId, ct);

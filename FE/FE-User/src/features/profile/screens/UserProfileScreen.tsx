@@ -27,6 +27,7 @@ import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getVipStatus } from "../../../api/payment";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
+import { invalidateCache } from "../../../utils/cache";
 
 const { width } = Dimensions.get("window");
 
@@ -55,7 +56,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [showAllCharacteristics, setShowAllCharacteristics] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  // Fetch user and pets data - wrapped in useCallback
+  // 🚀 OPTIMIZED: Fetch user and pets data with progressive loading
   const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true);
@@ -70,24 +71,15 @@ const UserProfileScreen = ({ navigation }: Props) => {
       const userId = parseInt(userIdStr, 10);
       console.log('📱 Loading profile for userId:', userId);
 
-      // Fetch user data
-      const user = await getUserById(userId);
+      // 🚀 OPTIMIZATION 1: Parallel loading - Load user and pets simultaneously
+      const [user, petsData] = await Promise.all([
+        getUserById(userId),
+        getPetsByUserId(userId)
+      ]);
+      
       setUserData(user);
-      console.log('👤 User data loaded:', user);
-
-      // Check VIP status
-      try {
-        const vipStatus = await getVipStatus(userId);
-        setIsVip(vipStatus.isVip);
-        console.log('💎 VIP status:', vipStatus.isVip);
-      } catch (error) {
-        console.log('⚠️ Failed to get VIP status, assuming not VIP');
-        setIsVip(false);
-      }
-
-      // Fetch pets data
-      const petsData = await getPetsByUserId(userId);
       setPets(petsData);
+      console.log('👤 User data loaded:', user);
       console.log('🐾 Pets data loaded:', petsData);
 
       // Find active pet (IsActive = true)
@@ -95,22 +87,32 @@ const UserProfileScreen = ({ navigation }: Props) => {
       setActivePet(active || petsData[0] || null);
       console.log('✅ Active pet:', active);
 
-      // Fetch address data if user has addressId
+      // 🚀 OPTIMIZATION 2: Load VIP status and address in background (non-blocking)
+      // VIP status
+      getVipStatus(userId)
+        .then(vipStatus => {
+          setIsVip(vipStatus.isVip);
+          console.log('💎 VIP status:', vipStatus.isVip);
+        })
+        .catch(() => {
+          console.log('⚠️ Failed to get VIP status, assuming not VIP');
+          setIsVip(false);
+        });
+
+      // Address data
       const addressId = user.AddressId || user.addressId;
       console.log('🔍 User addressId:', addressId);
       
       if (addressId) {
-        try {
-          const address = await getAddressById(addressId);
-          console.log('📍 Address data loaded:', address);
-          console.log('📍 Address.City:', address?.City);
-          console.log('📍 Address.District:', address?.District);
-          console.log('📍 Address.FullAddress:', address?.FullAddress);
-          setAddressData(address);
-        } catch (error: any) {
-          console.error('⚠️ No address found for user:', error);
-          setAddressData(null);
-        }
+        getAddressById(addressId)
+          .then(address => {
+            console.log('📍 Address data loaded:', address);
+            setAddressData(address);
+          })
+          .catch((error: any) => {
+            console.error('⚠️ No address found for user:', error);
+            setAddressData(null);
+          });
       } else {
         console.log('⚠️ User has no addressId');
         setAddressData(null);
@@ -148,8 +150,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
         const petId = activePet.PetId || activePet.petId;
         if (!petId) return;
 
-        // Load characteristics
-        const chars = await getPetCharacteristics(petId);
+        // 🚀 OPTIMIZATION 3: Parallel loading - Load characteristics and photos simultaneously
+        const [chars, photos] = await Promise.all([
+          getPetCharacteristics(petId),
+          getPetPhotos(petId)
+        ]);
         
         // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
         const filteredChars = chars.filter((char: any) => {
@@ -161,9 +166,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
         });
         
         setCharacteristics(filteredChars);
-
-        // Load all photos from PetPhotos table
-        const photos = await getPetPhotos(petId);
         
         // Sort photos by sortOrder (first photo = primary/avatar)
         const sortedPhotos = photos.sort((a: any, b: any) => {
@@ -375,6 +377,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
           const userIdStr = await getItem('userId');
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
+            
+            // ✅ CLEAR ALL CACHE khi đổi pet
+            console.log('🗑️ Clearing all cache after switching pet...');
+            invalidateCache.all();
+            
             const petsData = await getPetsByUserId(userId);
             setPets(petsData);
             

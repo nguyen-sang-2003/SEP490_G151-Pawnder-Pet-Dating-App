@@ -95,53 +95,53 @@ namespace BE.Controllers
         // PUT /notification/{notificationId}/read
         [Authorize(Roles = "User")]
         [HttpPut("{notificationId:int}/read")]
-        public async Task<IActionResult> MarkAsRead(int notificationId)
+        public async Task<IActionResult> MarkAsRead(int notificationId, CancellationToken ct = default)
         {
-            var notification = await _context.Notifications.FindAsync(notificationId);
-            if (notification == null)
-                return NotFound(new { Message = "Không tìm thấy thông báo" });
+            try
+            {
+                var success = await _notificationService.MarkAsReadAsync(notificationId, ct);
+                
+                if (!success)
+                    return NotFound(new { Message = "Không tìm thấy thông báo" });
 
-            notification.IsRead = true;
-            notification.UpdatedAt = DateTime.Now;
-            await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Đã đánh dấu đã đọc" });
+                return Ok(new { Message = "Đã đánh dấu đã đọc" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // PUT /notification/user/{userId}/read-all
         [Authorize(Roles = "User")]
         [HttpPut("user/{userId:int}/read-all")]
-        public async Task<IActionResult> MarkAllAsRead(int userId)
+        public async Task<IActionResult> MarkAllAsRead(int userId, CancellationToken ct = default)
         {
-            var notifications = await _context.Notifications
-                .Where(n => n.UserId == userId && !n.IsRead)
-                .ToListAsync();
-
-            foreach (var notification in notifications)
+            try
             {
-                notification.IsRead = true;
-                notification.UpdatedAt = DateTime.Now;
+                var count = await _notificationService.MarkAllAsReadAsync(userId, ct);
+                return Ok(new { Message = $"Đã đánh dấu {count} thông báo đã đọc" });
             }
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { Message = $"Đã đánh dấu {notifications.Count} thông báo đã đọc" });
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // GET /notification/user/{userId}/unread-count
         [Authorize(Roles = "User")]
         [HttpGet("user/{userId:int}/unread-count")]
-        public async Task<IActionResult> GetUnreadCount(int userId)
+        public async Task<IActionResult> GetUnreadCount(int userId, CancellationToken ct = default)
         {
-            // Only count admin and expert notifications
-            // Type values: "system" or "expert"
-            var count = await _context.Notifications
-                .Where(n => n.UserId == userId 
-                           && !n.IsRead 
-                           && (n.Type == "system" || n.Type == "expert"))
-                .CountAsync();
-
-            return Ok(new { count });
+            try
+            {
+                var count = await _notificationService.GetUnreadCountAsync(userId, ct);
+                return Ok(new { count });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // DELETE /notification/{notificationId}

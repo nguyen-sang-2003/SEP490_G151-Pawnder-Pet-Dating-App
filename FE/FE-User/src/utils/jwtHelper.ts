@@ -44,9 +44,40 @@ export const decodeJWT = (token: string): JWTPayload | null => {
 };
 
 /**
+ * Check if JWT token is expired
+ */
+export const isTokenExpired = (token: string): boolean => {
+  const payload = decodeJWT(token);
+  if (!payload || !payload.exp) {
+    console.log('[JWT] No expiration found in token');
+    return true; // Treat as expired if no exp claim
+  }
+
+  // exp is in seconds, Date.now() is in milliseconds
+  const expirationTime = payload.exp * 1000;
+  const currentTime = Date.now();
+  const isExpired = currentTime >= expirationTime;
+  
+  if (isExpired) {
+    console.log('[JWT] Token is expired');
+  } else {
+    const timeLeft = Math.floor((expirationTime - currentTime) / 1000 / 60); // minutes
+    console.log(`[JWT] Token is valid for ${timeLeft} more minutes`);
+  }
+  
+  return isExpired;
+};
+
+/**
  * Extract user ID from JWT token
  */
 export const getUserIdFromToken = (token: string): number | null => {
+  // First check if token is expired
+  if (isTokenExpired(token)) {
+    console.log('[JWT] Token is expired, returning null');
+    return null;
+  }
+
   const payload = decodeJWT(token);
   if (!payload) {
     console.log('[JWT] No payload decoded');

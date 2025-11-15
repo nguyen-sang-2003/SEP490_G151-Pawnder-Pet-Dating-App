@@ -23,10 +23,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
 import { getUserPetAvatar, getPetAvatar } from "../../../utils/petAvatar";
 import { useDispatch, useSelector } from "react-redux";
-import { selectUnreadChats } from "../../badge/badgeSlice";
+import { selectUnreadChats, selectActivePetId } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
 import { getVipStatus } from "../../../api/payment";
 import { getPetsByUserId } from "../../../api/pet";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -46,6 +47,7 @@ interface ChatItem {
 const ChatScreen = ({ navigation }: Props) => {
   const dispatch = useDispatch<AppDispatch>();
   const unreadChats = useSelector(selectUnreadChats); // Get list of unread matchIds
+  const activePetId = useSelector(selectActivePetId); // Get current active pet ID
   const [searchQuery, setSearchQuery] = useState("");
   const [chatData, setChatData] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,14 @@ const ChatScreen = ({ navigation }: Props) => {
       // signalRService.disconnect();
     };
   }, []);
+
+  // ✅ Reload chats when activePetId changes
+  useEffect(() => {
+    if (activePetId !== null) {
+      console.log('🔄 Active pet changed, reloading chats...');
+      loadChats(true); // Force refresh
+    }
+  }, [activePetId]);
 
   // Load chats when screen comes into focus
   useFocusEffect(
@@ -113,8 +123,11 @@ const ChatScreen = ({ navigation }: Props) => {
   };
 
   const handleNewMessage = (data: any) => {
-    // Reload chats to update last message
-    loadChats();
+    // 🚀 OPTIMIZATION: Invalidate cache and reload
+    if (currentUserId) {
+      invalidateCache.chats(currentUserId);
+    }
+    loadChats(true); // Force refresh
   };
 
   const refreshOnlineUsers = async () => {
@@ -128,7 +141,7 @@ const ChatScreen = ({ navigation }: Props) => {
     }
   };
 
-  const loadChats = async () => {
+  const loadChats = async (forceRefresh = false) => {
     try {
       setLoading(true);
       
@@ -144,10 +157,14 @@ const ChatScreen = ({ navigation }: Props) => {
       setCurrentUserId(userId);
       console.log('👤 Current user:', userId);
       
-      // Get user's active pet ID
+      // 🚀 OPTIMIZATION: Get user's active pet ID with cache
       let activePetId: number | undefined;
       try {
-        const userPets = await getPetsByUserId(userId);
+        const userPets = await cache.getOrFetch(
+          CACHE_KEYS.USER_PETS(userId),
+          () => getPetsByUserId(userId),
+          CACHE_TTL.MEDIUM
+        );
         const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
         if (activePet) {
           activePetId = activePet.PetId || activePet.petId;
@@ -157,6 +174,18 @@ const ChatScreen = ({ navigation }: Props) => {
         }
       } catch (error) {
         console.log('⚠️ Could not get active pet - showing all chats');
+      }
+      
+      // 🚀 OPTIMIZATION: Check cache first (unless force refresh)
+      const cacheKey = CACHE_KEYS.CHATS(userId, activePetId);
+      if (!forceRefresh) {
+        const cachedChats = cache.get<ChatItem[]>(cacheKey, CACHE_TTL.SHORT);
+        if (cachedChats) {
+          console.log('✅ Using cached chats');
+          setChatData(cachedChats);
+          setLoading(false);
+          return;
+        }
       }
       
       // Get accepted matches (chats), filtered by active pet if available
@@ -225,6 +254,11 @@ const ChatScreen = ({ navigation }: Props) => {
       
       // Filter out null values and set state
       const validChats = chatItems.filter((item): item is ChatItem => item !== null);
+      
+      // 🚀 OPTIMIZATION: Cache the result
+      cache.set(cacheKey, validChats);
+      console.log('💾 Cached chats for future use');
+      
       setChatData(validChats);
       
     } catch (error: any) {

@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    Image,
     TouchableOpacity,
     Dimensions,
     Animated,
@@ -11,7 +10,6 @@ import {
     SafeAreaView,
     StatusBar,
     ActivityIndicator,
-    Modal,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -21,7 +19,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getPetsForMatching, PetForMatching, getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../../api/pet";
+import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../../api/pet";
 import { sendLike } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppSelector } from "../../../app/hooks";
@@ -30,6 +28,10 @@ import { getVipStatus } from "../../../api/payment";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
 import signalRService from "../../../services/signalr.service";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { getItem, removeItem } from "../../../utils/storage";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - 24; // Padding 12px each side
@@ -57,6 +59,7 @@ interface PetProfile {
 
 const HomeScreen = ({ navigation }: Props) => {
     const notificationBadge = useAppSelector(selectNotificationBadge);
+    const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [pets, setPets] = useState<PetProfile[]>([]);
     const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
@@ -65,7 +68,6 @@ const HomeScreen = ({ navigation }: Props) => {
     const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [activePetId, setActivePetId] = useState<number | null>(null); // User's active pet ID
-    const [vipCache, setVipCache] = useState<{ [userId: number]: boolean }>({});
     const [showMatchLimitModal, setShowMatchLimitModal] = useState(false);
     const [limitMessage, setLimitMessage] = useState("");
     
@@ -342,11 +344,11 @@ const HomeScreen = ({ navigation }: Props) => {
     };
 
 
-    // Load pets from API - Luôn dùng recommendation API (với optional filter)
+    // 🚀 OPTIMIZED: Load pets with lazy loading and parallel API calls
     const loadPets = async () => {
         try {
             setLoading(true);
-            console.log('🔄 Loading pets with smart recommendations...');
+            console.log('🔄 Loading pets with optimizations...');
             
             // Get current user ID from storage
             const userIdStr = await AsyncStorage.getItem('userId');
@@ -365,24 +367,28 @@ const HomeScreen = ({ navigation }: Props) => {
 
             setCurrentUserId(userId);
             
+            // 🚀 OPTIMIZATION 1: Parallel API calls instead of sequential
+            const [userPets, recommendedPets] = await Promise.all([
+                getPetsByUserId(userId),
+                getRecommendedPets(userId)
+            ]);
+            
             // Get user's active pet ID
-            const userPets = await getPetsByUserId(userId);
             const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
             if (activePet) {
                 const petId = activePet.PetId || activePet.petId;
-                setActivePetId(petId ?? null); // Convert undefined to null
+                setActivePetId(petId ?? null);
                 console.log('🐾 User active pet:', petId);
             } else {
                 console.log('⚠️ No active pet found for user');
             }
-            
-            // Luôn dùng recommendation API
-            // Nếu chưa có filter → trả về tất cả pets (matchPercent = 0)
-            // Nếu có filter → sắp xếp theo matchPercent
-            const recommendedPets = await getRecommendedPets(userId);
 
+            // 🚀 OPTIMIZATION 2: Lazy loading - Only process first 10 pets initially
+            const INITIAL_LOAD_COUNT = 10;
+            const petsToLoad = recommendedPets.slice(0, INITIAL_LOAD_COUNT);
+            
             // Convert recommended pets to PetProfile format
-            const formattedPets: PetProfile[] = recommendedPets
+            const formattedPets: PetProfile[] = petsToLoad
                 .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
                 .map((pet: RecommendedPet) => {
                     const photos = pet.photos && pet.photos.length > 0
@@ -408,10 +414,14 @@ const HomeScreen = ({ navigation }: Props) => {
                     };
                 });
 
-            // Check VIP status for all unique owners
-            const uniqueOwnerIds = Array.from(new Set(formattedPets.map(p => p.ownerId)));
+            // 🚀 OPTIMIZATION 3: Only check VIP for first 5 pets (visible ones)
+            const VIP_CHECK_COUNT = 5;
+            const uniqueOwnerIds = Array.from(new Set(
+                formattedPets.slice(0, VIP_CHECK_COUNT).map(p => p.ownerId)
+            ));
             const vipStatuses: { [userId: number]: boolean } = {};
             
+            // Parallel VIP checks
             await Promise.all(
                 uniqueOwnerIds.map(async (ownerId) => {
                     try {                
@@ -423,9 +433,6 @@ const HomeScreen = ({ navigation }: Props) => {
                 })
             );
 
-            // Update VIP cache
-            setVipCache(prev => ({ ...prev, ...vipStatuses }));
-
             // Add VIP status to pets
             const petsWithVip = formattedPets.map(pet => ({
                 ...pet,
@@ -435,11 +442,54 @@ const HomeScreen = ({ navigation }: Props) => {
             setPets(petsWithVip);
             setCurrentIndex(0);
             setCurrentPhotoIndices({});
+            
+            // 🚀 OPTIMIZATION 4: Load remaining pets in background
+            if (recommendedPets.length > INITIAL_LOAD_COUNT) {
+                loadMorePetsInBackground(recommendedPets.slice(INITIAL_LOAD_COUNT), userId);
+            }
         } catch (error) {
             console.error('❌ Error loading pets:', error);
             setPets([]);
         } finally {
             setLoading(false);
+        }
+    };
+    
+    // 🚀 OPTIMIZATION 5: Background loading for remaining pets
+    const loadMorePetsInBackground = async (remainingPets: RecommendedPet[], userId: number) => {
+        try {
+            console.log(`🔄 Loading ${remainingPets.length} more pets in background...`);
+            
+            const formattedPets: PetProfile[] = remainingPets
+                .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
+                .map((pet: RecommendedPet) => {
+                    const photos = pet.photos && pet.photos.length > 0
+                        ? pet.photos.map((url: string) => ({ uri: url }))
+                        : [require("../../../assets/cat_avatar.png")];
+                    
+                    return {
+                        id: pet.petId.toString(),
+                        name: pet.name,
+                        age: pet.age ? `${pet.age} years` : 'N/A',
+                        breed: pet.breed || 'Unknown',
+                        gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
+                        distance: pet.distanceKm ? `${pet.distanceKm} km` : (pet.owner?.address ? `${pet.owner.address.city || pet.owner.address.district || ''}` : 'N/A'),
+                        bio: pet.description || 'No description',
+                        image: photos[0],
+                        images: photos,
+                        personality: [],
+                        owner: pet.owner?.fullName || 'Unknown',
+                        ownerId: pet.userId,
+                        matchPercent: pet.matchPercent ?? 0,
+                        ownerIsVip: false, // Will be updated later if needed
+                    };
+                });
+            
+            // Append to existing pets
+            setPets(prev => [...prev, ...formattedPets]);
+            console.log(`✅ Loaded ${formattedPets.length} more pets in background`);
+        } catch (error) {
+            console.error('❌ Error loading more pets:', error);
         }
     };
 
@@ -448,29 +498,37 @@ const HomeScreen = ({ navigation }: Props) => {
         useCallback(() => {
             loadPets();
             // Badges are refreshed automatically when activePetId changes (useEffect above)
-        }, [])
+            
+            // Check if should show login success alert
+            const checkLoginSuccess = async () => {
+                const showSuccess = await getItem('showLoginSuccess');
+                if (showSuccess === 'true') {
+                    await removeItem('showLoginSuccess');
+                    // Show success alert without blocking navigation
+                    setTimeout(() => {
+                        showAlert({
+                            type: 'success',
+                            title: 'Chào mừng! 🎉',
+                            message: 'Đăng nhập thành công',
+                        });
+                    }, 500); // Small delay to let screen render first
+                }
+            };
+            checkLoginSuccess();
+        }, [showAlert])
     );
 
-    // Calculate distance from address (placeholder logic)
-    const calculateDistance = (address: any): string => {
-        if (address && (address.City || address.city)) {
-            return `${address.City || address.city}`;
-        }
-        if (address && (address.District || address.district)) {
-            return `${address.District || address.district}`;
-        }
-        return 'Location unknown';
-    };
-
-    const handleLike = () => forceSwipe("right");
-    const handleNope = () => forceSwipe("left");
+    // 🚀 OPTIMIZATION 6: Memoize handlers to prevent re-renders
+    const handleLike = useCallback(() => forceSwipe("right"), []);
+    const handleNope = useCallback(() => forceSwipe("left"), []);
     
-    const handleViewPetDetail = (petId: string) => {
+    const handleViewPetDetail = useCallback((petId: string) => {
         console.log('📱 Opening pet detail:', petId);
         navigation.navigate("PetProfile", { petId });
-    };
+    }, [navigation]);
 
-    const renderCard = (pet: PetProfile, index: number) => {
+    // 🚀 OPTIMIZATION 7: Memoize renderCard to prevent unnecessary re-renders
+    const renderCard = useCallback((pet: PetProfile, index: number) => {
         if (index < currentIndex) return null;
         if (!pet || !pet.id) return null; // Safety check
         
@@ -495,9 +553,12 @@ const HomeScreen = ({ navigation }: Props) => {
                 <View style={styles.cardContent}>
                     <View style={styles.imageContainer}>
                         {/* Current Photo */}
-                        <Image 
+                        <OptimizedImage 
                             source={pet.images[currentPhotoIndices[pet.id] || 0]} 
-                            style={styles.petImage} 
+                            style={styles.petImage}
+                            resizeMode="cover"
+                            showLoader={true}
+                            imageSize="full"
                         />
                         
                         {/* Photo Navigation Tap Areas */}
@@ -677,7 +738,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 </View>
             </Animated.View>
         );
-    };
+    }, [currentIndex, currentPhotoIndices, position.x, position.y, rotate, panResponder.panHandlers, handleViewPetDetail, handleLike, handleNope]);
 
     // Show loading state
     if (loading) {
@@ -879,6 +940,18 @@ const HomeScreen = ({ navigation }: Props) => {
                 message={limitMessage}
                 actionType="match"
             />
+
+            {/* Custom Alert for Login Success */}
+            {alertConfig && (
+                <CustomAlert
+                    visible={visible}
+                    type={alertConfig.type}
+                    title={alertConfig.title}
+                    message={alertConfig.message}
+                    confirmText={alertConfig.confirmText}
+                    onClose={hideAlert}
+                />
+            )}
 
             {/* Bottom Navigation */}
             <BottomNav active="Home" />

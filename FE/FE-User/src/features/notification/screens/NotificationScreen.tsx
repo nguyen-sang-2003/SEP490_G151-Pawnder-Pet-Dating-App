@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -109,7 +109,8 @@ const NotificationScreen = ({ navigation }: Props) => {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
+  // 🚀 OPTIMIZATION: Memoize helper functions with useCallback
+  const getNotificationIcon = useCallback((type: string) => {
     switch (type) {
       case "expert_reply":
       case "expert":
@@ -119,9 +120,9 @@ const NotificationScreen = ({ navigation }: Props) => {
       default:
         return { name: "notifications", color: "#FFFFFF" };
     }
-  };
+  }, []);
 
-  const getNotificationBgColor = (type: string) => {
+  const getNotificationBgColor = useCallback((type: string) => {
     switch (type) {
       case "expert_reply":
       case "expert":
@@ -131,7 +132,7 @@ const NotificationScreen = ({ navigation }: Props) => {
       default:
         return ["#FFB8D6", "#FF8FB7"];
     }
-  };
+  }, []);
 
   const handleNotificationPress = async (item: Notification) => {
     // Mark as read
@@ -159,7 +160,8 @@ const NotificationScreen = ({ navigation }: Props) => {
     // System notifications don't need navigation
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => {
+  // 🚀 OPTIMIZATION: Memoize renderNotification with useCallback
+  const renderNotification = useCallback(({ item }: { item: Notification }) => {
     const type = item.type || 'system';
     const iconConfig = getNotificationIcon(type);
     const bgColors = getNotificationBgColor(type);
@@ -215,26 +217,32 @@ const NotificationScreen = ({ navigation }: Props) => {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [getNotificationIcon, getNotificationBgColor, handleNotificationPress]);
 
-  // Filter notifications
-  const filteredNotifications = notifications.filter(n => {
-    if (filterType === "all") return true;
-    if (filterType === "unread") return !n.isRead;
-    if (filterType === "system") return n.type === "system";
-    if (filterType === "expert") return n.type === "expert_reply" || n.type === "expert";
-    return true;
-  });
+  // 🚀 OPTIMIZATION: Memoize filtered notifications
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter(n => {
+      if (filterType === "all") return true;
+      if (filterType === "unread") return !n.isRead;
+      if (filterType === "system") return n.type === "system";
+      if (filterType === "expert") return n.type === "expert_reply" || n.type === "expert";
+      return true;
+    });
+  }, [notifications, filterType]);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  // 🚀 OPTIMIZATION: Memoize unreadCount calculation
+  const unreadCount = useMemo(() => 
+    notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
 
-  // Filter tab configuration
-  const filterTabs = [
+  // 🚀 OPTIMIZATION: Memoize filter tabs configuration
+  const filterTabs = useMemo(() => [
     { id: "all", label: "All", icon: "apps" },
     { id: "unread", label: "Unread", icon: "mail-unread", badge: unreadCount },
     { id: "system", label: "System", icon: "notifications" },
     { id: "expert", label: "Expert", icon: "medical" },
-  ];
+  ], [unreadCount]);
 
   // Show loading state
   if (loading) {
@@ -343,6 +351,12 @@ const NotificationScreen = ({ navigation }: Props) => {
               tintColor={colors.primary}
             />
           }
+          // 🚀 OPTIMIZATION: FlatList performance props
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={15}
+          windowSize={10}
         />
       ) : (
         <View style={styles.emptyContainer}>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,8 @@ interface LimitReachedModalProps {
   actionType?: 'match' | 'ai_chat' | 'expert_confirm' | 'filter';
 }
 
-export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
+// 🚀 OPTIMIZATION: Memoize LimitReachedModal to prevent unnecessary re-renders
+export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
   visible,
   onClose,
   title = 'Oops! Out of Limit',
@@ -34,7 +35,8 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
 }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  const getFeatureIcon = () => {
+  // 🚀 OPTIMIZATION: Memoize feature icon calculation
+  const featureIcon = useMemo(() => {
     switch (actionType) {
       case 'match':
         return 'heart-outline';
@@ -47,9 +49,10 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
       default:
         return 'timer-outline';
     }
-  };
+  }, [actionType]);
 
-  const getFeatureTitle = () => {
+  // 🚀 OPTIMIZATION: Memoize feature title calculation
+  const featureTitle = useMemo(() => {
     switch (actionType) {
       case 'match':
         return 'Oops! Out of Likes';
@@ -62,12 +65,13 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
       default:
         return title;
     }
-  };
+  }, [actionType, title]);
 
-  const handleUpgrade = () => {
+  // 🚀 OPTIMIZATION: Memoize handleUpgrade with useCallback
+  const handleUpgrade = useCallback(() => {
     onClose();
     navigation.navigate('Settings');
-  };
+  }, [onClose, navigation]);
 
   return (
     <Modal
@@ -84,11 +88,11 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
           >
             {/* Icon */}
             <View style={styles.iconContainer}>
-              <Icon name={getFeatureIcon()} size={64} color={colors.white} />
+              <Icon name={featureIcon} size={64} color={colors.white} />
             </View>
 
             {/* Title */}
-            <Text style={styles.title}>{getFeatureTitle()}</Text>
+            <Text style={styles.title}>{featureTitle}</Text>
 
             {/* Message */}
             <Text style={styles.message}>{message}</Text>
@@ -141,7 +145,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
       </View>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

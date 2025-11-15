@@ -13,17 +13,22 @@ namespace BE.Repositories
         public async Task<IEnumerable<object>> GetChatMessagesAsync(int matchId, CancellationToken ct = default)
         {
             return await _dbSet
-                .Include(c => c.FromPet)
                 .Where(c => c.MatchId == matchId)
                 .OrderBy(c => c.CreatedAt)
                 .Select(c => new
                 {
-                    c.ContentId,
-                    c.MatchId,
-                    c.FromPetId,
-                    FromPetName = c.FromPet != null ? c.FromPet.Name : null,
-                    c.Message,
-                    c.CreatedAt
+                    ContentId = c.ContentId,
+                    MatchId = c.MatchId,
+                    // Ưu tiên FromUserId (cột mới luôn có), fallback sang FromPet nếu cần
+                    FromUserId = c.FromUserId != null 
+                        ? c.FromUserId 
+                        : (c.FromPet != null ? c.FromPet.UserId : null),
+                    // Ưu tiên FromUser (trực tiếp), fallback sang FromPet.User
+                    FromUserName = c.FromUser != null 
+                        ? c.FromUser.FullName 
+                        : (c.FromPet != null && c.FromPet.User != null ? c.FromPet.User.FullName : "Unknown User"),
+                    Message = c.Message,
+                    CreatedAt = c.CreatedAt
                 })
                 .ToListAsync(ct);
         }

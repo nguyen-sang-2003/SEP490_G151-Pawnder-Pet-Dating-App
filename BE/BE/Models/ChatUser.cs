@@ -11,6 +11,10 @@ public partial class ChatUser
 
     public int? ToPetId { get; set; }
 
+    public int? FromUserId { get; set; } // User ID of sender
+
+    public int? ToUserId { get; set; }   // User ID of receiver
+
     public string? Status { get; set; }
 
     public bool? IsDeleted { get; set; }

@@ -179,11 +179,40 @@ export const login = async (
     
     return response.data;
   } catch (error: any) {
-    // Only throw user-friendly error message
-    if (error.response?.data) {
-      throw new Error(error.response.data);
+    // Handle different error types
+    if (error.response) {
+      // Server responded with error status
+      const status = error.response.status;
+      const data = error.response.data;
+      
+      // Extract error message from response
+      let errorMessage = 'Đăng nhập thất bại';
+      
+      if (typeof data === 'string') {
+        errorMessage = data;
+      } else if (data?.message) {
+        errorMessage = data.message;
+      } else if (data?.Message) {
+        errorMessage = data.Message;
+      }
+      
+      // Specific error messages based on status code
+      if (status === 401) {
+        throw new Error('Email hoặc mật khẩu không đúng');
+      } else if (status === 404) {
+        throw new Error('Tài khoản không tồn tại');
+      } else if (status === 400) {
+        throw new Error(errorMessage || 'Thông tin đăng nhập không hợp lệ');
+      } else {
+        throw new Error(errorMessage);
+      }
+    } else if (error.request) {
+      // Request was made but no response received (network error)
+      throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.');
+    } else {
+      // Something else happened
+      throw new Error(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     }
-    throw new Error('Không thể kết nối đến máy chủ. Vui lòng thử lại.');
   }
 };
 

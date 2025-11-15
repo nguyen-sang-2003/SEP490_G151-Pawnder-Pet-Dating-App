@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { View, TouchableOpacity, StyleSheet, Platform, Text } from "react-native";
 // @ts-ignore: bỏ qua lỗi type cho Ionicons
 import Icon from "react-native-vector-icons/Ionicons";
@@ -20,7 +20,8 @@ interface BottomNavProps {
   active: Tab; // tab hiện tại
 }
 
-const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
+// 🚀 OPTIMIZATION: Memoize BottomNav to prevent unnecessary re-renders
+const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   
   // Get badge counts from Redux
@@ -29,17 +30,17 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
   
   // Debug logging
 
-  // Hàm điều hướng khi bấm tab
-  const handlePress = (tab: Tab) => {
+  // 🚀 OPTIMIZATION: Memoize handlePress with useCallback
+  const handlePress = useCallback((tab: Tab) => {
     if (tab === "Chat") {
       navigation.navigate("Chat", {});
     } else {
       navigation.navigate(tab as any);
     }
-  };
+  }, [navigation]);
 
-  // Nav items config - Each tab has unique gradient from theme
-  const navItems = [
+  // 🚀 OPTIMIZATION: Memoize navItems to prevent recreation on every render
+  const navItems = useMemo(() => [
     { 
       key: "Home" as Tab, 
       icon: "paw", 
@@ -72,7 +73,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
       gradientLight: ["rgba(255, 168, 204, 0.25)", "rgba(255, 224, 240, 0.25)"],
       shadowColor: colors.profileStart,
     },
-  ];
+  ], []); // Empty deps - navItems never change
 
   return (
     <View style={styles.bottomNavContainer}>
@@ -80,13 +81,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
         {navItems.map((item) => {
           const isActive = active === item.key;
           
-          // Determine badge count for this tab
-          let badgeCount = 0;
-          if (item.key === "Chat") {
-            badgeCount = chatBadge;
-          } else if (item.key === "Favorite") {
-            badgeCount = favoriteBadge;
-          }
+          // 🚀 OPTIMIZATION: Calculate badge count efficiently
+          const badgeCount = item.key === "Chat" ? chatBadge : item.key === "Favorite" ? favoriteBadge : 0;
           
           return (
             <TouchableOpacity
@@ -143,7 +139,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ active }) => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   // Dating App Style Bottom Nav - Modern & Clean

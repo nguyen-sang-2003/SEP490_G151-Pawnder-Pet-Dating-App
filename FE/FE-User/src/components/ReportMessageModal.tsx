@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ interface ReportMessageModalProps {
   userName: string;
 }
 
+// 🚀 OPTIMIZATION: Move REPORT_REASONS outside component to prevent recreation
 // Report reasons based on popular dating apps (Tinder, Bumble, Hinge)
 const REPORT_REASONS = [
   {
@@ -92,7 +93,8 @@ const REPORT_REASONS = [
   },
 ];
 
-const ReportMessageModal: React.FC<ReportMessageModalProps> = ({
+// 🚀 OPTIMIZATION: Memoize ReportMessageModal to prevent unnecessary re-renders
+const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
   visible,
   onClose,
   onSubmit,
@@ -102,20 +104,21 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = ({
   const [otherReason, setOtherReason] = useState("");
   const [step, setStep] = useState<"select" | "confirm">("select");
 
-  const handleReasonSelect = (reasonId: string) => {
+  // 🚀 OPTIMIZATION: Memoize callbacks with useCallback
+  const handleReasonSelect = useCallback((reasonId: string) => {
     setSelectedReason(reasonId);
-  };
+  }, []);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (!selectedReason) return;
     setStep("confirm");
-  };
+  }, [selectedReason]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     setStep("select");
-  };
+  }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!selectedReason) return;
 
     // Get the reason text
@@ -133,17 +136,19 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = ({
     setSelectedReason(null);
     setOtherReason("");
     setStep("select");
-  };
+  }, [selectedReason, otherReason, onSubmit]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setSelectedReason(null);
     setOtherReason("");
     setStep("select");
     onClose();
-  };
+  }, [onClose]);
 
-  const selectedReasonData = REPORT_REASONS.find(
-    (r) => r.id === selectedReason
+  // 🚀 OPTIMIZATION: Memoize selectedReasonData calculation
+  const selectedReasonData = useMemo(() => 
+    REPORT_REASONS.find((r) => r.id === selectedReason),
+    [selectedReason]
   );
 
   return (
@@ -384,7 +389,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = ({
       </View>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   modalOverlay: {

@@ -15,12 +15,14 @@ interface BadgeState {
   favoriteBadge: number;
   notificationBadge: number;
   matchModal: MatchModalData;
+  activePetId: number | null; // Currently active pet ID for filtering
 }
 
 const initialState: BadgeState = {
   unreadChats: [],
   favoriteBadge: 0,
   notificationBadge: 0,
+  activePetId: null,
   matchModal: {
     visible: false,
     otherUserName: '',
@@ -104,6 +106,9 @@ const badgeSlice = createSlice({
         petPhotoUrl: undefined,
       };
     },
+    setActivePetId: (state, action: PayloadAction<number | null>) => {
+      state.activePetId = action.payload;
+    },
   },
 });
 
@@ -121,6 +126,7 @@ export const {
   resetAllBadges,
   showMatchModal,
   hideMatchModal,
+  setActivePetId,
 } = badgeSlice.actions;
 
 // Selectors
@@ -129,6 +135,7 @@ export const selectChatBadge = (state: RootState) => state.badge.unreadChats.len
 export const selectFavoriteBadge = (state: RootState) => state.badge.favoriteBadge;
 export const selectNotificationBadge = (state: RootState) => state.badge.notificationBadge;
 export const selectMatchModal = (state: RootState) => state.badge.matchModal;
+export const selectActivePetId = (state: RootState) => state.badge.activePetId;
 
 export default badgeSlice.reducer;
 
