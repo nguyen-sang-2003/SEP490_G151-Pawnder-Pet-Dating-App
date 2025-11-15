@@ -1,5 +1,6 @@
 import apiClient from './apiClient';
 import { API_ENDPOINTS } from '../../constants';
+import petService from './petService';
 
 class DashboardService {
   /**
@@ -136,16 +137,12 @@ class DashboardService {
         const userId = user.UserId || user.userId;
         if (!userId) return Promise.resolve(0);
         
-        return apiClient.get(API_ENDPOINTS.PETS.LIST_BY_USER(userId))
-          .then(response => {
-            // Handle both array response and error response
-            if (Array.isArray(response)) {
-              return response.length;
-            }
-            // If response is an error object, return 0
-            return 0;
+        return petService.getPetsByUser(userId)
+          .then(pets => {
+            // getPetsByUser already handles 404 and returns empty array
+            return Array.isArray(pets) ? pets.length : 0;
           })
-          .catch(() => 0); // If error (e.g., user has no pets), return 0
+          .catch(() => 0); // If error, return 0
       });
       
       const petCounts = await Promise.all(petPromises);

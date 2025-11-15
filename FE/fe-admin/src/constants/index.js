@@ -28,11 +28,11 @@ export const API_ENDPOINTS = {
     DELETE: (id) => `/api/pet/${id}`, // DELETE /api/pet/{petId}
   },
   REPORTS: {
-    LIST: '/report', // GET /report (ReportController không có [Route("api")])
-    DETAIL: (id) => `/report/${id}`, // GET /report/{reportId}
-    LIST_BY_USER: (userId) => `/report/user/${userId}`, // GET /report/user/{userReportId}
-    CREATE: (userReportId, contentId) => `/report/${userReportId}/${contentId}`, // POST /report/{userReportId}/{contentId}
-    UPDATE: (id) => `/report/${id}`, // PUT /report/{reportId}
+    LIST: '/api/report', // GET /api/report (ReportController có [Route("api")])
+    DETAIL: (id) => `/api/report/${id}`, // GET /api/report/{reportId}
+    LIST_BY_USER: (userId) => `/api/report/user/${userId}`, // GET /api/report/user/{userReportId}
+    CREATE: (userReportId, contentId) => `/api/report/${userReportId}/${contentId}`, // POST /api/report/{userReportId}/{contentId}
+    UPDATE: (id) => `/api/report/${id}`, // PUT /api/report/{reportId}
   },
   NOTIFICATIONS: {
     LIST: '/api/notification', // GET /api/notification
@@ -54,11 +54,11 @@ export const API_ENDPOINTS = {
     UPDATE: (expertId, userId, chatId) => `/expert-confirmation/${expertId}/${userId}/${chatId}`, // PUT /expert-confirmation/{expertId}/{userId}/{chatId}
   },
   PET_PHOTOS: {
-    LIST_BY_PET: (petId) => `/api/pet-photo/${petId}`, // GET /api/pet-photo/{petId}
-    UPLOAD: '/api/pet-photo', // POST /api/pet-photo (FormData: petId, files[])
-    SET_PRIMARY: (photoId) => `/api/pet-photo/${photoId}/primary`, // PUT /api/pet-photo/{photoId}/primary
-    REORDER: '/api/pet-photo/reorder', // PUT /api/pet-photo/reorder
-    DELETE: (photoId) => `/api/pet-photo/${photoId}`, // DELETE /api/pet-photo/{photoId}?hard=false
+    LIST_BY_PET: (petId) => `/api/petphoto/${petId}`, // GET /api/petphoto/{petId} (Backend route là "api/petphoto" không có dấu gạch ngang)
+    UPLOAD: '/api/petphoto', // POST /api/petphoto (FormData: petId, files[])
+    SET_PRIMARY: (photoId) => `/api/petphoto/${photoId}/primary`, // PUT /api/petphoto/{photoId}/primary
+    REORDER: '/api/petphoto/reorder', // PUT /api/petphoto/reorder
+    DELETE: (photoId) => `/api/petphoto/${photoId}`, // DELETE /api/petphoto/{photoId}?hard=false
   },
 };
 

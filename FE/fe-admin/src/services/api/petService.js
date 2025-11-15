@@ -5,11 +5,27 @@ class PetService {
   /**
    * Get pets by user
    * Backend: GET /api/pet/user/{userId}
-   * Response: PetDto[] (array of pets)
+   * Response: PetDto[] (array of pets) or 404 if user has no pets
+   * Note: Backend returns 404 if user has no pets, so we handle it gracefully
    */
   async getPetsByUser(userId) {
-    const response = await apiClient.get(API_ENDPOINTS.PETS.LIST_BY_USER(userId));
-    return response;
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.PETS.LIST_BY_USER(userId));
+      // If response is an array, return it
+      if (Array.isArray(response)) {
+        return response;
+      }
+      // If response is not an array, return empty array
+      return [];
+    } catch (error) {
+      // If 404 error (user has no pets), return empty array instead of throwing
+      if (error.response?.status === 404) {
+        console.log(`User ${userId} has no pets`);
+        return [];
+      }
+      // For other errors, re-throw
+      throw error;
+    }
   }
 
   /**

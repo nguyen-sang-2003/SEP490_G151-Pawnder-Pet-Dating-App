@@ -38,7 +38,12 @@ apiClient.interceptors.response.use(
       const errorData = error.response.data;
       
       // Log error for debugging (only for non-401 errors to avoid spam)
-      if (status !== 401) {
+      // Suppress 404 errors for /api/pet/user/ endpoints (user has no pets is normal)
+      const url = error.config?.url || '';
+      const isPetUserEndpoint = url.includes('/api/pet/user/') || url.includes('/api/Pet/user/');
+      const shouldSuppress404 = status === 404 && isPetUserEndpoint;
+      
+      if (status !== 401 && !shouldSuppress404) {
         console.error('API Error Response:', {
           status,
           url: error.config?.url,

@@ -87,10 +87,11 @@ export const AuthProvider = ({ children }) => {
       
       console.log('✅ Login response received:', loginResponse);
       
-      // Backend returns: { Message: string, Token: string }
-      // But JSON serializer may convert to camelCase: { message: string, token: string }
+      // Backend returns: { Message: string, AccessToken: string, RefreshToken: string, UserId: int, FullName: string, ... }
+      // But JSON serializer may convert to camelCase: { message: string, accessToken: string, refreshToken: string, userId: int, fullName: string, ... }
       // Support both formats
-      const token = loginResponse.Token || loginResponse.token;
+      const token = loginResponse.AccessToken || loginResponse.accessToken || loginResponse.Token || loginResponse.token;
+      const refreshToken = loginResponse.RefreshToken || loginResponse.refreshToken;
       const message = loginResponse.Message || loginResponse.message;
       
       if (!loginResponse || !token) {
@@ -100,20 +101,39 @@ export const AuthProvider = ({ children }) => {
       
       console.log('✅ Token extracted:', token ? 'Token exists' : 'Token missing');
       
+      // Save refreshToken if available
+      if (refreshToken) {
+        localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+        console.log('✅ RefreshToken saved to localStorage');
+      }
+      
       // IMPORTANT: Save token to localStorage FIRST so apiClient interceptor can use it
       localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
       console.log('✅ Token saved to localStorage');
       
-      // Decode JWT token to get userId and role
-      const userId = getUserIdFromToken(token);
-      const role = getRoleFromToken(token);
+      // Try to get userId from response first (more reliable), fallback to decoding token
+      let userId = loginResponse.UserId || loginResponse.userId;
+      let role = null;
       
-      console.log('✅ Decoded JWT:', { userId, role });
+      if (userId) {
+        console.log('✅ UserId from response:', userId);
+        // Decode JWT token to get role
+        role = getRoleFromToken(token);
+        console.log('✅ Role from token:', role);
+      } else {
+        // Fallback: Decode JWT token to get userId and role
+        userId = getUserIdFromToken(token);
+        role = getRoleFromToken(token);
+        console.log('✅ Decoded JWT:', { userId, role });
+      }
       
       if (!userId || !role) {
-        // Clean up token if we can't decode it
+        // Clean up tokens if we can't get user info
         localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-        console.error('❌ Failed to decode token:', { userId, role });
+        if (refreshToken) {
+          localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+        }
+        console.error('❌ Failed to get user info:', { userId, role });
         throw new Error('Không thể đọc thông tin từ token');
       }
       
