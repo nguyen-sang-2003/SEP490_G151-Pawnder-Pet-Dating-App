@@ -61,6 +61,20 @@ ALTER TABLE "User"
 -- ===========================
 -- TABLE: Attribute
 -- ===========================
+CREATE TABLE "UserBanHistory" (
+    "BanId" SERIAL PRIMARY KEY,
+    "UserId" INT NOT NULL REFERENCES "User"("UserId") ON DELETE CASCADE,
+    "BanStart" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "BanEnd" TIMESTAMP, 
+    "BanReason" TEXT,
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW(),
+    "IsActive" BOOLEAN DEFAULT TRUE
+);
+
+-- ===========================
+-- TABLE: Attribute
+-- ===========================
 CREATE TABLE "Attribute" (
     "AttributeId" SERIAL PRIMARY KEY,
     "Name" VARCHAR(100) NOT NULL,
@@ -186,8 +200,8 @@ CREATE TABLE "ExpertConfirmation" (
 -- ===========================
 CREATE TABLE "ChatUser" (
     "MatchId" SERIAL PRIMARY KEY,
-    "FromUserId" INT REFERENCES "User"("UserId"),
-    "ToUserId" INT REFERENCES "User"("UserId"),
+    "FromPetId" INT REFERENCES "Pet"("PetId"),
+    "ToPetId" INT REFERENCES "Pet"("PetId"),
     "Status" VARCHAR(50),
     "IsDeleted" BOOLEAN DEFAULT FALSE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -200,7 +214,7 @@ CREATE TABLE "ChatUser" (
 CREATE TABLE "ChatUserContent" (
     "ContentId" SERIAL PRIMARY KEY,
     "MatchId" INT REFERENCES "ChatUser"("MatchId"),
-    "FromUserId" INT REFERENCES "User"("UserId"),
+    "FromPetId" INT REFERENCES "Pet"("PetId"),
     "Message" TEXT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
@@ -524,22 +538,22 @@ VALUES
 -- ===========================
 -- BẢNG ChatUser
 -- ===========================
-INSERT INTO "ChatUser" ("FromUserId", "ToUserId", "Status")
+INSERT INTO "ChatUser" ("FromPetId", "ToPetId", "Status")
 VALUES
-((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
- (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+((SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
+ (SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
  'Accepted');
 
 -- ===========================
 -- BẢNG ChatUserContent
 -- ===========================
-INSERT INTO "ChatUserContent" ("MatchId", "FromUserId", "Message")
+INSERT INTO "ChatUserContent" ("MatchId", "FromPetId", "Message")
 VALUES
-((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Matched'),
- (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
+ (SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
  'Chào bạn, tôi muốn nhờ bạn tư vấn cho thú cưng của tôi!'),
-((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Matched'),
- (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
+ (SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
  'Chào bạn, tôi rất sẵn lòng giúp!');
 
 -- ===========================

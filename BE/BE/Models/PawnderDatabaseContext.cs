@@ -51,6 +51,8 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<UserBanHistory> UserBanHistories { get; set; }
+
     public virtual DbSet<UserPreference> UserPreferences { get; set; }
 
     public virtual DbSet<UserStatus> UserStatuses { get; set; }
@@ -196,21 +198,13 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.ChatUserFromUsers)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("ChatUser_FromUserId_fkey");
-
-            entity.HasOne(d => d.ToUser).WithMany(p => p.ChatUserToUsers)
-                .HasForeignKey(d => d.ToUserId)
-                .HasConstraintName("ChatUser_ToUserId_fkey");
-
-            entity.HasOne(d => d.FromPet).WithMany()
+            entity.HasOne(d => d.FromPet).WithMany(p => p.ChatUserFromPets)
                 .HasForeignKey(d => d.FromPetId)
-                .HasConstraintName("FK_ChatUser_FromPet");
+                .HasConstraintName("ChatUser_FromPetId_fkey");
 
-            entity.HasOne(d => d.ToPet).WithMany()
+            entity.HasOne(d => d.ToPet).WithMany(p => p.ChatUserToPets)
                 .HasForeignKey(d => d.ToPetId)
-                .HasConstraintName("FK_ChatUser_ToPet");
+                .HasConstraintName("ChatUser_ToPetId_fkey");
         });
 
         modelBuilder.Entity<ChatUserContent>(entity =>
@@ -226,9 +220,9 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.ChatUserContents)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("ChatUserContent_FromUserId_fkey");
+            entity.HasOne(d => d.FromPet).WithMany(p => p.ChatUserContents)
+                .HasForeignKey(d => d.FromPetId)
+                .HasConstraintName("ChatUserContent_FromPetId_fkey");
 
             entity.HasOne(d => d.Match).WithMany(p => p.ChatUserContents)
                 .HasForeignKey(d => d.MatchId)
@@ -429,7 +423,6 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasFilter("\"IsDeleted\" = FALSE");   // PostgreSQL filtered index
         });
 
-
         modelBuilder.Entity<Report>(entity =>
         {
             entity.HasKey(e => e.ReportId).HasName("Report_pkey");
@@ -502,6 +495,29 @@ public partial class PawnderDatabaseContext : DbContext
             entity.HasOne(d => d.UserStatus).WithMany(p => p.Users)
                 .HasForeignKey(d => d.UserStatusId)
                 .HasConstraintName("User_UserStatusId_fkey");
+        });
+
+        modelBuilder.Entity<UserBanHistory>(entity =>
+        {
+            entity.HasKey(e => e.BanId).HasName("UserBanHistory_pkey");
+
+            entity.ToTable("UserBanHistory");
+
+            entity.Property(e => e.BanEnd).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.BanStart)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserBanHistories)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("UserBanHistory_UserId_fkey");
         });
 
         modelBuilder.Entity<UserPreference>(entity =>

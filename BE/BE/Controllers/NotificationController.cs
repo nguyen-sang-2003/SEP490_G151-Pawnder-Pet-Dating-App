@@ -1,100 +1,95 @@
 using BE.DTO;
 using BE.Models;
+using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho Notification - chỉ nhận request và trả response
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class NotificationController : Controller
     {
-        private readonly PawnderDatabaseContext _context;
-        public NotificationController(PawnderDatabaseContext context)
+        private readonly INotificationService _notificationService;
+
+        public NotificationController(INotificationService notificationService)
         {
-            _context = context;
+            _notificationService = notificationService;
         }
 
         // GET /notification
         [Authorize(Roles = "Admin")]
         [HttpGet]
-        public async Task<ActionResult> GetAllNotifications()
+        public async Task<ActionResult> GetAllNotifications(CancellationToken ct = default)
         {
-            var notifications = await _context.Notifications
-                .Include(n => n.User)
-                .Select(n => new NotificationDto
-                {
-                    NotificationId = n.NotificationId,
-                    Title = n.Title,
-                    Message = n.Message,
-                    CreatedAt = n.CreatedAt,
-                    UserId = n.UserId,
-                    UserName = n.User != null ? n.User.FullName : null
-                })
-                .ToListAsync();
-
-            return Ok(notifications);
+            try
+            {
+                var notifications = await _notificationService.GetAllNotificationsAsync(ct);
+                return Ok(notifications);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // GET /notification/{notificationId}
         [Authorize(Roles = "Admin,User")]
         [HttpGet("{notificationId:int}")]
-        public async Task<ActionResult> GetNotificationById(int notificationId)
+        public async Task<ActionResult> GetNotificationById(int notificationId, CancellationToken ct = default)
         {
-            var notification = await _context.Notifications
-                .Include(n => n.User)
-                .Select(n => new NotificationDto
-                {
-                    NotificationId = n.NotificationId,
-                    Title = n.Title,
-                    Message = n.Message,
-                    CreatedAt = n.CreatedAt,
-                    UserId = n.UserId,
-                    UserName = n.User != null ? n.User.FullName : null
-                })
-                .FirstOrDefaultAsync(n => n.NotificationId == notificationId);
+            try
+            {
+                var notification = await _notificationService.GetNotificationByIdAsync(notificationId, ct);
+                
+                if (notification == null)
+                    return NotFound(new { Message = "Không tìm thấy thông báo" });
 
-            if (notification == null)
-                return NotFound(new { Message = "Không tìm thấy thông báo" });
-
-            return Ok(notification);
+                return Ok(notification);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // GET /notification/user/{userId}
-        [Authorize(Roles ="User")]
+        [Authorize(Roles = "User")]
         [HttpGet("user/{userId:int}")]
-        public async Task<IActionResult> GetNotificationsByUserId(int userId)
+        public async Task<IActionResult> GetNotificationsByUserId(int userId, CancellationToken ct = default)
         {
-            // Return all notifications (filter removed for now)
-            var notifications = await _context.Notifications
-                .Where(n => n.UserId == userId)
-                .OrderByDescending(n => n.CreatedAt)
-                .ToListAsync();
-
-            return Ok(notifications);
+            try
+            {
+                var notifications = await _notificationService.GetNotificationsByUserIdAsync(userId, ct);
+                return Ok(notifications);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // POST /notification
         [Authorize(Roles = "Admin,User")]
         [HttpPost]
-        public async Task<IActionResult> CreateNotification([FromBody] NotificationDto_1 notificationDto)
+        public async Task<IActionResult> CreateNotification([FromBody] NotificationDto_1 notificationDto, CancellationToken ct = default)
         {
-            if (notificationDto == null)
-                return BadRequest(new { Message = "Thông báo không hợp lệ" });
-
-            Notification notification = new Notification();
-
-            notification.UserId = notificationDto.UserId;
-            notification.Title = notificationDto.Title; 
-            notification.Message = notificationDto.Message;
-            notification.CreatedAt = DateTime.Now;
-            notification.UpdatedAt = DateTime.Now;
-
-            _context.Notifications.Add(notification);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetNotificationById), new { notificationId = notification.NotificationId }, notification);
+            try
+            {
+                var notification = await _notificationService.CreateNotificationAsync(notificationDto, ct);
+                return CreatedAtAction(nameof(GetNotificationById), new { notificationId = notification.NotificationId }, notification);
+            }
+            catch (ArgumentNullException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // PUT /notification/{notificationId}/read
@@ -152,16 +147,21 @@ namespace BE.Controllers
         // DELETE /notification/{notificationId}
         [Authorize(Roles = "Admin,User")]
         [HttpDelete("{notificationId:int}")]
-        public async Task<IActionResult> DeleteNotification(int notificationId)
+        public async Task<IActionResult> DeleteNotification(int notificationId, CancellationToken ct = default)
         {
-            var notification = await _context.Notifications.FindAsync(notificationId);
-            if (notification == null)
-                return NotFound(new { Message = "Không tìm thấy thông báo" });
+            try
+            {
+                var success = await _notificationService.DeleteNotificationAsync(notificationId, ct);
+                
+                if (!success)
+                    return NotFound(new { Message = "Không tìm thấy thông báo" });
 
-            _context.Notifications.Remove(notification);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Đã xóa thông báo thành công" });
+                return Ok(new { Message = "Đã xóa thông báo thành công" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
     }
 }
