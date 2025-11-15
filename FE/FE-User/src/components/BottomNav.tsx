@@ -8,7 +8,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { colors, gradients, shadows } from "../theme";
 import { useAppSelector } from "../app/hooks";
-import { selectChatBadge, selectFavoriteBadge } from "../features/badge/badgeSlice";
+import { selectChatBadge, selectFavoriteBadge, selectNotificationBadge } from "../features/badge/badgeSlice";
 
 // Đồng bộ Tab với RootStackParamList
 export type Tab = keyof Pick<
@@ -27,6 +27,7 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
   // Get badge counts from Redux
   const chatBadge = useAppSelector(selectChatBadge);
   const favoriteBadge = useAppSelector(selectFavoriteBadge);
+  const notificationBadge = useAppSelector(selectNotificationBadge);
   
   // Debug logging
 
@@ -82,7 +83,11 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
           const isActive = active === item.key;
           
           // 🚀 OPTIMIZATION: Calculate badge count efficiently
-          const badgeCount = item.key === "Chat" ? chatBadge : item.key === "Favorite" ? favoriteBadge : 0;
+          const badgeCount = 
+            item.key === "Home" ? notificationBadge :
+            item.key === "Chat" ? chatBadge : 
+            item.key === "Favorite" ? favoriteBadge : 
+            0;
           
           return (
             <TouchableOpacity

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  Modal,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -28,6 +29,8 @@ const NotificationScreen = ({ navigation }: Props) => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Get time ago string
   const getTimeAgo = (dateString: string): string => {
@@ -135,6 +138,10 @@ const NotificationScreen = ({ navigation }: Props) => {
   }, []);
 
   const handleNotificationPress = async (item: Notification) => {
+    // Show modal with notification details
+    setSelectedNotification(item);
+    setModalVisible(true);
+    
     // Mark as read
     if (!item.isRead) {
       try {
@@ -152,12 +159,11 @@ const NotificationScreen = ({ navigation }: Props) => {
         console.error('❌ Error marking notification as read:', error);
       }
     }
+  };
 
-    // Navigate based on type
-    if (item.type === "expert") {
-      navigation.navigate("ExpertConfirmation" as any);
-    }
-    // System notifications don't need navigation
+  const closeModal = () => {
+    setModalVisible(false);
+    setSelectedNotification(null);
   };
 
   // 🚀 OPTIMIZATION: Memoize renderNotification with useCallback
@@ -392,6 +398,187 @@ const NotificationScreen = ({ navigation }: Props) => {
           </Text>
         </View>
       )}
+
+      {/* Notification Detail Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={closeModal}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent} 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <LinearGradient
+                colors={selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert" 
+                  ? ["#FF6EA7", "#FF9BC0"] 
+                  : ["#FFB8D6", "#FF8FB7"]}
+                style={styles.modalIconGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Icon 
+                  name={selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert" 
+                    ? "medical" 
+                    : "sparkles"} 
+                  size={32} 
+                  color={colors.white} 
+                />
+              </LinearGradient>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={closeModal}
+              >
+                <Icon name="close" size={24} color={colors.textDark} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Modal Body */}
+            <ScrollView 
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Title */}
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>
+                  {selectedNotification?.title || 'Notification'}
+                </Text>
+                {(selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert") && (
+                  <View style={styles.modalExpertBadge}>
+                    <Icon name="shield-checkmark" size={14} color="#FF6EA7" />
+                    <Text style={styles.modalExpertBadgeText}>Expert</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Expert Reply Content */}
+              {(selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert") ? (
+                <>
+                  {/* Your Question */}
+                  <View style={styles.questionSection}>
+                    <View style={styles.sectionHeader}>
+                      <Icon name="help-circle" size={18} color={colors.primary} />
+                      <Text style={styles.sectionTitle}>Câu hỏi của bạn</Text>
+                    </View>
+                    <View style={styles.questionBox}>
+                      <Text style={styles.questionText}>
+                        {/* TODO: Replace with actual question from API */}
+                        Mèo của tôi bị chảy nước mắt và hắt hơi liên tục. Có phải mèo bị cảm không? Tôi cần làm gì?
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Expert Answer */}
+                  <View style={styles.answerSection}>
+                    <View style={styles.sectionHeader}>
+                      <Icon name="medical" size={18} color="#FF6EA7" />
+                      <Text style={styles.sectionTitle}>Câu trả lời từ chuyên gia</Text>
+                    </View>
+                    <View style={styles.answerBox}>
+                      <Text style={styles.answerText}>
+                        {selectedNotification?.message || 'No answer available'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Call to Action */}
+                  <View style={styles.ctaSection}>
+                    <LinearGradient
+                      colors={["#FFF8FB", "#FFF0F5"]}
+                      style={styles.ctaBox}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Icon name="chatbubbles" size={24} color={colors.primary} />
+                      <Text style={styles.ctaTitle}>
+                        Bạn có hài lòng với câu trả lời?
+                      </Text>
+                      <Text style={styles.ctaSubtitle}>
+                        Muốn thảo luận thêm với chuyên gia không?
+                      </Text>
+                    </LinearGradient>
+                  </View>
+                </>
+              ) : (
+                <>
+                  {/* Regular Message */}
+                  <Text style={styles.modalMessage}>
+                    {selectedNotification?.message || 'No message'}
+                  </Text>
+                </>
+              )}
+
+              {/* Time */}
+              {selectedNotification?.createdAt && (
+                <View style={styles.modalFooter}>
+                  <Icon name="time-outline" size={16} color={colors.textLabel} />
+                  <Text style={styles.modalTime}>
+                    {getTimeAgo(selectedNotification.createdAt)}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalActions}>
+              {(selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert") ? (
+                <>
+                  <TouchableOpacity 
+                    style={styles.modalButton}
+                    onPress={() => {
+                      closeModal();
+                      // Navigate to expert chat
+                      navigation.navigate("ExpertChat", { 
+                        expertId: selectedNotification?.userId || undefined,
+                        expertName: "Chuyên gia thú y"
+                      });
+                    }}
+                  >
+                    <LinearGradient
+                      colors={["#FF6EA7", "#FF9BC0"]}
+                      style={styles.modalButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Icon name="chatbubbles" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                      <Text style={styles.modalButtonText}>Nhắn tin với chuyên gia</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.modalSecondaryButton}
+                    onPress={closeModal}
+                  >
+                    <Text style={styles.modalSecondaryButtonText}>Đóng</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.modalButton}
+                  onPress={closeModal}
+                >
+                  <LinearGradient
+                    colors={["#FF6EA7", "#FF9BC0"]}
+                    style={styles.modalButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.modalButtonText}>Đã hiểu</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -658,6 +845,205 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     marginTop: 12,
     fontWeight: "600",
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    width: "100%",
+    maxWidth: 400,
+    maxHeight: "80%",
+    ...shadows.large,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 110, 167, 0.1)",
+  },
+  modalIconGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.whiteWarm,
+    justifyContent: "center",
+    alignItems: "center",
+    ...shadows.small,
+  },
+  modalBody: {
+    padding: 20,
+    maxHeight: 400,
+  },
+  modalTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+    flexWrap: "wrap",
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.textDark,
+    letterSpacing: -0.5,
+    flex: 1,
+  },
+  modalExpertBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF0F5",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 110, 167, 0.2)",
+  },
+  modalExpertBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: colors.textMedium,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  
+  // Expert Reply Sections
+  questionSection: {
+    marginBottom: 20,
+  },
+  answerSection: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textDark,
+  },
+  questionBox: {
+    backgroundColor: "#F8F9FA",
+    padding: 16,
+    borderRadius: radius.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+  },
+  questionText: {
+    fontSize: 15,
+    color: colors.textDark,
+    lineHeight: 22,
+    fontStyle: "italic",
+  },
+  answerBox: {
+    backgroundColor: "#FFF8FB",
+    padding: 16,
+    borderRadius: radius.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF6EA7",
+  },
+  answerText: {
+    fontSize: 15,
+    color: colors.textDark,
+    lineHeight: 22,
+  },
+  ctaSection: {
+    marginBottom: 16,
+  },
+  ctaBox: {
+    padding: 20,
+    borderRadius: radius.lg,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 110, 167, 0.2)",
+  },
+  ctaTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.textDark,
+    marginTop: 12,
+    textAlign: "center",
+  },
+  ctaSubtitle: {
+    fontSize: 14,
+    color: colors.textMedium,
+    marginTop: 6,
+    textAlign: "center",
+  },
+  modalFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 110, 167, 0.1)",
+  },
+  modalTime: {
+    fontSize: 14,
+    color: colors.textLabel,
+    fontWeight: "500",
+  },
+  modalActions: {
+    padding: 20,
+    paddingTop: 16,
+  },
+  modalButton: {
+    borderRadius: radius.xl,
+    overflow: "hidden",
+  },
+  modalButtonGradient: {
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.white,
+    letterSpacing: 0.5,
+  },
+  modalSecondaryButton: {
+    marginTop: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.xl,
+    backgroundColor: colors.whiteWarm,
+  },
+  modalSecondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textMedium,
   },
 });
 

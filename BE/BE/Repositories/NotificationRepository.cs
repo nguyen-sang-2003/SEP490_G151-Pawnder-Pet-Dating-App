@@ -70,11 +70,11 @@ namespace BE.Repositories
 
         public async Task<int> GetUnreadCountAsync(int userId, CancellationToken ct = default)
         {
-            // Only count system and expert notifications
+            // Count system, expert, and expert_reply notifications
             return await _dbSet
                 .Where(n => n.UserId == userId 
                            && !n.IsRead 
-                           && (n.Type == "system" || n.Type == "expert"))
+                           && (n.Type == "system" || n.Type == "expert_reply"))
                 .CountAsync(ct);
         }
     }

@@ -89,6 +89,7 @@ namespace BE.Repositories
             return await _dbSet
                 .Include(p => p.PetPhotos)
                 .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Attribute)
                 .Include(p => p.User)
                     .ThenInclude(u => u!.Address)
                 .Where(p => p.PetId == petId && (p.IsDeleted == false))

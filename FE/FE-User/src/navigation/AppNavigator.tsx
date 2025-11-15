@@ -32,6 +32,8 @@ const ChatScreen = lazy(() => import("../features/chat/screens/ChatScreen"));
 const ChatDetailScreen = lazy(() => import("../features/chat/screens/ChatDetailScreen"));
 const AIChatScreen = lazy(() => import("../features/chat/screens/AIChatScreen"));
 const AIChatListScreen = lazy(() => import("../features/chat/screens/AIChatListScreen"));
+const ExpertChatListScreen = lazy(() => import("../features/expert/screens/ExpertChatListScreen"));
+const ExpertChatScreen = lazy(() => import("../features/expert/screens/ExpertChatScreen"));
 const NotificationScreen = lazy(() => import("../features/notification/screens/NotificationScreen"));
 const FavoriteScreen = lazy(() => import("../features/favorite/screens/FavoriteScreen"));
 const UserProfileScreen = lazy(() => import("../features/profile/screens/UserProfileScreen"));
@@ -85,6 +87,8 @@ export type RootStackParamList = {
   };
   AIChatList: undefined;
   AIChat: { chatId?: string };
+  ExpertChatList: undefined;
+  ExpertChat: { expertId?: number; expertName?: string };
   Favorite: undefined;
   Profile: undefined;
   Notification: undefined;
@@ -201,6 +205,12 @@ const AppNavigator = () => {
         <Stack.Screen 
           name="AIChat" 
           component={LazyScreen(AIChatScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen name="ExpertChatList" component={LazyScreen(ExpertChatListScreen)} />
+        <Stack.Screen 
+          name="ExpertChat" 
+          component={LazyScreen(ExpertChatScreen)}
           options={detailScreenOptions}
         />
         <Stack.Screen name="Notification" component={LazyScreen(NotificationScreen)} />

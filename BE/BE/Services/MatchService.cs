@@ -48,25 +48,24 @@ namespace BE.Services
 
             // Business logic: Build query for match requests (both pending and accepted) excluding blocked users
             // Use ChatUser.FromUserId and ChatUser.ToUserId directly for filtering (more reliable than navigation properties)
+            // 🚀 OPTIMIZED: Reduced nested includes for better performance
             var query = _context.ChatUsers
                 .Include(c => c.FromPet)
                     .ThenInclude(p => p.User)
                         .ThenInclude(u => u!.Address)
                 .Include(c => c.FromPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
-                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.FromPet)
                     .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                .Include(c => c.FromPet)
+                    .ThenInclude(p => p.PetCharacteristics)
+                        .ThenInclude(pc => pc.Attribute)
                 .Include(c => c.ToPet)
                     .ThenInclude(p => p.User)
                         .ThenInclude(u => u!.Address)
                 .Include(c => c.ToPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
-                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.ToPet)
                     .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                .Include(c => c.ToPet)
+                    .ThenInclude(p => p.PetCharacteristics)
+                        .ThenInclude(pc => pc.Attribute)
                 .Where(c => c.IsDeleted == false &&
                            c.FromUserId != null && c.ToUserId != null &&
                            (
@@ -95,12 +94,26 @@ namespace BE.Services
                 bool isMatch = c.Status == "Accepted";
 
                 // Business logic: Get the OTHER user and pet (from match, not active pet)
-                // Use ChatUser fields directly, fall back to Pet.UserId if needed (null-safe)
+                // 🚀 OPTIMIZED: Get pet directly from FromPet/ToPet instead of User.Pets
                 var fromUserId = c.FromUserId ?? c.FromPet?.UserId;
                 var toUserId = c.ToUserId ?? c.ToPet?.UserId;
                 var otherUser = toUserId == userId ? c.FromPet?.User : c.ToPet?.User;
-                var otherPetId = toUserId == userId ? c.FromPetId : c.ToPetId;
-                var otherUserPet = otherUser?.Pets?.FirstOrDefault(p => p.PetId == otherPetId && p.IsDeleted == false);
+                var otherUserPet = toUserId == userId ? c.FromPet : c.ToPet;
+
+                // Business logic: Get Age from both Pet.Age (old) and PetCharacteristic (new)
+                // Priority: PetCharacteristic > Pet.Age
+                int? age = otherUserPet?.Age;
+                if (otherUserPet != null)
+                {
+                    var ageChar = otherUserPet.PetCharacteristics
+                        .FirstOrDefault(pc => pc.Attribute != null &&
+                                             (pc.Attribute.Name.ToLower() == "tuổi" ||
+                                              pc.Attribute.Name.ToLower() == "age"));
+                    if (ageChar != null && ageChar.Value.HasValue)
+                    {
+                        age = (int)Math.Round((double)ageChar.Value.Value);
+                    }
+                }
 
                 return new
                 {
@@ -130,7 +143,7 @@ namespace BE.Services
                         name = otherUserPet.Name,
                         breed = otherUserPet.Breed,
                         gender = otherUserPet.Gender,
-                        age = otherUserPet.Age,
+                        age = age,
                         description = otherUserPet.Description
                     } : null,
                     petPhotos = otherUserPet?.PetPhotos?
