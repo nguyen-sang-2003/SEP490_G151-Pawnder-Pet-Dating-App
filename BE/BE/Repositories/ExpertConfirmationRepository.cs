@@ -24,6 +24,7 @@ namespace BE.Repositories
                     ExpertId = ec.ExpertId,
                     Status = ec.Status,
                     Message = ec.Message,
+                    UserQuestion = ec.UserQuestion,
                     CreatedAt = ec.CreatedAt,
                     UpdatedAt = ec.UpdatedAt
                 })
@@ -52,6 +53,7 @@ namespace BE.Repositories
                     ExpertId = ec.ExpertId,
                     Status = ec.Status,
                     Message = ec.Message,
+                    UserQuestion = ec.UserQuestion,
                     CreatedAt = ec.CreatedAt,
                     UpdatedAt = ec.UpdatedAt
                 })

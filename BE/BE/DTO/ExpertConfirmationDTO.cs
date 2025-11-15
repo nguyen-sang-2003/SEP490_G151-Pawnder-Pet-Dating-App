@@ -6,7 +6,8 @@
 		public int ChatAiId { get; set; }
 		public int ExpertId { get; set; }
 		public string? Status { get; set; }       
-		public string? Message { get; set; }      
+		public string? Message { get; set; }
+		public string? UserQuestion { get; set; }
 		public DateTime? CreatedAt { get; set; }
 		public DateTime? UpdatedAt { get; set; }
 	}
@@ -23,6 +24,7 @@
 		public int ExpertId { get; set; }
 		public string? Status { get; set; }
 		public string? Message { get; set; }
+		public string? UserQuestion { get; set; }
 		public string ResultMessage { get; set; } = null!;
 		public DateTime? CreatedAt { get; set; }
 		public DateTime? UpdatedAt { get; set; }
@@ -52,6 +54,7 @@
 		public int ExpertId { get; set; }
 		public string? Status { get; set; }
 		public string? Message { get; set; }
+		public string? UserQuestion { get; set; }
 		public DateTime? CreatedAt { get; set; }
 		public DateTime? UpdatedAt { get; set; }
 		public string ResultMessage { get; set; } = "Đã chuyển yêu cầu xác nhận sang chuyên gia khác.";
