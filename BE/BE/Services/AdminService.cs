@@ -67,6 +67,7 @@ namespace BE.Services
                     ExpertId = existing.ExpertId,
                     Status = existing.Status,
                     Message = existing.Message,
+                    UserQuestion = existing.UserQuestion,
                     CreatedAt = existing.CreatedAt,
                     UpdatedAt = existing.UpdatedAt,
                     ResultMessage = "Yêu cầu đã thuộc về chuyên gia này."
@@ -86,6 +87,7 @@ namespace BE.Services
                 ExpertId = req.ToExpertId,
                 Status = newStatus,
                 Message = newMessage,
+                UserQuestion = existing.UserQuestion,
                 CreatedAt = existing.CreatedAt ?? now,
                 UpdatedAt = now
             };
@@ -99,6 +101,7 @@ namespace BE.Services
                 ExpertId = reassigned.ExpertId,
                 Status = reassigned.Status,
                 Message = reassigned.Message,
+                UserQuestion = reassigned.UserQuestion,
                 CreatedAt = reassigned.CreatedAt,
                 UpdatedAt = reassigned.UpdatedAt,
                 ResultMessage = "Đã chuyển yêu cầu xác nhận sang chuyên gia khác."

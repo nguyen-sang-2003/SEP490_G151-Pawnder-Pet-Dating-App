@@ -19,6 +19,8 @@ public partial class ExpertConfirmation
 
     public DateTime? UpdatedAt { get; set; }
 
+    public string? UserQuestion { get; set; }
+
     public virtual ChatAi ChatAi { get; set; } = null!;
 
     public virtual ICollection<ChatExpertContent> ChatExpertContents { get; set; } = new List<ChatExpertContent>();

@@ -31,7 +31,8 @@ namespace BE.Repositories
                     expertConfirmation = c.ExpertConfirmation != null ? new
                     {
                         status = c.ExpertConfirmation.Status,
-                        message = c.ExpertConfirmation.Message
+                        message = c.ExpertConfirmation.Message,
+                        userQuestion = c.ExpertConfirmation.UserQuestion
                     } : null,
                     createdAt = c.CreatedAt,
                     updatedAt = c.UpdatedAt

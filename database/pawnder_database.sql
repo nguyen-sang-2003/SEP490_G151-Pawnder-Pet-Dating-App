@@ -188,6 +188,7 @@ CREATE TABLE "ExpertConfirmation" (
     "ExpertId" INT REFERENCES "User"("UserId"),
     "UserId" INT REFERENCES "User"("UserId"),
     "ChatAIId" INT REFERENCES "ChatAI"("ChatAIId"),
+    "UserQuestion" TEXT,
     "Status" VARCHAR(50),
     "Message" TEXT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
