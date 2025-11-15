@@ -21,6 +21,8 @@ public partial class ExpertConfirmation
 
     public virtual ChatAi ChatAi { get; set; } = null!;
 
+    public virtual ICollection<ChatExpertContent> ChatExpertContents { get; set; } = new List<ChatExpertContent>();
+
     public virtual User Expert { get; set; } = null!;
 
     public virtual User User { get; set; } = null!;
