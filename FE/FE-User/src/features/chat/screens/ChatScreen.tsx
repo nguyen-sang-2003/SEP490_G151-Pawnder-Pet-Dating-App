@@ -402,32 +402,48 @@ const ChatScreen = ({ navigation }: Props) => {
         )}
       </View>
 
-      {/* AI Chat Option - Highlighted */}
-      <TouchableOpacity 
-        style={styles.aiChatCard}
-        onPress={() => navigation.navigate("AIChatList")}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={gradients.ai}
-          style={styles.aiChatGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+      {/* Special Chat Options */}
+      <View style={styles.specialChatsContainer}>
+        {/* AI Chat Option */}
+        <TouchableOpacity 
+          style={styles.specialChatCard}
+          onPress={() => navigation.navigate("AIChatList")}
+          activeOpacity={0.8}
         >
-          <View style={styles.aiChatIconContainer}>
-            <Icon name="sparkles" size={24} color={colors.white} />
-          </View>
-          <View style={styles.aiChatContent}>
-            <View style={styles.aiChatText}>
-              <Text style={styles.aiChatTitle}>Chat with AI</Text>
-              <Text style={styles.aiChatSubtitle}>
-                Get instant pet care advice 
-              </Text>
+          <LinearGradient
+            colors={gradients.ai}
+            style={styles.specialChatGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.specialChatIconContainer}>
+              <Icon name="sparkles" size={24} color={colors.white} />
             </View>
-            <Icon name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
+            <Text style={styles.specialChatTitle}>AI Assistant</Text>
+            <Text style={styles.specialChatSubtitle}>Instant advice</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Expert Chat Option */}
+        <TouchableOpacity 
+          style={styles.specialChatCard}
+          onPress={() => navigation.navigate("ExpertChatList")}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={["#4CAF50", "#66BB6A"]}
+            style={styles.specialChatGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.specialChatIconContainer}>
+              <Icon name="medical" size={24} color={colors.white} />
+            </View>
+            <Text style={styles.specialChatTitle}>Chuyên gia</Text>
+            <Text style={styles.specialChatSubtitle}>Tư vấn chuyên sâu</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
 
       {/* Chat List */}
       <View style={styles.chatListHeader}>
@@ -571,6 +587,47 @@ const styles = StyleSheet.create({
   aiChatSubtitle: {
     fontSize: 13,
     color: "rgba(255,255,255,0.85)",
+  },
+
+  // Special Chats Container (AI + Expert)
+  specialChatsContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  specialChatCard: {
+    flex: 1,
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    ...shadows.large,
+  },
+  specialChatGradient: {
+    padding: 18,
+    minHeight: 120,
+    justifyContent: "space-between",
+  },
+  specialChatIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  specialChatTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.white,
+    marginBottom: 4,
+    letterSpacing: 0.2,
+  },
+  specialChatSubtitle: {
+    fontSize: 12,
+    color: colors.white,
+    opacity: 0.9,
+    fontWeight: "500",
   },
 
   // Chat List
