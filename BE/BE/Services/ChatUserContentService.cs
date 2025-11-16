@@ -45,6 +45,8 @@ namespace BE.Services
 
             // Business logic: Validate match exists and is accepted
             var match = await _context.ChatUsers
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
                 .FirstOrDefaultAsync(c => c.MatchId == matchId && c.Status == "Accepted" && c.IsDeleted == false, ct);
             if (match == null)
                 throw new KeyNotFoundException("Không tồn tại đoạn chat.");
@@ -78,13 +80,13 @@ namespace BE.Services
 
             // Business logic: Send badge notification to recipient
             int? toUserId = null;
-            if (match.FromPetId == fromPetId)
+            if (match.FromPetId == fromPetId && match.ToPet != null)
             {
-                toUserId = match.ToUserId;
+                toUserId = match.ToPet.UserId;
             }
-            else if (match.ToPetId == fromPetId)
+            else if (match.ToPetId == fromPetId && match.FromPet != null)
             {
-                toUserId = match.FromUserId;
+                toUserId = match.FromPet.UserId;
             }
 
             if (toUserId.HasValue)

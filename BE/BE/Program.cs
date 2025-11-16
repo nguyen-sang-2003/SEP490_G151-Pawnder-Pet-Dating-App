@@ -111,6 +111,8 @@ builder.Services.AddScoped<BE.Repositories.Interfaces.IPaymentHistoryRepository,
 builder.Services.AddScoped<BE.Repositories.Interfaces.IReportRepository, BE.Repositories.ReportRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserRepository, BE.Repositories.ChatUserRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserContentRepository, BE.Repositories.ChatUserContentRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertRepository, BE.Repositories.ChatExpertRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertContentRepository, BE.Repositories.ChatExpertContentRepository>();
 
 // ============================================
 // Register Services (Service Layer)
@@ -136,6 +138,8 @@ builder.Services.AddScoped<BE.Services.Interfaces.IAdminService, BE.Services.Adm
 builder.Services.AddScoped<BE.Services.Interfaces.IAuthService, BE.Services.AuthService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IChatUserService, BE.Services.ChatUserService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IChatUserContentService, BE.Services.ChatUserContentService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertService, BE.Services.ChatExpertService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.Services.ChatExpertContentService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
 
 var app = builder.Build();

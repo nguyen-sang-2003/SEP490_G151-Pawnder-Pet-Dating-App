@@ -48,28 +48,33 @@ namespace BE.Services
 
             // Business logic: Build query for match requests (both pending and accepted) excluding blocked users
             var query = _context.ChatUsers
-                .Include(c => c.FromUser)
-                    .ThenInclude(u => u!.Address)
-                .Include(c => c.FromUser)
-                    .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
-                        .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.ToUser)
-                    .ThenInclude(u => u!.Address)
-                .Include(c => c.ToUser)
-                    .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
-                        .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                .Include(c => c.FromPet)
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u!.Address)
+                .Include(c => c.FromPet)
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
+                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(c => c.FromPet)
                     .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(c => c.ToPet)
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u!.Address)
+                .Include(c => c.ToPet)
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
+                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                .Include(c => c.ToPet)
                     .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Where(c => c.IsDeleted == false &&
+                           c.FromPet != null && c.ToPet != null &&
+                           c.FromPet.UserId != null && c.ToPet.UserId != null &&
                            (
-                               (c.ToUserId == userId && c.Status == "Pending") ||
-                               ((c.FromUserId == userId || c.ToUserId == userId) && c.Status == "Accepted")
+                               (c.ToPet.UserId == userId && c.Status == "Pending") ||
+                               ((c.FromPet.UserId == userId || c.ToPet.UserId == userId) && c.Status == "Accepted")
                            ) &&
-                           c.FromUserId != null && c.ToUserId != null &&
-                           !allBlockedUserIds.Contains(c.FromUserId.Value) &&
-                           !allBlockedUserIds.Contains(c.ToUserId.Value));
+                           !allBlockedUserIds.Contains(c.FromPet.UserId.Value) &&
+                           !allBlockedUserIds.Contains(c.ToPet.UserId.Value));
 
             // Business logic: Filter by petId if provided
             if (petId.HasValue)
@@ -85,14 +90,17 @@ namespace BE.Services
                 bool isMatch = c.Status == "Accepted";
 
                 // Business logic: Get the OTHER user and pet (from match, not active pet)
-                var otherUser = c.ToUserId == userId ? c.FromUser : c.ToUser;
-                var otherPetId = c.ToUserId == userId ? c.FromPetId : c.ToPetId;
+                var fromUserId = c.FromPet?.UserId;
+                var toUserId = c.ToPet?.UserId;
+                var otherUser = toUserId == userId ? c.FromPet?.User : c.ToPet?.User;
+                var otherPetId = toUserId == userId ? c.FromPetId : c.ToPetId;
                 var otherUserPet = otherUser?.Pets?.FirstOrDefault(p => p.PetId == otherPetId && p.IsDeleted == false);
 
                 return new
                 {
                     matchId = c.MatchId,
-                    fromUserId = c.FromUserId,
+                    fromUserId = fromUserId,
+                    toUserId = toUserId,
                     status = c.Status,
                     createdAt = c.CreatedAt,
                     isMatch = isMatch,
@@ -132,18 +140,36 @@ namespace BE.Services
 
         public async Task<object> GetStatsAsync(int userId, CancellationToken ct = default)
         {
-            // Business logic: Count matches (Accepted status where user is involved)
+            // Business logic: Get user's pet IDs
+            var userPetIds = await _context.Pets
+                .Where(p => p.UserId == userId && p.IsDeleted == false)
+                .Select(p => p.PetId)
+                .ToListAsync(ct);
+
+            if (!userPetIds.Any())
+            {
+                return new { matches = 0, likes = 0 };
+            }
+
+            var userPetIdSet = userPetIds.ToHashSet();
+
+            // Business logic: Count matches (Accepted status where user's pets are involved)
             var matchesCount = await _context.ChatUsers
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
                 .Where(c => c.IsDeleted == false
                            && c.Status == "Accepted"
-                           && (c.FromUserId == userId || c.ToUserId == userId))
+                           && c.FromPet != null && c.ToPet != null
+                           && (userPetIdSet.Contains(c.FromPetId ?? -1) || userPetIdSet.Contains(c.ToPetId ?? -1)))
                 .CountAsync(ct);
 
-            // Business logic: Count likes received (Pending status where user is recipient)
+            // Business logic: Count likes received (Pending status where user's pets are recipient)
             var likesCount = await _context.ChatUsers
+                .Include(c => c.ToPet)
                 .Where(c => c.IsDeleted == false
                            && c.Status == "Pending"
-                           && c.ToUserId == userId)
+                           && c.ToPet != null
+                           && userPetIdSet.Contains(c.ToPetId ?? -1))
                 .CountAsync(ct);
 
             return new
@@ -184,8 +210,11 @@ namespace BE.Services
 
             // Business logic: Check if already exists (sent by current user with SAME pet pair)
             var existingLike = await _context.ChatUsers
-                .FirstOrDefaultAsync(c => c.FromUserId == request.FromUserId
-                                        && c.ToUserId == request.ToUserId
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .FirstOrDefaultAsync(c => c.FromPet != null && c.ToPet != null
+                                        && c.FromPet.UserId == request.FromUserId
+                                        && c.ToPet.UserId == request.ToUserId
                                         && c.FromPetId == request.FromPetId
                                         && c.ToPetId == request.ToPetId
                                         && c.IsDeleted == false, ct);
@@ -195,8 +224,11 @@ namespace BE.Services
 
             // Business logic: Check if the other user already liked us (mutual like with REVERSED pet pair)
             var reciprocalLike = await _context.ChatUsers
-                .FirstOrDefaultAsync(c => c.FromUserId == request.ToUserId
-                                        && c.ToUserId == request.FromUserId
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .FirstOrDefaultAsync(c => c.FromPet != null && c.ToPet != null
+                                        && c.FromPet.UserId == request.ToUserId
+                                        && c.ToPet.UserId == request.FromUserId
                                         && c.FromPetId == request.ToPetId
                                         && c.ToPetId == request.FromPetId
                                         && c.IsDeleted == false, ct);
@@ -248,11 +280,14 @@ namespace BE.Services
                     await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName, request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
                 }
 
+                var fromUserId = reciprocalLike.FromPet?.UserId;
+                var toUserId = reciprocalLike.ToPet?.UserId;
+
                 return new
                 {
                     matchId = reciprocalLike.MatchId,
-                    fromUserId = reciprocalLike.FromUserId,
-                    toUserId = reciprocalLike.ToUserId,
+                    fromUserId = fromUserId,
+                    toUserId = toUserId,
                     status = reciprocalLike.Status,
                     isMatch = true,
                     message = "It's a match!"
@@ -262,8 +297,6 @@ namespace BE.Services
             // Business logic: No mutual like yet, just create pending
             var chatUser = new ChatUser
             {
-                FromUserId = request.FromUserId,
-                ToUserId = request.ToUserId,
                 FromPetId = request.FromPetId,
                 ToPetId = request.ToPetId,
                 Status = "Pending",
@@ -288,11 +321,17 @@ namespace BE.Services
             // Business logic: Get remaining count for response
             int remainingMatches = await _dailyLimitService.GetRemainingCount(request.FromUserId, "request_match");
 
+            // Get UserIds from pets after save
+            var savedChatUser = await _context.ChatUsers
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
+                .FirstOrDefaultAsync(c => c.MatchId == chatUser.MatchId, ct);
+
             return new
             {
                 matchId = chatUser.MatchId,
-                fromUserId = chatUser.FromUserId,
-                toUserId = chatUser.ToUserId,
+                fromUserId = savedChatUser?.FromPet?.UserId,
+                toUserId = savedChatUser?.ToPet?.UserId,
                 status = chatUser.Status,
                 isMatch = false,
                 message = "Like sent",
@@ -312,14 +351,28 @@ namespace BE.Services
 
             if (request.Action.ToLower() == "match")
             {
+                // Business logic: Load pets to get user IDs
+                await _context.Entry(chatUser)
+                    .Reference(c => c.FromPet)
+                    .LoadAsync(ct);
+                await _context.Entry(chatUser)
+                    .Reference(c => c.ToPet)
+                    .LoadAsync(ct);
+
+                if (chatUser.FromPet == null || chatUser.ToPet == null || 
+                    chatUser.FromPet.UserId == null || chatUser.ToPet.UserId == null)
+                {
+                    throw new InvalidOperationException("Không tìm thấy thông tin pet hoặc user.");
+                }
+
                 // Business logic: Accept the like - it's a match!
                 chatUser.Status = "Accepted";
                 chatUser.UpdatedAt = DateTime.Now;
                 await _chatUserRepository.UpdateAsync(chatUser, ct);
 
                 // Business logic: Get user names and pets for notifications
-                var user1 = await _context.Users.FindAsync(chatUser.FromUserId);
-                var user2 = await _context.Users.FindAsync(chatUser.ToUserId);
+                var user1 = await _context.Users.FindAsync(chatUser.FromPet.UserId);
+                var user2 = await _context.Users.FindAsync(chatUser.ToPet.UserId);
 
                 // Business logic: Get pets involved in this match with photos
                 var pet1 = await _context.Pets
@@ -343,13 +396,13 @@ namespace BE.Services
                     .FirstOrDefault();
 
                 // Business logic: Create notification
-                await CreateMatchNotification(chatUser.FromUserId!.Value, chatUser.ToUserId!.Value, chatUser.MatchId, ct);
+                await CreateMatchNotification(chatUser.FromPet.UserId.Value, chatUser.ToPet.UserId.Value, chatUser.MatchId, ct);
 
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromUserId.Value, user2.FullName, chatUser.ToUserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToUserId.Value, user1.FullName, chatUser.FromUserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromPet.UserId.Value, user2.FullName, chatUser.ToPet.UserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToPet.UserId.Value, user1.FullName, chatUser.FromPet.UserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
                 }
 
                 return new
@@ -378,17 +431,30 @@ namespace BE.Services
 
         public async Task<object> GetBadgeCountsAsync(int userId, int? petId, CancellationToken ct = default)
         {
-            // Business logic: Get all accepted matches for this user
+            // Business logic: Get user's pet IDs
+            var userPetIds = await _context.Pets
+                .Where(p => p.UserId == userId && p.IsDeleted == false)
+                .Select(p => p.PetId)
+                .ToListAsync(ct);
+
+            if (!userPetIds.Any())
+            {
+                return new { unreadChats = new List<int>(), favoriteBadge = 0 };
+            }
+
+            var userPetIdSet = userPetIds.ToHashSet();
+            var filterSet = petId.HasValue && userPetIdSet.Contains(petId.Value) 
+                ? new HashSet<int> { petId.Value } 
+                : userPetIdSet;
+
+            // Business logic: Get all accepted matches for this user's pets
             var query = _context.ChatUsers
+                .Include(c => c.FromPet)
+                .Include(c => c.ToPet)
                 .Where(c => c.IsDeleted == false
                            && c.Status == "Accepted"
-                           && (c.FromUserId == userId || c.ToUserId == userId));
-
-            // Business logic: Filter by petId if provided
-            if (petId.HasValue)
-            {
-                query = query.Where(c => c.FromPetId == petId.Value || c.ToPetId == petId.Value);
-            }
+                           && c.FromPet != null && c.ToPet != null
+                           && (filterSet.Contains(c.FromPetId ?? -1) || filterSet.Contains(c.ToPetId ?? -1)));
 
             var acceptedMatches = await query
                 .Select(c => c.MatchId)
@@ -399,11 +465,13 @@ namespace BE.Services
             foreach (var matchId in acceptedMatches)
             {
                 var lastMessage = await _context.ChatUserContents
+                    .Include(c => c.FromPet)
                     .Where(c => c.MatchId == matchId)
                     .OrderByDescending(c => c.CreatedAt)
                     .FirstOrDefaultAsync(ct);
 
-                if (lastMessage != null && lastMessage.FromUserId != userId)
+                if (lastMessage != null && lastMessage.FromPet != null && 
+                    lastMessage.FromPet.UserId != userId)
                 {
                     // Last message is from other user = unread
                     unreadChats.Add(matchId);
@@ -412,15 +480,11 @@ namespace BE.Services
 
             // Business logic: Count pending likes (people who liked you)
             var pendingLikesQuery = _context.ChatUsers
+                .Include(c => c.ToPet)
                 .Where(c => c.IsDeleted == false
                            && c.Status == "Pending"
-                           && c.ToUserId == userId);
-
-            // Business logic: Filter by petId if provided
-            if (petId.HasValue)
-            {
-                pendingLikesQuery = pendingLikesQuery.Where(c => c.ToPetId == petId.Value);
-            }
+                           && c.ToPet != null
+                           && filterSet.Contains(c.ToPetId ?? -1));
 
             var pendingLikesCount = await pendingLikesQuery.CountAsync(ct);
 
