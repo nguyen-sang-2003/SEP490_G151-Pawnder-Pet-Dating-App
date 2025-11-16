@@ -251,9 +251,10 @@ CREATE TABLE "Block" (
 CREATE TABLE "PaymentHistory" (
     "HistoryId" SERIAL PRIMARY KEY,
     "UserId" INT REFERENCES "User"("UserId"),
-    "StatusService" VARCHAR(100),
+    "StatusService" VARCHAR(100),     -- "ACTIVE", "EXPIRED", "CANCELLED"
     "StartDate" DATE,
     "EndDate" DATE,
+    "Amount" DECIMAL(10,2),           -- Số tiền thanh toán VIP (99,000đ)
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );

@@ -9,13 +9,17 @@ namespace BE.Services
         private readonly PawnderDatabaseContext _context;
 
         // Định nghĩa limit cho từng loại action
-        // 🧪 TEST MODE: Giảm limits để dễ test
-        private readonly Dictionary<string, (int NormalLimit, int VipLimit)> _actionLimits = new()
+        // ⭐ MÔ HÌNH FREEMIUM:
+        // - Free users: 10,000 tokens/ngày
+        // - VIP users: 50,000 tokens/ngày (5x nhiều hơn)
+        private const int FREE_TOKENS_PER_DAY = 10000;
+        private const int VIP_TOKENS_PER_DAY = 50000;
+        
+        private readonly Dictionary<string, (int FreeQuota, int VipLimit)> _actionLimits = new()
         {
-            { "request_match", (2, 10) },          // Request match: thường 3, VIP 10 (Production: 20, 100)
-            { "ai_chat_question", (2, 15) },       // AI chat question: thường 5, VIP 15 (Production: 30, 150)
-            { "expert_confirm", (1, 5) }           // Expert confirm: thường 2, VIP 5 (Production: 3, 10)
-            // ❌ ai_filter: REMOVED - không giới hạn, user có thể filter pet thoải mái
+            { "request_match", (10, 50) },          // Request match: 3 free/ngày, VIP 50
+            { "expert_confirm", (2, 10) }          // Expert confirm: 2 free/ngày, VIP 10
+            // ai_chat_question: Xử lý riêng bằng FREE_TOKENS_PER_DAY
         };
 
         public DailyLimitService(PawnderDatabaseContext context)
@@ -45,11 +49,70 @@ namespace BE.Services
             
             if (_actionLimits.TryGetValue(actionType.ToLower(), out var limits))
             {
-                return isVip ? limits.VipLimit : limits.NormalLimit;
+                return isVip ? limits.VipLimit : limits.FreeQuota;
             }
 
             // Nếu không tìm thấy action type, trả về limit mặc định
             return -1;
+        }
+
+        // Lấy free quota cho action (cho user thường)
+        public async Task<int> GetFreeQuotaForAction(string actionType)
+        {
+            if (actionType.ToLower() == "ai_chat_question")
+            {
+                return FREE_TOKENS_PER_DAY;  // Trả về số tokens, không phải số lượt
+            }
+            
+            if (_actionLimits.TryGetValue(actionType.ToLower(), out var limits))
+            {
+                return limits.FreeQuota;
+            }
+            return 0;
+        }
+
+        // Lấy số tokens free đã dùng hôm nay cho AI chat
+        public async Task<int> GetFreeTokensUsedToday(int userId)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            
+            var dailyLimit = await _context.DailyLimits
+                .FirstOrDefaultAsync(dl => dl.UserId == userId 
+                    && dl.ActionType.ToLower() == "ai_chat_question" 
+                    && dl.ActionDate == today);
+
+            return dailyLimit?.Count ?? 0;  // Count lưu số tokens đã dùng
+        }
+
+        // Ghi nhận số tokens đã dùng (cho AI chat)
+        public async Task<bool> RecordTokenUsage(int userId, int tokensUsed)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            
+            var dailyLimit = await _context.DailyLimits
+                .FirstOrDefaultAsync(dl => dl.UserId == userId 
+                    && dl.ActionType.ToLower() == "ai_chat_question" 
+                    && dl.ActionDate == today);
+
+            if (dailyLimit == null)
+            {
+                dailyLimit = new DailyLimit
+                {
+                    UserId = userId,
+                    ActionType = "ai_chat_question",
+                    ActionDate = today,
+                    Count = tokensUsed,
+                    CreatedAt = DateTime.Now
+                };
+                _context.DailyLimits.Add(dailyLimit);
+            }
+            else
+            {
+                dailyLimit.Count = (dailyLimit.Count ?? 0) + tokensUsed;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         // Kiểm tra user có thể thực hiện action không (chưa vượt quá limit)

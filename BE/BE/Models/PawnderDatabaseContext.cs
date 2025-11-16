@@ -321,6 +321,8 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.StatusService).HasMaxLength(100);
+           
+            entity.Property(e => e.Amount).HasPrecision(10, 2);
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");

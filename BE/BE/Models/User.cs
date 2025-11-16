@@ -33,6 +33,8 @@ public partial class User
 
     public bool IsProfileComplete { get; set; } = false;   // <-- thêm
 
+   
+
     public virtual Address? Address { get; set; }
 
     public virtual ICollection<Block> BlockFromUsers { get; set; } = new List<Block>();
