@@ -1,4 +1,5 @@
 ﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -18,6 +19,7 @@ namespace BE.Controllers
 
 		// GET /block/{fromUserId}
 		[HttpGet("block/{fromUserId}")]
+		[Authorize(Roles = "User")]
 		public async Task<ActionResult> GetBlockedUsers(int fromUserId, CancellationToken ct = default)
 		{
 			try
@@ -37,6 +39,7 @@ namespace BE.Controllers
 
 		// POST /block/{fromUserId}/{toUserId}
 		[HttpPost("block/{fromUserId}/{toUserId}")]
+		[Authorize(Roles = "User")]
 		public async Task<ActionResult> CreateBlock(int fromUserId, int toUserId, CancellationToken ct = default)
 		{
 			try
@@ -60,6 +63,7 @@ namespace BE.Controllers
 
 		// DELETE /block/{fromUserId}/{toUserId}
 		[HttpDelete("block/{fromUserId}/{toUserId}")]
+		[Authorize(Roles = "User")]
 		public async Task<ActionResult> DeleteBlock(int fromUserId, int toUserId, CancellationToken ct = default)
 		{
 			try

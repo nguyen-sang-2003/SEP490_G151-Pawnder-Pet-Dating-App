@@ -69,7 +69,7 @@ namespace BE.Controllers
         }
 
         [HttpPost("logout")]
-        [Authorize]
+        [Authorize(Roles = "User,Expert,Admin")]
         public async Task<ActionResult> Logout(CancellationToken ct = default)
         {
             try

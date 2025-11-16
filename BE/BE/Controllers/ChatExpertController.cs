@@ -1,4 +1,5 @@
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -19,6 +20,7 @@ namespace BE.Controllers
 
         // GET /chat-expert/user/{userId}
         [HttpGet("user/{userId}")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetChatsByUserId(int userId, CancellationToken ct = default)
         {
             try
@@ -38,6 +40,7 @@ namespace BE.Controllers
 
         // GET /chat-expert/expert/{expertId}
         [HttpGet("expert/{expertId}")]
+        [Authorize(Roles = "Expert,Admin")]
         public async Task<IActionResult> GetChatsByExpertId(int expertId, CancellationToken ct = default)
         {
             try
@@ -57,6 +60,7 @@ namespace BE.Controllers
 
         // POST /chat-expert/{expertId}/{userId}
         [HttpPost("{expertId}/{userId}")]
+        [Authorize(Roles = "User,Expert")]
         public async Task<IActionResult> CreateChat(int expertId, int userId, CancellationToken ct = default)
         {
             try

@@ -1,4 +1,5 @@
 ﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -19,6 +20,7 @@ namespace BE.Controllers
 
         // GET /invite/{userId}
         [HttpGet("invite/{userId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetInvites(int userId, CancellationToken ct = default)
         {
             try
@@ -34,6 +36,7 @@ namespace BE.Controllers
 
         // GET /chat/{userId}?petId={petId}
         [HttpGet("chat/{userId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetChats(int userId, [FromQuery] int? petId = null, CancellationToken ct = default)
         {
             try
@@ -53,6 +56,7 @@ namespace BE.Controllers
 
         // POST /invite/{fromPetId}/{toPetId}
         [HttpPost("invite/{fromPetId}/{toPetId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> CreateFriendRequest(int fromPetId, int toPetId, CancellationToken ct = default)
         {
             try
@@ -80,6 +84,7 @@ namespace BE.Controllers
 
         // PUT /invite/{matchId}
         [HttpPut("invite/{matchId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> UpdateFriendRequest(int matchId, CancellationToken ct = default)
         {
             try
@@ -99,6 +104,7 @@ namespace BE.Controllers
 
         // DELETE /invite/{matchId}
         [HttpDelete("invite/{matchId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> DeleteFriendRequest(int matchId, CancellationToken ct = default)
         {
             try
@@ -118,6 +124,7 @@ namespace BE.Controllers
 
         // DELETE /chat/{matchId}
         [HttpDelete("chat/{matchId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> DeleteChat(int matchId, CancellationToken ct = default)
         {
             try

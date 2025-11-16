@@ -1,5 +1,6 @@
 using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
         // GET /chat-expert-content/{chatExpertId}
         [HttpGet("{chatExpertId}")]
+        [Authorize(Roles = "User,Expert,Admin")]
         public async Task<IActionResult> GetChatMessages(int chatExpertId, CancellationToken ct = default)
         {
             try
@@ -39,6 +41,7 @@ namespace BE.Controllers
 
         // POST /chat-expert-content/{chatExpertId}/{fromId}
         [HttpPost("{chatExpertId}/{fromId}")]
+        [Authorize(Roles = "User,Expert")]
         public async Task<IActionResult> SendMessage(
             int chatExpertId, 
             int fromId, 

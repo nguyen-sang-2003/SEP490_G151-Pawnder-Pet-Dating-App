@@ -1,4 +1,5 @@
 ﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -18,6 +19,7 @@ namespace BE.Controllers
         }
 
         [HttpGet("{userId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> RecommendPets(int userId, CancellationToken ct = default)
         {
             try

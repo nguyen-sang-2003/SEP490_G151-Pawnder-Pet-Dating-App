@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -19,6 +20,7 @@ namespace BE.Controllers
 		}
 
 		[HttpPost("{userId}")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto, CancellationToken ct = default)
 		{
 			try
@@ -42,6 +44,7 @@ namespace BE.Controllers
 
 		// PUT: /address/{addressId}
 		[HttpPut("{addressId}")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> UpdateAddress(int addressId, [FromBody] LocationDto locationDto, CancellationToken ct = default)
 		{
 			try
@@ -61,6 +64,7 @@ namespace BE.Controllers
 
 		// PATCH: /address/{addressId}/manual
 		[HttpPatch("{addressId}/manual")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> UpdateAddressManual(int addressId, [FromBody] ManualAddressDto dto, CancellationToken ct = default)
 		{
 			try
@@ -80,6 +84,7 @@ namespace BE.Controllers
 
 		// GET: /address/{addressId}
 		[HttpGet("{addressId}")]
+		[Authorize(Roles = "User,Admin")]
 		public async Task<IActionResult> GetAddressById(int addressId, CancellationToken ct = default)
 		{
 			try

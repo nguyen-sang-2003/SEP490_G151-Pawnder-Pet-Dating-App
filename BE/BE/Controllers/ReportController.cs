@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
 		// GET: api/report
 		[HttpGet("report")]
+		[Authorize(Roles = "Admin")]
 		public async Task<ActionResult<IEnumerable<ReportDto>>> GetAllReports(CancellationToken ct = default)
 		{
 			try
@@ -45,6 +47,7 @@ namespace BE.Controllers
 
 		// GET: api/report/{reportId}
 		[HttpGet("report/{reportId}")]
+		[Authorize(Roles = "Admin,User")]
 		public async Task<ActionResult<ReportDto>> GetReportById(int reportId, CancellationToken ct = default)
 		{
 			try
@@ -80,6 +83,7 @@ namespace BE.Controllers
 
 		// GET: api/report/user/{userReportId}
 		[HttpGet("report/user/{userReportId}")]
+		[Authorize(Roles = "User")]
 		public async Task<ActionResult<IEnumerable<ReportDto>>> GetReportsByUserId(int userReportId, CancellationToken ct = default)
 		{
 			try
@@ -116,6 +120,7 @@ namespace BE.Controllers
 
 		// POST: api/report/{userReportId}/{contentId}
 		[HttpPost("report/{userReportId}/{contentId}")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> CreateReport(int userReportId, int contentId, [FromBody] ReportCreateDTO dto, CancellationToken ct = default)
 		{
 			try
@@ -152,6 +157,7 @@ namespace BE.Controllers
 
 		// PUT: api/report/{reportId}
 		[HttpPut("report/{reportId}")]
+		[Authorize(Roles = "Admin,User")]
 		public async Task<IActionResult> UpdateReport(int reportId, [FromBody] ReportUpdateDTO dto, CancellationToken ct = default)
 		{
 			try

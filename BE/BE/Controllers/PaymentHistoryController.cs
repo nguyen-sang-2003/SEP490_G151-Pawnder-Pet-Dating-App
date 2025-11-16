@@ -1,4 +1,5 @@
 ﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
 		// POST /api/payment-history/generate
 		[HttpPost("generate")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> GenerateQr([FromQuery] decimal amount, [FromQuery] string addInfo, CancellationToken ct = default)
 		{
 			try
@@ -46,6 +48,7 @@ namespace BE.Controllers
 
 		// POST /api/payment-history
 		[HttpPost]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> CreatePaymentHistory([FromBody] CreatePaymentHistoryRequest request, CancellationToken ct = default)
 		{
 			try
@@ -70,6 +73,7 @@ namespace BE.Controllers
 
 		// GET /api/payment-history/user/{userId}
 		[HttpGet("user/{userId:int}")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> GetPaymentHistoryByUserId(int userId, CancellationToken ct = default)
 		{
 			try
@@ -94,6 +98,7 @@ namespace BE.Controllers
 
 		// GET /api/payment-history/user/{userId}/vip-status
 		[HttpGet("user/{userId:int}/vip-status")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> GetVipStatus(int userId, CancellationToken ct = default)
 		{
 			try

@@ -1,6 +1,7 @@
 ﻿using System.Net.Mime;
 using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers;
@@ -22,6 +23,7 @@ public class UserController : ControllerBase
 
     // GET /user?search=&roleId=&statusId=&page=1&pageSize=20&includeDeleted=false
     [HttpGet]
+    [Authorize(Roles = "Admin,User")]
     public async Task<ActionResult<PagedResult<UserResponse>>> GetUsers(
         [FromQuery] string? search,
         [FromQuery] int? roleId,
@@ -44,6 +46,7 @@ public class UserController : ControllerBase
 
     // GET /user/{userId}
     [HttpGet("{userId:int}")]
+    [Authorize(Roles = "User,Admin")]
     public async Task<ActionResult<UserResponse>> GetUser(int userId, CancellationToken ct = default)
     {
         try
@@ -84,6 +87,7 @@ public class UserController : ControllerBase
 
     // PUT /user/{userId}
     [HttpPut("{userId:int}")]
+    [Authorize(Roles = "User,Admin")]
     public async Task<ActionResult<UserResponse>> UpdateUser(
         int userId,
         [FromBody] UserUpdateRequest req,
@@ -106,6 +110,7 @@ public class UserController : ControllerBase
 
     // DELETE /user/{userId} (xoá mềm)
     [HttpDelete("{userId:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SoftDelete(int userId, CancellationToken ct = default)
     {
         try
@@ -125,6 +130,7 @@ public class UserController : ControllerBase
 
     // PATCH /user/{id}/complete-profile
     [HttpPatch("{id:int}/complete-profile")]
+    [Authorize(Roles = "User")]
     public async Task<ActionResult> CompleteProfile(int id, CancellationToken ct = default)
     {
         try
