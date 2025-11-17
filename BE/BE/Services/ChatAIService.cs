@@ -1,5 +1,6 @@
 using BE.Models;
 using BE.Services.Interfaces;
+using BE.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace BE.Services
@@ -126,11 +127,11 @@ namespace BE.Services
             bool isVip = user.UserStatusId == 3;
 
             // 🎯 LOGIC FREEMIUM:
-            // 1. Free users → 10,000 tokens/ngày
+            // 1. Free users → 10,000 tokens/ngày (~10-15 câu hỏi)
             // 2. VIP users → 50,000 tokens/ngày (5x nhiều hơn)
             // 3. Hết quota → Upsell nâng cấp VIP
 
-            const int FREE_TOKENS_PER_DAY = 2000;
+            const int FREE_TOKENS_PER_DAY = 10000;
             const int VIP_TOKENS_PER_DAY = 50000;
 
             try
@@ -146,27 +147,32 @@ namespace BE.Services
                 // 3. Check quota TRƯỚC KHI gọi API
                 if (tokensRemaining < estimatedTokens)
                 {
-                    // Không đủ tokens
+                    // Không đủ tokens - throw custom exception với usage info
+                    string errorMessage;
                     if (isVip)
                     {
-                        throw new InvalidOperationException(
-                            $"⭐ VIP: Bạn đã dùng hết lượt chat ngày hôm nay!\n" +
+                        errorMessage = $"⭐ VIP: Bạn đã dùng hết lượt chat ngày hôm nay!\n" +
                             $"Đã dùng: {tokensUsedToday:N0}/{dailyQuota:N0} tokens\n" +
-                            $"Vui lòng chờ reset vào 00:00 ngày mai."
-                        );
+                            $"Vui lòng chờ reset vào 00:00 ngày mai.";
                     }
                     else
                     {
-                        throw new InvalidOperationException(
-                            $"🎁 Bạn đã dùng {tokensUsedToday:N0}/{FREE_TOKENS_PER_DAY:N0} tokens free hôm nay!\n" +
+                        errorMessage = $"🎁 Bạn đã dùng {tokensUsedToday:N0}/{FREE_TOKENS_PER_DAY:N0} tokens free hôm nay!\n" +
                             $"⚠️ Câu hỏi này cần ~{estimatedTokens:N0} tokens, còn lại {tokensRemaining:N0} tokens.\n\n" +
                             $"⭐ Nâng cấp VIP - 99,000đ/tháng:\n" +
                             $"• 50,000 tokens/ngày (25x nhiều hơn)\n" +
                             $"• Xem ai like pet trước\n" +
                             $"• Priority matching\n" +
-                            $"• Không quảng cáo"
-                        );
+                            $"• Không quảng cáo";
                     }
+                    
+                    throw new QuotaExceededException(
+                        errorMessage,
+                        isVip,
+                        dailyQuota,
+                        tokensUsedToday,  // Số tokens thực tế đã dùng
+                        tokensRemaining   // Số tokens còn lại (có thể > 0 nhưng không đủ cho câu hỏi này)
+                    );
                 }
 
                 // 4. Mới gọi API thật (đã kiểm tra quota)
@@ -180,6 +186,9 @@ namespace BE.Services
                 tokensUsedToday += actualTokensUsed;
                 tokensRemaining = Math.Max(0, dailyQuota - tokensUsedToday);
 
+                // 7. Check nếu vượt quota sau khi trả lời (để hiện warning)
+                bool exceededQuota = tokensUsedToday >= dailyQuota;
+
                 return new
                 {
                     question = question,
@@ -189,8 +198,9 @@ namespace BE.Services
                     {
                         isVip = isVip,
                         dailyQuota = dailyQuota,
-                        tokensUsed = actualTokensUsed,
-                        tokensRemaining = tokensRemaining
+                        tokensUsed = tokensUsedToday,  // Tổng tokens đã dùng trong ngày
+                        tokensRemaining = tokensRemaining,
+                        exceededQuota = exceededQuota  // Flag để FE biết cần hiện modal
                     },
                     tokenDetails = new
                     {
@@ -204,6 +214,33 @@ namespace BE.Services
             {
                 throw;
             }
+        }
+
+        public async Task<object> GetTokenUsageAsync(int userId, CancellationToken ct = default)
+        {
+            // Kiểm tra user
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new KeyNotFoundException("Không tìm thấy người dùng");
+
+            // Kiểm tra VIP
+            bool isVip = user.UserStatusId == 3;
+
+            const int FREE_TOKENS_PER_DAY = 10000;
+            const int VIP_TOKENS_PER_DAY = 50000;
+
+            // Lấy tokens đã dùng hôm nay
+            int tokensUsedToday = await _dailyLimitService.GetFreeTokensUsedToday(userId);
+            int dailyQuota = isVip ? VIP_TOKENS_PER_DAY : FREE_TOKENS_PER_DAY;
+            int tokensRemaining = Math.Max(0, dailyQuota - tokensUsedToday);
+
+            return new
+            {
+                isVip = isVip,
+                dailyQuota = dailyQuota,
+                tokensUsed = tokensUsedToday,
+                tokensRemaining = tokensRemaining
+            };
         }
 
         // Hàm ước lượng tokens dựa trên độ dài text

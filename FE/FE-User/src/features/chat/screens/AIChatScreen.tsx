@@ -20,9 +20,10 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatAIHistory, sendMessageToAI, createExpertConfirmation } from "../../../api";
+import { getChatAIHistory, sendMessageToAI, createExpertConfirmation, getTokenUsage } from "../../../api";
 import CustomAlert from "../../../components/CustomAlert";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
+import { TokenLimitModal } from "../../../components/TokenLimitModal";
 
 const { width } = Dimensions.get("window");
 
@@ -47,6 +48,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   const [chatTitle, setChatTitle] = useState("AI Chat");
   const flatListRef = useRef<FlatList>(null);
 
+  // Token usage states
+  const [tokenUsage, setTokenUsage] = useState<{
+    isVip: boolean;
+    dailyQuota: number;
+    tokensUsed: number;
+    tokensRemaining: number;
+  } | null>(null);
+
   // Alert states
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
@@ -55,16 +64,17 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   
   // Limit modal states
-  const [showAIChatLimitModal, setShowAIChatLimitModal] = useState(false);
-  const [aiLimitMessage, setAILimitMessage] = useState("");
+  const [showTokenLimitModal, setShowTokenLimitModal] = useState(false);
   const [showExpertLimitModal, setShowExpertLimitModal] = useState(false);
   const [expertLimitMessage, setExpertLimitMessage] = useState("");
   
   // Track which messages have been sent to expert
   const [sentToExpertIds, setSentToExpertIds] = useState<Set<string>>(new Set());
 
-  // Load chat history on mount
+  // Load chat history and token usage on mount
   useEffect(() => {
+    loadTokenUsage(); // Load token usage first
+    
     if (chatId && chatId !== "new") {
       loadChatHistory();
     } else {
@@ -86,6 +96,16 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setLoading(false);
     }
   }, [chatId]);
+
+  const loadTokenUsage = async () => {
+    try {
+      const usage = await getTokenUsage();
+      setTokenUsage(usage);
+      console.log('📊 Initial token usage:', usage);
+    } catch (error) {
+      console.error('❌ Error loading token usage:', error);
+    }
+  };
 
   const loadChatHistory = async () => {
     try {
@@ -135,6 +155,15 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    // Check quota trước khi gửi (tránh delay)
+    if (tokenUsage) {
+      const estimatedTokens = Math.ceil(messageText.length / 2) * 4; // Ước lượng
+      if (tokenUsage.tokensRemaining < estimatedTokens) {
+        setShowTokenLimitModal(true);
+        return;
+      }
+    }
+
     // Add user message to UI immediately
     const userMessage: Message = {
       id: `temp-${Date.now()}`,
@@ -159,6 +188,20 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       // Call API
       const response = await sendMessageToAI(parseInt(chatId), messageText);
       
+      // Update token usage
+      if (response.usage) {
+        setTokenUsage(response.usage);
+        console.log('📊 Token usage:', response.usage);
+        console.log('📊 Token details:', response.tokenDetails);
+        
+        // Check nếu vượt quota sau khi trả lời → hiện modal
+        if (response.usage.exceededQuota) {
+          setTimeout(() => {
+            setShowTokenLimitModal(true);
+          }, 1000); // Delay 1s để user đọc câu trả lời trước
+        }
+      }
+      
       // Add AI response to messages
       const aiMessage: Message = {
         id: Date.now().toString(),
@@ -180,8 +223,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       // Check if it's a 429 limit error
       if (error.response?.status === 429) {
         const errorData = error.response?.data;
-        setAILimitMessage(errorData?.message || "Bạn đã hết lượt hỏi AI hôm nay!");
-        setShowAIChatLimitModal(true);
+        
+        // Update token usage from error response
+        if (errorData?.usage) {
+          setTokenUsage(errorData.usage);
+          console.log('📊 Token usage (from error):', errorData.usage);
+        }
+        
+        setShowTokenLimitModal(true);
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         // Timeout error
         Alert.alert(
@@ -442,7 +491,11 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>AI Pet Assistant</Text>
             <Text style={styles.headerStatus}>
-              {isTyping ? "typing..." : "Always active "}
+              {isTyping ? "typing..." : tokenUsage 
+                ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota 
+                    ? "Limit reached (100%)" 
+                    : `${tokenUsage.tokensUsed.toLocaleString()}/${tokenUsage.dailyQuota.toLocaleString()} tokens`)
+                : "0/10,000 tokens"}
             </Text>
           </View>
         </View>
@@ -571,12 +624,18 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         onClose={() => setShowErrorAlert(false)}
       />
 
-      {/* AI Chat Limit Modal */}
-      <LimitReachedModal
-        visible={showAIChatLimitModal}
-        onClose={() => setShowAIChatLimitModal(false)}
-        message={aiLimitMessage}
-        actionType="ai_chat"
+      {/* Token Limit Modal */}
+      <TokenLimitModal
+        visible={showTokenLimitModal}
+        onClose={() => setShowTokenLimitModal(false)}
+        onUpgrade={() => {
+          setShowTokenLimitModal(false);
+          navigation.navigate("Premium" as any);
+        }}
+        isVip={tokenUsage?.isVip || false}
+        tokensUsed={tokenUsage?.tokensUsed || 0}
+        dailyQuota={tokenUsage?.dailyQuota || 10000}
+        tokensRemaining={tokenUsage?.tokensRemaining || 0}
       />
 
       {/* Expert Confirmation Limit Modal */}

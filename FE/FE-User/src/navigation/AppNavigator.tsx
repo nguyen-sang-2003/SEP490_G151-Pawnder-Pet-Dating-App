@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { View, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { navigationRef } from "../services/navigation.service";
 import { getAuthToken } from "../api/auth";
 import { 
@@ -147,6 +148,25 @@ const AppNavigator = () => {
 
   useEffect(() => {
     checkAuth();
+    
+    // Listen for logout flag changes
+    const checkLogoutInterval = setInterval(async () => {
+      const shouldLogout = await AsyncStorage.getItem('shouldLogout');
+      if (shouldLogout === 'true') {
+        console.log('🚪 Logout flag detected, redirecting to Welcome...');
+        await AsyncStorage.removeItem('shouldLogout');
+        setIsAuthenticated(false);
+        // Navigate to Welcome screen
+        if (navigationRef.current) {
+          navigationRef.current.reset({
+            index: 0,
+            routes: [{ name: 'Welcome' as never }],
+          });
+        }
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(checkLogoutInterval);
   }, []);
 
   const checkAuth = async () => {

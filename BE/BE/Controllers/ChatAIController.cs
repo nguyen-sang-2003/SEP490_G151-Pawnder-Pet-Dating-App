@@ -1,4 +1,5 @@
 ﻿using BE.Services.Interfaces;
+using BE.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -28,6 +29,26 @@ namespace BE.Controllers
                 return int.Parse(userIdClaim);
             }
             return 0;
+        }
+
+        // GET: /api/chat-ai/token-usage
+        [HttpGet("token-usage")]
+        public async Task<IActionResult> GetTokenUsage(CancellationToken ct = default)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                
+                if (userId == 0)
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+                var data = await _chatAIService.GetTokenUsageAsync(userId, ct);
+                return Ok(new { success = true, data = data });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         // GET: /api/chat-ai/{userId}
@@ -166,6 +187,23 @@ namespace BE.Controllers
                 {
                     success = true,
                     data = data
+                });
+            }
+            catch (QuotaExceededException ex)
+            {
+                // Trả về 429 với đầy đủ usage info
+                return StatusCode(429, new
+                {
+                    success = false,
+                    message = ex.Message,
+                    actionType = "ai_chat_question",
+                    usage = new
+                    {
+                        isVip = ex.IsVip,
+                        dailyQuota = ex.DailyQuota,
+                        tokensUsed = ex.TokensUsed,
+                        tokensRemaining = ex.TokensRemaining
+                    }
                 });
             }
             catch (ArgumentException ex)
