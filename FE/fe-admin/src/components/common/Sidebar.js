@@ -59,6 +59,28 @@ const Sidebar = () => {
         </svg>
       ),
       label: 'Quản lý thanh toán'
+    },
+    {
+      path: '/experts',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M6 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1"/>
+        </svg>
+      ),
+      label: 'Quản lý Expert'
+    },
+    {
+      path: '/experts/create',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M6 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1"/>
+          <line x1="12" y1="12" x2="12" y2="20"/>
+          <line x1="9" y1="16" x2="15" y2="16"/>
+        </svg>
+      ),
+      label: 'Tạo tài khoản Expert'
     }
   ];
 

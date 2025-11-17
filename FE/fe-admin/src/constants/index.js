@@ -19,6 +19,7 @@ export const API_ENDPOINTS = {
     DELETE: (id) => `/user/${id}`, // DELETE /user/{userId}
     UPDATE_BY_ADMIN: (id) => `/admin/users/${id}`, // PUT /admin/users/{id}
     CREATE_BY_ADMIN: '/admin/users', // POST /admin/users
+    RESET_PASSWORD: '/user/reset-password', // PUT /user/reset-password
   },
   PETS: {
     LIST_BY_USER: (userId) => `/api/pet/user/${userId}`, // GET /api/pet/user/{userId}

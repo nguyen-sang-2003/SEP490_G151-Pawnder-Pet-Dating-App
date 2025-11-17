@@ -76,6 +76,19 @@ class UserService {
     return response;
   }
 
+  /**
+   * Reset user password by email (admin use)
+   * Backend: PUT /user/reset-password
+   * Body: { email, newPassword }
+   */
+  async resetPasswordByEmail(email, newPassword) {
+    const response = await apiClient.put(API_ENDPOINTS.USERS.RESET_PASSWORD, {
+      email,
+      newPassword,
+    });
+    return response;
+  }
+
   // Ban/Unban được xử lý qua updateUserByAdmin với userStatusId
   // async banUser(id, reason) {
   //   // Cần xác định userStatusId nào là "banned" từ backend

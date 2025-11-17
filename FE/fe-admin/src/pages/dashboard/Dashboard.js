@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import dashboardService from '../../services/api/dashboardService';
 import './Dashboard.css';
 
@@ -178,6 +178,11 @@ const Dashboard = () => {
             {userChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={userChartData}>
+                  <CartesianGrid
+                    stroke="rgba(255, 255, 255, 0.1)"
+                    vertical={false}
+                    strokeDasharray="3 3"
+                  />
                   <XAxis 
                     dataKey="month" 
                     tick={{ fontSize: 12, fill: '#666' }}

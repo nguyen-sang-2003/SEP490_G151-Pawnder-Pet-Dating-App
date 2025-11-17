@@ -17,6 +17,9 @@ import ReportDetail from './pages/reports/ReportDetail';
 import Activities from './pages/activities/Activities';
 import PaymentManagement from './pages/payments/PaymentManagement';
 import ExpertNotifications from './pages/expert/ExpertNotifications';
+import ExpertList from './pages/expert/ExpertList';
+import ExpertDetail from './pages/expert/ExpertDetail';
+import CreateExpert from './pages/expert/CreateExpert';
 
 // Layout
 import AdminLayout from './components/layout/AdminLayout';
@@ -130,6 +133,30 @@ function App() {
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <PaymentManagement />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/experts" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <ExpertList />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/experts/:id" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <ExpertDetail />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/experts/create" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <CreateExpert />
                   </AdminLayout>
                 </ProtectedRoute>
               } />

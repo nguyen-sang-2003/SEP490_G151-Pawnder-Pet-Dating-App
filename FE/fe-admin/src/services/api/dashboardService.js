@@ -74,16 +74,39 @@ class DashboardService {
    * Get all users (with pagination if needed)
    * Used for calculating active users and other statistics
    */
-  async getAllUsers(pageSize = 100) {
-    const response = await apiClient.get(API_ENDPOINTS.USERS.LIST, {
-      params: {
-        page: 1,
-        pageSize: pageSize,
-        includeDeleted: false
+  async getAllUsers(limit = 100) {
+    if (limit <= 0) {
+      return [];
+    }
+
+    const users = [];
+    const pageSize = Math.min(100, Math.max(10, limit));
+    let page = 1;
+    let totalAvailable = Number.POSITIVE_INFINITY;
+
+    while (users.length < limit && users.length < totalAvailable) {
+      const response = await apiClient.get(API_ENDPOINTS.USERS.LIST, {
+        params: {
+          page,
+          pageSize,
+          includeDeleted: false,
+        },
+      });
+
+      const items = response.Items || response.items || [];
+      const total = response.Total ?? response.total ?? items.length;
+
+      users.push(...items);
+      totalAvailable = total;
+
+      if (items.length < pageSize) {
+        break; // no more pages
       }
-    });
-    
-    return response.Items || response.items || [];
+
+      page += 1;
+    }
+
+    return users.slice(0, Math.min(limit, users.length));
   }
 
   /**
@@ -271,60 +294,69 @@ class DashboardService {
    */
   async getUserGrowthData(totalUsers) {
     try {
-      const users = await this.getAllUsers(totalUsers > 100 ? 100 : totalUsers);
-      
-      // Group users by month
-      const monthlyData = {};
-      
+      if (totalUsers === 0) {
+        return this.getDefaultChart();
+      }
+
+      const maxRecords = Math.min(Math.max(totalUsers, 50), 1000);
+      const users = await this.getAllUsers(maxRecords);
+      const monthRange = this.buildMonthRange(12);
+      const monthlyCounts = {};
+
       users.forEach(user => {
         const createdAt = user.CreatedAt || user.createdAt;
         if (!createdAt) return;
-        
+
         const date = new Date(createdAt);
-        const monthKey = `${date.getMonth() + 1}/${date.getFullYear()}`;
-        
-        if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = 0;
-        }
-        monthlyData[monthKey]++;
+        if (Number.isNaN(date.getTime())) return;
+
+        const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+        monthlyCounts[key] = (monthlyCounts[key] || 0) + 1;
       });
-      
-      // Convert to chart data format
-      const chartData = [];
-      const sortedMonths = Object.keys(monthlyData).sort((a, b) => {
-        const [monthA, yearA] = a.split('/').map(Number);
-        const [monthB, yearB] = b.split('/').map(Number);
-        if (yearA !== yearB) return yearA - yearB;
-        return monthA - monthB;
+
+      const countsWithinRange = monthRange.reduce((sum, month) => {
+        return sum + (monthlyCounts[month.key] || 0);
+      }, 0);
+
+      let cumulative = Math.max(0, totalUsers - countsWithinRange);
+      const chartData = monthRange.map(month => {
+        cumulative += monthlyCounts[month.key] || 0;
+        return {
+          month: month.label,
+          users: cumulative,
+        };
       });
-      
-      let cumulative = 0;
-      sortedMonths.forEach(monthKey => {
-        cumulative += monthlyData[monthKey];
-        const [month, year] = monthKey.split('/').map(Number);
-        chartData.push({
-          month: `T${month}/${year}`,
-          users: cumulative
-        });
-      });
-      
-      // If no data, return default chart
-      if (chartData.length === 0) {
-        return [
-          { month: 'T1/2024', users: 0 },
-          { month: 'T2/2024', users: totalUsers }
-        ];
-      }
-      
+
       return chartData;
     } catch (error) {
       console.error('Error generating user growth data:', error);
-      // Return default chart
-      return [
-        { month: 'T1/2024', users: 0 },
-        { month: 'T2/2024', users: totalUsers }
-      ];
+      return this.getDefaultChart(totalUsers);
     }
+  }
+
+  buildMonthRange(monthCount = 12) {
+    const range = [];
+    const now = new Date();
+
+    for (let i = monthCount - 1; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+
+      range.push({
+        key: `${year}-${month}`,
+        label: `T${month}/${year}`,
+      });
+    }
+
+    return range;
+  }
+
+  getDefaultChart(totalUsers = 0) {
+    return [
+      { month: 'T1/2024', users: 0 },
+      { month: 'T2/2024', users: totalUsers || 0 },
+    ];
   }
 
   /**
