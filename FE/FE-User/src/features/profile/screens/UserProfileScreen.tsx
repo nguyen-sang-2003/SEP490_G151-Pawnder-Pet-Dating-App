@@ -21,10 +21,13 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import Icon from "react-native-vector-icons/Ionicons";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
+import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, deletePet, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
 import { getItem } from "../../../utils/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { getVipStatus } from "../../../api/payment";
+import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
+import { invalidateCache } from "../../../utils/cache";
 
 const { width } = Dimensions.get("window");
 
@@ -49,9 +52,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [addressData, setAddressData] = useState<any>(null);
   const [characteristics, setCharacteristics] = useState<PetCharacteristic[]>([]);
   const [petPhotos, setPetPhotos] = useState<any[]>([]);
+  const [isVip, setIsVip] = useState(false);
+  const [showAllCharacteristics, setShowAllCharacteristics] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  // Fetch user and pets data - wrapped in useCallback
+  // 🚀 OPTIMIZED: Fetch user and pets data with progressive loading
   const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true);
@@ -66,14 +71,15 @@ const UserProfileScreen = ({ navigation }: Props) => {
       const userId = parseInt(userIdStr, 10);
       console.log('📱 Loading profile for userId:', userId);
 
-      // Fetch user data
-      const user = await getUserById(userId);
+      // 🚀 OPTIMIZATION 1: Parallel loading - Load user and pets simultaneously
+      const [user, petsData] = await Promise.all([
+        getUserById(userId),
+        getPetsByUserId(userId)
+      ]);
+      
       setUserData(user);
-      console.log('👤 User data loaded:', user);
-
-      // Fetch pets data
-      const petsData = await getPetsByUserId(userId);
       setPets(petsData);
+      console.log('👤 User data loaded:', user);
       console.log('🐾 Pets data loaded:', petsData);
 
       // Find active pet (IsActive = true)
@@ -81,22 +87,32 @@ const UserProfileScreen = ({ navigation }: Props) => {
       setActivePet(active || petsData[0] || null);
       console.log('✅ Active pet:', active);
 
-      // Fetch address data if user has addressId
+      // 🚀 OPTIMIZATION 2: Load VIP status and address in background (non-blocking)
+      // VIP status
+      getVipStatus(userId)
+        .then(vipStatus => {
+          setIsVip(vipStatus.isVip);
+          console.log('💎 VIP status:', vipStatus.isVip);
+        })
+        .catch(() => {
+          console.log('⚠️ Failed to get VIP status, assuming not VIP');
+          setIsVip(false);
+        });
+
+      // Address data
       const addressId = user.AddressId || user.addressId;
       console.log('🔍 User addressId:', addressId);
       
       if (addressId) {
-        try {
-          const address = await getAddressById(addressId);
-          console.log('📍 Address data loaded:', address);
-          console.log('📍 Address.City:', address?.City);
-          console.log('📍 Address.District:', address?.District);
-          console.log('📍 Address.FullAddress:', address?.FullAddress);
-          setAddressData(address);
-        } catch (error: any) {
-          console.error('⚠️ No address found for user:', error);
-          setAddressData(null);
-        }
+        getAddressById(addressId)
+          .then(address => {
+            console.log('📍 Address data loaded:', address);
+            setAddressData(address);
+          })
+          .catch((error: any) => {
+            console.error('⚠️ No address found for user:', error);
+            setAddressData(null);
+          });
       } else {
         console.log('⚠️ User has no addressId');
         setAddressData(null);
@@ -120,8 +136,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
   // Load characteristics and photos for active pet
   useEffect(() => {
     const loadPetDetails = async () => {
-      // Reset photo index when pet changes
+      // Reset photo index and characteristics collapse state when pet changes
       setActivePhotoIndex(0);
+      setShowAllCharacteristics(false);
       
       if (!activePet) {
         setCharacteristics([]);
@@ -133,8 +150,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
         const petId = activePet.PetId || activePet.petId;
         if (!petId) return;
 
-        // Load characteristics
-        const chars = await getPetCharacteristics(petId);
+        // 🚀 OPTIMIZATION 3: Parallel loading - Load characteristics and photos simultaneously
+        const [chars, photos] = await Promise.all([
+          getPetCharacteristics(petId),
+          getPetPhotos(petId)
+        ]);
         
         // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
         const filteredChars = chars.filter((char: any) => {
@@ -146,9 +166,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
         });
         
         setCharacteristics(filteredChars);
-
-        // Load all photos from PetPhotos table
-        const photos = await getPetPhotos(petId);
         
         // Sort photos by sortOrder (first photo = primary/avatar)
         const sortedPhotos = photos.sort((a: any, b: any) => {
@@ -168,6 +185,28 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
     loadPetDetails();
   }, [activePet]);
+
+  // Helper function to get age from characteristics
+  const getAgeFromCharacteristics = (chars: PetCharacteristic[]): string => {
+    const ageChar = chars.find((char: any) => {
+      const name = (char.name || char.attributeName || '').toLowerCase();
+      return name.includes('tuổi') || name.includes('age');
+    });
+    
+    if (ageChar) {
+      const value = ageChar.value || ageChar.optionValue;
+      if (value) {
+        // If numeric value, format as "X years"
+        if (typeof value === 'number') {
+          return `${value} year${value !== 1 ? 's' : ''}`;
+        }
+        // If already a string, return as is
+        return value.toString().includes('year') ? value.toString() : `${value} years`;
+      }
+    }
+    
+    return 'Unknown';
+  };
 
   // Convert active pet to display format
   const myCat = activePet ? (() => {
@@ -190,7 +229,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
       id: (activePet.PetId || activePet.petId || 0).toString(),
       name: activePet.Name || activePet.name || 'Unknown',
       breed: activePet.Breed || activePet.breed || 'Unknown breed',
-      age: activePet.Age ? `${activePet.Age} years` : (activePet.age ? `${activePet.age} years` : 'Unknown'),
+      age: getAgeFromCharacteristics(characteristics), // Get from characteristics instead of pet model
       gender: (activePet.Gender || activePet.gender || 'male').toLowerCase() as "male" | "female",
       bio: activePet.Description || activePet.description || "No description available",
       photos,
@@ -224,7 +263,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
     name: userData?.FullName || userData?.fullName || "Unknown User",
     location: shortLocation || 'No location set',
     fullAddress: fullAddress,
-    isPremium: false, // TODO: Add Premium status to User model
+    isPremium: isVip, // Use actual VIP status
     email: userData?.Email || userData?.email || "",
     memberSince: userData?.CreatedAt 
       ? new Date(userData.CreatedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -232,17 +271,26 @@ const UserProfileScreen = ({ navigation }: Props) => {
   };
 
   // My Pets List (convert from PetResponse[] to PetItem[])
-  const myPets: PetItem[] = pets.map(pet => ({
-    id: (pet.PetId || pet.petId || 0).toString(),
-    name: pet.Name || pet.name || 'Unknown',
-    breed: pet.Breed || pet.breed || 'Unknown',
-    age: pet.Age ? `${pet.Age} years` : (pet.age ? `${pet.age} years` : 'Unknown'),
-    gender: (pet.Gender || pet.gender || 'male').toLowerCase() as "male" | "female",
-    image: pet.UrlImageAvatar || pet.urlImageAvatar 
-      ? { uri: pet.UrlImageAvatar || pet.urlImageAvatar }
-      : require("../../../assets/cat_avatar.png"),
-    isActive: pet.IsActive === true || pet.isActive === true,
-  }));
+  // Note: Age is only loaded for active pet from characteristics
+  // For inactive pets, we'll show a placeholder until they become active
+  const myPets: PetItem[] = pets.map(pet => {
+    const isThisActive = pet.IsActive === true || pet.isActive === true;
+    return {
+      id: (pet.PetId || pet.petId || 0).toString(),
+      name: pet.Name || pet.name || 'Unknown',
+      breed: pet.Breed || pet.breed || 'Unknown',
+      age: isThisActive 
+        ? getAgeFromCharacteristics(characteristics) // Get from characteristics if active
+        : pet.Age 
+          ? `${pet.Age} years` 
+          : (pet.age ? `${pet.age} years` : 'Tap to view'), // Fallback message
+      gender: (pet.Gender || pet.gender || 'male').toLowerCase() as "male" | "female",
+      image: pet.UrlImageAvatar || pet.urlImageAvatar 
+        ? { uri: pet.UrlImageAvatar || pet.urlImageAvatar }
+        : require("../../../assets/cat_avatar.png"),
+      isActive: isThisActive,
+    };
+  });
 
   const handleEditProfile = () => {
     const userId = userData?.UserId || userData?.userId;
@@ -251,6 +299,48 @@ const UserProfileScreen = ({ navigation }: Props) => {
     } else {
       showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
     }
+  };
+
+  const handleDeletePet = async (petIdStr: string) => {
+    const petId = parseInt(petIdStr, 10);
+    const pet = pets.find(p => (p.PetId || p.petId) === petId);
+    
+    if (!pet) return;
+    
+    const petName = pet.Name || pet.name || 'This pet';
+    
+    // Confirmation alert
+    showAlert({
+      type: 'warning',
+      title: 'Delete Pet? 🗑️',
+      message: `Are you sure you want to delete ${petName}? This action will remove all data related to this pet (photos, characteristics, matches).`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          await deletePet(petId);
+          
+          showAlert({
+            type: 'success',
+            title: 'Deleted! 👋',
+            message: `${petName} has been deleted successfully.`,
+            confirmText: 'OK',
+            onClose: () => {
+              // Reload pets list
+              fetchProfileData();
+            }
+          });
+        } catch (error: any) {
+          console.error('❌ Error deleting pet:', error);
+          showAlert({
+            type: 'error',
+            title: 'Error',
+            message: error.response?.data?.Message || 'Failed to delete pet. Please try again.',
+            confirmText: 'OK'
+          });
+        }
+      }
+    });
   };
 
   const handleSetActivePet = async (petIdStr: string) => {
@@ -287,12 +377,21 @@ const UserProfileScreen = ({ navigation }: Props) => {
           const userIdStr = await getItem('userId');
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
+            
+            // ✅ CLEAR ALL CACHE khi đổi pet
+            console.log('🗑️ Clearing all cache after switching pet...');
+            invalidateCache.all();
+            
             const petsData = await getPetsByUserId(userId);
             setPets(petsData);
             
             // Set new active pet
             const newActivePet = petsData.find(p => (p.PetId || p.petId) === petId);
             setActivePet(newActivePet || null);
+            
+            // Refresh badges for the new active pet
+            console.log('🔄 Refreshing badges after setting active pet...');
+            await refreshBadgesForActivePet(userId);
           }
               
           // Show success message
@@ -407,8 +506,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Icon name="star" size={14} color="#fff" />
-                <Text style={styles.premiumText}>Premium</Text>
+                <Icon name="diamond" size={14} color="#fff" />
+                <Text style={styles.premiumText}>VIP</Text>
               </LinearGradient>
             </View>
           )}
@@ -467,7 +566,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
               <Text style={styles.sectionSubtitle}>{characteristics.length} attributes</Text>
             </View>
             <View style={styles.characteristicsGrid}>
-              {characteristics.map((char, index) => (
+              {(showAllCharacteristics ? characteristics : characteristics.slice(0, 6)).map((char, index) => (
                 <View key={index} style={styles.characteristicCard}>
                   <View style={styles.characteristicHeader}>
                     <Icon 
@@ -495,6 +594,23 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 </View>
               ))}
             </View>
+            
+            {/* Show More/Less Button */}
+            {characteristics.length > 6 && (
+              <TouchableOpacity
+                style={styles.showMoreButton}
+                onPress={() => setShowAllCharacteristics(!showAllCharacteristics)}
+              >
+                <Text style={styles.showMoreText}>
+                  {showAllCharacteristics ? 'Show Less' : `Show ${characteristics.length - 6} More`}
+                </Text>
+                <Icon 
+                  name={showAllCharacteristics ? 'chevron-up' : 'chevron-down'} 
+                  size={18} 
+                  color={colors.primary} 
+                />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -562,6 +678,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     <Text style={styles.petAge}>{pet.age}</Text>
                   </View>
                   
+                  {/* Edit Button */}
                   <TouchableOpacity
                     style={styles.editPetBtn}
                     onPress={(e) => {
@@ -570,6 +687,17 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     }}
                   >
                     <Icon name="pencil" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                  
+                  {/* Delete Button */}
+                  <TouchableOpacity
+                    style={styles.deletePetBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDeletePet(pet.id);
+                    }}
+                  >
+                    <Icon name="trash" size={16} color={colors.error} />
                   </TouchableOpacity>
                 </TouchableOpacity>
 
@@ -604,7 +732,15 @@ const UserProfileScreen = ({ navigation }: Props) => {
             <View style={styles.ownerRow}>
               <Icon name="person-outline" size={20} color={colors.textMedium} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.ownerText}>{owner.name}</Text>
+                <View style={styles.ownerNameRow}>
+                  <Text style={styles.ownerText}>{owner.name}</Text>
+                  {owner.isPremium && (
+                    <View style={styles.vipBadgeInline}>
+                      <Icon name="diamond" size={14} color="#FFD700" />
+                      <Text style={styles.vipBadgeText}>VIP</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.ownerSubtext}>Member since {owner.memberSince}</Text>
               </View>
             </View>
@@ -908,6 +1044,25 @@ const styles = StyleSheet.create({
     color: colors.textLabel,
     fontStyle: "italic",
   },
+  showMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: colors.cardBackground,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    ...shadows.small,
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+  },
 
   // Gender
   male: {
@@ -969,10 +1124,19 @@ const styles = StyleSheet.create({
     padding: 8,
     ...shadows.small,
   },
-  activeBadge: {
+  deletePetBtn: {
     position: "absolute",
     top: 16,
     left: 16,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: radius.full,
+    padding: 8,
+    ...shadows.small,
+  },
+  activeBadge: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
     borderRadius: radius.sm,
     overflow: "hidden",
     zIndex: 10,
@@ -1065,6 +1229,26 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     marginTop: 4,
     lineHeight: 18,
+  },
+  ownerNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  vipBadgeInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 215, 0, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+  },
+  vipBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFD700",
+    letterSpacing: 0.5,
   },
 
   // Info Card

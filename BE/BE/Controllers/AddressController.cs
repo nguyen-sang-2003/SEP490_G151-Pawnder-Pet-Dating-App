@@ -1,322 +1,105 @@
 ﻿using BE.DTO;
-using BE.Models;
-using BE.Services;
-using Microsoft.AspNetCore.Http;
+using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Globalization;
-using System.Net.Http;
-using System.Text.Json;
 
 namespace BE.Controllers
 {
+	/// <summary>
+	/// Controller cho Address - chỉ nhận request và trả response
+	/// </summary>
 	[ApiController]
 	[Route("[controller]")]
 	public class AddressController : ControllerBase
 	{
-		private readonly PawnderDatabaseContext _context;
-		private readonly HttpClient _httpClient;
+		private readonly IAddressService _addressService;
 
-		public AddressController(PawnderDatabaseContext context, IHttpClientFactory httpClientFactory)
+		public AddressController(IAddressService addressService)
 		{
-			_context = context;
-			_httpClient = httpClientFactory.CreateClient();
+			_addressService = addressService;
 		}
 
-	[HttpPost("{userId}")]
-	public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto)
-	{
-		Console.WriteLine($"🏠 CREATE ADDRESS - Start for userId: {userId}");
-		
-		var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
-		if (user == null)
+		[HttpPost("{userId}")]
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto, CancellationToken ct = default)
 		{
-			Console.WriteLine($"❌ User {userId} not found");
-			return NotFound(new { message = "Không tìm thấy người dùng" });
-		}
-
-		Console.WriteLine($"👤 User found: {user.FullName}, Current AddressId: {user.AddressId}");
-
-		if (user.AddressId.HasValue)
-		{
-			Console.WriteLine($"⚠️ User already has AddressId: {user.AddressId}");
-			return BadRequest(new { message = "User đã có địa chỉ, không thể tạo mới. Hãy dùng PUT để update." });
-		}
-
-			string latStr = locationDto.Latitude.ToString(CultureInfo.InvariantCulture);
-			string lonStr = locationDto.Longitude.ToString(CultureInfo.InvariantCulture);
-			string url = $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={latStr}&lon={lonStr}";
-
-			string fullAddress;
-			string city = null;
-			string district = null;
-			string ward = null;
-
 			try
 			{
-				var request = new HttpRequestMessage(HttpMethod.Get, url);
-				request.Headers.UserAgent.ParseAdd("PawnderApp/1.0 (contact@example.com)");
-
-				var response = await _httpClient.SendAsync(request);
-				if (response.IsSuccessStatusCode)
-				{
-					var json = await response.Content.ReadAsStringAsync();
-					
-					// DEBUG: Log raw JSON response
-					Console.WriteLine("=== OpenStreetMap Response ===");
-					Console.WriteLine(json);
-					Console.WriteLine("==============================");
-					
-					var osmResult = JsonSerializer.Deserialize<OpenStreetMapResponse>(json);
-					fullAddress = osmResult?.display_name;
-
-					// Parse City, District, Ward from address components
-					if (osmResult?.address != null)
-					{
-						var addr = osmResult.address;
-						
-						// DEBUG: Log all address fields
-						Console.WriteLine("=== Address Components ===");
-						Console.WriteLine($"city: {addr.city}");
-						Console.WriteLine($"town: {addr.town}");
-						Console.WriteLine($"province: {addr.province}");
-						Console.WriteLine($"state: {addr.state}");
-						Console.WriteLine($"suburb: {addr.suburb}");
-						Console.WriteLine($"city_district: {addr.city_district}");
-						Console.WriteLine($"state_district: {addr.state_district}");
-						Console.WriteLine($"county: {addr.county}");
-						Console.WriteLine($"quarter: {addr.quarter}");
-						Console.WriteLine($"neighbourhood: {addr.neighbourhood}");
-						Console.WriteLine("=========================");
-						
-						// City: city > town > province > state
-						string rawCity = addr.city ?? addr.town ?? addr.province ?? addr.state;
-						city = CleanVietnameseAddress(rawCity, new[] { "Thành phố", "Tỉnh" });
-						
-						// District: city_district > state_district > county
-						string rawDistrict = addr.city_district ?? addr.state_district ?? addr.county;
-						district = CleanVietnameseAddress(rawDistrict, new[] { "Quận", "Huyện" });
-						
-						// Ward: suburb > quarter > neighbourhood
-						string rawWard = addr.suburb ?? addr.quarter ?? addr.neighbourhood;
-						ward = CleanVietnameseAddress(rawWard, new[] { "Phường", "Xã", "Thị trấn" });
-						
-						Console.WriteLine($"Parsed - City: {city}, District: {district}, Ward: {ward}");
-					}
-					else
-					{
-						Console.WriteLine("WARNING: No address components in response");
-					}
-				}
-				else
-				{
-					fullAddress = null;
-				}
+				var result = await _addressService.CreateAddressForUserAsync(userId, locationDto, ct);
+				return Ok(result);
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { message = ex.Message });
+			}
+			catch (InvalidOperationException ex)
+			{
+				return BadRequest(new { message = ex.Message });
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"ERROR parsing address: {ex.Message}");
-				fullAddress = null;
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
-
-			if (string.IsNullOrEmpty(fullAddress))
-			{
-				return BadRequest(new { message = $"Không tìm thấy địa chỉ hợp lệ tại Lat:{latStr}, Lon:{lonStr}" });
-			}
-
-		var address = new Address
-		{
-			Latitude = locationDto.Latitude,
-			Longitude = locationDto.Longitude,
-			FullAddress = fullAddress,
-			City = city,
-			District = district,
-			Ward = ward,
-			CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-			UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-		};
-
-		Console.WriteLine($"📍 Creating new address: {fullAddress}");
-		_context.Addresses.Add(address);
-		await _context.SaveChangesAsync(); 
-		Console.WriteLine($"✅ Address created with ID: {address.AddressId}");
-
-		Console.WriteLine($"🔗 Linking User {userId} to AddressId {address.AddressId}");
-		user.AddressId = address.AddressId;
-		user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-		
-		// Ensure entity is tracked
-		_context.Entry(user).State = EntityState.Modified;
-		
-		await _context.SaveChangesAsync();
-		Console.WriteLine($"✅ User.AddressId updated successfully: {user.AddressId}");
-
-		return Ok(new
-		{
-			User = new
-			{
-				user.UserId,
-				user.FullName,
-				user.Email,
-				user.AddressId
-			},
-			Address = new
-			{
-				address.AddressId,
-				address.Latitude,
-				address.Longitude,
-				address.FullAddress,
-				address.City,
-				address.District,
-				address.Ward
-			}
-		});
 		}
 
 		// PUT: /address/{addressId}
 		[HttpPut("{addressId}")]
-		public async Task<IActionResult> UpdateAddress(int addressId, [FromBody] LocationDto locationDto)
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> UpdateAddress(int addressId, [FromBody] LocationDto locationDto, CancellationToken ct = default)
 		{
-			var address = await _context.Addresses.FindAsync(addressId);
-			if (address == null)
-				return NotFound(new { message = "Không tìm thấy địa chỉ" });
-
-			address.Latitude = locationDto.Latitude;
-			address.Longitude = locationDto.Longitude;
-
-			string latStr = locationDto.Latitude.ToString(CultureInfo.InvariantCulture);
-			string lonStr = locationDto.Longitude.ToString(CultureInfo.InvariantCulture);
-			string url = $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={latStr}&lon={lonStr}";
-
-			var request = new HttpRequestMessage(HttpMethod.Get, url);
-			request.Headers.UserAgent.ParseAdd("PawnderApp/1.0 (contact@example.com)");
-
-			var response = await _httpClient.SendAsync(request);
-
-			if (response.IsSuccessStatusCode)
+			try
 			{
-				var json = await response.Content.ReadAsStringAsync();
-				var osmResult = JsonSerializer.Deserialize<OpenStreetMapResponse>(json);
-
-				address.FullAddress = !string.IsNullOrEmpty(osmResult?.display_name)
-					? osmResult.display_name
-					: $"Địa chỉ sai, Lat:{latStr}, Lon:{lonStr}";
-
-				// Parse City, District, Ward
-				if (osmResult?.address != null)
-				{
-					var addr = osmResult.address;
-					string rawCity = addr.city ?? addr.town ?? addr.province ?? addr.state;
-					address.City = CleanVietnameseAddress(rawCity, new[] { "Thành phố", "Tỉnh" });
-					
-					string rawDistrict = addr.city_district ?? addr.state_district ?? addr.county;
-					address.District = CleanVietnameseAddress(rawDistrict, new[] { "Quận", "Huyện" });
-					
-					string rawWard = addr.suburb ?? addr.quarter ?? addr.neighbourhood;
-					address.Ward = CleanVietnameseAddress(rawWard, new[] { "Phường", "Xã", "Thị trấn" });
-				}
+				var result = await _addressService.UpdateAddressAsync(addressId, locationDto, ct);
+				return Ok(result);
 			}
-			else
+			catch (KeyNotFoundException ex)
 			{
-				address.FullAddress = $"Địa chỉ sai, Lat:{latStr}, Lon:{lonStr}";
+				return NotFound(new { message = ex.Message });
 			}
-
-			address.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
-			await _context.SaveChangesAsync();
-
-			return Ok(new
+			catch (Exception ex)
 			{
-				Address = new
-				{
-					address.AddressId,
-					address.Latitude,
-					address.Longitude,
-					address.FullAddress,
-					address.UpdatedAt
-				}
-			});
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
 		}
 
 		// PATCH: /address/{addressId}/manual
 		[HttpPatch("{addressId}/manual")]
-		public async Task<IActionResult> UpdateAddressManual(int addressId, [FromBody] ManualAddressDto dto)
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> UpdateAddressManual(int addressId, [FromBody] ManualAddressDto dto, CancellationToken ct = default)
 		{
-			var address = await _context.Addresses.FindAsync(addressId);
-			if (address == null)
-				return NotFound(new { message = "Không tìm thấy địa chỉ" });
-
-			// Update fields
-			if (!string.IsNullOrEmpty(dto.City))
-				address.City = dto.City;
-			if (!string.IsNullOrEmpty(dto.District))
-				address.District = dto.District;
-			if (!string.IsNullOrEmpty(dto.Ward))
-				address.Ward = dto.Ward;
-
-			// Update FullAddress
-			address.FullAddress = $"{dto.Ward}, {dto.District}, {dto.City}".Trim(' ', ',');
-			address.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
-			await _context.SaveChangesAsync();
-
-			return Ok(new
+			try
 			{
-				message = "Cập nhật địa chỉ thành công",
-				Address = new
-				{
-					address.AddressId,
-					address.City,
-					address.District,
-					address.Ward,
-					address.FullAddress,
-					address.UpdatedAt
-				}
-			});
+				var result = await _addressService.UpdateAddressManualAsync(addressId, dto, ct);
+				return Ok(result);
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { message = ex.Message });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
 		}
 
 		// GET: /address/{addressId}
 		[HttpGet("{addressId}")]
-		public async Task<IActionResult> GetAddressById(int addressId)
+		[Authorize(Roles = "User,Admin")]
+		public async Task<IActionResult> GetAddressById(int addressId, CancellationToken ct = default)
 		{
-			var address = await _context.Addresses.FindAsync(addressId);
-			if (address == null)
-				return NotFound(new { message = "Không tìm thấy địa chỉ" });
-
-			return Ok(new
+			try
 			{
-				Address = new
-				{
-					address.AddressId,
-					address.Latitude,
-					address.Longitude,
-					address.FullAddress,
-					address.City,
-					address.District,
-					address.Ward,
-					CreatedAt = address.CreatedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
-					UpdatedAt = address.UpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss")
-				}
-			});
-		}
-
-		// Helper method to clean Vietnamese address prefixes
-		private string CleanVietnameseAddress(string rawAddress, string[] prefixes)
-		{
-			if (string.IsNullOrEmpty(rawAddress))
-				return null;
-
-			string cleaned = rawAddress.Trim();
-			foreach (var prefix in prefixes)
-			{
-				// Remove prefix (case-insensitive)
-				if (cleaned.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-				{
-					cleaned = cleaned.Substring(prefix.Length).Trim();
-					break;
-				}
+				var result = await _addressService.GetAddressByIdAsync(addressId, ct);
+				return Ok(result);
 			}
-			return string.IsNullOrEmpty(cleaned) ? null : cleaned;
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { message = ex.Message });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
 		}
 	}
 }

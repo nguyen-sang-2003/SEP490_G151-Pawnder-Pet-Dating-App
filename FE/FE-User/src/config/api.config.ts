@@ -28,8 +28,12 @@ export type Environment = 'android' | 'ios' | 'local_network' | 'production';
 
 /**
  * Current environment - Change this to switch between different environments
+ * 
+ * IMPORTANT: 
+ * - Use 'android' if BE runs on SAME machine as emulator (localhost)
+ * - Use 'local_network' if BE runs on DIFFERENT machine (use IP address)
  */
-const CURRENT_ENVIRONMENT: Environment = 'android';
+const CURRENT_ENVIRONMENT: Environment = 'android'; // Use 'android' for same machine, 'local_network' for different machines
 
 /**
  * Get the appropriate base URL based on platform and environment

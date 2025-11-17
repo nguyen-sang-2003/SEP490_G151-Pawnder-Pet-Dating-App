@@ -9,6 +9,8 @@ export interface ChatUser {
   matchId: number;
   fromUserId: number;
   toUserId: number;
+  fromPetId?: number; // Pet that sent the match request
+  toPetId?: number; // Pet that received the match request
   status: string;
   createdAt: string;
 }
@@ -32,10 +34,13 @@ export interface SendMessageRequest {
  * Get all accepted matches (chats) for a user
  * GET /api/ChatUser/chat/{userId}
  */
-export const getChats = async (userId: number): Promise<ChatUser[]> => {
+export const getChats = async (userId: number, petId?: number): Promise<ChatUser[]> => {
   try {
 
-    const response = await client.get<ChatUser[]>(`/api/ChatUser/chat/${userId}`);
+    const url = petId 
+      ? `/api/ChatUser/chat/${userId}?petId=${petId}`
+      : `/api/ChatUser/chat/${userId}`;
+    const response = await client.get<ChatUser[]>(url);
 
     return response.data;
   } catch (error: any) {

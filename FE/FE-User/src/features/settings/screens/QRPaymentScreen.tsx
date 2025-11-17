@@ -15,7 +15,8 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { generatePaymentQR } from "../../../api/payment";
+import { generatePaymentQR, createPaymentHistory } from "../../../api/payment";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "QRPayment">;
 
@@ -23,6 +24,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(true);
   const [qrCodeUri, setQrCodeUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   // Payment details from route params
   const { planId, planName, amount, duration } = route.params;
@@ -61,24 +63,73 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
     loadQRCode();
   };
 
-  const handleDone = () => {
-    // Tạm thời coi như thanh toán thành công luôn
-    Alert.alert(
-      "🎉 Thanh toán thành công!",
-      `Bạn đã nâng cấp lên Pawnder Premium (${duration})\n\nCảm ơn bạn đã tin tưởng sử dụng dịch vụ!`,
-      [
-        {
-          text: "Tuyệt vời!",
-          onPress: () => {
-            // Navigate back to home or settings
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Home" }],
-            });
-          },
-        },
-      ]
-    );
+  const handleDone = async () => {
+    try {
+      setProcessing(true);
+
+      // Get userId from AsyncStorage
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+        setProcessing(false);
+        return;
+      }
+
+      const userId = parseInt(userIdStr);
+      if (!userId || isNaN(userId)) {
+        Alert.alert("Lỗi", "Thông tin người dùng không hợp lệ.");
+        setProcessing(false);
+        return;
+      }
+
+      // Calculate duration in months based on planId
+      const durationMonthsMap: { [key: string]: number } = {
+        '1month': 1,
+        '3months': 3,
+        '6months': 6,
+        '12months': 12,
+      };
+      const durationMonths = durationMonthsMap[planId] || 1;
+
+      // Call API to create payment history
+      const response = await createPaymentHistory({
+        userId,
+        durationMonths,
+        amount,
+        planName,
+      });
+
+      setProcessing(false);
+
+      if (response.success) {
+        // Show success alert
+        Alert.alert(
+          "🎉 Thanh toán thành công!",
+          `Bạn đã nâng cấp lên ${planName}!\n\nThời hạn: ${duration}\nCảm ơn bạn đã tin tưởng sử dụng dịch vụ!`,
+          [
+            {
+              text: "Tuyệt vời!",
+              onPress: () => {
+                // Navigate back to home
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "Home" }],
+                });
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Lỗi", "Không thể hoàn tất thanh toán. Vui lòng thử lại.");
+      }
+    } catch (err: any) {
+      setProcessing(false);
+      console.error("Payment error:", err);
+      Alert.alert(
+        "Lỗi thanh toán",
+        err.response?.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau."
+      );
+    }
   };
 
   return (
@@ -191,14 +242,23 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         <TouchableOpacity
           style={styles.doneButton}
           onPress={handleDone}
-          disabled={loading || !!error}
+          disabled={loading || !!error || processing}
         >
           <LinearGradient
             colors={gradients.primary}
             style={styles.doneGradient}
           >
-            <Text style={styles.doneText}>Đã thanh toán</Text>
-            <Icon name="checkmark-circle" size={24} color={colors.white} />
+            {processing ? (
+              <>
+                <ActivityIndicator size="small" color={colors.white} />
+                <Text style={styles.doneText}>Đang xử lý...</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.doneText}>Đã thanh toán</Text>
+                <Icon name="checkmark-circle" size={24} color={colors.white} />
+              </>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 

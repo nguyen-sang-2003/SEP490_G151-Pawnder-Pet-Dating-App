@@ -1,100 +1,159 @@
 ﻿using BE.DTO;
-using BE.Models;
+using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho Admin - chỉ nhận request và trả response
+    /// </summary>
     [Route("admin/users")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class AdminsController : ControllerBase
     {
-        private readonly PawnderDatabaseContext _db;
+        private readonly IAdminService _adminService;
 
-        public AdminsController(PawnderDatabaseContext db)
+        public AdminsController(IAdminService adminService)
         {
-            _db = db;
+            _adminService = adminService;
         }
 
+        // POST /admin/users/expert-confirmation/reassign
+        [HttpPost("expert-confirmation/reassign")]
+        public async Task<ActionResult<ReassignExpertConfirmationResponse>> ReassignExpertConfirmation(
+            [FromBody] ReassignExpertConfirmationRequest req,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _adminService.ReassignExpertConfirmationAsync(req, ct);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // POST /admin/users/{id}/ban
+        [HttpPost("{id:int}/ban")]
+        public async Task<ActionResult> BanUser([FromRoute] int id, [FromBody] BanUserRequest req, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _adminService.BanUserAsync(id, req, ct);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // POST /admin/users/{id}/unban
+        [HttpPost("{id:int}/unban")]
+        public async Task<ActionResult> UnbanUser([FromRoute] int id, [FromBody] UnbanUserRequest? req, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _adminService.UnbanUserAsync(id, req, ct);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // GET /admin/users/{id}/bans
+        [HttpGet("{id:int}/bans")]
+        public async Task<ActionResult> GetUserBans([FromRoute] int id, CancellationToken ct = default)
+        {
+            try
+            {
+                var items = await _adminService.GetUserBansAsync(id, ct);
+                return Ok(items);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // PUT /admin/users/{id}
         [HttpPut("{id:int}")]
         public async Task<ActionResult> UpdateUserByAdmin(
-     [FromRoute] int id,
-     [FromBody] AdUserUpdateRequest request,
-     CancellationToken ct = default)
+            [FromRoute] int id,
+            [FromBody] AdUserUpdateRequest request,
+            CancellationToken ct = default)
         {
             if (!ModelState.IsValid)
                 return ValidationProblem(ModelState);
 
-            var entity = await _db.Users.FirstOrDefaultAsync(u => u.UserId == id, ct);
-            if (entity == null)
-                return NotFound(new { message = "Không tìm thấy user." });
-
-            // Cập nhật có điều kiện
-            if (request.isDelete.HasValue)
-                entity.IsDeleted = request.isDelete.Value;
-
-            if (request.userStatusId.HasValue)
-                entity.UserStatusId = request.userStatusId.Value;
-
-   
-
-            entity.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            await _db.SaveChangesAsync(ct);
-
-            return Ok(new { message = "Cập nhật người dùng thành công." });
+            try
+            {
+                var success = await _adminService.UpdateUserByAdminAsync(id, request, ct);
+                return Ok(new { message = "Cập nhật người dùng thành công." });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
+
+        // POST /admin/users
         [HttpPost]
         public async Task<ActionResult<UserResponse>> Register(
-      [FromBody] AdUserCreateRequest req,
-      CancellationToken ct = default)
+            [FromBody] AdUserCreateRequest req,
+            CancellationToken ct = default)
         {
-            // unique email
-            var emailExists = await _db.Users
-                .AnyAsync(u => u.Email == req.Email && (u.IsDeleted == null || u.IsDeleted == false), ct);
-            if (emailExists)
-                return Conflict(new { message = "Email đã tồn tại" });
-
-            // Hash password – tuỳ thư viện bạn dùng. Ví dụ BCrypt.Net-Next:
-            // var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
-            // Nếu bạn đã hash ở nơi khác, hãy gán trực tiếp PasswordHash.
-            var hashed = BCrypt.Net.BCrypt.HashPassword(req.Password);
-
-            var entity = new BE.Models.User
+            try
             {
-                RoleId = req.RoleId,
-                UserStatusId = 1,
-                FullName = req.FullName,
-                Gender = req.Gender,
-                Email = req.Email,
-                PasswordHash = hashed,
-               
-                IsDeleted = false,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
-            };
-
-            _db.Users.Add(entity);
-            await _db.SaveChangesAsync(ct);
-
-            var resp = new UserResponse
+                var resp = await _adminService.RegisterUserByAdminAsync(req, ct);
+                return CreatedAtAction(nameof(Register), new { userId = resp.UserId }, resp);
+            }
+            catch (InvalidOperationException ex)
             {
-
-                RoleId = entity.RoleId,
-                UserStatusId = entity.UserStatusId,
-                AddressId = entity.AddressId,
-                FullName = entity.FullName,
-                Gender = entity.Gender,
-                Email = entity.Email,
-                ProviderLogin = entity.ProviderLogin,
-                IsDeleted = entity.IsDeleted ?? false,
-                CreatedAt = entity.CreatedAt,
-                UpdatedAt = entity.UpdatedAt
-            };
-
-            return CreatedAtAction(nameof(Register), new { userId = resp.UserId }, resp);
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
-
     }
 }

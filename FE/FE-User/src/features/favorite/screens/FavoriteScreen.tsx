@@ -1,10 +1,9 @@
-import React, { useEffect, useCallback, useState, useRef } from "react";
+import React, { useEffect, useCallback, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   Animated,
@@ -21,11 +20,16 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getLikesReceived, respondToLike, LikeReceivedItem } from "../../../api/match";
+import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
+import { getLikesReceived, respondToLike } from "../../../api/match";
+import type { LikeReceivedItem } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useDispatch } from "react-redux";
-import { resetFavoriteBadge, showMatchModal } from "../../badge/badgeSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { resetFavoriteBadge, showMatchModal, selectActivePetId } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
+import { getPetsByUserId } from "../../../api/pet";
+import OptimizedImage from "../../../components/OptimizedImage";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
 
 const { width, height } = Dimensions.get("window");
 const CARD_PADDING = 16;
@@ -49,11 +53,20 @@ interface LikeCat {
 
 const FavoriteScreen = ({ navigation }: Props) => {
   const dispatch = useDispatch<AppDispatch>();
+  const activePetId = useSelector(selectActivePetId); // Get current active pet ID
   const [pets, setPets] = useState<LikeCat[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
   const [activeTab, setActiveTab] = useState<'likes' | 'matches'>('likes');
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // ✅ Reload likes when activePetId changes
+  useEffect(() => {
+    if (activePetId !== null) {
+      console.log('🔄 Active pet changed, reloading likes...');
+      loadLikes(true); // Force refresh
+    }
+  }, [activePetId]);
 
   // Reload likes when screen comes into focus
   useFocusEffect(
@@ -62,11 +75,16 @@ const FavoriteScreen = ({ navigation }: Props) => {
       // Reset favorite badge when user views this screen
       console.log('🔔 Resetting favorite badge to 0');
       dispatch(resetFavoriteBadge());
-      loadLikes();
+      
+      // 🚀 FORCE REFRESH: Always fetch fresh data when entering screen
+      loadLikes(true); // Force refresh = true
+      
+      // Don't refresh badges here - they are managed by useBadgeNotifications hook
     }, [dispatch])
   );
 
-  const loadLikes = async () => {
+  // 🚀 OPTIMIZED: Load likes with parallel API calls and caching
+  const loadLikes = async (forceRefresh = false) => {
     try {
       setLoading(true);
       const userIdStr = await AsyncStorage.getItem('userId');
@@ -79,14 +97,69 @@ const FavoriteScreen = ({ navigation }: Props) => {
       const userId = parseInt(userIdStr);
       console.log('📞 Loading likes for user:', userId);
       
-      const likesData = await getLikesReceived(userId);
-      console.log('✅ Received likes:', likesData);
+      // 🚀 OPTIMIZATION 1: Get active pet with cache
+      let activePetId: number | undefined;
+      try {
+        const userPets = await cache.getOrFetch(
+          CACHE_KEYS.USER_PETS(userId),
+          () => getPetsByUserId(userId),
+          CACHE_TTL.MEDIUM
+        );
+        
+        const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
+        if (activePet) {
+          activePetId = activePet.PetId || activePet.petId;
+          console.log('🐾 Active pet for likes filtering:', activePetId);
+        } else {
+          console.log('⚠️ No active pet found - showing all likes');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not get active pet - showing all likes');
+      }
+      
+      // 🚀 OPTIMIZATION 2: Check cache first (unless force refresh)
+      const cacheKey = CACHE_KEYS.LIKES(userId, activePetId);
+      if (!forceRefresh) {
+        const cachedLikes = cache.get<LikeCat[]>(cacheKey, CACHE_TTL.SHORT);
+        if (cachedLikes) {
+          console.log('✅ Using cached likes');
+          setPets(cachedLikes);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // 🚀 OPTIMIZATION 3: Fetch fresh data with petId filter
+      let likesData: LikeReceivedItem[] = [];
+      try {
+        // Pass activePetId to API so backend filters correctly
+        const initialLikes = await getLikesReceived(userId, activePetId);
+        console.log('📊 Total likes from API (filtered by pet):', initialLikes.length);
+        likesData = initialLikes;
+      } catch (error) {
+        console.log('⚠️ Error loading data:', error);
+        // Fallback: try to load likes without pet filter
+        try {
+          likesData = await getLikesReceived(userId);
+        } catch (e) {
+          console.error('❌ Failed to load likes:', e);
+        }
+      }
+      
+      console.log('✅ Final likes to display:', likesData.length);
 
       // Convert API data to LikeCat format
       const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => {
         const photos = item.petPhotos && item.petPhotos.length > 0
-          ? item.petPhotos.map((url: string) => ({ uri: url }))
+          ? item.petPhotos
+              .filter((url: string) => url && url.trim() !== '') // Filter empty URLs
+              .map((url: string) => ({ uri: url }))
           : [require("../../../assets/cat_avatar.png")];
+        
+        // Fallback if all URLs are invalid
+        if (photos.length === 0) {
+          photos.push(require("../../../assets/cat_avatar.png"));
+        }
         
         return {
           id: item.matchId.toString(),                      // matchId for match/unmatch actions
@@ -104,6 +177,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
         };
       });
 
+      // 🚀 OPTIMIZATION 4: Cache the result
+      cache.set(cacheKey, formattedPets);
+      console.log('💾 Cached likes for future use');
+      
       setPets(formattedPets);
     } catch (error) {
       console.error('❌ Error loading likes:', error);
@@ -127,7 +204,17 @@ const FavoriteScreen = ({ navigation }: Props) => {
     return `${diffDays} days ago`;
   };
 
-  const handleMatch = async (petId: string) => {
+  // 🚀 OPTIMIZATION 2: Memoize filtered pets by tab
+  const filteredPets = useMemo(() => {
+    if (activeTab === 'likes') {
+      return pets.filter(p => !p.isMatch);
+    } else {
+      return pets.filter(p => p.isMatch);
+    }
+  }, [pets, activeTab]);
+
+  // 🚀 OPTIMIZATION 3: Memoize handlers to prevent re-renders
+  const handleMatch = useCallback(async (petId: string) => {
     const pet = pets.find(p => p.id === petId);
     if (!pet) return;
 
@@ -149,6 +236,14 @@ const FavoriteScreen = ({ navigation }: Props) => {
         )
       );
 
+      // 🚀 OPTIMIZATION: Invalidate cache after action
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (userIdStr) {
+        const userId = parseInt(userIdStr);
+        invalidateCache.likes(userId);
+        invalidateCache.chats(userId); // Also invalidate chats since we have a new match
+      }
+
       // Show global match modal
       const petPhotoUrl = typeof pet.image === 'string' ? pet.image : pet.image?.uri;
       dispatch(showMatchModal({
@@ -161,9 +256,9 @@ const FavoriteScreen = ({ navigation }: Props) => {
     } catch (error) {
       console.error('❌ Error matching:', error);
     }
-  };
+  }, [pets, dispatch]);
 
-  const handlePass = async (petId: string) => {
+  const handlePass = useCallback(async (petId: string) => {
     try {
       console.log('👎 Passing on:', petId);
       
@@ -175,13 +270,21 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       // Remove from list immediately
       setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
+      
+      // 🚀 OPTIMIZATION: Invalidate cache after action
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (userIdStr) {
+        const userId = parseInt(userIdStr);
+        invalidateCache.likes(userId);
+      }
+      
       console.log('✅ Passed successfully');
     } catch (error) {
       console.error('❌ Error passing:', error);
     }
-  };
+  }, []);
 
-  const handleUnmatch = async (petId: string) => {
+  const handleUnmatch = useCallback(async (petId: string) => {
     try {
       console.log('💔 Unmatching:', petId);
       
@@ -193,13 +296,22 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       // Remove from list immediately
       setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
+      
+      // 🚀 OPTIMIZATION: Invalidate cache after action
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (userIdStr) {
+        const userId = parseInt(userIdStr);
+        invalidateCache.likes(userId);
+        invalidateCache.chats(userId); // Also invalidate chats
+      }
+      
       console.log('✅ Unmatched successfully');
     } catch (error) {
       console.error('❌ Error unmatching:', error);
     }
-  };
+  }, []);
 
-  const handleChat = (matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
+  const handleChat = useCallback((matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
     console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
     navigation.navigate('ChatDetail', { 
       matchId: parseInt(matchId),
@@ -207,14 +319,15 @@ const FavoriteScreen = ({ navigation }: Props) => {
       userName: ownerName,
       userAvatar: petAvatar || require("../../../assets/cat_avatar.png"),
     });
-  };
+  }, [navigation]);
 
-  const handleViewProfile = (petId: string) => {
+  const handleViewProfile = useCallback((petId: string) => {
     console.log('🐾 Opening pet profile:', petId);
     navigation.navigate("PetProfile", { petId, fromFavorite: true } as any);
-  };
+  }, [navigation]);
 
-  const renderLikeItem = ({ item, index }: { item: LikeCat; index: number }) => {
+  // 🚀 OPTIMIZATION 4: Memoize renderLikeItem
+  const renderLikeItem = useCallback(({ item, index }: { item: LikeCat; index: number }) => {
     const currentPhotoIndex = currentPhotoIndices[item.id] || 0;
     const hasMultiplePhotos = item.images.length > 1;
 
@@ -227,7 +340,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
         >
           {/* Image Container with Photo Navigation */}
           <View style={styles.imageContainer}>
-            <Image source={item.images[currentPhotoIndex]} style={styles.catImage} />
+            <OptimizedImage source={item.images[currentPhotoIndex]} style={styles.catImage} resizeMode="cover" showLoader={true} imageSize="card" />
             
             {/* Photo Navigation - Left/Right tap areas */}
             {hasMultiplePhotos && (
@@ -308,11 +421,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   </Text>
                 </View>
                 <View style={styles.metaRow}>
-                  <Icon name="paw" size={14} color={colors.white} />
+                  <Icon name="paw" size={16} color={colors.white} />
                   <Text style={styles.metaText}>{item.age} • {item.breed}</Text>
                 </View>
                 <View style={styles.ownerRow}>
-                  <Icon name="person-outline" size={14} color={colors.white} />
+                  <Icon name="person-outline" size={16} color={colors.white} />
                   <Text style={styles.ownerTextOnImage}>{item.ownerName}</Text>
                 </View>
               </View>
@@ -338,7 +451,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Icon name="chatbubble" size={18} color={colors.white} />
+                    <Icon name="chatbubble" size={25} color={colors.white} />
                     <Text style={styles.actionTextWhite}>Send Message</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -351,12 +464,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   }}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient
-                    colors={["#FF6B6B", "#FF8E8E"]}
-                    style={styles.unmatchIconGradient}
-                  >
-                    <Icon name="close-circle-outline" size={16} color={colors.white} />
-                  </LinearGradient>
+                  <Icon name="close-circle" size={20} color="#FF6B6B" />
                   <Text style={styles.actionTextDanger}>Unmatch</Text>
                 </TouchableOpacity>
               </>
@@ -401,7 +509,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
       </Animated.View>
     );
-  };
+  }, [currentPhotoIndices, handleMatch, handlePass, handleUnmatch, handleChat, handleViewProfile]);
 
   // Show loading state
   if (loading) {
@@ -679,7 +787,7 @@ const styles = StyleSheet.create({
   // Image Container
   imageContainer: {
     width: "100%",
-    height: 180,
+    height: 240,
     position: "relative",
     backgroundColor: "#F0F0F0",
   },
@@ -777,12 +885,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    paddingBottom: 10,
+    paddingHorizontal: 14,
+    paddingTop: 20,
+    paddingBottom: 14,
   },
   imageInfo: {
-    gap: 4,
+    gap: 6,
   },
   petNameRow: {
     flexDirection: "row",
@@ -790,12 +898,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   catNameOnImage: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "bold",
     color: colors.white,
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   maleSymbol: {
     color: "#64B5F6",
@@ -809,9 +917,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    fontSize: 11,
+    fontSize: 13,
     color: colors.white,
-    fontWeight: "500",
+    fontWeight: "600",
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   ownerRow: {
     flexDirection: "row",
@@ -819,23 +930,26 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ownerTextOnImage: {
-    fontSize: 11,
+    fontSize: 13,
     color: colors.white,
-    fontWeight: "500",
+    fontWeight: "600",
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 
   // Actions Container
   actionsContainer: {
     flexDirection: "row",
-    gap: 8,
-    padding: 10,
+    gap: 10,
+    padding: 12,
     backgroundColor: colors.white,
   },
 
   // Action Buttons - Matched State
   actionBtnChat: {
     flex: 1,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     overflow: "hidden",
     ...shadows.button,
   },
@@ -843,12 +957,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
   },
   actionTextWhite: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
     color: colors.white,
     letterSpacing: 0.3,
   },
@@ -856,25 +971,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.whiteWarm,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,107,107,0.3)",
-  },
-  unmatchIconGradient: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: "#FFF5F5",
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: "#FFE0E0",
+    ...shadows.small,
   },
   actionTextDanger: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#FF6B6B",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FF5252",
+    letterSpacing: 0.3,
   },
 
   // Action Buttons - Not Matched State

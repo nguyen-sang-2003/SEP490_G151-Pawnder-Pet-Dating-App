@@ -6,7 +6,7 @@ namespace BE.Services
     public class ChatHub : Hub
     {
         // Track user connections (userId -> list of connectionIds)
-        private static readonly ConcurrentDictionary<int, HashSet<string>> UserConnections = new();
+        public static readonly ConcurrentDictionary<int, HashSet<string>> UserConnections = new();
         
         // Track which users are online
         private static readonly ConcurrentDictionary<int, DateTime> OnlineUsers = new();
@@ -98,7 +98,7 @@ namespace BE.Services
         /// <summary>
         /// Send a message to a specific chat room
         /// </summary>
-        public async Task SendMessage(int matchId, int fromUserId, string message)
+    public async Task SendMessage(int matchId, int fromUserId, string message, int? fromPetId = null)
         {
             var groupName = $"Match_{matchId}";
             
@@ -108,7 +108,8 @@ namespace BE.Services
             await Clients.Group(groupName).SendAsync("ReceiveMessage", new
             {
                 MatchId = matchId,
-                FromUserId = fromUserId,
+            FromUserId = fromUserId,
+            FromPetId = fromPetId,
                 Message = message,
                 CreatedAt = DateTime.UtcNow
             });
@@ -165,7 +166,7 @@ namespace BE.Services
         /// <summary>
         /// Send notification to a specific user about new message badge (STATIC for use in controllers)
         /// </summary>
-        public static async Task SendNewMessageBadge(IHubContext<ChatHub> hubContext, int toUserId, int matchId)
+        public static async Task SendNewMessageBadge(IHubContext<ChatHub> hubContext, int toUserId, int matchId, int? fromPetId = null, int? toPetId = null)
         {
             if (UserConnections.TryGetValue(toUserId, out var connections))
             {
@@ -174,6 +175,8 @@ namespace BE.Services
                     await hubContext.Clients.Client(connectionId).SendAsync("NewMessageBadge", new
                     {
                         MatchId = matchId,
+                        FromPetId = fromPetId,
+                        ToPetId = toPetId,
                         Timestamp = DateTime.UtcNow
                     });
                 }

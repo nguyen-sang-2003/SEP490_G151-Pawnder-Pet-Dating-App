@@ -1,50 +1,61 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { View, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { navigationRef } from "../services/navigation.service";
+import { getAuthToken } from "../api/auth";
+import { 
+  defaultScreenOptions, 
+  modalScreenOptions, 
+  detailScreenOptions,
+  navigationTheme 
+} from "./navigationConfig";
 
-// Import Auth Screens
+// Import critical screens immediately (needed for initial render)
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
 import SignInScreen from "../features/auth/screens/SignInScreen";
-import SignUpScreen from "../features/auth/screens/SignUpScreen";
-import AddPetBasicInfoScreen from "../features/auth/screens/AddPetBasicInfoScreen";
-import AddPetCharacteristicsScreen from "../features/auth/screens/AddPetCharacteristicsScreen";
-import AddPetPhotosScreen from "../features/auth/screens/AddPetPhotosScreen";
-import OnboardingPreferencesScreen from "../features/auth/screens/OnboardingPreferencesScreen";
-import OTPVerificationScreen from "../features/auth/screens/OTPVerificationScreen";
-import ForgotPasswordScreen from "../features/auth/screens/ForgotPasswordScreen";
-import ResetPasswordScreen from "../features/auth/screens/ResetPasswordScreen";
-
-// Import Other Screens
 import HomeScreen from "../features/home/screens/HomeScreen";
-import FilterScreen from "../features/home/screens/FilterScreen";
-import ChatScreen from "../features/chat/screens/ChatScreen";
-import ChatDetailScreen from "../features/chat/screens/ChatDetailScreen";
-import AIChatScreen from "../features/chat/screens/AIChatScreen";
-import AIChatListScreen from "../features/chat/screens/AIChatListScreen";
-import NotificationScreen from "../features/notification/screens/NotificationScreen";
-import FavoriteScreen from "../features/favorite/screens/FavoriteScreen";
-import UserProfileScreen from "../features/profile/screens/UserProfileScreen";
-import PetProfileScreen from "../features/profile/screens/PetProfileScreen";
-import EditUserProfileScreen from "../features/profile/screens/EditUserProfileScreen";
-import EditPetScreen from "../features/profile/screens/EditPetScreen";
-import HelpAndSupportScreen from "../features/settings/screens/HelpAndSupportScreen";
-import ResourceDetailScreen from "../features/settings/screens/ResourceDetailScreen";
-import PremiumScreen from "../features/settings/screens/PremiumScreen";
-import PrivacyAndSafetyScreen from "../features/settings/screens/PrivacyAndSafetyScreen";
-import ShareProfileScreen from "../features/settings/screens/ShareProfileScreen";
-import UserPreferenceScreen from "../features/settings/screens/UserPreferenceScreen";
-import ReportScreen from "../features/settings/screens/ReportScreen";
-import MyReportsScreen from "../features/settings/screens/MyReportsScreen";
-import ExpertConfirmationScreen from "../features/settings/screens/ExpertConfirmationScreen";
-import SettingsScreen from "../features/settings/screens/SettingsScreen";
-import BlockedUsersScreen from "../features/settings/screens/BlockedUsersScreen";
-import PaymentHistoryScreen from "../features/settings/screens/PaymentHistoryScreen";
-import PaymentMethodScreen from "../features/settings/screens/PaymentMethodScreen";
-import QRPaymentScreen from "../features/settings/screens/QRPaymentScreen";
-import ChangePasswordScreen from "../features/settings/screens/ChangePasswordScreen";
-import { getAuthToken } from "../api/auth";
+import AddPetBasicInfoScreen from "../features/auth/screens/AddPetBasicInfoScreen";
+
+// Lazy load non-critical auth screens
+const SignUpScreen = lazy(() => import("../features/auth/screens/SignUpScreen"));
+const AddPetCharacteristicsScreen = lazy(() => import("../features/auth/screens/AddPetCharacteristicsScreen"));
+const AddPetPhotosScreen = lazy(() => import("../features/auth/screens/AddPetPhotosScreen"));
+const OnboardingPreferencesScreen = lazy(() => import("../features/auth/screens/OnboardingPreferencesScreen"));
+const OTPVerificationScreen = lazy(() => import("../features/auth/screens/OTPVerificationScreen"));
+const ForgotPasswordScreen = lazy(() => import("../features/auth/screens/ForgotPasswordScreen"));
+const ResetPasswordScreen = lazy(() => import("../features/auth/screens/ResetPasswordScreen"));
+
+// Lazy load other screens
+const FilterScreen = lazy(() => import("../features/home/screens/FilterScreen"));
+const ChatScreen = lazy(() => import("../features/chat/screens/ChatScreen"));
+const ChatDetailScreen = lazy(() => import("../features/chat/screens/ChatDetailScreen"));
+const AIChatScreen = lazy(() => import("../features/chat/screens/AIChatScreen"));
+const AIChatListScreen = lazy(() => import("../features/chat/screens/AIChatListScreen"));
+const ExpertChatListScreen = lazy(() => import("../features/expert/screens/ExpertChatListScreen"));
+const ExpertChatScreen = lazy(() => import("../features/expert/screens/ExpertChatScreen"));
+const NotificationScreen = lazy(() => import("../features/notification/screens/NotificationScreen"));
+const FavoriteScreen = lazy(() => import("../features/favorite/screens/FavoriteScreen"));
+const UserProfileScreen = lazy(() => import("../features/profile/screens/UserProfileScreen"));
+const PetProfileScreen = lazy(() => import("../features/profile/screens/PetProfileScreen"));
+const EditUserProfileScreen = lazy(() => import("../features/profile/screens/EditUserProfileScreen"));
+const EditPetScreen = lazy(() => import("../features/profile/screens/EditPetScreen"));
+const HelpAndSupportScreen = lazy(() => import("../features/settings/screens/HelpAndSupportScreen"));
+const ResourceDetailScreen = lazy(() => import("../features/settings/screens/ResourceDetailScreen"));
+const PremiumScreen = lazy(() => import("../features/settings/screens/PremiumScreen"));
+const PrivacyAndSafetyScreen = lazy(() => import("../features/settings/screens/PrivacyAndSafetyScreen"));
+const ShareProfileScreen = lazy(() => import("../features/settings/screens/ShareProfileScreen"));
+const UserPreferenceScreen = lazy(() => import("../features/settings/screens/UserPreferenceScreen"));
+const ReportScreen = lazy(() => import("../features/settings/screens/ReportScreen"));
+const MyReportsScreen = lazy(() => import("../features/settings/screens/MyReportsScreen"));
+const ExpertConfirmationScreen = lazy(() => import("../features/settings/screens/ExpertConfirmationScreen"));
+const SettingsScreen = lazy(() => import("../features/settings/screens/SettingsScreen"));
+const BlockedUsersScreen = lazy(() => import("../features/settings/screens/BlockedUsersScreen"));
+const PaymentHistoryScreen = lazy(() => import("../features/settings/screens/PaymentHistoryScreen"));
+const PaymentMethodScreen = lazy(() => import("../features/settings/screens/PaymentMethodScreen"));
+const QRPaymentScreen = lazy(() => import("../features/settings/screens/QRPaymentScreen"));
+const ChangePasswordScreen = lazy(() => import("../features/settings/screens/ChangePasswordScreen"));
 
 
 export type RootStackParamList = {
@@ -77,6 +88,8 @@ export type RootStackParamList = {
   };
   AIChatList: undefined;
   AIChat: { chatId?: string };
+  ExpertChatList: undefined;
+  ExpertChat: { expertId?: number; expertName?: string };
   Favorite: undefined;
   Profile: undefined;
   Notification: undefined;
@@ -108,6 +121,22 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Loading fallback component
+const LoadingFallback = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
+    <ActivityIndicator size="large" color="#FF6EA7" />
+  </View>
+);
+
+// Wrapper component for lazy-loaded screens
+const LazyScreen = (Component: React.LazyExoticComponent<any>) => {
+  return (props: any) => (
+    <Suspense fallback={<LoadingFallback />}>
+      <Component {...props} />
+    </Suspense>
+  );
+};
+
 // Wrapper component for AddPet from Profile to use new flow
 const AddPetScreen = (props: any) => {
   return <AddPetBasicInfoScreen {...props} route={{ ...props.route, params: { isFromProfile: true } }} />;
@@ -119,6 +148,25 @@ const AppNavigator = () => {
 
   useEffect(() => {
     checkAuth();
+    
+    // Listen for logout flag changes
+    const checkLogoutInterval = setInterval(async () => {
+      const shouldLogout = await AsyncStorage.getItem('shouldLogout');
+      if (shouldLogout === 'true') {
+        console.log('🚪 Logout flag detected, redirecting to Welcome...');
+        await AsyncStorage.removeItem('shouldLogout');
+        setIsAuthenticated(false);
+        // Navigate to Welcome screen
+        if (navigationRef.current) {
+          navigationRef.current.reset({
+            index: 0,
+            routes: [{ name: 'Welcome' as never }],
+          });
+        }
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(checkLogoutInterval);
   }, []);
 
   const checkAuth = async () => {
@@ -141,53 +189,90 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={navigationTheme}>
       <Stack.Navigator
         initialRouteName={isAuthenticated ? "Home" : "Welcome"}
-        screenOptions={{ headerShown: false }}
+        screenOptions={defaultScreenOptions}
       >
+        {/* Critical screens - loaded immediately */}
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-        <Stack.Screen name="AddPetBasicInfo" component={AddPetBasicInfoScreen} />
-        <Stack.Screen name="AddPetCharacteristics" component={AddPetCharacteristicsScreen} />
-        <Stack.Screen name="AddPetPhotos" component={AddPetPhotosScreen} />
-        <Stack.Screen name="OnboardingPreferences" component={OnboardingPreferencesScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
+        
+        {/* Lazy-loaded auth screens */}
+        <Stack.Screen name="SignUp" component={LazyScreen(SignUpScreen)} />
+        <Stack.Screen name="OTPVerification" component={LazyScreen(OTPVerificationScreen)} />
+        <Stack.Screen name="ForgotPassword" component={LazyScreen(ForgotPasswordScreen)} />
+        <Stack.Screen name="ResetPassword" component={LazyScreen(ResetPasswordScreen)} />
+        <Stack.Screen name="AddPetBasicInfo" component={AddPetBasicInfoScreen} />
+        <Stack.Screen name="AddPetCharacteristics" component={LazyScreen(AddPetCharacteristicsScreen)} />
+        <Stack.Screen name="AddPetPhotos" component={LazyScreen(AddPetPhotosScreen)} />
+        <Stack.Screen name="OnboardingPreferences" component={LazyScreen(OnboardingPreferencesScreen)} />
+        
+        {/* Lazy-loaded main screens */}
         <Stack.Screen 
           name="FilterScreen" 
-          component={FilterScreen}
-          options={{ headerShown: false }}
+          component={LazyScreen(FilterScreen)}
+          options={modalScreenOptions}
         />
-        <Stack.Screen name="Chat" component={ChatScreen} />
-        <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
-        <Stack.Screen name="AIChatList" component={AIChatListScreen} />
-        <Stack.Screen name="AIChat" component={AIChatScreen} />
-        <Stack.Screen name="Notification" component={NotificationScreen} />
-        <Stack.Screen name="Favorite" component={FavoriteScreen} />
-        <Stack.Screen name="Profile" component={UserProfileScreen} />
-        <Stack.Screen name="PetProfile" component={PetProfileScreen} />
-        <Stack.Screen name="EditProfile" component={EditUserProfileScreen} />
-        <Stack.Screen name="EditPet" component={EditPetScreen} />
+        <Stack.Screen name="Chat" component={LazyScreen(ChatScreen)} />
+        <Stack.Screen 
+          name="ChatDetail" 
+          component={LazyScreen(ChatDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen name="AIChatList" component={LazyScreen(AIChatListScreen)} />
+        <Stack.Screen 
+          name="AIChat" 
+          component={LazyScreen(AIChatScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen name="ExpertChatList" component={LazyScreen(ExpertChatListScreen)} />
+        <Stack.Screen 
+          name="ExpertChat" 
+          component={LazyScreen(ExpertChatScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen name="Notification" component={LazyScreen(NotificationScreen)} />
+        <Stack.Screen name="Favorite" component={LazyScreen(FavoriteScreen)} />
+        <Stack.Screen name="Profile" component={LazyScreen(UserProfileScreen)} />
+        <Stack.Screen 
+          name="PetProfile" 
+          component={LazyScreen(PetProfileScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen name="EditProfile" component={LazyScreen(EditUserProfileScreen)} />
+        <Stack.Screen name="EditPet" component={LazyScreen(EditPetScreen)} />
         <Stack.Screen name="AddPet" component={AddPetScreen} />
-        <Stack.Screen name="HelpAndSupport" component={HelpAndSupportScreen} />
-        <Stack.Screen name="ResourceDetail" component={ResourceDetailScreen} />
-        <Stack.Screen name="Premium" component={PremiumScreen} />
-        <Stack.Screen name="PrivacyAndSafety" component={PrivacyAndSafetyScreen} />
-        <Stack.Screen name="ShareProfile" component={ShareProfileScreen} />
-        <Stack.Screen name="UserPreference" component={UserPreferenceScreen} />
-        <Stack.Screen name="Report" component={ReportScreen} />
-        <Stack.Screen name="MyReports" component={MyReportsScreen} />
-        <Stack.Screen name="ExpertConfirmation" component={ExpertConfirmationScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
-        <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
-        <Stack.Screen name="PaymentMethod" component={PaymentMethodScreen} />
-        <Stack.Screen name="QRPayment" component={QRPaymentScreen} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        
+        {/* Lazy-loaded settings screens */}
+        <Stack.Screen name="HelpAndSupport" component={LazyScreen(HelpAndSupportScreen)} />
+        <Stack.Screen 
+          name="ResourceDetail" 
+          component={LazyScreen(ResourceDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen 
+          name="Premium" 
+          component={LazyScreen(PremiumScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen name="PrivacyAndSafety" component={LazyScreen(PrivacyAndSafetyScreen)} />
+        <Stack.Screen name="ShareProfile" component={LazyScreen(ShareProfileScreen)} />
+        <Stack.Screen name="UserPreference" component={LazyScreen(UserPreferenceScreen)} />
+        <Stack.Screen name="Report" component={LazyScreen(ReportScreen)} />
+        <Stack.Screen name="MyReports" component={LazyScreen(MyReportsScreen)} />
+        <Stack.Screen name="ExpertConfirmation" component={LazyScreen(ExpertConfirmationScreen)} />
+        <Stack.Screen name="Settings" component={LazyScreen(SettingsScreen)} />
+        <Stack.Screen name="BlockedUsers" component={LazyScreen(BlockedUsersScreen)} />
+        <Stack.Screen name="PaymentHistory" component={LazyScreen(PaymentHistoryScreen)} />
+        <Stack.Screen name="PaymentMethod" component={LazyScreen(PaymentMethodScreen)} />
+        <Stack.Screen 
+          name="QRPayment" 
+          component={LazyScreen(QRPaymentScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen name="ChangePassword" component={LazyScreen(ChangePasswordScreen)} />
       </Stack.Navigator>
     </NavigationContainer>
   );

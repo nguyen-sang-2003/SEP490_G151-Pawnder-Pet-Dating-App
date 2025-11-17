@@ -3,6 +3,8 @@ import client from './client';
 export interface LikeRequest {
   fromUserId: number;
   toUserId: number;
+  fromPetId: number; // Pet that is sending the like
+  toPetId: number; // Pet that is receiving the like
 }
 
 export interface LikeResponse {
@@ -45,6 +47,8 @@ export interface LikeReceivedItem {
   matchId: number;
   fromUserId: number;
   toUserId?: number;
+  fromPetId?: number; // Pet ID of sender
+  toPetId?: number;   // Pet ID of receiver (for filtering)
   status: string;
   createdAt: string;
   isMatch: boolean;
@@ -61,6 +65,7 @@ export interface MatchStats {
 export interface BadgeCounts {
   unreadChats: number[]; // List of matchIds with unread messages
   favoriteBadge: number;
+  notificationBadge: number;
 }
 
 /**
@@ -81,12 +86,15 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
 
 /**
  * Get badge counts for user (unread messages + pending likes)
- * GET /api/match/badge-counts/{userId}
+ * GET /api/match/badge-counts/{userId}?petId={petId}
  */
-export const getBadgeCounts = async (userId: number): Promise<BadgeCounts> => {
+export const getBadgeCounts = async (userId: number, petId?: number): Promise<BadgeCounts> => {
   try {
 
-    const response = await client.get(`/api/match/badge-counts/${userId}`);
+    const url = petId 
+      ? `/api/match/badge-counts/${userId}?petId=${petId}`
+      : `/api/match/badge-counts/${userId}`;
+    const response = await client.get(url);
 
     return response.data;
   } catch (error: any) {
@@ -106,8 +114,11 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error sending like:', error);
-    console.error('Error response:', error.response?.data);
+    // Don't log 429 limit errors (handled by UI modal)
+    if (error.response?.status !== 429) {
+      console.error('❌ Error sending like:', error);
+      console.error('Error response:', error.response?.data);
+    }
     throw error;
   }
 };
@@ -116,10 +127,13 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
  * Get likes received (people who liked you)
  * GET /api/match/likes-received/{userId}
  */
-export const getLikesReceived = async (userId: number): Promise<LikeReceivedItem[]> => {
+export const getLikesReceived = async (userId: number, petId?: number): Promise<LikeReceivedItem[]> => {
   try {
 
-    const response = await client.get(`/api/match/likes-received/${userId}`);
+    const url = petId 
+      ? `/api/match/likes-received/${userId}?petId=${petId}`
+      : `/api/match/likes-received/${userId}`;
+    const response = await client.get(url);
 
     return response.data;
   } catch (error: any) {

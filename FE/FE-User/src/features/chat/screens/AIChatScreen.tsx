@@ -20,8 +20,10 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatAIHistory, sendMessageToAI, createExpertConfirmation } from "../../../api";
+import { getChatAIHistory, sendMessageToAI, createExpertConfirmation, getTokenUsage } from "../../../api";
 import CustomAlert from "../../../components/CustomAlert";
+import { LimitReachedModal } from "../../../components/LimitReachedModal";
+import { TokenLimitModal } from "../../../components/TokenLimitModal";
 
 const { width } = Dimensions.get("window");
 
@@ -46,15 +48,33 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   const [chatTitle, setChatTitle] = useState("AI Chat");
   const flatListRef = useRef<FlatList>(null);
 
+  // Token usage states
+  const [tokenUsage, setTokenUsage] = useState<{
+    isVip: boolean;
+    dailyQuota: number;
+    tokensUsed: number;
+    tokensRemaining: number;
+  } | null>(null);
+
   // Alert states
   const [showConfirmAlert, setShowConfirmAlert] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  
+  // Limit modal states
+  const [showTokenLimitModal, setShowTokenLimitModal] = useState(false);
+  const [showExpertLimitModal, setShowExpertLimitModal] = useState(false);
+  const [expertLimitMessage, setExpertLimitMessage] = useState("");
+  
+  // Track which messages have been sent to expert
+  const [sentToExpertIds, setSentToExpertIds] = useState<Set<string>>(new Set());
 
-  // Load chat history on mount
+  // Load chat history and token usage on mount
   useEffect(() => {
+    loadTokenUsage(); // Load token usage first
+    
     if (chatId && chatId !== "new") {
       loadChatHistory();
     } else {
@@ -76,6 +96,16 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setLoading(false);
     }
   }, [chatId]);
+
+  const loadTokenUsage = async () => {
+    try {
+      const usage = await getTokenUsage();
+      setTokenUsage(usage);
+      console.log('📊 Initial token usage:', usage);
+    } catch (error) {
+      console.error('❌ Error loading token usage:', error);
+    }
+  };
 
   const loadChatHistory = async () => {
     try {
@@ -125,6 +155,15 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    // Check quota trước khi gửi (tránh delay)
+    if (tokenUsage) {
+      const estimatedTokens = Math.ceil(messageText.length / 2) * 4; // Ước lượng
+      if (tokenUsage.tokensRemaining < estimatedTokens) {
+        setShowTokenLimitModal(true);
+        return;
+      }
+    }
+
     // Add user message to UI immediately
     const userMessage: Message = {
       id: `temp-${Date.now()}`,
@@ -149,6 +188,20 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       // Call API
       const response = await sendMessageToAI(parseInt(chatId), messageText);
       
+      // Update token usage
+      if (response.usage) {
+        setTokenUsage(response.usage);
+        console.log('📊 Token usage:', response.usage);
+        console.log('📊 Token details:', response.tokenDetails);
+        
+        // Check nếu vượt quota sau khi trả lời → hiện modal
+        if (response.usage.exceededQuota) {
+          setTimeout(() => {
+            setShowTokenLimitModal(true);
+          }, 1000); // Delay 1s để user đọc câu trả lời trước
+        }
+      }
+      
       // Add AI response to messages
       const aiMessage: Message = {
         id: Date.now().toString(),
@@ -164,11 +217,36 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       }, 100);
       
     } catch (error: any) {
-      console.error('❌ Error sending message to AI:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể gửi tin nhắn');
-      
-      // Remove user message on error
+      // Remove user message on any error
       setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      
+      // Check if it's a 429 limit error
+      if (error.response?.status === 429) {
+        const errorData = error.response?.data;
+        
+        // Update token usage from error response
+        if (errorData?.usage) {
+          setTokenUsage(errorData.usage);
+          console.log('📊 Token usage (from error):', errorData.usage);
+        }
+        
+        setShowTokenLimitModal(true);
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        // Timeout error
+        Alert.alert(
+          'AI đang quá tải', 
+          'AI đang mất nhiều thời gian để xử lý. Vui lòng thử lại sau vài giây.'
+        );
+      } else if (error.response?.status === 500) {
+        // Backend error with custom message
+        const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra với AI. Vui lòng thử lại.';
+        Alert.alert('Lỗi', errorMsg);
+      } else {
+        // Generic error
+        console.error('❌ Error sending message to AI:', error);
+        const errorMsg = error.response?.data?.message || error.message || 'Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối.';
+        Alert.alert('Lỗi', errorMsg);
+      }
     } finally {
       setIsTyping(false);
     }
@@ -225,13 +303,29 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         message: fullMessage
       });
 
+      // Mark this message as sent to expert
+      setSentToExpertIds(prev => new Set(prev).add(selectedMessage.id));
+
       // Show success
       setShowSuccessAlert(true);
       
     } catch (error: any) {
-      console.error('❌ Error requesting expert:', error);
-      setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
-      setShowErrorAlert(true);
+      // Check if it's a 429 (daily limit reached)
+      if (error.response?.status === 429) {
+        const responseData = error.response.data;
+        const limitMsg = responseData.message || 'Bạn đã hết lượt xác nhận chuyên gia hôm nay!';
+        setExpertLimitMessage(limitMsg);
+        setShowExpertLimitModal(true);
+      } else if (error.response?.status === 400) {
+        // Show error message from backend
+        const errorMsg = error.response?.data?.Message || error.response?.data?.message || '';
+        setErrorMessage(errorMsg || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setShowErrorAlert(true);
+      } else {
+        console.error('❌ Error requesting expert:', error);
+        setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setShowErrorAlert(true);
+      }
     }
   };
 
@@ -279,8 +373,8 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               </View>
               <Text style={styles.aiMessageText}>{item.text}</Text>
               
-              {/* Ask Expert Button */}
-              {item.id !== "welcome" && (
+              {/* Ask Expert Button - Hide only for specific message that was sent */}
+              {item.id !== "welcome" && !sentToExpertIds.has(item.id) && (
                 <TouchableOpacity
                   style={styles.askExpertButton}
                   onPress={() => handleAskExpert(item)}
@@ -293,6 +387,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.askExpertText}>Ask Expert to Confirm</Text>
                   </LinearGradient>
                 </TouchableOpacity>
+              )}
+              
+              {/* Show "Sent to Expert" badge if this specific message was sent */}
+              {item.id !== "welcome" && sentToExpertIds.has(item.id) && (
+                <View style={styles.sentToExpertBadge}>
+                  <Icon name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.sentToExpertText}>Sent to Expert</Text>
+                </View>
               )}
             </View>
           ) : (
@@ -389,7 +491,11 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>AI Pet Assistant</Text>
             <Text style={styles.headerStatus}>
-              {isTyping ? "typing..." : "Always active "}
+              {isTyping ? "typing..." : tokenUsage 
+                ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota 
+                    ? "Limit reached (100%)" 
+                    : `${tokenUsage.tokensUsed.toLocaleString()}/${tokenUsage.dailyQuota.toLocaleString()} tokens`)
+                : "0/10,000 tokens"}
             </Text>
           </View>
         </View>
@@ -516,6 +622,28 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         message={errorMessage}
         confirmText="Đóng"
         onClose={() => setShowErrorAlert(false)}
+      />
+
+      {/* Token Limit Modal */}
+      <TokenLimitModal
+        visible={showTokenLimitModal}
+        onClose={() => setShowTokenLimitModal(false)}
+        onUpgrade={() => {
+          setShowTokenLimitModal(false);
+          navigation.navigate("Premium" as any);
+        }}
+        isVip={tokenUsage?.isVip || false}
+        tokensUsed={tokenUsage?.tokensUsed || 0}
+        dailyQuota={tokenUsage?.dailyQuota || 10000}
+        tokensRemaining={tokenUsage?.tokensRemaining || 0}
+      />
+
+      {/* Expert Confirmation Limit Modal */}
+      <LimitReachedModal
+        visible={showExpertLimitModal}
+        onClose={() => setShowExpertLimitModal(false)}
+        message={expertLimitMessage}
+        actionType="expert_confirm"
       />
     </View>
   );
@@ -704,6 +832,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: colors.white,
+  },
+  
+  // Sent to Expert Badge
+  sentToExpertBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#E8F5E9",
+    borderRadius: radius.md,
+    alignSelf: "flex-start",
+  },
+  sentToExpertText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.success,
   },
 
   userBubbleGradient: {

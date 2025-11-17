@@ -17,13 +17,18 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { getChats, getChatMessages, getUserById, ChatUser, ChatMessage } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
-import { getUserPetAvatar } from "../../../utils/petAvatar";
+import { getUserPetAvatar, getPetAvatar } from "../../../utils/petAvatar";
 import { useDispatch, useSelector } from "react-redux";
-import { selectUnreadChats } from "../../badge/badgeSlice";
+import { selectUnreadChats, selectActivePetId } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
+import { getVipStatus } from "../../../api/payment";
+import { getPetsByUserId } from "../../../api/pet";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
+import { ChatSkeleton } from "../../../components/ChatSkeleton";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -37,16 +42,20 @@ interface ChatItem {
   unread: number;
   avatar: any;
   isAI?: boolean;
+  isVip?: boolean;       // VIP status of other user
 }
 
 const ChatScreen = ({ navigation }: Props) => {
   const dispatch = useDispatch<AppDispatch>();
   const unreadChats = useSelector(selectUnreadChats); // Get list of unread matchIds
+  const activePetId = useSelector(selectActivePetId); // Get current active pet ID
   const [searchQuery, setSearchQuery] = useState("");
   const [chatData, setChatData] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set());
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'unread'>('all');
 
   // Setup SignalR connection once
   useEffect(() => {
@@ -58,12 +67,22 @@ const ChatScreen = ({ navigation }: Props) => {
     };
   }, []);
 
+  // ✅ Reload chats when activePetId changes
+  useEffect(() => {
+    if (activePetId !== null) {
+      console.log('🔄 Active pet changed, reloading chats...');
+      loadChats(true); // Force refresh
+    }
+  }, [activePetId]);
+
   // Load chats when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Don't reset badge here - it will auto-update as chats are marked read
       loadChats();
       refreshOnlineUsers();
+      
+      // Don't refresh badges here - they are managed by useBadgeNotifications hook
+      // and ChatDetailScreen marks chats as read locally
     }, [])
   );
 
@@ -107,8 +126,11 @@ const ChatScreen = ({ navigation }: Props) => {
   };
 
   const handleNewMessage = (data: any) => {
-    // Reload chats to update last message
-    loadChats();
+    // 🚀 OPTIMIZATION: Invalidate cache and reload
+    if (currentUserId) {
+      invalidateCache.chats(currentUserId);
+    }
+    loadChats(true); // Force refresh
   };
 
   const refreshOnlineUsers = async () => {
@@ -122,7 +144,16 @@ const ChatScreen = ({ navigation }: Props) => {
     }
   };
 
-  const loadChats = async () => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      loadChats(true),
+      refreshOnlineUsers(),
+    ]);
+    setRefreshing(false);
+  };
+
+  const loadChats = async (forceRefresh = false) => {
     try {
       setLoading(true);
       
@@ -138,22 +169,67 @@ const ChatScreen = ({ navigation }: Props) => {
       setCurrentUserId(userId);
       console.log('👤 Current user:', userId);
       
-      // Get accepted matches (chats)
-      const chats = await getChats(userId);
+      // 🚀 OPTIMIZATION: Get user's active pet ID with cache
+      let activePetId: number | undefined;
+      try {
+        const userPets = await cache.getOrFetch(
+          CACHE_KEYS.USER_PETS(userId),
+          () => getPetsByUserId(userId),
+          CACHE_TTL.MEDIUM
+        );
+        const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
+        if (activePet) {
+          activePetId = activePet.PetId || activePet.petId;
+          console.log('🐾 Active pet for chat filtering:', activePetId);
+        } else {
+          console.log('⚠️ No active pet found - showing all chats');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not get active pet - showing all chats');
+      }
+      
+      // 🚀 OPTIMIZATION: Check cache first (unless force refresh)
+      const cacheKey = CACHE_KEYS.CHATS(userId, activePetId);
+      if (!forceRefresh) {
+        const cachedChats = cache.get<ChatItem[]>(cacheKey, CACHE_TTL.SHORT);
+        if (cachedChats) {
+          console.log('✅ Using cached chats');
+          setChatData(cachedChats);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Get accepted matches (chats), filtered by active pet if available
+      const chats = await getChats(userId, activePetId);
       console.log('💬 Got chats:', chats);
       
       // For each chat, get the other user's info and last message
       const chatItems = await Promise.all(
         chats.map(async (chat) => {
-          // Determine the other user ID
+          // Determine the other user ID and pet ID
           const otherUserId = chat.fromUserId === userId ? chat.toUserId : chat.fromUserId;
+          const otherPetId = chat.fromUserId === userId ? chat.toPetId : chat.fromPetId;
           
           try {
             // Get other user's info
             const otherUser = await getUserById(otherUserId);
             
-            // Get pet avatar
-            const userAvatar = await getUserPetAvatar(otherUserId);
+            // Get pet avatar (use petId from match, not active pet)
+            const userAvatar = otherPetId 
+              ? await getPetAvatar(otherPetId)
+              : await getUserPetAvatar(otherUserId);
+            
+            // Check VIP status
+            let isVip = false;
+            try {
+              console.log(`💎 Checking VIP for chat user ${otherUserId}...`);
+              const vipStatus = await getVipStatus(otherUserId);
+              console.log(`💎 Chat user ${otherUserId} VIP:`, vipStatus.isVip);
+              isVip = vipStatus.isVip;
+            } catch (error: any) {
+              console.error(`❌ Failed to get VIP status for chat user ${otherUserId}:`, error?.response?.data || error?.message || error);
+            }
             
             // Get last message
             let lastMessage = "Start chatting!";
@@ -179,6 +255,7 @@ const ChatScreen = ({ navigation }: Props) => {
               time: formatTime(lastMessageTime),
               unread: 0, // Unread count requires DB changes - keep simple for now
               avatar: userAvatar,
+              isVip: isVip,
             } as ChatItem;
           } catch (error) {
             console.error('Error loading user/messages for chat:', chat.matchId, error);
@@ -189,6 +266,11 @@ const ChatScreen = ({ navigation }: Props) => {
       
       // Filter out null values and set state
       const validChats = chatItems.filter((item): item is ChatItem => item !== null);
+      
+      // 🚀 OPTIMIZATION: Cache the result
+      cache.set(cacheKey, validChats);
+      console.log('💾 Cached chats for future use');
+      
       setChatData(validChats);
       
     } catch (error: any) {
@@ -227,10 +309,17 @@ const ChatScreen = ({ navigation }: Props) => {
     return 'Vừa xong';
   };
 
-  const filteredChats = chatData.filter(chat =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chatData
+    .filter(chat =>
+      chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter(chat => {
+      if (activeFilter === 'unread') {
+        return unreadChats.includes(chat.matchId);
+      }
+      return true;
+    });
 
   const handleChatPress = (item: ChatItem) => {
     if (item.isAI) {
@@ -275,7 +364,14 @@ const ChatScreen = ({ navigation }: Props) => {
       </View>
       <View style={styles.chatInfo}>
         <View style={styles.chatHeader}>
-          <Text style={[styles.chatName, isUnread && styles.chatNameUnread]}>{item.name}</Text>
+          <View style={styles.chatNameContainer}>
+            <Text style={[styles.chatName, isUnread && styles.chatNameUnread]}>{item.name}</Text>
+            {item.isVip && (
+              <View style={styles.vipBadgeChat}>
+                <Icon name="diamond" size={12} color="#FFD700" />
+              </View>
+            )}
+          </View>
           <Text style={styles.chatTime}>{item.time}</Text>
         </View>
         <View style={styles.chatFooter}>
@@ -325,43 +421,86 @@ const ChatScreen = ({ navigation }: Props) => {
         )}
       </View>
 
-      {/* AI Chat Option - Highlighted */}
-      <TouchableOpacity 
-        style={styles.aiChatCard}
-        onPress={() => navigation.navigate("AIChatList")}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={gradients.ai}
-          style={styles.aiChatGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+      {/* Special Chat Options */}
+      <View style={styles.specialChatsContainer}>
+        {/* AI Chat Option */}
+        <TouchableOpacity 
+          style={styles.specialChatCard}
+          onPress={() => navigation.navigate("AIChatList")}
+          activeOpacity={0.8}
         >
-          <View style={styles.aiChatIconContainer}>
-            <Icon name="sparkles" size={24} color={colors.white} />
+          <LinearGradient
+            colors={gradients.ai}
+            style={styles.specialChatGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.specialChatIconContainer}>
+              <Icon name="sparkles" size={24} color={colors.white} />
+            </View>
+            <Text style={styles.specialChatTitle}>AI Assistant</Text>
+            <Text style={styles.specialChatSubtitle}>Instant advice</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Expert Chat Option */}
+        <TouchableOpacity 
+          style={styles.specialChatCard}
+          onPress={() => navigation.navigate("ExpertChatList")}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={["#4CAF50", "#66BB6A"]}
+            style={styles.specialChatGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.specialChatIconContainer}>
+              <Icon name="medical" size={24} color={colors.white} />
+            </View>
+            <Text style={styles.specialChatTitle}>Chuyên gia</Text>
+            <Text style={styles.specialChatSubtitle}>Tư vấn chuyên sâu</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
+          onPress={() => setActiveFilter('all')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
+            All Chats
+          </Text>
+          <View style={[styles.filterBadge, activeFilter === 'all' && styles.filterBadgeActive]}>
+            <Text style={[styles.filterBadgeText, activeFilter === 'all' && styles.filterBadgeTextActive]}>
+              {chatData.length}
+            </Text>
           </View>
-          <View style={styles.aiChatContent}>
-            <View style={styles.aiChatText}>
-              <Text style={styles.aiChatTitle}>Chat with AI</Text>
-              <Text style={styles.aiChatSubtitle}>
-                Get instant pet care advice 
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterTab, activeFilter === 'unread' && styles.filterTabActive]}
+          onPress={() => setActiveFilter('unread')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterText, activeFilter === 'unread' && styles.filterTextActive]}>
+            Unread
+          </Text>
+          {unreadChats.length > 0 && (
+            <View style={[styles.filterBadge, activeFilter === 'unread' && styles.filterBadgeActive]}>
+              <Text style={[styles.filterBadgeText, activeFilter === 'unread' && styles.filterBadgeTextActive]}>
+                {unreadChats.length}
               </Text>
             </View>
-            <Icon name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Chat List */}
-      <View style={styles.chatListHeader}>
-        <Text style={styles.sectionTitle}>Recent Chats</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading chats...</Text>
-        </View>
+        <ChatSkeleton />
       ) : (
         <FlatList
           data={filteredChats}
@@ -369,6 +508,8 @@ const ChatScreen = ({ navigation }: Props) => {
           renderItem={renderChatItem}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               {searchQuery.length > 0 ? (
@@ -496,15 +637,96 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.85)",
   },
 
-  // Chat List
-  chatListHeader: {
-    paddingHorizontal: 20,
-    marginBottom: 12,
+  // Special Chats Container (AI + Expert)
+  specialChatsContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: 20,
+    marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.textDark,
+  specialChatCard: {
+    flex: 1,
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    ...shadows.large,
+  },
+  specialChatGradient: {
+    padding: 18,
+    minHeight: 120,
+    justifyContent: "space-between",
+  },
+  specialChatIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  specialChatTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.white,
+    marginBottom: 4,
+    letterSpacing: 0.2,
+  },
+  specialChatSubtitle: {
+    fontSize: 12,
+    color: colors.white,
+    opacity: 0.9,
+    fontWeight: "500",
+  },
+
+  // Filter Tabs
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  filterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: radius.full,
+    backgroundColor: colors.whiteWarm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  filterTabActive: {
+    backgroundColor: colors.white,
+    borderColor: colors.primary,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMedium,
+  },
+  filterTextActive: {
+    color: colors.primary,
+  },
+  filterBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  filterBadgeActive: {
+    backgroundColor: colors.primary,
+  },
+  filterBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMedium,
+  },
+  filterBadgeTextActive: {
+    color: colors.white,
   },
 
   // Chat Item - Card Style
@@ -597,10 +819,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
+  chatNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
   chatName: {
     fontSize: 16,
     fontWeight: "600",
     color: colors.textDark,
+  },
+  vipBadgeChat: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(255, 215, 0, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   chatTime: {
     fontSize: 12,

@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, storeTokens } from './client';
 import * as Keychain from 'react-native-keychain';
 
 // Types based on backend DTOs
@@ -10,8 +10,10 @@ export interface LoginRequest {
 export interface LoginResponse {
   Message?: string;
   message?: string;
-  Token?: string;
-  token?: string;
+  AccessToken?: string;
+  accessToken?: string;
+  RefreshToken?: string;
+  refreshToken?: string;
   UserId?: number;
   userId?: number;
   FullName?: string;
@@ -161,37 +163,56 @@ export const login = async (
       Password: password,
     });
     
-
+    // Store both access token and refresh token (handle both PascalCase and camelCase)
+    const accessToken = response.data.AccessToken || response.data.accessToken;
+    const refreshToken = response.data.RefreshToken || response.data.refreshToken;
     
-    // Store token securely (handle both PascalCase and camelCase)
-    const token = response.data.Token || (response.data as any).token;
-    if (token) {
-
-      await storeAuthToken(token);
-
-    } else {
-      console.warn('⚠️ No token received from backend');
+    if (accessToken && refreshToken) {
+      await storeTokens(accessToken, refreshToken);
     }
     
     // Store userId for badge notifications
     const userId = response.data.userId || response.data.UserId;
     if (userId) {
-
       await storeUserId(userId);
-
     }
     
     return response.data;
   } catch (error: any) {
-    console.error('Login error:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
-    console.error('Full URL:', error.config?.url);
-    
-    if (error.response?.data) {
-      throw new Error(error.response.data);
+    // Handle different error types
+    if (error.response) {
+      // Server responded with error status
+      const status = error.response.status;
+      const data = error.response.data;
+      
+      // Extract error message from response
+      let errorMessage = 'Đăng nhập thất bại';
+      
+      if (typeof data === 'string') {
+        errorMessage = data;
+      } else if (data?.message) {
+        errorMessage = data.message;
+      } else if (data?.Message) {
+        errorMessage = data.Message;
+      }
+      
+      // Specific error messages based on status code
+      if (status === 401) {
+        throw new Error('Email hoặc mật khẩu không đúng');
+      } else if (status === 404) {
+        throw new Error('Tài khoản không tồn tại');
+      } else if (status === 400) {
+        throw new Error(errorMessage || 'Thông tin đăng nhập không hợp lệ');
+      } else {
+        throw new Error(errorMessage);
+      }
+    } else if (error.request) {
+      // Request was made but no response received (network error)
+      throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.');
+    } else {
+      // Something else happened
+      throw new Error(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     }
-    throw error;
   }
 };
 
@@ -213,17 +234,13 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
 
     return response.data;
   } catch (error: any) {
-    console.error('Register error:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
-    
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
     if (error.response?.data) {
       throw new Error(JSON.stringify(error.response.data));
     }
-    throw error;
+    throw new Error('Không thể đăng ký. Vui lòng thử lại.');
   }
 };
 
@@ -233,11 +250,14 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
 export const logout = async (): Promise<void> => {
   try {
     await apiClient.post('/logout');
+    // Clear both tokens
     await removeAuthToken();
+    await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
     await removeUserId();
   } catch (error) {
-    // Even if API call fails, remove local token and userId
+    // Even if API call fails, remove local tokens and userId
     await removeAuthToken();
+    await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
     await removeUserId();
     throw error;
   }
@@ -249,14 +269,9 @@ export const logout = async (): Promise<void> => {
  */
 export const completeUserProfile = async (userId: number): Promise<void> => {
   try {
-
-    const response = await apiClient.patch(`/user/${userId}/complete-profile`);
-
+    await apiClient.patch(`/user/${userId}/complete-profile`);
   } catch (error: any) {
-    console.error('Error completing profile:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
-    throw error;
+    throw new Error('Không thể cập nhật hồ sơ. Vui lòng thử lại.');
   }
 };
 

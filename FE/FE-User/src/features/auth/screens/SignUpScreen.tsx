@@ -114,10 +114,8 @@ const SignUpScreen = ({ navigation }: Props) => {
         FullName: fullName.trim(),
         Gender: gender,
         Email: email.trim(),
-        Password: pass,
+        Password: pass.trim(),
       };
-
-      console.log('Sending OTP to:', email.trim());
 
       // Send OTP to email
       await sendOtp(email.trim());
@@ -133,21 +131,10 @@ const SignUpScreen = ({ navigation }: Props) => {
         }),
       });
     } catch (error: any) {
-      console.error('Send OTP failed:', error);
-      
       let errorMessage = "Không thể gửi mã OTP. Vui lòng thử lại.";
       
       if (error.message) {
         errorMessage = error.message;
-      }
-      
-      // Additional debug info
-      if (__DEV__) {
-        console.log('Error details:', {
-          message: error.message,
-          response: error.response,
-          status: error.response?.status,
-        });
       }
       
       showAlert({

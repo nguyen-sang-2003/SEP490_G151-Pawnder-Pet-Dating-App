@@ -1,21 +1,24 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { removeAuthToken } from "../../../api/auth";
-import { removeItem } from "../../../utils/storage";
+import { removeItem, getItem } from "../../../utils/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { getVipStatus, VipStatusResponse } from "../../../api/payment";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -30,6 +33,31 @@ interface SettingsItem {
 
 const SettingsScreen = ({ navigation }: Props) => {
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+  const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
+  const [loadingVip, setLoadingVip] = useState(true);
+
+  // Reload VIP status when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadVipStatus();
+    }, [])
+  );
+
+  const loadVipStatus = async () => {
+    try {
+      setLoadingVip(true);
+      const userIdStr = await getItem('userId');
+      if (userIdStr) {
+        const userId = parseInt(userIdStr);
+        const status = await getVipStatus(userId);
+        setVipStatus(status);
+      }
+    } catch (error) {
+      console.error('Error loading VIP status:', error);
+    } finally {
+      setLoadingVip(false);
+    }
+  };
   
   const accountSettings: SettingsItem[] = [
     {
@@ -213,6 +241,99 @@ const SettingsScreen = ({ navigation }: Props) => {
     </View>
   );
 
+  const renderVipStatusCard = () => {
+    if (loadingVip) {
+      return (
+        <View style={styles.vipCard}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      );
+    }
+
+    if (vipStatus?.isVip && vipStatus.subscription) {
+      const { endDate, daysRemaining } = vipStatus.subscription;
+      const endDateObj = new Date(endDate);
+      const formattedDate = endDateObj.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+
+      return (
+        <TouchableOpacity
+          style={styles.vipCardContainer}
+          onPress={() => navigation.navigate("Premium")}
+          activeOpacity={0.9}
+        >
+          <LinearGradient
+            colors={['#FFD700', '#FFA500', '#FF8C00']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.vipCardActive}
+          >
+            {/* Diamond Icon with glow effect */}
+            <View style={styles.vipIconContainer}>
+              <View style={styles.vipIconGlow} />
+              <Icon name="diamond" size={32} color="#FFF" />
+            </View>
+
+            {/* VIP Info */}
+            <View style={styles.vipInfo}>
+              <View style={styles.vipTitleRow}>
+                <Text style={styles.vipTitle}>Pawnder Premium</Text>
+                <View style={styles.vipBadge}>
+                  <Icon name="checkmark-circle" size={16} color="#FFF" />
+                  <Text style={styles.vipBadgeText}>ACTIVE</Text>
+                </View>
+              </View>
+              <Text style={styles.vipSubtitle}>
+                Expires on {formattedDate} • {daysRemaining} days left
+              </Text>
+            </View>
+
+            {/* Arrow */}
+            <Icon name="chevron-forward" size={24} color="#FFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+      );
+    }
+
+    // Free user - call to action card
+    return (
+      <TouchableOpacity
+        style={styles.vipCardContainer}
+        onPress={() => navigation.navigate("Premium")}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={['#F093FB', '#F5576C']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.vipCardInactive}
+        >
+          {/* Diamond Icon outline */}
+          <View style={styles.vipIconContainer}>
+            <Icon name="diamond-outline" size={32} color="#FFF" />
+          </View>
+
+          {/* Call to Action */}
+          <View style={styles.vipInfo}>
+            <Text style={styles.vipTitle}>Unlock Pawnder Premium</Text>
+            <Text style={styles.vipSubtitle}>
+              Unlimited matches, AI confirms & more! ✨
+            </Text>
+          </View>
+
+          {/* Upgrade Button */}
+          <View style={styles.upgradeButton}>
+            <Text style={styles.upgradeButtonText}>Upgrade</Text>
+            <Icon name="arrow-forward" size={16} color="#F5576C" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <LinearGradient
       colors={gradients.background}
@@ -238,6 +359,9 @@ const SettingsScreen = ({ navigation }: Props) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* VIP Status Card */}
+        {renderVipStatusCard()}
+
         {renderSection("Account", accountSettings)}
         {renderSection("App Settings", appSettings)}
         {renderSection("Premium & Billing", premiumSettings)}
@@ -364,6 +488,100 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 10,
     marginBottom: 10,
+  },
+
+  // VIP Status Card
+  vipCardContainer: {
+    marginBottom: 24,
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    ...shadows.large,
+  },
+  vipCard: {
+    backgroundColor: colors.whiteWarm,
+    borderRadius: radius.xl,
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 24,
+    ...shadows.medium,
+  },
+  vipCardActive: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderRadius: radius.xl,
+  },
+  vipCardInactive: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderRadius: radius.xl,
+  },
+  vipIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+    position: "relative",
+  },
+  vipIconGlow: {
+    position: "absolute",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FFF",
+    opacity: 0.3,
+  },
+  vipInfo: {
+    flex: 1,
+  },
+  vipTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  vipTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFF",
+    marginRight: 8,
+  },
+  vipBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+  },
+  vipBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFF",
+    letterSpacing: 0.5,
+  },
+  vipSubtitle: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 2,
+  },
+  upgradeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  upgradeButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#F5576C",
   },
 });
 

@@ -7,9 +7,13 @@ public partial class ChatUser
 {
     public int MatchId { get; set; }
 
-    public int? FromUserId { get; set; }
+    public int? FromPetId { get; set; }
 
-    public int? ToUserId { get; set; }
+    public int? ToPetId { get; set; }
+
+    public int? FromUserId { get; set; } // User ID of sender
+
+    public int? ToUserId { get; set; }   // User ID of receiver
 
     public string? Status { get; set; }
 
@@ -21,7 +25,7 @@ public partial class ChatUser
 
     public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
 
-    public virtual User? FromUser { get; set; }
+    public virtual Pet? FromPet { get; set; }
 
-    public virtual User? ToUser { get; set; }
+    public virtual Pet? ToPet { get; set; }
 }

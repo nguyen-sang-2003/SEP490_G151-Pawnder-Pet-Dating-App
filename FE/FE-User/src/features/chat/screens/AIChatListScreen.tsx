@@ -73,8 +73,8 @@ const AIChatListScreen = ({ navigation }: Props) => {
 
       setChatSessions(formattedSessions);
     } catch (error: any) {
-      console.error('❌ Error loading AI chat sessions:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể tải danh sách chat');
+      // Silent fail - just show empty state
+      setChatSessions([]);
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,6 @@ const AIChatListScreen = ({ navigation }: Props) => {
     }
 
     try {
-      console.log('📞 Creating new AI chat session');
       const newChat = await createChatAISession(currentUserId, { title: 'New Chat' });
       
       // Navigate to chat screen immediately
@@ -96,8 +95,14 @@ const AIChatListScreen = ({ navigation }: Props) => {
       // Reload list when we come back
       loadChatSessions();
     } catch (error: any) {
-      console.error('❌ Error creating AI chat session:', error);
-      Alert.alert('Lỗi', error.message || 'Không thể tạo cuộc trò chuyện mới');
+      // Show user-friendly alert (401 already handled by interceptor)
+      if (error.response?.status !== 401) {
+        Alert.alert(
+          'Không thể tạo chat', 
+          error.message || 'Vui lòng thử lại sau',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
