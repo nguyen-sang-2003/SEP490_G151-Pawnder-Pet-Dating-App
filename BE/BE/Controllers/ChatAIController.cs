@@ -10,7 +10,7 @@ namespace BE.Controllers
     /// </summary>
     [ApiController]
     [Route("api/chat-ai")]
-    [Authorize]
+    [Authorize(Roles = "User,Admin")]
     public class ChatAIController : ControllerBase
     {
         private readonly IChatAIService _chatAIService;

@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
         // GET /pet/user/{userId}
         [HttpGet("user/{userId}")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetPetsByUser(int userId, CancellationToken ct = default)
         {
             try
@@ -39,6 +41,7 @@ namespace BE.Controllers
 
         // GET /pet/match/{userId} - Get all pets for matching
         [HttpGet("match/{userId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetPetsForMatching(int userId, CancellationToken ct = default)
         {
             try
@@ -54,6 +57,7 @@ namespace BE.Controllers
 
         // GET /pet/{petId}
         [HttpGet("{petId}")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetPetById(int petId, CancellationToken ct = default)
         {
             try
@@ -73,6 +77,7 @@ namespace BE.Controllers
 
         // POST /pet
         [HttpPost]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> CreatePet([FromBody] PetDto_2 petDto, CancellationToken ct = default)
         {
             try
@@ -92,6 +97,7 @@ namespace BE.Controllers
 
         // PUT /pet/{petId}
         [HttpPut("{petId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> UpdatePet(int petId, [FromBody] PetDto_2 updatedPet, CancellationToken ct = default)
         {
             try
@@ -111,6 +117,7 @@ namespace BE.Controllers
 
         // DELETE /pet/{petId}
         [HttpDelete("{petId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> DeletePet(int petId, CancellationToken ct = default)
         {
             try
@@ -130,6 +137,7 @@ namespace BE.Controllers
 
         // PUT /pet/{petId}/set-active - Set pet as active
         [HttpPut("{petId}/set-active")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> SetActivePet(int petId, CancellationToken ct = default)
         {
             try

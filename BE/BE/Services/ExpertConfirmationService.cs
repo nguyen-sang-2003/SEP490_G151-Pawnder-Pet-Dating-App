@@ -40,6 +40,7 @@ namespace BE.Services
                 ExpertId = confirmation.ExpertId,
                 Status = confirmation.Status,
                 Message = confirmation.Message,
+                UserQuestion = confirmation.UserQuestion,
                 CreatedAt = confirmation.CreatedAt,
                 UpdatedAt = confirmation.UpdatedAt
             };
@@ -110,6 +111,7 @@ namespace BE.Services
                 ExpertId = expertConfirmation.ExpertId,
                 Status = expertConfirmation.Status,
                 Message = expertConfirmation.Message,
+                UserQuestion = expertConfirmation.UserQuestion,
                 ResultMessage = "Yêu cầu chuyên gia xác nhận đã được tạo thành công.",
                 CreatedAt = expertConfirmation.CreatedAt,
                 UpdatedAt = expertConfirmation.UpdatedAt
@@ -140,6 +142,7 @@ namespace BE.Services
                 ExpertId = expertConfirmation.ExpertId,
                 Status = expertConfirmation.Status,
                 Message = expertConfirmation.Message,
+                UserQuestion = expertConfirmation.UserQuestion,
                 ResultMessage = "Cập nhật yêu cầu confirm thành công",
                 CreatedAt = expertConfirmation.CreatedAt,
                 UpdatedAt = expertConfirmation.UpdatedAt

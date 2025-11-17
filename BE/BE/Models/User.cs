@@ -33,6 +33,8 @@ public partial class User
 
     public bool IsProfileComplete { get; set; } = false;   // <-- thêm
 
+   
+
     public virtual Address? Address { get; set; }
 
     public virtual ICollection<Block> BlockFromUsers { get; set; } = new List<Block>();
@@ -42,6 +44,12 @@ public partial class User
     public virtual ICollection<ChatAi> ChatAis { get; set; } = new List<ChatAi>();
 
     public virtual ICollection<ChatUserContent> ChatUserContents { get; set; } = new List<ChatUserContent>();
+
+    public virtual ICollection<ChatExpertContent> ChatExpertContents { get; set; } = new List<ChatExpertContent>();
+
+    public virtual ICollection<ChatExpert> ChatExpertExperts { get; set; } = new List<ChatExpert>();
+
+    public virtual ICollection<ChatExpert> ChatExpertUsers { get; set; } = new List<ChatExpert>();
 
     public virtual ICollection<DailyLimit> DailyLimits { get; set; } = new List<DailyLimit>();
 

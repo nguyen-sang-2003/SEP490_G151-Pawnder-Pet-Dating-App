@@ -1,4 +1,5 @@
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Mime;
 
@@ -21,6 +22,7 @@ namespace BE.Controllers
 
         // GET /api/daily-limits/{userId}/{actionType}/remaining
         [HttpGet("{userId:int}/{actionType}/remaining")]
+        [Authorize(Roles = "User")]
         public async Task<ActionResult> GetRemainingCount(int userId, string actionType, CancellationToken ct = default)
         {
             try

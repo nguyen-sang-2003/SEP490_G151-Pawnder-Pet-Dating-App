@@ -1,4 +1,5 @@
 ﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -19,6 +20,7 @@ namespace BE.Controllers
 
         // GET /chat-user-content/{matchId}
         [HttpGet("chat-user-content/{matchId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetChatMessages(int matchId, CancellationToken ct = default)
         {
             try
@@ -38,14 +40,8 @@ namespace BE.Controllers
 
         // POST /chat-user-content/{matchId}/{fromUserId}
         [HttpPost("chat-user-content/{matchId}/{fromUserId}")]
-        public async Task<IActionResult> SendMessage(int matchId, int fromUserId, [FromBody] string message, CancellationToken ct = default)
-        {
-            try
-            {
-                var result = await _contentService.SendMessageAsync(matchId, fromUserId, message, ct);
-                return Ok(result);
-            }
-            catch (ArgumentException ex)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> SendMessage(int matchId, int fromUserId, [FromBody] string message, CancellationToken ct = default)ch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }

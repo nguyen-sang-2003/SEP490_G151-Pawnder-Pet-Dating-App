@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
         // GET /pet-characteristic/{petId}
         [HttpGet("pet-characteristic/{petId}")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetPetCharacteristics(int petId, CancellationToken ct = default)
         {
             try
@@ -35,6 +37,7 @@ namespace BE.Controllers
 
         // POST /pet-characteristic/{petId}/{attributeId}
         [HttpPost("pet-characteristic/{petId}/{attributeId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> CreatePetCharacteristic(int petId, int attributeId, [FromBody] PetCharacteristicDTO dto, CancellationToken ct = default)
         {
             try
@@ -58,6 +61,7 @@ namespace BE.Controllers
 
         // PUT /pet-characteristic/{petId}/{attributeId}
         [HttpPut("pet-characteristic/{petId}/{attributeId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> UpdatePetCharacteristic(int petId, int attributeId, [FromBody] PetCharacteristicDTO dto, CancellationToken ct = default)
         {
             try

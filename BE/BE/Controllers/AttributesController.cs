@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
         // GET: api/attribute?search=&page=1&pageSize=20&includeDeleted=false
         [HttpGet]
+        [Authorize(Roles = "User,Admin")]
         public async Task<ActionResult> GetList(
             [FromQuery] string? search,
             [FromQuery] int page = 1,
@@ -49,6 +51,7 @@ namespace BE.Controllers
 
         // GET: api/attribute/5
         [HttpGet("{id:int}")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<ActionResult> GetById([FromRoute] int id, CancellationToken ct = default)
         {
             try
@@ -68,6 +71,7 @@ namespace BE.Controllers
 
         // POST: api/attribute
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Create([FromBody] AttributeCreateRequest request, CancellationToken ct = default)
         {
             if (!ModelState.IsValid)
@@ -91,6 +95,7 @@ namespace BE.Controllers
 
         // PUT: api/attribute/5
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Update([FromRoute] int id, [FromBody] AttributeUpdateRequest request, CancellationToken ct = default)
         {
             if (!ModelState.IsValid)
@@ -117,6 +122,7 @@ namespace BE.Controllers
 
         // DELETE: api/attribute/5?hard=false
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Delete([FromRoute] int id, [FromQuery] bool hard = false, CancellationToken ct = default)
         {
             try
@@ -140,6 +146,7 @@ namespace BE.Controllers
 
         // GET: api/attribute/for-filter
         [HttpGet("for-filter")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<ActionResult> GetAttributesForFilter(CancellationToken ct = default)
         {
             try

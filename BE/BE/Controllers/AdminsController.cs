@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -9,6 +10,7 @@ namespace BE.Controllers
     /// </summary>
     [Route("admin/users")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class AdminsController : ControllerBase
     {
         private readonly IAdminService _adminService;

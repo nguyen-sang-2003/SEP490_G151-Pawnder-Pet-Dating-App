@@ -1,6 +1,7 @@
 ﻿using System.Net.Mime;
 using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers;
@@ -22,6 +23,7 @@ public class UserPreferenceController : ControllerBase
 
     // GET /user-preference/{userId}
     [HttpGet("{userId:int}")]
+    [Authorize(Roles = "User")]
     public async Task<ActionResult<IEnumerable<UserPreferenceResponse>>> GetAllByUser(
         int userId,
         CancellationToken ct = default)
@@ -43,6 +45,7 @@ public class UserPreferenceController : ControllerBase
 
     // POST /user-preference/{userId}/{attributeId}
     [HttpPost("{userId:int}/{attributeId:int}")]
+    [Authorize(Roles = "User")]
     public async Task<IActionResult> Create(
         int userId,
         int attributeId,
@@ -70,6 +73,7 @@ public class UserPreferenceController : ControllerBase
 
     // PUT /user-preference/{userId}/{attributeId}
     [HttpPut("{userId:int}/{attributeId:int}")]
+    [Authorize(Roles = "User")]
     public async Task<ActionResult<UserPreferenceResponse>> Update(
         int userId,
         int attributeId,
@@ -93,6 +97,7 @@ public class UserPreferenceController : ControllerBase
 
     // DELETE /user-preference/{userId}
     [HttpDelete("{userId}")]
+    [Authorize(Roles = "User")]
     public async Task<IActionResult> DeleteUserPreferences(int userId, CancellationToken ct = default)
     {
         try
@@ -112,6 +117,7 @@ public class UserPreferenceController : ControllerBase
 
     // POST /user-preference/{userId}/batch
     [HttpPost("{userId:int}/batch")]
+    [Authorize(Roles = "User")]
     public async Task<IActionResult> UpsertBatch(
         int userId,
         [FromBody] UserPreferenceBatchUpsertRequest request,

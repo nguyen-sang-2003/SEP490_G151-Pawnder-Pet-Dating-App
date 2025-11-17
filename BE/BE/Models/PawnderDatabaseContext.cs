@@ -27,6 +27,10 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<ChatAicontent> ChatAicontents { get; set; }
 
+    public virtual DbSet<ChatExpert> ChatExperts { get; set; }
+
+    public virtual DbSet<ChatExpertContent> ChatExpertContents { get; set; }
+
     public virtual DbSet<ChatUser> ChatUsers { get; set; }
 
     public virtual DbSet<ChatUserContent> ChatUserContents { get; set; }
@@ -183,6 +187,55 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasConstraintName("ChatAIContent_ChatAIId_fkey");
         });
 
+        modelBuilder.Entity<ChatExpert>(entity =>
+        {
+            entity.HasKey(e => e.ChatExpertId).HasName("ChatExpert_pkey");
+
+            entity.ToTable("ChatExpert");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.Expert).WithMany(p => p.ChatExpertExperts)
+                .HasForeignKey(d => d.ExpertId)
+                .HasConstraintName("ChatExpert_ExpertId_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ChatExpertUsers)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("ChatExpert_UserId_fkey");
+        });
+
+        modelBuilder.Entity<ChatExpertContent>(entity =>
+        {
+            entity.HasKey(e => e.ContentId).HasName("ChatExpertContent_pkey");
+
+            entity.ToTable("ChatExpertContent");
+
+            entity.Property(e => e.ChatAiid).HasColumnName("ChatAIId");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.ChatExpert).WithMany(p => p.ChatExpertContents)
+                .HasForeignKey(d => d.ChatExpertId)
+                .HasConstraintName("ChatExpertContent_ChatExpertId_fkey");
+
+            entity.HasOne(d => d.From).WithMany(p => p.ChatExpertContents)
+                .HasForeignKey(d => d.FromId)
+                .HasConstraintName("ChatExpertContent_FromId_fkey");
+
+            entity.HasOne(d => d.ExpertConfirmation).WithMany(p => p.ChatExpertContents)
+                .HasForeignKey(d => new { d.ExpertId, d.UserId, d.ChatAiid })
+                .HasConstraintName("ChatExpertContent_ExpertId_UserId_ChatAIId_fkey");
+        });
+
         modelBuilder.Entity<ChatUser>(entity =>
         {
             entity.HasKey(e => e.MatchId).HasName("ChatUser_pkey");
@@ -319,6 +372,8 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.StatusService).HasMaxLength(100);
+           
+            entity.Property(e => e.Amount).HasPrecision(10, 2);
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");

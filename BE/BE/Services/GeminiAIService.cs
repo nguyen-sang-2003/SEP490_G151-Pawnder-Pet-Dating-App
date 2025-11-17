@@ -31,7 +31,7 @@ VAI TRÒ CỦA BẠN:
 NGUYÊN TẮC TRẢ LỜI:
 ✓ Trả lời bằng tiếng Việt (trừ khi user hỏi bằng tiếng Anh)
 ✓ Giọng điệu thân thiện, dễ hiểu, không quá học thuật
-✓ Độ dài: 2-4 đoạn văn, súc tích nhưng đầy đủ thông tin
+✓ Độ dài: 80-150 từ , súc tích nhưng đầy đủ thông tin
 ✓ Dùng bullet points khi liệt kê các bước hoặc gợi ý
 ✓ Luôn tích cực và khích lệ người nuôi mèo
 ✓ Nếu không chắc chắn, thừa nhận và gợi ý tham khảo thêm
@@ -71,7 +71,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             return chatAi;
         }
 
-        public async Task<string> SendMessageAsync(int userId, int chatAiId, string question)
+        public async Task<GeminiResponse> SendMessageAsync(int userId, int chatAiId, string question)
         {
             // Kiểm tra chat session (chỉ cho phép truy cập chat của chính mình)
             var chatAi = await _context.ChatAis
@@ -118,6 +118,9 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
             // Gọi Gemini với timeout 45 giây (đủ lớn nhưng không quá lâu)
             string answer;
+            int inputTokens = 0;
+            int outputTokens = 0;
+            int totalTokens = 0;
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
@@ -125,8 +128,17 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
                 var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
                 var response = await model.GenerateContent(promptBuilder.ToString(), cancellationToken: cts.Token);
                 answer = response.Text;
+                
+                // Lấy thông tin token usage từ response
+                if (response.UsageMetadata != null)
+                {
+                    inputTokens = response.UsageMetadata.PromptTokenCount;
+                    outputTokens = response.UsageMetadata.CandidatesTokenCount;
+                    totalTokens = response.UsageMetadata.TotalTokenCount;
+                }
+                
                 stopwatch.Stop();
-                Console.WriteLine($"✅ [Chat {chatAiId}] Gemini responded in {stopwatch.ElapsedMilliseconds}ms");
+                Console.WriteLine($"✅ [Chat {chatAiId}] Gemini responded in {stopwatch.ElapsedMilliseconds}ms | Tokens: {inputTokens} in + {outputTokens} out = {totalTokens} total");
             }
             catch (OperationCanceledException)
             {
@@ -163,7 +175,13 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
             await _context.SaveChangesAsync();
 
-            return answer;
+            return new GeminiResponse
+            {
+                Answer = answer,
+                InputTokens = inputTokens,
+                OutputTokens = outputTokens,
+                TotalTokens = totalTokens
+            };
         }
 
         public async Task<List<ChatAicontent>> GetChatHistoryAsync(int chatAiId)

@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
         // GET /api/petphoto/{petId}
         [HttpGet("{petId:int}")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetAllByPet(int petId, CancellationToken ct = default)
         {
             try
@@ -39,6 +41,7 @@ namespace BE.Controllers
 
         // POST /api/petphoto (multipart/form-data: petId, files[])
         [HttpPost]
+        [Authorize(Roles = "User")]
         [RequestSizeLimit(20_000_000)]
         public async Task<IActionResult> Upload([FromForm] int petId, [FromForm] List<IFormFile> files, CancellationToken ct = default)
         {
@@ -67,6 +70,7 @@ namespace BE.Controllers
 
         // PUT /api/petphoto/reorder
         [HttpPut("reorder")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> Reorder([FromBody] List<ReorderPhotoRequest> items, CancellationToken ct = default)
         {
             try
@@ -90,6 +94,7 @@ namespace BE.Controllers
 
         // DELETE /api/petphoto/{photoId}
         [HttpDelete("{photoId:int}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> Delete(int photoId, [FromQuery] bool hard = false, CancellationToken ct = default)
         {
             try

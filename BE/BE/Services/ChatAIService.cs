@@ -117,27 +117,107 @@ namespace BE.Services
             if (string.IsNullOrWhiteSpace(question))
                 throw new ArgumentException("Câu hỏi không được để trống");
 
-            // Business logic: Check daily limit
-            bool canAsk = await _dailyLimitService.CanPerformAction(userId, "ai_chat_question");
-            if (!canAsk)
+            // Kiểm tra user
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new KeyNotFoundException("Không tìm thấy người dùng");
+
+            // Kiểm tra VIP
+            bool isVip = user.UserStatusId == 3;
+
+            // 🎯 LOGIC FREEMIUM:
+            // 1. Free users → 10,000 tokens/ngày
+            // 2. VIP users → 50,000 tokens/ngày (5x nhiều hơn)
+            // 3. Hết quota → Upsell nâng cấp VIP
+
+            const int FREE_TOKENS_PER_DAY = 2000;
+            const int VIP_TOKENS_PER_DAY = 50000;
+
+            try
             {
-                int remaining = await _dailyLimitService.GetRemainingCount(userId, "ai_chat_question");
-                throw new InvalidOperationException($"Bạn đã hết lượt hỏi AI hôm nay! Nâng cấp lên VIP để sử dụng không giới hạn. Còn lại: {remaining}");
+                // 1. Ước lượng tokens trước khi gọi API
+                int estimatedTokens = EstimateTokens(question);
+
+                // 2. Lấy tokens đã dùng hôm nay
+                int tokensUsedToday = await _dailyLimitService.GetFreeTokensUsedToday(userId);
+                int dailyQuota = isVip ? VIP_TOKENS_PER_DAY : FREE_TOKENS_PER_DAY;
+                int tokensRemaining = Math.Max(0, dailyQuota - tokensUsedToday);
+
+                // 3. Check quota TRƯỚC KHI gọi API
+                if (tokensRemaining < estimatedTokens)
+                {
+                    // Không đủ tokens
+                    if (isVip)
+                    {
+                        throw new InvalidOperationException(
+                            $"⭐ VIP: Bạn đã dùng hết lượt chat ngày hôm nay!\n" +
+                            $"Đã dùng: {tokensUsedToday:N0}/{dailyQuota:N0} tokens\n" +
+                            $"Vui lòng chờ reset vào 00:00 ngày mai."
+                        );
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            $"🎁 Bạn đã dùng {tokensUsedToday:N0}/{FREE_TOKENS_PER_DAY:N0} tokens free hôm nay!\n" +
+                            $"⚠️ Câu hỏi này cần ~{estimatedTokens:N0} tokens, còn lại {tokensRemaining:N0} tokens.\n\n" +
+                            $"⭐ Nâng cấp VIP - 99,000đ/tháng:\n" +
+                            $"• 50,000 tokens/ngày (25x nhiều hơn)\n" +
+                            $"• Xem ai like pet trước\n" +
+                            $"• Priority matching\n" +
+                            $"• Không quảng cáo"
+                        );
+                    }
+                }
+
+                // 4. Mới gọi API thật (đã kiểm tra quota)
+                var geminiResponse = await _geminiService.SendMessageAsync(userId, chatAiId, question);
+                int actualTokensUsed = geminiResponse.TotalTokens;
+
+                // 5. Trừ tokens thực tế
+                await _dailyLimitService.RecordTokenUsage(userId, actualTokensUsed);
+
+                // 6. Cập nhật số liệu cuối cùng
+                tokensUsedToday += actualTokensUsed;
+                tokensRemaining = Math.Max(0, dailyQuota - tokensUsedToday);
+
+                return new
+                {
+                    question = question,
+                    answer = geminiResponse.Answer,
+                    timestamp = DateTime.Now,
+                    usage = new
+                    {
+                        isVip = isVip,
+                        dailyQuota = dailyQuota,
+                        tokensUsed = actualTokensUsed,
+                        tokensRemaining = tokensRemaining
+                    },
+                    tokenDetails = new
+                    {
+                        inputTokens = geminiResponse.InputTokens,
+                        outputTokens = geminiResponse.OutputTokens,
+                        totalTokens = geminiResponse.TotalTokens
+                    }
+                };
             }
-
-            var answer = await _geminiService.SendMessageAsync(userId, chatAiId, question);
-
-            // Business logic: Record action to daily limit
-            await _dailyLimitService.RecordAction(userId, "ai_chat_question");
-            int remainingQuestions = await _dailyLimitService.GetRemainingCount(userId, "ai_chat_question");
-
-            return new
+            catch (Exception)
             {
-                question = question,
-                answer = answer,
-                timestamp = DateTime.Now,
-                remainingQuestions = remainingQuestions
-            };
+                throw;
+            }
+        }
+
+        // Hàm ước lượng tokens dựa trên độ dài text
+        private int EstimateTokens(string text)
+        {
+            // Công thức ước lượng:
+            // - Tiếng Việt: ~1.5 ký tự = 1 token
+            // - Tiếng Anh: ~4 ký tự = 1 token
+            // - Response thường dài gấp 2-3x input
+
+            int inputTokens = (int)Math.Ceiling(text.Length / 2.0); // Conservative estimate
+            int estimatedOutputTokens = inputTokens * 3; // Response thường dài hơn
+
+            return inputTokens + estimatedOutputTokens;
         }
     }
 }

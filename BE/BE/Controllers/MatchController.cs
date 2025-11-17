@@ -1,4 +1,5 @@
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -19,6 +20,7 @@ namespace BE.Controllers
 
         // GET /api/match/likes-received/{userId}?petId={petId}
         [HttpGet("likes-received/{userId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetLikesReceived(int userId, [FromQuery] int? petId = null, CancellationToken ct = default)
         {
             try
@@ -34,6 +36,7 @@ namespace BE.Controllers
 
         // GET /api/match/stats/{userId}
         [HttpGet("stats/{userId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetStats(int userId, CancellationToken ct = default)
         {
             try
@@ -49,6 +52,7 @@ namespace BE.Controllers
 
         // POST /api/match/like
         [HttpPost("like")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> SendLike([FromBody] LikeRequest request, CancellationToken ct = default)
         {
             try
@@ -76,6 +80,7 @@ namespace BE.Controllers
 
         // PUT /api/match/respond
         [HttpPut("respond")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> RespondToLike([FromBody] RespondRequest request, CancellationToken ct = default)
         {
             try
@@ -99,6 +104,7 @@ namespace BE.Controllers
 
         // GET /api/match/badge-counts/{userId}?petId={petId}
         [HttpGet("badge-counts/{userId}")]
+        [Authorize(Roles = "User")]
         public async Task<IActionResult> GetBadgeCounts(int userId, [FromQuery] int? petId = null, CancellationToken ct = default)
         {
             try

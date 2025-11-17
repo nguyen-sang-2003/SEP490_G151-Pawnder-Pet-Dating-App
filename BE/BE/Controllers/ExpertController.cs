@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -19,6 +20,7 @@ namespace BE.Controllers
 
 		// GET: /api/expert-confirmation
 		[HttpGet("expert-confirmation")]
+		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetAllExpertConfirmations(CancellationToken ct = default)
 		{
 			try
@@ -34,6 +36,7 @@ namespace BE.Controllers
 
 		// GET: /api/expert-confirmation/{userId}/{chatId}
 		[HttpGet("expert-confirmation/{userId:int}/{chatId:int}")]
+		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<ExpertConfirmationDTO>> GetExpertConfirmation(
 			int expertId, int userId, int chatId, CancellationToken ct = default)
 		{
@@ -54,6 +57,7 @@ namespace BE.Controllers
 
 		// GET: /api/expert-confirmation/{userId}
 		[HttpGet("expert-confirmation/{userId:int}")]
+		[Authorize(Roles = "User,Admin")]
 		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetUserExpertConfirmations(int userId, CancellationToken ct = default)
 		{
 			try
@@ -72,6 +76,7 @@ namespace BE.Controllers
 		}
 
 		[HttpPost("expert-confirmation/{userId}/{chatId}")]
+		[Authorize(Roles = "User")]
 		public async Task<ActionResult<ExpertConfirmationResponseDTO>> CreateExpertConfirmation(
 			int userId, int chatId, [FromBody] ExpertConfirmationCreateDTO dto, CancellationToken ct = default)
 		{
@@ -104,6 +109,7 @@ namespace BE.Controllers
 		}
 
 		[HttpPut("expert-confirmation/{confirmationId:int}/{userId:int}/{chatId:int}")]
+		[Authorize(Roles = "Expert,Admin")]
 		public async Task<ActionResult<ExpertConfirmationResponseDTO>> UpdateExpertConfirmation(
 			int confirmationId, int userId, int chatId,
 			[FromBody] ExpertConfirmationUpdateDto dto, CancellationToken ct = default)

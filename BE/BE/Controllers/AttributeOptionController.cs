@@ -1,5 +1,6 @@
 ﻿using BE.DTO;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BE.Controllers
@@ -20,6 +21,7 @@ namespace BE.Controllers
 
         // GET /attribute-option
         [HttpGet("attribute-option")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetAllOptions(CancellationToken ct = default)
         {
             try
@@ -35,6 +37,7 @@ namespace BE.Controllers
 
         // GET /api/attribute-option/{attributeId}
         [HttpGet("{attributeId}")]
+        [Authorize(Roles = "User,Admin")]
         public async Task<IActionResult> GetOptionsByAttribute(int attributeId, CancellationToken ct = default)
         {
             try
@@ -54,6 +57,7 @@ namespace BE.Controllers
 
         // POST /attribute-option/{AttributeId}
         [HttpPost("attribute-option/{attributeId}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateOption(int attributeId, [FromBody] string optionName, CancellationToken ct = default)
         {
             try
@@ -77,6 +81,7 @@ namespace BE.Controllers
 
         // PUT /attribute-option/{optionId}
         [HttpPut("attribute-option/{optionId}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateOptions(int optionId, [FromBody] string optionNames, CancellationToken ct = default)
         {
             try
@@ -100,6 +105,7 @@ namespace BE.Controllers
 
         // DELETE /attribute-option/{OptionId}
         [HttpDelete("attribute-option/{optionId}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteOption(int optionId, CancellationToken ct = default)
         {
             try
