@@ -28,6 +28,7 @@ import { AppDispatch } from "../../../app/store";
 import { getVipStatus } from "../../../api/payment";
 import { getPetsByUserId } from "../../../api/pet";
 import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
+import { ChatSkeleton } from "../../../components/ChatSkeleton";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -53,6 +54,8 @@ const ChatScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<Set<number>>(new Set());
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'unread'>('all');
 
   // Setup SignalR connection once
   useEffect(() => {
@@ -139,6 +142,15 @@ const ChatScreen = ({ navigation }: Props) => {
     } catch (error) {
       console.error('❌ Error refreshing online users:', error);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      loadChats(true),
+      refreshOnlineUsers(),
+    ]);
+    setRefreshing(false);
   };
 
   const loadChats = async (forceRefresh = false) => {
@@ -297,10 +309,17 @@ const ChatScreen = ({ navigation }: Props) => {
     return 'Vừa xong';
   };
 
-  const filteredChats = chatData.filter(chat =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chatData
+    .filter(chat =>
+      chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter(chat => {
+      if (activeFilter === 'unread') {
+        return unreadChats.includes(chat.matchId);
+      }
+      return true;
+    });
 
   const handleChatPress = (item: ChatItem) => {
     if (item.isAI) {
@@ -445,16 +464,43 @@ const ChatScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
       </View>
 
-      {/* Chat List */}
-      <View style={styles.chatListHeader}>
-        <Text style={styles.sectionTitle}>Recent Chats</Text>
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
+          onPress={() => setActiveFilter('all')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
+            All Chats
+          </Text>
+          <View style={[styles.filterBadge, activeFilter === 'all' && styles.filterBadgeActive]}>
+            <Text style={[styles.filterBadgeText, activeFilter === 'all' && styles.filterBadgeTextActive]}>
+              {chatData.length}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterTab, activeFilter === 'unread' && styles.filterTabActive]}
+          onPress={() => setActiveFilter('unread')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterText, activeFilter === 'unread' && styles.filterTextActive]}>
+            Unread
+          </Text>
+          {unreadChats.length > 0 && (
+            <View style={[styles.filterBadge, activeFilter === 'unread' && styles.filterBadgeActive]}>
+              <Text style={[styles.filterBadgeText, activeFilter === 'unread' && styles.filterBadgeTextActive]}>
+                {unreadChats.length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading chats...</Text>
-        </View>
+        <ChatSkeleton />
       ) : (
         <FlatList
           data={filteredChats}
@@ -462,6 +508,8 @@ const ChatScreen = ({ navigation }: Props) => {
           renderItem={renderChatItem}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               {searchQuery.length > 0 ? (
@@ -630,15 +678,55 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Chat List
-  chatListHeader: {
+  // Filter Tabs
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 12,
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.textDark,
+  filterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: radius.full,
+    backgroundColor: colors.whiteWarm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  filterTabActive: {
+    backgroundColor: colors.white,
+    borderColor: colors.primary,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMedium,
+  },
+  filterTextActive: {
+    color: colors.primary,
+  },
+  filterBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  filterBadgeActive: {
+    backgroundColor: colors.primary,
+  },
+  filterBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMedium,
+  },
+  filterBadgeTextActive: {
+    color: colors.white,
   },
 
   // Chat Item - Card Style
