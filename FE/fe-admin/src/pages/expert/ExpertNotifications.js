@@ -84,7 +84,9 @@ const ExpertNotifications = () => {
       const userInfo = await fetchUserInfo(userId);
       const status = (item.Status || 'pending').toLowerCase();
       const expertNote = item.Message || '';
+      // Backend trả về UserQuestion, không phải RequestMessage
       const requestMessage =
+        item.UserQuestion ||
         item.RequestMessage ||
         expertNote ||
         'Người dùng muốn xác thực câu trả lời từ AI.';
