@@ -12,47 +12,16 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getUserExpertChats, ExpertChat } from "../../../api/expert-confirmation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChatList">;
 
-interface ExpertChat {
-  id: string;
-  expertId: number;
-  expertName: string;
-  specialty: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  isOnline: boolean;
-}
-
 const ExpertChatListScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(false);
-  const [expertChats, setExpertChats] = useState<ExpertChat[]>([
-    // TODO: Replace with API data
-    {
-      id: "1",
-      expertId: 1,
-      expertName: "Chuyên gia 1",
-      specialty: "Chuyên gia thú y",
-      lastMessage: "Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất",
-      time: "2 giờ trước",
-      unread: 0,
-      isOnline: true,
-    },
-    {
-      id: "2",
-      expertId: 2,
-      expertName: "Chuyên gia 2",
-      specialty: "Chuyên gia thú y",
-      lastMessage: "Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất",
-      time: "1 ngày trước",
-      unread: 2,
-      isOnline: false,
-    },
-  ]);
+  const [expertChats, setExpertChats] = useState<ExpertChat[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,18 +32,60 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
   const loadExpertChats = async () => {
     try {
       setLoading(true);
-      // TODO: Call API to get expert chats
-      // const chats = await getExpertChats(userId);
-      // setExpertChats(chats);
-      console.log("Loading expert chats...");
-    } catch (error) {
-      console.error("Error loading expert chats:", error);
+      
+      // Get current user ID
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        console.log('❌ No userId found');
+        return;
+      }
+      
+      const userId = parseInt(userIdStr);
+      console.log('📞 Loading expert chats for user:', userId);
+      
+      // Call API to get expert chats
+      const chats = await getUserExpertChats(userId);
+      console.log('✅ Got expert chats:', chats);
+      
+      setExpertChats(chats);
+    } catch (error: any) {
+      console.error("❌ Error loading expert chats:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const formatTime = (dateString: string): string => {
+    let dateStr = dateString;
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      dateStr = dateStr + 'Z';
+    }
+    
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) {
+      return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày trước`;
+    }
+    
+    if (diffHours > 0) {
+      return `${diffHours} giờ trước`;
+    }
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins > 0) {
+      return `${diffMins} phút trước`;
+    }
+    
+    return 'Vừa xong';
+  };
+
   const renderExpertChat = ({ item }: { item: ExpertChat }) => {
+    const formattedTime = formatTime(item.time);
+    
     return (
       <TouchableOpacity
         style={styles.chatItem}
@@ -108,7 +119,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
             <Text style={styles.expertName} numberOfLines={1}>
               {item.expertName}
             </Text>
-            <Text style={styles.time}>{item.time}</Text>
+            <Text style={styles.time}>{formattedTime}</Text>
           </View>
           <Text style={styles.specialty} numberOfLines={1}>
             {item.specialty}

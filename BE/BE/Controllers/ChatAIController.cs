@@ -11,7 +11,7 @@ namespace BE.Controllers
     /// </summary>
     [ApiController]
     [Route("api/chat-ai")]
-    [Authorize(Roles = "User,Admin")]
+    [Authorize(Roles = "User,Admin,Expert")]
     public class ChatAIController : ControllerBase
     {
         private readonly IChatAIService _chatAIService;
@@ -161,7 +161,11 @@ namespace BE.Controllers
                 if (userId == 0)
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-                var data = await _chatAIService.GetChatHistoryAsync(chatAiId, userId, ct);
+                // Check if user is Expert or Admin - allow them to view any chat
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var effectiveUserId = (userRole == "Expert" || userRole == "Admin") ? 0 : userId;
+
+                var data = await _chatAIService.GetChatHistoryAsync(chatAiId, effectiveUserId, ct);
                 return Ok(new { success = true, data = data });
             }
             catch (KeyNotFoundException ex)

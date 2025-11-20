@@ -76,10 +76,31 @@ namespace BE.Services
             if (chat == null)
                 throw new KeyNotFoundException("Chat AI không tồn tại.");
 
-            // Business logic: Validate expert
-            var expert = await _context.Users.FindAsync([dto.ExpertId], ct);
-            if (expert == null)
-                throw new KeyNotFoundException("Chuyên gia không tồn tại.");
+            // Business logic: Auto-assign expert if not provided
+            int expertId;
+            if (dto.ExpertId.HasValue && dto.ExpertId.Value > 0)
+            {
+                // Validate provided expert
+                var providedExpert = await _context.Users.FindAsync([dto.ExpertId.Value], ct);
+                if (providedExpert == null || providedExpert.RoleId != 2) // RoleId 2 = Expert
+                    throw new KeyNotFoundException("Chuyên gia không tồn tại.");
+                expertId = dto.ExpertId.Value;
+            }
+            else
+            {
+                // Auto-assign: Get random available expert
+                var availableExperts = await _context.Users
+                    .Where(u => u.RoleId == 2 && u.IsDeleted == false)
+                    .Select(u => u.UserId)
+                    .ToListAsync(ct);
+                
+                if (!availableExperts.Any())
+                    throw new InvalidOperationException("Hiện tại không có chuyên gia nào khả dụng.");
+                
+                // Random selection
+                var random = new Random();
+                expertId = availableExperts[random.Next(availableExperts.Count)];
+            }
 
             // Business logic: Check duplicate
             var existingConfirmation = await _expertConfirmationRepository.GetExpertConfirmationByUserAndChatAsync(userId, chatId, ct);
@@ -90,10 +111,11 @@ namespace BE.Services
             var expertConfirmation = new ExpertConfirmation
             {
                 UserId = userId,
-                ExpertId = expert.UserId,
+                ExpertId = expertId,  // Auto-assigned or provided expert
                 ChatAiid = chatId,
                 Status = "pending",
-                Message = dto.Message,
+                Message = dto.Message,  // NULL initially - will be filled when expert responds
+                UserQuestion = dto.UserQuestion,  // User's original question
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -147,6 +169,46 @@ namespace BE.Services
                 CreatedAt = expertConfirmation.CreatedAt,
                 UpdatedAt = expertConfirmation.UpdatedAt
             };
+        }
+
+        public async Task<IEnumerable<object>> GetUserExpertChatsAsync(int userId, CancellationToken ct = default)
+        {
+            // Get all ChatExpert for this user
+            var expertChats = await _context.ChatExperts
+                .Where(ce => ce.UserId == userId)
+                .Include(ce => ce.Expert)
+                .OrderByDescending(ce => ce.UpdatedAt)
+                .ToListAsync(ct);
+
+            var result = new List<object>();
+
+            foreach (var chat in expertChats)
+            {
+                // Get last message
+                var lastMessage = await _context.ChatExpertContents
+                    .Where(cec => cec.ChatExpertId == chat.ChatExpertId)
+                    .OrderByDescending(cec => cec.CreatedAt)
+                    .FirstOrDefaultAsync(ct);
+
+                // Count unread messages (messages from expert that user hasn't seen)
+                // For now, we'll set unread to 0 - can be enhanced later
+                var unreadCount = 0;
+
+                result.Add(new
+                {
+                    id = chat.ChatExpertId.ToString(),
+                    chatExpertId = chat.ChatExpertId,
+                    expertId = chat.ExpertId,
+                    expertName = chat.Expert?.FullName ?? "Chuyên gia",
+                    specialty = "Chuyên gia thú y",
+                    lastMessage = lastMessage?.Message ?? "Chưa có tin nhắn",
+                    time = lastMessage?.CreatedAt ?? chat.CreatedAt,
+                    unread = unreadCount,
+                    isOnline = false // Can be enhanced with SignalR
+                });
+            }
+
+            return result;
         }
     }
 }

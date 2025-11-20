@@ -291,16 +291,10 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         aiResponse: selectedMessage.text
       });
 
-      // Create expert confirmation request
-      const expertId = 1; // Default expert
-      
-      const fullMessage = userQuestion 
-        ? `Câu hỏi: "${userQuestion.text}"\n\nLời khuyên AI: "${selectedMessage.text}"`
-        : `Lời khuyên AI: "${selectedMessage.text}"`;
-
+      // Create expert confirmation request (expert will be auto-assigned by backend)
       await createExpertConfirmation(userId, chatAiId, {
-        expertId: expertId,
-        message: fullMessage
+        userQuestion: userQuestion?.text || '',
+        message: undefined  // Message will be filled by expert when they respond
       });
 
       // Mark this message as sent to expert

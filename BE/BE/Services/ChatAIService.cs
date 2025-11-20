@@ -92,8 +92,9 @@ namespace BE.Services
 
         public async Task<object> GetChatHistoryAsync(int chatAiId, int userId, CancellationToken ct = default)
         {
+            // Allow experts/admins to view any chat (userId = 0), or users to view their own chats
             var chat = await _context.ChatAis
-                .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && c.UserId == userId && c.IsDeleted == false, ct);
+                .FirstOrDefaultAsync(c => c.ChatAiid == chatAiId && (userId == 0 || c.UserId == userId) && c.IsDeleted == false, ct);
 
             if (chat == null)
                 throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện");

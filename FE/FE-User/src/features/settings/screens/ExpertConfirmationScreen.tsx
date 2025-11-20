@@ -169,13 +169,13 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       <View style={styles.divider} />
 
       {/* User Request Message */}
-      {item.message && (
+      {item.userQuestion && (
         <View style={styles.messageSection}>
           <Text style={styles.messageSectionLabel}>Nội dung yêu cầu:</Text>
           <View style={styles.messageBox}>
             <Icon name="document-text-outline" size={14} color={colors.textMedium} style={{ marginTop: 2 }} />
             <Text style={styles.messageText} numberOfLines={5}>
-              {item.message}
+              {item.userQuestion}
             </Text>
           </View>
         </View>
@@ -184,13 +184,13 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       {/* Expert Response */}
       {(item.status.toLowerCase() === "answered" || 
         item.status.toLowerCase() === "approved" ||
-        item.status.toLowerCase() === "confirmed") && (item as any).resultMessage && (
+        item.status.toLowerCase() === "confirmed") && item.message && (
         <View style={styles.expertResponseSection}>
           <View style={styles.expertResponseHeader}>
             <Icon name="checkmark-circle" size={14} color="#4CAF50" />
             <Text style={styles.expertResponseHeaderText}>Phản hồi của chuyên gia:</Text>
           </View>
-          <Text style={styles.expertResponseText}>{(item as any).resultMessage}</Text>
+          <Text style={styles.expertResponseText}>{item.message}</Text>
           {item.updatedAt && (
             <Text style={styles.expertResponseTime}>
               Trả lời lúc: {formatTime(item.updatedAt)}
@@ -594,6 +594,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#F57C00",
     lineHeight: 18,
+  },
+
+  // Chat Expert Button
+  chatExpertButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(76, 175, 80, 0.3)",
+    marginBottom: 12,
+  },
+  chatExpertButtonText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4CAF50",
   },
 
   // Card Footer
