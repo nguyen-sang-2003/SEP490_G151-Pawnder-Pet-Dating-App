@@ -18,6 +18,10 @@ class UserService {
    * Response: UserResponse (single user object)
    */
   async getUserById(id) {
+    if (id === undefined || id === null) {
+      console.warn('userService.getUserById called without a valid id');
+      return null;
+    }
     const response = await apiClient.get(API_ENDPOINTS.USERS.DETAIL(id));
     return response;
   }

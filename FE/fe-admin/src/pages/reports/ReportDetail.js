@@ -14,6 +14,47 @@ const ReportDetail = () => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [actionType, setActionType] = useState(null);
+  const [adminResponse, setAdminResponse] = useState('');
+  const [formError, setFormError] = useState('');
+
+  const extractReportedUserFromReason = (reason = '') => {
+    const reportedUserRegex = /\[ReportedUser=([^\]]+)\]/i;
+    const match = reason.match(reportedUserRegex);
+    const cleanReason = reason.replace(reportedUserRegex, '').trim();
+    if (match) {
+      const reportedName = match[1].trim();
+      const nameParts = reportedName.split(' ');
+      return {
+        cleanReason: cleanReason || 'N/A',
+        reportedUser: {
+          userId: null,
+          fullName: reportedName,
+          firstName: nameParts[0] || reportedName,
+          lastName: nameParts.slice(1).join(' ') || '',
+          email: 'unknown@email.com',
+          username: reportedName.replace(/\s+/g, '').toLowerCase(),
+          phone: null,
+          avatar: null
+        }
+      };
+    }
+
+    return {
+      cleanReason: reason || 'N/A',
+      reportedUser: {
+        userId: null,
+        fullName: 'Unknown User',
+        firstName: 'Unknown',
+        lastName: 'User',
+        email: 'unknown@email.com',
+        username: 'unknown',
+        phone: null,
+        avatar: null
+      }
+    };
+  };
 
   // Fetch report data from API
   useEffect(() => {
@@ -57,16 +98,18 @@ const ReportDetail = () => {
         const reporterLastName = reporterNameParts.slice(1).join(' ') || '';
         
         // Map report to frontend format
+        const { cleanReason, reportedUser } = extractReportedUserFromReason(reportResponse.Reason || reportResponse.reason || 'N/A');
+
         const mappedReport = {
           id: reportResponse.ReportId || reportResponse.reportId,
           reporterId: reporterUserId,
-          reportedUserId: null, // Backend doesn't provide this in ReportDto
-          reason: reportResponse.Reason || reportResponse.reason || 'N/A',
+          reportedUserId: null,
+          reason: cleanReason,
           status: reportResponse.Status || reportResponse.status || 'Pending',
           resolution: reportResponse.Resolution || reportResponse.resolution || null,
           createdAt: reportResponse.CreatedAt || reportResponse.createdAt,
           updatedAt: reportResponse.UpdatedAt || reportResponse.updatedAt,
-          description: reportResponse.Reason || reportResponse.reason || 'N/A',
+          description: cleanReason,
           // Reporter info
           reporter: {
             userId: reporterUserId,
@@ -78,17 +121,7 @@ const ReportDetail = () => {
             phone: null, // Backend doesn't have phone
             avatar: null // Backend doesn't have avatar
           },
-          // Reported user info (unknown since backend doesn't provide Content/FromUserId)
-          reportedUser: {
-            userId: null,
-            fullName: 'Unknown User',
-            firstName: 'Unknown',
-            lastName: 'User',
-            email: 'unknown@email.com',
-            username: 'unknown',
-            phone: null,
-            avatar: null
-          },
+          reportedUser,
           // Reported content (not available from backend)
           reportedContent: {
             type: 'Message',
@@ -198,75 +231,51 @@ const ReportDetail = () => {
     return reasonIcons[reason] || '📋';
   };
 
-  const handleResolve = async () => {
-    try {
-      const newStatus = 'Resolved';
-      const newResolution = 'Báo cáo đã được xử lý thành công.';
-      
-      // Update report via API
-      const updatedReport = await reportService.resolveReport(reportId, newResolution);
-      
-      // Update local state
-      const newUpdatedAt = updatedReport?.UpdatedAt || updatedReport?.updatedAt || new Date().toISOString();
-      
-      setReport(prev => prev ? {
-        ...prev,
-        status: newStatus,
-        resolution: newResolution,
-        updatedAt: newUpdatedAt
-      } : null);
-      
-      // Gửi notification cho người báo cáo (reporter)
-      if (report && report.reporterId) {
-        const notification = {
-          userId: report.reporterId,
-          type: 'report_resolved',
-          title: 'Báo cáo của bạn đã được xử lý',
-          message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xử lý thành công. Người dùng bị báo cáo đã được xử lý theo quy định.`,
-          data: {
-            reportId: reportId,
-            status: newStatus,
-            resolution: newResolution
-          }
-        };
-        addUserNotification(notification);
-      }
-      
-      // Navigate back to reports list after a short delay
-      setTimeout(() => {
-        navigate('/reports');
-      }, 1500);
-    } catch (err) {
-      console.error('Error resolving report:', err);
-      alert('Không thể xử lý báo cáo. Vui lòng thử lại sau.');
-    }
+  const openActionModal = (type) => {
+    setActionType(type);
+    setAdminResponse('');
+    setFormError('');
+    setIsActionModalOpen(true);
   };
 
-  const handleReject = async () => {
+  const closeActionModal = () => {
+    setIsActionModalOpen(false);
+    setActionType(null);
+    setAdminResponse('');
+    setFormError('');
+  };
+
+  const handleSubmitAction = async () => {
+    if (!actionType) return;
+    if (!adminResponse.trim()) {
+      setFormError('Vui lòng nhập nội dung phản hồi.');
+      return;
+    }
+
+    const newStatus = actionType === 'resolve' ? 'Resolved' : 'Rejected';
+    const newResolution = adminResponse.trim();
+
     try {
-      const newStatus = 'Rejected';
-      const newResolution = 'Báo cáo đã bị từ chối.';
-      
-      // Update report via API
-      const updatedReport = await reportService.rejectReport(reportId, newResolution);
-      
-      // Update local state
+      const updatedReport = await reportService.updateReport(reportId, {
+        Status: newStatus,
+        Resolution: newResolution
+      });
+
       const newUpdatedAt = updatedReport?.UpdatedAt || updatedReport?.updatedAt || new Date().toISOString();
-      
+
       setReport(prev => prev ? {
         ...prev,
         status: newStatus,
         resolution: newResolution,
         updatedAt: newUpdatedAt
       } : null);
-      
-      // Gửi notification cho người báo cáo (reporter)
+
       if (report && report.reporterId) {
         const notification = {
           userId: report.reporterId,
-          type: 'report_rejected',
-          title: 'Báo cáo của bạn đã được xem xét',
-          message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được xem xét. Sau khi kiểm tra, chúng tôi không tìm thấy bằng chứng vi phạm. Người dùng bị báo cáo không sai và không bị xử lý.`,
+          type: actionType === 'resolve' ? 'report_resolved' : 'report_rejected',
+          title: actionType === 'resolve' ? 'Báo cáo của bạn đã được xử lý' : 'Báo cáo của bạn đã được xem xét',
+          message: `Báo cáo #${reportId} của bạn về "${report.reason}" đã được ${actionType === 'resolve' ? 'xử lý' : 'xem xét'}. ${newResolution}`,
           data: {
             reportId: reportId,
             status: newStatus,
@@ -275,14 +284,11 @@ const ReportDetail = () => {
         };
         addUserNotification(notification);
       }
-      
-      // Navigate back to reports list after a short delay
-      setTimeout(() => {
-        navigate('/reports');
-      }, 1500);
+
+      closeActionModal();
     } catch (err) {
-      console.error('Error rejecting report:', err);
-      alert('Không thể từ chối báo cáo. Vui lòng thử lại sau.');
+      console.error('Error updating report:', err);
+      setFormError('Không thể lưu phản hồi. Vui lòng thử lại.');
     }
   };
 
@@ -366,6 +372,12 @@ const ReportDetail = () => {
         <div className="info-card">
           <h3>Mô tả chi tiết</h3>
           <p className="description-text">{report.description}</p>
+          {report.resolution && (
+            <div className="admin-response">
+              <span className="response-label">Phản hồi từ admin:</span>
+              <p>{report.resolution}</p>
+            </div>
+          )}
         </div>
 
         {/* Reported Content */}
@@ -417,22 +429,12 @@ const ReportDetail = () => {
           </div>
         </div>
 
-        {/* Resolution */}
-        {report.resolution && (
-          <div className="info-card resolution-card">
-            <h3>Kết quả xử lý</h3>
-            <div className="resolution-content">
-              <p>{report.resolution}</p>
-            </div>
-          </div>
-        )}
-
         {/* Actions */}
         {(report.status || '').toLowerCase() === 'pending' && (
           <div className="action-section">
             <button 
               className="action-btn resolve-btn"
-              onClick={handleResolve}
+              onClick={() => openActionModal('resolve')}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 6L9 17l-5-5"/>
@@ -441,7 +443,7 @@ const ReportDetail = () => {
             </button>
             <button 
               className="action-btn reject-btn"
-              onClick={handleReject}
+              onClick={() => openActionModal('reject')}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12"/>
@@ -451,6 +453,28 @@ const ReportDetail = () => {
           </div>
         )}
       </div>
+      {isActionModalOpen && (
+        <div className="action-modal-overlay">
+          <div className="action-modal">
+            <h3>{actionType === 'resolve' ? 'Nhập phản hồi xử lý' : 'Nhập lý do từ chối'}</h3>
+            <p>Phản hồi này sẽ được lưu vào hệ thống và gửi đến người báo cáo.</p>
+            <textarea
+              rows={5}
+              value={adminResponse}
+              onChange={(e) => {
+                setAdminResponse(e.target.value);
+                if (formError) setFormError('');
+              }}
+              placeholder="Ví dụ: Chúng tôi đã khóa tài khoản vi phạm trong 24 giờ..."
+            />
+            {formError && <div className="form-error">{formError}</div>}
+            <div className="modal-actions">
+              <button className="secondary-btn" onClick={closeActionModal}>Hủy</button>
+              <button className="primary-btn" onClick={handleSubmitAction}>Lưu phản hồi</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

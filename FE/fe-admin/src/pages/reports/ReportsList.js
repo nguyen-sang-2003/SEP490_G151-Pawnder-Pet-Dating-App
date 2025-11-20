@@ -17,6 +17,43 @@ const ReportsList = () => {
 
   // Fetch reports from API
   useEffect(() => {
+    const extractReportedUserFromReason = (reason = '') => {
+      const reportedUserRegex = /\[ReportedUser=([^\]]+)\]/i;
+      const match = reason.match(reportedUserRegex);
+      const cleanReason = reason.replace(reportedUserRegex, '').trim();
+      if (match) {
+        const reportedName = match[1].trim();
+        const nameParts = reportedName.split(' ');
+        return {
+          cleanReason: cleanReason || 'N/A',
+          reportedUser: {
+            userId: null,
+            fullName: reportedName,
+            firstName: nameParts[0] || reportedName,
+            lastName: nameParts.slice(1).join(' ') || '',
+            email: 'unknown@email.com',
+            username: reportedName.replace(/\s+/g, '').toLowerCase(),
+            phone: null,
+            avatar: null
+          }
+        };
+      }
+
+      return {
+        cleanReason: reason || 'N/A',
+        reportedUser: {
+          userId: null,
+          fullName: 'Unknown User',
+          firstName: 'Unknown',
+          lastName: 'User',
+          email: 'unknown@email.com',
+          username: 'unknown',
+          phone: null,
+          avatar: null
+        }
+      };
+    };
+
     const fetchReports = async () => {
       try {
         setLoading(true);
@@ -61,6 +98,8 @@ const ReportsList = () => {
         const mappedReports = reportsData.map(report => {
           const reporterUserId = report.UserReport?.UserId || report.userReport?.userId;
           const reporterUser = userMap.get(reporterUserId);
+          const reasonRaw = report.Reason || report.reason || 'N/A';
+          const { cleanReason, reportedUser } = extractReportedUserFromReason(reasonRaw);
           
           const fullName = reporterUser 
             ? (reporterUser.FullName || reporterUser.fullName || reporterUser.Email?.split('@')[0] || 'Unknown')
@@ -72,13 +111,13 @@ const ReportsList = () => {
           return {
             id: report.ReportId || report.reportId,
             reporterId: reporterUserId,
-            reportedUserId: null, // Backend doesn't provide this in ReportDto
-            reason: report.Reason || report.reason || 'N/A',
+            reportedUserId: null,
+            reason: cleanReason,
             status: report.Status || report.status || 'Pending',
             resolution: report.Resolution || report.resolution || null,
             createdAt: report.CreatedAt || report.createdAt,
             updatedAt: report.UpdatedAt || report.updatedAt,
-            description: report.Reason || report.reason || 'N/A', // Use reason as description
+            description: cleanReason,
             // Reporter info
             reporter: {
               userId: reporterUserId,
@@ -90,17 +129,7 @@ const ReportsList = () => {
               phone: null, // Backend doesn't have phone
               avatar: null // Backend doesn't have avatar
             },
-            // Reported user info (unknown since backend doesn't provide Content/FromUserId)
-            reportedUser: {
-              userId: null,
-              fullName: 'Unknown User',
-              firstName: 'Unknown',
-              lastName: 'User',
-              email: 'unknown@email.com',
-              username: 'unknown',
-              phone: null,
-              avatar: null
-            },
+            reportedUser,
             // Reported content (not available from backend)
             reportedContent: {
               type: 'Message',

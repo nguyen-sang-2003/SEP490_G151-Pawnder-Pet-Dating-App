@@ -23,8 +23,10 @@ class PetService {
         console.log(`User ${userId} has no pets`);
         return [];
       }
-      // For other errors, re-throw
-      throw error;
+
+      // Gracefully handle other errors as empty result to keep dashboard stable
+      console.warn(`petService.getPetsByUser(${userId}) failed:`, error?.response?.status || error?.message);
+      return [];
     }
   }
 

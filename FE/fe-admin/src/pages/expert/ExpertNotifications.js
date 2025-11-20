@@ -63,6 +63,9 @@ const ExpertNotifications = () => {
   const prevPendingRef = useRef(0);
 
   const fetchUserInfo = useCallback(async (userId) => {
+    if (!userId) {
+      return getFallbackUserInfo(userId);
+    }
     try {
       const response = await userService.getUserById(userId);
       return {
@@ -77,7 +80,8 @@ const ExpertNotifications = () => {
 
   const normalizeNotification = useCallback(
     async (item, index) => {
-      const userInfo = await fetchUserInfo(item.UserId);
+      const userId = item.UserId ?? item.userId;
+      const userInfo = await fetchUserInfo(userId);
       const status = (item.Status || 'pending').toLowerCase();
       const expertNote = item.Message || '';
       const requestMessage =
@@ -86,9 +90,9 @@ const ExpertNotifications = () => {
         'Người dùng muốn xác thực câu trả lời từ AI.';
 
       const base = {
-        id: `${item.ChatAiId || 'chat'}-${item.UserId}-${index}`,
+        id: `${item.ChatAiId || 'chat'}-${userId ?? 'unknown'}-${index}`,
         expertId: item.ExpertId,
-        userId: item.UserId,
+        userId: userId,
         chatAiId: item.ChatAiId || 0,
         status,
         expertNote: status === 'confirmed' ? expertNote : '',

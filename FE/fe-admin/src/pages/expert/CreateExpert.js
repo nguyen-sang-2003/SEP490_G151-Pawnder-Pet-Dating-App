@@ -3,7 +3,7 @@ import userService from '../../services/api/userService';
 import './CreateExpert.css';
 
 const EXPERT_ROLE_ID = 2;
-const ACTIVE_STATUS_ID = 1;
+const ACTIVE_STATUS_ID = 2;
 const DEFAULT_EMAIL_DOMAIN = 'pawnder.com';
 
 const getEmailDomain = (experts) => {

@@ -562,7 +562,11 @@ VALUES
 ((SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
  (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
  (SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
- 'Approved', 'Tư vấn đã được chuyên gia xác nhận.');
+'Pending', 'Người dùng cần xác nhận chuyên gia cho câu trả lời AI về giống chó.'),
+((SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+ (SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Phân tích gen thú cưng'),
+'Confirmed', 'Chuyên gia đã kiểm tra và đồng ý với câu trả lời.');
 
 -- ===========================
 -- BẢNG ChatUser
@@ -626,4 +630,28 @@ VALUES
  null,
  null,
  null);
+
+-- ===========================
+-- BẢNG Report (dữ liệu mẫu giữa các User)
+-- ===========================
+INSERT INTO "Report" ("UserReportId", "ContentId", "Reason", "Status", "Resolution")
+VALUES
+-- user1 báo cáo user2 vì spam tin nhắn
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi muốn nhờ bạn tư vấn%' LIMIT 1),
+ '[ReportedUser=Lê Minh D] Người dùng bên kia gửi tin nhắn lặp lại gây phiền.',
+ 'Pending',
+ NULL),
+-- user2 báo cáo user1 nhưng đã được xử lý
+((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi rất sẵn lòng giúp%' LIMIT 1),
+ '[ReportedUser=Lê Minh C] Nội dung bị phản hồi không đúng chủ đề, đề nghị admin kiểm tra.',
+ 'Resolved',
+ 'Admin đã nhắc nhở user1 và khóa chat 24h.'),
+-- user1 báo cáo thêm một nội dung khác nhưng bị từ chối
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi rất sẵn lòng giúp%' LIMIT 1),
+ '[ReportedUser=Lê Minh D] Báo cáo nhầm, không có bằng chứng vi phạm.',
+ 'Rejected',
+ 'Không phát hiện vi phạm, báo cáo bị từ chối.');
 

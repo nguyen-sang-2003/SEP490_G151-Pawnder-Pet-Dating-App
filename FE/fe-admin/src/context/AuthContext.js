@@ -51,6 +51,31 @@ const authReducer = (state, action) => {
   }
 };
 
+const USER_STATUS = {
+  BANNED: 1,
+  NORMAL: 2,
+  VIP: 3,
+};
+
+const ROLE_ID_MAP = {
+  [USER_ROLES.ADMIN]: 1,
+  [USER_ROLES.EXPERT]: 2,
+  [USER_ROLES.USER]: 3,
+};
+
+const mapUserStatusToLabel = (statusId) => {
+  switch (statusId) {
+    case USER_STATUS.BANNED:
+      return 'banned';
+    case USER_STATUS.VIP:
+      return 'vip';
+    case USER_STATUS.NORMAL:
+      return 'active';
+    default:
+      return 'inactive';
+  }
+};
+
 // Create context
 const AuthContext = createContext(undefined);
 
@@ -137,13 +162,42 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Không thể đọc thông tin từ token');
       }
       
-      // Get user details from backend (token is now in localStorage, so apiClient will include it in headers)
-      console.log('🔍 Fetching user details for userId:', userId);
-      const userResponse = await userService.getUserById(userId);
-      console.log('✅ User response received:', userResponse);
+      // Normalize role name (backend returns "Admin", "Expert", "User")
+      const normalizedRole = role === 'Admin' ? USER_ROLES.ADMIN
+        : role === 'Expert' ? USER_ROLES.EXPERT
+        : role === 'User' ? USER_ROLES.USER
+        : role;
       
+      // Determine if current role is allowed to fetch full user profile from /user/{id}
+      const canFetchUserDetails = normalizedRole === USER_ROLES.ADMIN || normalizedRole === USER_ROLES.USER;
+      let userResponse = null;
+      if (canFetchUserDetails) {
+        try {
+          console.log('🔍 Fetching user details for userId:', userId);
+          userResponse = await userService.getUserById(userId);
+          console.log('✅ User response received:', userResponse);
+        } catch (fetchError) {
+          if (fetchError?.response?.status === 403) {
+            console.warn('⚠️ User details endpoint returned 403. Falling back to login response data.');
+          } else {
+            throw fetchError;
+          }
+        }
+      } else {
+        console.log('ℹ️ Current role cannot access /user/{id}. Using login payload instead.');
+      }
+
       if (!userResponse) {
-        throw new Error('Không thể lấy thông tin người dùng từ server');
+        userResponse = {
+          UserId: userId,
+          Email: loginResponse.Email || loginResponse.email || credentials.email,
+          FullName: loginResponse.FullName || loginResponse.fullName || credentials.email?.split('@')[0],
+          RoleId: loginResponse.RoleId || loginResponse.roleId || ROLE_ID_MAP[normalizedRole],
+          UserStatusId: loginResponse.UserStatusId || loginResponse.userStatusId || USER_STATUS.NORMAL,
+          Gender: loginResponse.Gender || loginResponse.gender,
+          CreatedAt: loginResponse.CreatedAt || loginResponse.createdAt,
+          UpdatedAt: loginResponse.UpdatedAt || loginResponse.updatedAt,
+        };
       }
       
       // Map backend UserResponse to frontend user format
@@ -161,14 +215,6 @@ export const AuthProvider = ({ children }) => {
       const nameParts = fullName.split(' ');
       const firstName = nameParts[0] || fullName;
       const lastName = nameParts.slice(1).join(' ') || '';
-      
-      // Normalize role name (backend returns "Admin", "Expert", "User")
-      // Frontend expects: "Admin", "Expert", "User"
-      const normalizedRole = role === 'Admin' ? USER_ROLES.ADMIN
-        : role === 'Expert' ? USER_ROLES.EXPERT
-        : role === 'User' ? USER_ROLES.USER
-        : role;
-      
       const user = {
         id: userIdFromResponse,
         username: email?.split('@')[0] || 'user',
@@ -177,8 +223,8 @@ export const AuthProvider = ({ children }) => {
         lastName: lastName,
         fullName: fullName,
         role: normalizedRole,
-        roleId: roleId,
-        status: userStatusId === 1 ? 'active' : 'inactive',
+        roleId: roleId || ROLE_ID_MAP[normalizedRole],
+        status: mapUserStatusToLabel(userStatusId),
         gender: gender,
         avatar: null,
         createdAt: createdAt,
