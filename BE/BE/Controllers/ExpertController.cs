@@ -18,7 +18,7 @@ namespace BE.Controllers
 			_expertConfirmationService = expertConfirmationService;
 		}
 
-		// GET: /api/expert-confirmation
+		// GET: /expert-confirmation
 		[HttpGet("expert-confirmation")]
 		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetAllExpertConfirmations(CancellationToken ct = default)
@@ -34,7 +34,7 @@ namespace BE.Controllers
 			}
 		}
 
-		// GET: /api/expert-confirmation/{userId}/{chatId}
+		// GET: /expert-confirmation/{userId}/{chatId}
 		[HttpGet("expert-confirmation/{userId:int}/{chatId:int}")]
 		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<ExpertConfirmationDTO>> GetExpertConfirmation(
@@ -55,9 +55,9 @@ namespace BE.Controllers
 			}
 		}
 
-		// GET: /api/expert-confirmation/{userId}
+		// GET: /expert-confirmation/{userId}
 		[HttpGet("expert-confirmation/{userId:int}")]
-		[Authorize(Roles = "User,Admin")]
+		[Authorize(Roles = "User,Expert,Admin")]
 		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetUserExpertConfirmations(int userId, CancellationToken ct = default)
 		{
 			try
