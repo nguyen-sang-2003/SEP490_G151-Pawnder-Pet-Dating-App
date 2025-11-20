@@ -54,6 +54,18 @@ export const API_ENDPOINTS = {
     // Route: /expert-confirmation/{expertId:int}/{userId:int}/{chatId:int}
     UPDATE: (expertId, userId, chatId) => `/expert-confirmation/${expertId}/${userId}/${chatId}`, // PUT /expert-confirmation/{expertId}/{userId}/{chatId}
   },
+  CHAT_AI: {
+    MESSAGES: (chatAiId) => `/api/chat-ai/${chatAiId}/messages`, // GET /api/chat-ai/{chatAiId}/messages
+  },
+  CHAT_EXPERT: {
+    GET_BY_EXPERT: (expertId) => `/api/chat-expert/expert/${expertId}`, // GET /api/chat-expert/expert/{expertId}
+    GET_BY_USER: (userId) => `/api/chat-expert/user/${userId}`, // GET /api/chat-expert/user/{userId}
+    CREATE: (expertId, userId) => `/api/chat-expert/${expertId}/${userId}`, // POST /api/chat-expert/{expertId}/{userId}
+  },
+  CHAT_EXPERT_CONTENT: {
+    GET_MESSAGES: (chatExpertId) => `/api/chat-expert-content/${chatExpertId}`, // GET /api/chat-expert-content/{chatExpertId}
+    SEND_MESSAGE: (chatExpertId, fromId) => `/api/chat-expert-content/${chatExpertId}/${fromId}`, // POST /api/chat-expert-content/{chatExpertId}/{fromId}
+  },
   PET_PHOTOS: {
     LIST_BY_PET: (petId) => `/api/petphoto/${petId}`, // GET /api/petphoto/{petId} (Backend route là "api/petphoto" không có dấu gạch ngang)
     UPLOAD: '/api/petphoto', // POST /api/petphoto (FormData: petId, files[])

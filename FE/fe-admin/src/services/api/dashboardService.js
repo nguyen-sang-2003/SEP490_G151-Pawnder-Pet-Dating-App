@@ -114,23 +114,88 @@ class DashboardService {
    * Backend: GET /report
    */
   async getReportsData() {
-    const response = await apiClient.get(API_ENDPOINTS.REPORTS.LIST);
-    
-    // Backend returns: { success: boolean, message: string, data: ReportDto[] }
-    const reports = response.data || response || [];
-    
-    // Count by status
-    const pending = reports.filter(r => r.Status === 'Pending' || r.status === 'pending').length;
-    const resolved = reports.filter(r => r.Status === 'Resolved' || r.status === 'resolved').length;
-    const rejected = reports.filter(r => r.Status === 'Rejected' || r.status === 'rejected').length;
-    
-    return {
-      total: reports.length,
-      pending,
-      resolved,
-      rejected,
-      reports
-    };
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.REPORTS.LIST);
+      
+      // Backend returns: { success: boolean, message: string, data: ReportDto[] }
+      // Or directly: ReportDto[]
+      const reports = Array.isArray(response) 
+        ? response 
+        : (response?.data || response?.Items || response?.items || []);
+      
+      if (!Array.isArray(reports)) {
+        console.error('❌ Dashboard - Reports is not an array:', typeof reports, reports);
+        return {
+          total: 0,
+          pending: 0,
+          resolved: 0,
+          rejected: 0,
+          reports: []
+        };
+      }
+      
+      console.log('📊 Dashboard - Reports data:', {
+        responseType: Array.isArray(response) ? 'Array' : typeof response,
+        reportsCount: reports.length,
+        reports: reports.map(r => ({
+          id: r.ReportId || r.reportId,
+          status: r.Status || r.status,
+          statusType: typeof (r.Status || r.status),
+        }))
+      });
+      
+      // Normalize status to lowercase for comparison
+      const normalizeStatus = (status) => {
+        if (status === null || status === undefined) return '';
+        return String(status).toLowerCase().trim();
+      };
+      
+      // Count by status - handle both English and Vietnamese statuses
+      // Database stores: 'Pending', 'Resolved', 'Rejected' (PascalCase)
+      const pending = reports.filter(r => {
+        const status = normalizeStatus(r.Status || r.status);
+        return status === 'pending' || status === 'chờ xử lý' || status === 'đang chờ';
+      }).length;
+      
+      const resolved = reports.filter(r => {
+        const status = normalizeStatus(r.Status || r.status);
+        return status === 'resolved' || status === 'đã xử lý' || status === 'đã giải quyết';
+      }).length;
+      
+      const rejected = reports.filter(r => {
+        const status = normalizeStatus(r.Status || r.status);
+        return status === 'rejected' || status === 'từ chối' || status === 'bị từ chối';
+      }).length;
+      
+      console.log('📊 Dashboard - Reports counts:', { 
+        total: reports.length, 
+        pending, 
+        resolved, 
+        rejected,
+        statusBreakdown: reports.reduce((acc, r) => {
+          const status = normalizeStatus(r.Status || r.status);
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {})
+      });
+      
+      return {
+        total: reports.length,
+        pending,
+        resolved,
+        rejected,
+        reports
+      };
+    } catch (error) {
+      console.error('❌ Dashboard - Error fetching reports:', error);
+      return {
+        total: 0,
+        pending: 0,
+        resolved: 0,
+        rejected: 0,
+        reports: []
+      };
+    }
   }
 
   /**

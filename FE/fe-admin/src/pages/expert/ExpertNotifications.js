@@ -78,9 +78,111 @@ const ExpertNotifications = () => {
     }
   }, []);
 
+  const fetchChatHistory = useCallback(async (chatAiId, userName) => {
+    console.log('🔍 fetchChatHistory called with chatAiId:', chatAiId, 'userName:', userName);
+    if (!chatAiId || chatAiId === 0) {
+      console.warn('⚠️ chatAiId is missing or 0, using fallback');
+      return buildFallbackHistory({ userName, requestMessage: 'Không có thông tin chat.' });
+    }
+    try {
+      console.log('📡 Calling API for chatAiId:', chatAiId);
+      const response = await expertService.getChatHistory(chatAiId);
+      console.log('📥 API Response (full):', JSON.stringify(response, null, 2));
+      
+      if (!response) {
+        console.warn('⚠️ No response from API');
+        return buildFallbackHistory({ userName, requestMessage: 'Không có dữ liệu chat.' });
+      }
+
+      // Backend trả về { success: true, data: { chatTitle, messages: [...] } }
+      const data = response.data || response;
+      const messages = data.messages || data;
+      console.log('💬 Messages extracted:', messages);
+      console.log('💬 Messages type:', Array.isArray(messages) ? 'Array' : typeof messages);
+      console.log('💬 Messages length:', Array.isArray(messages) ? messages.length : 'Not an array');
+      
+      if (!Array.isArray(messages)) {
+        console.error('❌ Messages is not an array:', typeof messages, messages);
+        return buildFallbackHistory({ userName, requestMessage: 'Dữ liệu không đúng định dạng.' });
+      }
+      
+      if (messages.length === 0) {
+        console.warn('⚠️ Messages array is empty');
+        return buildFallbackHistory({ userName, requestMessage: 'Chưa có tin nhắn trong chat.' });
+      }
+      
+      console.log('✅ Processing', messages.length, 'messages from API');
+      
+      // Chuyển đổi dữ liệu từ backend (Question/Answer) thành format chat history
+      const history = [];
+      messages.forEach((item, idx) => {
+        // Mỗi item có cả Question và Answer, tạo 2 tin nhắn
+        if (item.question || item.Question) {
+          history.push({
+            id: `${chatAiId}-q-${idx}`,
+            role: 'user',
+            sender: userName,
+            content: item.question || item.Question,
+            timestamp: item.createdAt || item.CreatedAt || item.createdAt,
+          });
+        }
+        if (item.answer || item.Answer) {
+          history.push({
+            id: `${chatAiId}-a-${idx}`,
+            role: 'ai',
+            sender: 'Pawnder AI',
+            content: item.answer || item.Answer,
+            timestamp: item.createdAt || item.CreatedAt || item.createdAt,
+          });
+        }
+      });
+
+      console.log('✅ Created', history.length, 'chat history items from', messages.length, 'API messages');
+
+      // Sắp xếp theo timestamp nếu có
+      history.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(a.timestamp) - new Date(b.timestamp);
+      });
+
+      if (history.length === 0) {
+        console.warn('⚠️ No history items created, using fallback');
+        return buildFallbackHistory({ userName, requestMessage: 'Chưa có tin nhắn trong chat.' });
+      }
+
+      console.log('✅ Returning', history.length, 'chat history items');
+      return history;
+    } catch (err) {
+      console.error('❌ Error loading chat history:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      return buildFallbackHistory({ userName, requestMessage: 'Không thể tải lịch sử chat.' });
+    }
+  }, []);
+
   const normalizeNotification = useCallback(
     async (item, index) => {
       const userId = item.UserId ?? item.userId;
+      // Backend có thể trả về ChatAIId hoặc ChatAiId (PascalCase) hoặc chatAiId (camelCase)
+      const chatAiId = item.ChatAIId ?? item.ChatAiId ?? item.chatAIId ?? item.chatAiId ?? 0;
+      console.log('📋 Normalizing notification:', { 
+        userId, 
+        chatAiId, 
+        'item.ChatAIId': item.ChatAIId,
+        'item.ChatAiId': item.ChatAiId,
+        'item.chatAIId': item.chatAIId,
+        'item.chatAiId': item.chatAiId,
+        itemKeys: Object.keys(item),
+        fullItem: item
+      });
+      
+      if (!chatAiId || chatAiId === 0) {
+        console.error('❌ chatAiId is missing or 0! Item:', item);
+      }
+      
       const userInfo = await fetchUserInfo(userId);
       const status = (item.Status || 'pending').toLowerCase();
       const expertNote = item.Message || '';
@@ -92,35 +194,40 @@ const ExpertNotifications = () => {
         'Người dùng muốn xác thực câu trả lời từ AI.';
 
       const base = {
-        id: `${item.ChatAiId || 'chat'}-${userId ?? 'unknown'}-${index}`,
-        expertId: item.ExpertId,
+        id: `${chatAiId || 'chat'}-${userId ?? 'unknown'}-${index}`,
+        expertId: item.ExpertId ?? item.expertId,
         userId: userId,
-        chatAiId: item.ChatAiId || 0,
+        chatAiId: chatAiId,
         status,
         expertNote: status === 'confirmed' ? expertNote : '',
         requestMessage,
         userName: userInfo.name,
         userEmail: userInfo.email,
-        title: item.ChatAiId
-          ? `Chat #${item.ChatAiId}`
+        title: chatAiId
+          ? `Chat #${chatAiId}`
           : 'Yêu cầu xác nhận thông tin AI',
         content: requestMessage,
         type: 'ai_verification',
-        createdAt: item.CreatedAt,
-        updatedAt: item.UpdatedAt,
+        createdAt: item.CreatedAt ?? item.createdAt,
+        updatedAt: item.UpdatedAt ?? item.updatedAt,
       };
+
+      // Fetch chat history từ backend
+      console.log('🔄 Fetching chat history for chatAiId:', chatAiId, 'userName:', userInfo.name);
+      const chatHistory = await fetchChatHistory(chatAiId, userInfo.name);
+      console.log('✅ Chat history fetched, length:', chatHistory?.length || 0);
+      if (chatHistory?.length === 2) {
+        console.warn('⚠️ Only 2 messages - might be using fallback! Check API response above.');
+      }
 
       return {
         ...base,
         aiQuestion: requestMessage,
         aiAnswer: expertNote || 'Chưa có ghi chú từ chuyên gia',
-        chatHistory: buildFallbackHistory({
-          ...base,
-          expertNote: expertNote || 'Chưa có ghi chú từ chuyên gia',
-        }),
+        chatHistory: chatHistory,
       };
     },
-    [fetchUserInfo]
+    [fetchUserInfo, fetchChatHistory]
   );
 
   const loadFromBackend = useCallback(async () => {
@@ -545,20 +652,6 @@ const ExpertNotifications = () => {
                     <span className="detail-value">{getStatusBadge(selectedNotification.status)}</span>
                   </div>
                 </div>
-
-                {selectedNotification.aiQuestion && (
-                  <div className="detail-section">
-                    <h3>Câu hỏi của người dùng</h3>
-                    <div className="question-display">{selectedNotification.aiQuestion}</div>
-                  </div>
-                )}
-
-                {selectedNotification.aiAnswer && (
-                  <div className="detail-section">
-                    <h3>Trả lời từ AI</h3>
-                    <div className="ai-answer-display">{selectedNotification.aiAnswer}</div>
-                  </div>
-                )}
 
                 {selectedNotification.chatHistory.length > 0 && (
                   <div className="detail-section chat-history-section">

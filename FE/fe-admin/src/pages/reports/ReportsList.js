@@ -139,7 +139,14 @@ const ReportsList = () => {
           };
         });
         
-        setReports(mappedReports);
+        // Sắp xếp theo ReportId (ID tăng dần)
+        const sortedReports = mappedReports.sort((a, b) => {
+          const idA = a.id || 0;
+          const idB = b.id || 0;
+          return idA - idB;
+        });
+        
+        setReports(sortedReports);
       } catch (err) {
         console.error('Error fetching reports:', err);
         setError('Không thể tải danh sách báo cáo. Vui lòng thử lại sau.');

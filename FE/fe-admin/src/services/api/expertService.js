@@ -89,6 +89,20 @@ class ExpertService {
     );
     return response;
   }
+
+  /**
+   * Get chat history for a ChatAI
+   * Backend: GET /api/chat-ai/{chatAiId}/messages
+   */
+  async getChatHistory(chatAiId) {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.CHAT_AI.MESSAGES(chatAiId));
+      return response;
+    } catch (error) {
+      console.warn(`getChatHistory(${chatAiId}) failed:`, error?.response?.status || error?.message);
+      return null;
+    }
+  }
 }
 
 export default new ExpertService();

@@ -17,6 +17,7 @@ import ReportDetail from './pages/reports/ReportDetail';
 import Activities from './pages/activities/Activities';
 import PaymentManagement from './pages/payments/PaymentManagement';
 import ExpertNotifications from './pages/expert/ExpertNotifications';
+import ExpertChat from './pages/expert/ExpertChat';
 import ExpertList from './pages/expert/ExpertList';
 import ExpertDetail from './pages/expert/ExpertDetail';
 import CreateExpert from './pages/expert/CreateExpert';
@@ -166,6 +167,14 @@ function App() {
                 <ProtectedRoute allowedRoles={[USER_ROLES.EXPERT]}>
                   <ExpertLayout>
                     <ExpertNotifications />
+                  </ExpertLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/expert/chat" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.EXPERT]}>
+                  <ExpertLayout>
+                    <ExpertChat />
                   </ExpertLayout>
                 </ProtectedRoute>
               } />
