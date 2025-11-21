@@ -48,6 +48,90 @@ const buildFallbackHistory = (notification) => {
   return history;
 };
 
+// Mock lịch sử chat chi tiết cho case demo (user1 - tư vấn giống chó phù hợp)
+const buildStaticAiHistory = (chatAiId, userName) => {
+  // Chỉ áp dụng cho chat tư vấn giống chó phù hợp (chat đầu tiên) – có 7 lượt hỏi đáp
+  if (!chatAiId || Number(chatAiId) !== 1) {
+    return null;
+  }
+
+  const name = userName || 'Người dùng';
+  const now = new Date();
+
+  const makeTime = (minutes) => {
+    const d = new Date(now);
+    d.setMinutes(d.getMinutes() + minutes);
+    return d.toISOString();
+  };
+
+  return [
+    {
+      id: `${chatAiId}-q-0`,
+      role: 'user',
+      sender: name,
+      content:
+        'Tôi muốn nuôi chó hiền, phù hợp trẻ nhỏ. Bạn có thể tư vấn giúp tôi không?',
+      timestamp: makeTime(0),
+    },
+    {
+      id: `${chatAiId}-a-0`,
+      role: 'ai',
+      sender: 'Pawnder AI',
+      content:
+        'Chào bạn! Golden Retriever là một lựa chọn tuyệt vời cho gia đình có trẻ nhỏ vì chúng rất hiền lành, thân thiện và kiên nhẫn với trẻ em.',
+      timestamp: makeTime(1),
+    },
+    {
+      id: `${chatAiId}-q-1`,
+      role: 'user',
+      sender: name,
+      content:
+        'Golden Retriever có cần không gian rộng không? Nhà tôi chỉ có sân nhỏ thôi.',
+      timestamp: makeTime(2),
+    },
+    {
+      id: `${chatAiId}-a-1`,
+      role: 'ai',
+      sender: 'Pawnder AI',
+      content:
+        'Golden Retriever là giống chó lớn và năng động, nên cần được vận động hàng ngày. Nếu bạn có thể đưa chó đi dạo 30–60 phút mỗi ngày thì sân nhỏ vẫn có thể chấp nhận được.',
+      timestamp: makeTime(3),
+    },
+    {
+      id: `${chatAiId}-q-2`,
+      role: 'user',
+      sender: name,
+      content:
+        'Vậy còn giống nào khác phù hợp với không gian nhỏ hơn không?',
+      timestamp: makeTime(4),
+    },
+    {
+      id: `${chatAiId}-a-2`,
+      role: 'ai',
+      sender: 'Pawnder AI',
+      content:
+        'Nếu không gian hạn chế, bạn có thể cân nhắc Cavalier King Charles Spaniel, Beagle cỡ nhỏ hoặc Poodle – đều thân thiện, dễ nuôi và phù hợp với gia đình có trẻ nhỏ.',
+      timestamp: makeTime(5),
+    },
+    {
+      id: `${chatAiId}-q-3`,
+      role: 'user',
+      sender: name,
+      content:
+        'Tôi muốn xác nhận lại thông tin này với chuyên gia để chắc chắn, bạn có thể kết nối giúp tôi không?',
+      timestamp: makeTime(6),
+    },
+    {
+      id: `${chatAiId}-a-3`,
+      role: 'ai',
+      sender: 'Pawnder AI',
+      content:
+        'Tất nhiên! Tôi sẽ gửi yêu cầu của bạn cho chuyên gia để họ xem lại toàn bộ thông tin và đưa ra khuyến nghị chi tiết hơn cho trường hợp của bạn.',
+      timestamp: makeTime(7),
+    },
+  ];
+};
+
 const ExpertNotifications = () => {
   const { updatePendingNotifications } = useNotification();
   const [notifications, setNotifications] = useState([]);
@@ -82,6 +166,8 @@ const ExpertNotifications = () => {
     console.log('🔍 fetchChatHistory called with chatAiId:', chatAiId, 'userName:', userName);
     if (!chatAiId || chatAiId === 0) {
       console.warn('⚠️ chatAiId is missing or 0, using fallback');
+      const staticHistory = buildStaticAiHistory(chatAiId, userName);
+      if (staticHistory) return staticHistory;
       return buildFallbackHistory({ userName, requestMessage: 'Không có thông tin chat.' });
     }
     try {
@@ -91,6 +177,8 @@ const ExpertNotifications = () => {
       
       if (!response) {
         console.warn('⚠️ No response from API');
+        const staticHistory = buildStaticAiHistory(chatAiId, userName);
+        if (staticHistory) return staticHistory;
         return buildFallbackHistory({ userName, requestMessage: 'Không có dữ liệu chat.' });
       }
 
@@ -103,11 +191,15 @@ const ExpertNotifications = () => {
       
       if (!Array.isArray(messages)) {
         console.error('❌ Messages is not an array:', typeof messages, messages);
+        const staticHistory = buildStaticAiHistory(chatAiId, userName);
+        if (staticHistory) return staticHistory;
         return buildFallbackHistory({ userName, requestMessage: 'Dữ liệu không đúng định dạng.' });
       }
       
       if (messages.length === 0) {
         console.warn('⚠️ Messages array is empty');
+        const staticHistory = buildStaticAiHistory(chatAiId, userName);
+        if (staticHistory) return staticHistory;
         return buildFallbackHistory({ userName, requestMessage: 'Chưa có tin nhắn trong chat.' });
       }
       
@@ -147,6 +239,8 @@ const ExpertNotifications = () => {
 
       if (history.length === 0) {
         console.warn('⚠️ No history items created, using fallback');
+        const staticHistory = buildStaticAiHistory(chatAiId, userName);
+        if (staticHistory) return staticHistory;
         return buildFallbackHistory({ userName, requestMessage: 'Chưa có tin nhắn trong chat.' });
       }
 
@@ -159,6 +253,8 @@ const ExpertNotifications = () => {
         response: err.response?.data,
         status: err.response?.status,
       });
+      const staticHistory = buildStaticAiHistory(chatAiId, userName);
+      if (staticHistory) return staticHistory;
       return buildFallbackHistory({ userName, requestMessage: 'Không thể tải lịch sử chat.' });
     }
   }, []);
