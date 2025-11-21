@@ -7,13 +7,15 @@ export interface ExpertConfirmation {
   expertId: number;
   status: string;
   message?: string;
+  userQuestion?: string;
   createdAt: string;
   updatedAt?: string;
 }
 
 export interface ExpertConfirmationCreateRequest {
-  expertId: number;
+  expertId?: number;  // Optional - will be auto-assigned if not provided
   message?: string;
+  userQuestion?: string;
 }
 
 export interface ExpertConfirmationResponse {
@@ -96,6 +98,38 @@ export const updateExpertConfirmation = async (
       throw new Error(error.response.data.Message);
     }
     throw new Error('Không thể cập nhật yêu cầu.');
+  }
+};
+
+// Expert Chat Types
+export interface ExpertChat {
+  id: string;
+  chatExpertId: number;
+  expertId: number;
+  expertName: string;
+  specialty: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+  isOnline: boolean;
+}
+
+/**
+ * Get user's expert chats
+ * GET /api/expert-chats/{userId}
+ */
+export const getUserExpertChats = async (
+  userId: number
+): Promise<ExpertChat[]> => {
+  try {
+    const response = await apiClient.get(`/expert-chats/${userId}`);
+    return response.data.data || [];
+  } catch (error: any) {
+    console.error('❌ Get expert chats error:', error);
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Không thể tải danh sách chat với chuyên gia.');
   }
 };
 

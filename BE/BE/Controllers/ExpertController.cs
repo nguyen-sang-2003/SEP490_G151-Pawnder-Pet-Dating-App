@@ -128,5 +128,21 @@ namespace BE.Controllers
 				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
+
+		// GET: /expert-chats/{userId}
+		[HttpGet("expert-chats/{userId:int}")]
+		[Authorize(Roles = "User,Expert,Admin")]
+		public async Task<ActionResult> GetUserExpertChats(int userId, CancellationToken ct = default)
+		{
+			try
+			{
+				var chats = await _expertConfirmationService.GetUserExpertChatsAsync(userId, ct);
+				return Ok(new { success = true, data = chats });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { success = false, message = "Lỗi hệ thống", error = ex.Message });
+			}
+		}
 	}
 }

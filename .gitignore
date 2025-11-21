@@ -1,0 +1,46 @@
+# Node modules - ignore for all frontend projects
+**/node_modules/
+node_modules/
+
+# Frontend specific
+FE/FE-User/node_modules/
+FE/fe-admin/node_modules/
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Build outputs
+**/build/
+**/dist/
+**/.next/
+**/out/
+
+# Logs
+**/logs/
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+**/coverage/
+**/.nyc_output/
+
+# Temporary files
+**/.tmp/
+**/.cache/
+**/.turbo/
+**/.metro-health-check*
