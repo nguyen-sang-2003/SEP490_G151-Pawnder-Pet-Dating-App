@@ -15,6 +15,8 @@ public partial class PaymentHistory
 
     public DateOnly? EndDate { get; set; }
 
+    public decimal? Amount { get; set; }  // Số tiền thanh toán (99,000đ cho VIP)
+
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

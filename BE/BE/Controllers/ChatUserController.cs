@@ -1,165 +1,145 @@
-﻿using BE.Models;
+﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho ChatUser - chỉ nhận request và trả response
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class ChatUserController : Controller
     {
-        private readonly PawnderDatabaseContext _context;
+        private readonly IChatUserService _chatUserService;
 
-        public ChatUserController(PawnderDatabaseContext context)
+        public ChatUserController(IChatUserService chatUserService)
         {
-            _context = context;
+            _chatUserService = chatUserService;
         }
 
-        // GET /invite/{toUserId}
-        [HttpGet("invite/{toUserId}")]
-        public async Task<IActionResult> GetInvites(int toUserId)
+        // GET /invite/{userId}
+        [HttpGet("invite/{userId}")]
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> GetInvites(int userId, CancellationToken ct = default)
         {
-            var invites = await _context.ChatUsers
-                .Include(c => c.FromUser)
-                .Where(c => c.ToUserId == toUserId && c.Status == "Pending")
-                .Select(c => new
-                {
-                    matchId = c.MatchId,
-                    fromUserId = c.FromUserId,
-                    status = c.Status,
-                    createdAt = c.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(invites);
-        }
-
-        // GET /chat/{toUserId}
-        [HttpGet("chat/{UserId}")]
-        public async Task<IActionResult> GetChats(int UserId)
-        {
-            var invites = await _context.ChatUsers
-                .Include(c => c.FromUser)
-                .Where(c => (c.FromUserId == UserId || c.ToUserId == UserId) && c.Status == "Accepted")
-                .Select(c => new
-                {
-                    matchId = c.MatchId,
-                    fromUserId = c.FromUserId,
-                    toUserId = c.ToUserId,
-                    status = c.Status,
-                    createdAt = c.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(invites);
-        }
-
-        // POST /invite/{fromUserId}/{toUserId}
-        [HttpPost("invite/{fromUserId}/{toUserId}")]
-        public async Task<IActionResult> CreateFriendRequest(int fromUserId, int toUserId)
-        {
-            if (fromUserId == toUserId)
-                return BadRequest(new { message = "Không thể gửi yêu cầu cho chính mình." });
-
-            //gui 
-            var existing1 = await _context.ChatUsers.FirstOrDefaultAsync(c =>
-                c.FromUserId == fromUserId && c.ToUserId == toUserId && c.IsDeleted == false);
-
-            if (existing1 != null)
-                return BadRequest(new { message = "Yêu cầu này đã tồn tại." });
-            
-            //da nhan
-            var existing2 = await _context.ChatUsers.FirstOrDefaultAsync(c =>
-                c.FromUserId == toUserId && c.ToUserId == fromUserId && c.IsDeleted == false);
-            if (existing2 != null)
+            try
             {
-                existing2.Status = "Accepted";
-                _context.ChatUsers.Update(existing2);
-                await _context.SaveChangesAsync();
-                return Ok(new
-                {
-                    existing2.MatchId,
-                    existing2.FromUserId,
-                    existing2.ToUserId,
-                    existing2.Status,
-                    existing2.CreatedAt
-                });
+                var invites = await _chatUserService.GetInvitesAsync(userId, ct);
+                return Ok(invites);
             }
-
-            var chatUser = new ChatUser
+            catch (Exception ex)
             {
-                FromUserId = fromUserId,
-                ToUserId = toUserId,
-                Status = "Pending",
-                IsDeleted = false,
-                CreatedAt = DateTime.UtcNow
-            };
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
 
-            _context.ChatUsers.Add(chatUser);
-            await _context.SaveChangesAsync();
-
-            return Ok(new
+        // GET /chat/{userId}?petId={petId}
+        [HttpGet("chat/{userId}")]
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> GetChats(int userId, [FromQuery] int? petId = null, CancellationToken ct = default)
+        {
+            try
             {
-                chatUser.MatchId,
-                chatUser.FromUserId,
-                chatUser.ToUserId,
-                chatUser.Status,
-                chatUser.CreatedAt
-            });
+                var chats = await _chatUserService.GetChatsAsync(userId, petId, ct);
+                return Ok(chats);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // POST /invite/{fromPetId}/{toPetId}
+        [HttpPost("invite/{fromPetId}/{toPetId}")]
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> CreateFriendRequest(int fromPetId, int toPetId, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _chatUserService.CreateFriendRequestAsync(fromPetId, toPetId, ct);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.Contains("vượt quá giới hạn"))
+                {
+                    return BadRequest(new { message = ex.Message });
+                }
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // PUT /invite/{matchId}
-        // ===============================
         [HttpPut("invite/{matchId}")]
-        public async Task<IActionResult> UpdateFriendRequest(int matchId)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> UpdateFriendRequest(int matchId, CancellationToken ct = default)
         {
-            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.Status == "Pending");
-            if (chatUser == null)
-                return NotFound(new { message = "Không tìm thấy yêu cầu kết bạn." });
-
-            chatUser.Status = "Accepted";
-            chatUser.UpdatedAt = DateTime.Now;
-
-            _context.ChatUsers.Update(chatUser);
-            await _context.SaveChangesAsync();
-
-            return Ok(new
+            try
             {
-                chatUser.MatchId,
-                chatUser.FromUserId,
-                chatUser.ToUserId,
-                chatUser.Status,
-                chatUser.UpdatedAt
-            });
+                var result = await _chatUserService.UpdateFriendRequestAsync(matchId, ct);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // DELETE /invite/{matchId}
         [HttpDelete("invite/{matchId}")]
-        public async Task<IActionResult> DeleteFriendRequest(int matchId)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> DeleteFriendRequest(int matchId, CancellationToken ct = default)
         {
-            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.Status == "Pending");
-            if (chatUser == null)
-                return NotFound(new { message = "Không tìm thấy yêu cầu kết bạn." });
+            try
+            {
+                var success = await _chatUserService.DeleteFriendRequestAsync(matchId, ct);
+                
+                if (!success)
+                    return NotFound(new { message = "Không tìm thấy yêu cầu kết bạn." });
 
-            _context.ChatUsers.Remove(chatUser);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Đã xóa yêu cầu kết bạn." });
+                return Ok(new { message = "Đã xóa yêu cầu kết bạn." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // DELETE /chat/{matchId}
         [HttpDelete("chat/{matchId}")]
-        public async Task<IActionResult> DeleteChat(int matchId)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> DeleteChat(int matchId, CancellationToken ct = default)
         {
-            var chatUser = await _context.ChatUsers.FirstOrDefaultAsync(cu => cu.MatchId == matchId && cu.Status == "Accepted");
-            if (chatUser == null)
-                return NotFound(new { message = "Không tìm thấy đoạn chat." });
+            try
+            {
+                var success = await _chatUserService.DeleteChatAsync(matchId, ct);
+                
+                if (!success)
+                    return NotFound(new { message = "Không tìm thấy đoạn chat." });
 
-            chatUser.IsDeleted = true;
-            _context.ChatUsers.Update(chatUser);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Đã xóa yêu đoạn chat." });
+                return Ok(new { message = "Đã ẩn đoạn chat." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
     }
 }

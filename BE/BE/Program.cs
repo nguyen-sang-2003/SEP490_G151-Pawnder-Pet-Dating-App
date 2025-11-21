@@ -84,8 +84,63 @@ builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
 // realtime
 builder.Services.AddSignalR();
 
-// ??ng ký DistanceService
-builder.Services.AddScoped<BE.Services.DistanceService>();
+// Register DistanceService
+builder.Services.AddScoped<DistanceService>();
+
+// Register PasswordService
+builder.Services.AddScoped<PasswordService>();
+
+// Register DailyLimitService
+builder.Services.AddScoped<DailyLimitService>();
+
+// ============================================
+// Register Repositories (Repository Pattern)
+// ============================================
+builder.Services.AddScoped<BE.Repositories.Interfaces.IPetRepository, BE.Repositories.PetRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IUserRepository, BE.Repositories.UserRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IAddressRepository, BE.Repositories.AddressRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IPetPhotoRepository, BE.Repositories.PetPhotoRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IBlockRepository, BE.Repositories.BlockRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IAttributeRepository, BE.Repositories.AttributeRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.INotificationRepository, BE.Repositories.NotificationRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IPetCharacteristicRepository, BE.Repositories.PetCharacteristicRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IAttributeOptionRepository, BE.Repositories.AttributeOptionRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IExpertConfirmationRepository, BE.Repositories.ExpertConfirmationRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IUserPreferenceRepository, BE.Repositories.UserPreferenceRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IPaymentHistoryRepository, BE.Repositories.PaymentHistoryRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IReportRepository, BE.Repositories.ReportRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserRepository, BE.Repositories.ChatUserRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserContentRepository, BE.Repositories.ChatUserContentRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertRepository, BE.Repositories.ChatExpertRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertContentRepository, BE.Repositories.ChatExpertContentRepository>();
+
+// ============================================
+// Register Services (Service Layer)
+// ============================================
+builder.Services.AddScoped<BE.Services.Interfaces.IPetService, BE.Services.PetService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IUserService, BE.Services.UserService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IAddressService, BE.Services.AddressService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IPetPhotoService, BE.Services.PetPhotoService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IBlockService, BE.Services.BlockService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IAttributeService, BE.Services.AttributeService>();
+builder.Services.AddScoped<BE.Services.Interfaces.INotificationService, BE.Services.NotificationService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IPetCharacteristicService, BE.Services.PetCharacteristicService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IAttributeOptionService, BE.Services.AttributeOptionService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IExpertConfirmationService, BE.Services.ExpertConfirmationService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IOtpService, BE.Services.OtpService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IUserPreferenceService, BE.Services.UserPreferenceService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IPaymentHistoryService, BE.Services.PaymentHistoryService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IReportService, BE.Services.ReportService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IDailyLimitService, BE.Services.DailyLimitService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IPetRecommendationService, BE.Services.PetRecommendationService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IChatAIService, BE.Services.ChatAIService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IAdminService, BE.Services.AdminService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IAuthService, BE.Services.AuthService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IChatUserService, BE.Services.ChatUserService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IChatUserContentService, BE.Services.ChatUserContentService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertService, BE.Services.ChatExpertService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.Services.ChatExpertContentService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
 
 var app = builder.Build();
 
@@ -120,5 +175,3 @@ public interface IPhotoStorage
     Task<(string Url, string PublicId)> UploadAsync(int petId, IFormFile file, CancellationToken ct = default);
     Task DeleteAsync(string publicId, CancellationToken ct = default);
 }
-
-//ádasda

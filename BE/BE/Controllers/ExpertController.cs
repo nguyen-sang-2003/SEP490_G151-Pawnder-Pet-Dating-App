@@ -1,229 +1,131 @@
 ﻿using BE.DTO;
-using BE.Models;
-using Microsoft.AspNetCore.Http;
+using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
-
+	/// <summary>
+	/// Controller cho ExpertConfirmation - chỉ nhận request và trả response
+	/// </summary>
 	[ApiController]
 	public class ExpertController : ControllerBase
 	{
-		private readonly PawnderDatabaseContext _context;
-		public ExpertController(PawnderDatabaseContext context)
+		private readonly IExpertConfirmationService _expertConfirmationService;
+		
+		public ExpertController(IExpertConfirmationService expertConfirmationService)
 		{
-			_context = context;
+			_expertConfirmationService = expertConfirmationService;
 		}
 
-		//// GET: /api/expert-confirmation
+		// GET: /api/expert-confirmation
 		[HttpGet("expert-confirmation")]
-		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetAllExpertConfirmations()
+		[Authorize(Roles = "Admin,Expert")]
+		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetAllExpertConfirmations(CancellationToken ct = default)
 		{
 			try
 			{
-				var confirmations = await _context.ExpertConfirmations
-					.Include(ec => ec.User)
-					.Include(ec => ec.Expert)
-					.Include(ec => ec.ChatAi)
-					.ToListAsync();
-
-				var result = confirmations.Select(ec => new ExpertConfirmationDTO
-				{
-					UserId = ec.UserId,
-					ChatAiId = ec.ChatAiid,
-					ExpertId = ec.ExpertId,
-					Status = ec.Status,
-					Message = ec.Message,
-					CreatedAt = ec.CreatedAt,
-					UpdatedAt = ec.UpdatedAt
-				}).ToList();
-
+				var result = await _expertConfirmationService.GetAllExpertConfirmationsAsync(ct);
 				return Ok(result);
 			}
 			catch (Exception ex)
 			{
-				var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = errorMessage });
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
 
-		// GET: /api/expert-confirmation/{confirmationId}/{userId}/{chatId}
+		// GET: /api/expert-confirmation/{userId}/{chatId}
 		[HttpGet("expert-confirmation/{userId:int}/{chatId:int}")]
+		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<ExpertConfirmationDTO>> GetExpertConfirmation(
-	int expertId, int userId, int chatId)
+			int expertId, int userId, int chatId, CancellationToken ct = default)
 		{
 			try
 			{
-				var expertConfirmation = await _context.ExpertConfirmations
-					.Include(ec => ec.User)
-					.Include(ec => ec.Expert)
-					.Include(ec => ec.ChatAi)
-					.FirstOrDefaultAsync(ec => ec.ExpertId == expertId
-											   && ec.UserId == userId
-											   && ec.ChatAiid == chatId);
-
-				if (expertConfirmation == null)
+				var dto = await _expertConfirmationService.GetExpertConfirmationAsync(expertId, userId, chatId, ct);
+				
+				if (dto == null)
 					return NotFound(new { Message = "Yêu cầu xác nhận không tồn tại." });
-
-				var dto = new ExpertConfirmationDTO
-				{
-					UserId = expertConfirmation.UserId,
-					ChatAiId = expertConfirmation.ChatAiid,
-					ExpertId = expertConfirmation.ExpertId,
-					Status = expertConfirmation.Status,
-					Message = expertConfirmation.Message,
-					CreatedAt = expertConfirmation.CreatedAt,
-					UpdatedAt = expertConfirmation.UpdatedAt
-				};
 
 				return Ok(dto);
 			}
 			catch (Exception ex)
 			{
-				var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = errorMessage });
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
 
-		//// GET: /api/expert-confirmation/{userId}
+		// GET: /api/expert-confirmation/{userId}
 		[HttpGet("expert-confirmation/{userId:int}")]
-		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetUserExpertConfirmations(int userId)
+		[Authorize(Roles = "User,Admin")]
+		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetUserExpertConfirmations(int userId, CancellationToken ct = default)
 		{
 			try
 			{
-				// Kiểm tra User tồn tại
-				var user = await _context.Users.FindAsync(userId);
-				if (user == null)
-					return NotFound(new { Message = "Người dùng không tồn tại." });
-
-				var confirmations = await _context.ExpertConfirmations
-					.Where(ec => ec.UserId == userId)
-					.Include(ec => ec.Expert)
-					.Include(ec => ec.ChatAi)
-					.ToListAsync();
-
-				var result = confirmations.Select(ec => new ExpertConfirmationDTO
-				{
-					UserId = ec.UserId,
-					ChatAiId = ec.ChatAiid,
-					ExpertId = ec.ExpertId,
-					Status = ec.Status,
-					Message = ec.Message,
-					CreatedAt = ec.CreatedAt,
-					UpdatedAt = ec.UpdatedAt
-				}).ToList();
-
+				var result = await _expertConfirmationService.GetUserExpertConfirmationsAsync(userId, ct);
 				return Ok(result);
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { Message = ex.Message });
 			}
 			catch (Exception ex)
 			{
-				var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = errorMessage });
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
 
 		[HttpPost("expert-confirmation/{userId}/{chatId}")]
+		[Authorize(Roles = "User")]
 		public async Task<ActionResult<ExpertConfirmationResponseDTO>> CreateExpertConfirmation(
-	int userId, int chatId, [FromBody] ExpertConfirmationCreateDTO dto)
+			int userId, int chatId, [FromBody] ExpertConfirmationCreateDTO dto, CancellationToken ct = default)
 		{
 			try
 			{
-				var user = await _context.Users.FindAsync(userId);
-				if (user == null)
-					return NotFound(new { Message = "Người dùng không tồn tại." });
-
-				var chat = await _context.ChatAis.FindAsync(chatId);
-				if (chat == null)
-					return NotFound(new { Message = "Chat AI không tồn tại." });
-
-				var expert = await _context.Users.FindAsync(dto.ExpertId);
-				if (expert == null)
-					return NotFound(new { Message = "Chuyên gia không tồn tại." });
-
-				var existingConfirmation = await _context.ExpertConfirmations
-					.FirstOrDefaultAsync(ec => ec.UserId == userId && ec.ChatAiid == chatId);
-				if (existingConfirmation != null)
-					return BadRequest(new { Message = "Yêu cầu xác nhận đã tồn tại." });
-
-				var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
-				var expertConfirmation = new ExpertConfirmation
-				{
-					UserId = userId,
-					ExpertId = expert.UserId,
-					ChatAiid = chatId,
-					Status = "pending",
-					Message = dto.Message,
-					CreatedAt = now,
-					UpdatedAt = now
-				};
-
-				_context.ExpertConfirmations.Add(expertConfirmation);
-				await _context.SaveChangesAsync();
-
-				var response = new ExpertConfirmationResponseDTO
-				{
-					UserId = expertConfirmation.UserId,
-					ChatAiId = expertConfirmation.ChatAiid,
-					ExpertId = expertConfirmation.ExpertId,
-					Status = expertConfirmation.Status,
-					Message = expertConfirmation.Message,
-					ResultMessage = "Yêu cầu chuyên gia xác nhận đã được tạo thành công.",
-					CreatedAt = expertConfirmation.CreatedAt,
-					UpdatedAt = expertConfirmation.UpdatedAt
-				};
-
+				var response = await _expertConfirmationService.CreateExpertConfirmationAsync(userId, chatId, dto, ct);
 				return Ok(response);
+			}
+			catch (InvalidOperationException ex)
+			{
+				// Handle daily limit exceeded
+				if (ex.Message.Contains("hết lượt"))
+				{
+					return StatusCode(429, new 
+					{ 
+						Message = ex.Message,
+						ActionType = "expert_confirm"
+					});
+				}
+				return BadRequest(new { Message = ex.Message });
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { Message = ex.Message });
 			}
 			catch (Exception ex)
 			{
-				var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = errorMessage });
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
 
 		[HttpPut("expert-confirmation/{confirmationId:int}/{userId:int}/{chatId:int}")]
+		[Authorize(Roles = "Expert,Admin")]
 		public async Task<ActionResult<ExpertConfirmationResponseDTO>> UpdateExpertConfirmation(
-	int confirmationId, int userId, int chatId,
-	[FromBody] ExpertConfirmationUpdateDto dto)
+			int confirmationId, int userId, int chatId,
+			[FromBody] ExpertConfirmationUpdateDto dto, CancellationToken ct = default)
 		{
 			try
 			{
-				var expertConfirmation = await _context.ExpertConfirmations
-					.FirstOrDefaultAsync(ec => ec.UserId == userId && ec.ChatAiid == chatId && ec.ExpertId == confirmationId);
-
-				if (expertConfirmation == null)
-					return NotFound(new { Message = "Yêu cầu xác nhận không tồn tại." });
-
-				if (!string.IsNullOrEmpty(dto.Status))
-					expertConfirmation.Status = dto.Status;
-
-				if (!string.IsNullOrEmpty(dto.Message))
-					expertConfirmation.Message = dto.Message;
-
-				expertConfirmation.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
-				await _context.SaveChangesAsync();
-
-				var response = new ExpertConfirmationResponseDTO
-				{
-					UserId = expertConfirmation.UserId,
-					ChatAiId = expertConfirmation.ChatAiid,
-					ExpertId = expertConfirmation.ExpertId,
-					Status = expertConfirmation.Status,
-					Message = expertConfirmation.Message,
-					ResultMessage = "Cập nhật yêu cầu confirm thành công",
-					CreatedAt = expertConfirmation.CreatedAt,
-					UpdatedAt = expertConfirmation.UpdatedAt
-				};
-
+				var response = await _expertConfirmationService.UpdateExpertConfirmationAsync(confirmationId, userId, chatId, dto, ct);
 				return Ok(response);
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { Message = ex.Message });
 			}
 			catch (Exception ex)
 			{
-				var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = errorMessage });
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
 	}

@@ -1,142 +1,158 @@
 ﻿using BE.DTO;
-using BE.Models;
-using BE.Services;
+using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Drawing;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho Pet - chỉ nhận request và trả response, không có business logic
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class PetController : Controller
+    public class PetController : ControllerBase
     {
-        private readonly PawnderDatabaseContext _context;
-        public PetController(PawnderDatabaseContext context)
+        private readonly IPetService _petService;
+
+        public PetController(IPetService petService)
         {
-            _context = context;
+            _petService = petService;
         }
 
         // GET /pet/user/{userId}
-        //[Authorize(Roles = "Admin,User")]
         [HttpGet("user/{userId}")]
-        public async Task<IActionResult> GetPetsByUser(int userId)
+        [Authorize(Roles = "User,Admin")]
+        public async Task<IActionResult> GetPetsByUser(int userId, CancellationToken ct = default)
         {
-            var pets = await _context.Pets
-                .Include(p => p.PetPhotos)
-                .Where(p => p.UserId == userId && (p.IsDeleted == false))
-                .Select(p => new PetDto
-                {
-                    PetId = p.PetId,
-                    Name = p.Name,
-                    Breed = p.Breed,
-                    Gender = p.Gender,
-                    Age = p.Age,
-                    IsActive = p.IsActive,
-                    Description = p.Description,
-                    UrlImageAvatar = p.PetPhotos.Select(photo => photo.ImageUrl).FirstOrDefault()
-                })
-                .ToListAsync();
+            try
+            {
+                var pets = await _petService.GetPetsByUserIdAsync(userId, ct);
 
-            if (pets == null || pets.Count == 0)
-                return NotFound(new { Message = "Không tìm thấy thú cưng nào cho người dùng này" });
+                if (pets == null || !pets.Any())
+                    return NotFound(new { Message = "Không tìm thấy thú cưng nào cho người dùng này" });
 
-            return Ok(pets);
+                return Ok(pets);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // GET /pet/match/{userId} - Get all pets for matching
+        [HttpGet("match/{userId}")]
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> GetPetsForMatching(int userId, CancellationToken ct = default)
+        {
+            try
+            {
+                var pets = await _petService.GetPetsForMatchingAsync(userId, ct);
+                return Ok(pets);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // GET /pet/{petId}
-        //[Authorize(Roles = "Admin,User")]
         [HttpGet("{petId}")]
-        public async Task<IActionResult> GetPetById(int petId)
+        [Authorize(Roles = "User,Admin")]
+        public async Task<IActionResult> GetPetById(int petId, CancellationToken ct = default)
         {
-            var pet = await _context.Pets
-                .Include(p => p.PetPhotos)
-                .Include(p => p.PetCharacteristics)
-                .Where(p => p.PetId == petId && (p.IsDeleted == false))
-                .Select(p => new PetDto_1
-                {
-                    PetId = p.PetId,
-                    Name = p.Name,
-                    Breed = p.Breed,
-                    Gender = p.Gender,
-                    Age = p.Age,
-                    IsActive = p.IsActive,
-                    Description = p.Description,
-                    UrlImage = p.PetPhotos.Select(photo => photo.ImageUrl).ToList()
-                }).FirstOrDefaultAsync();
+            try
+            {
+                var pet = await _petService.GetPetByIdAsync(petId, ct);
 
-            if (pet == null)
-                return NotFound(new { Message = "Không tìm thấy thú cưng" });
+                if (pet == null)
+                    return NotFound(new { Message = "Không tìm thấy thú cưng" });
 
-            return Ok(pet);
+                return Ok(pet);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // POST /pet
-        //[Authorize(Roles = "User")]
         [HttpPost]
-        public async Task<IActionResult> CreatePet([FromBody] PetDto_2 petDto)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> CreatePet([FromBody] PetDto_2 petDto, CancellationToken ct = default)
         {
-            if (petDto == null)
-                return BadRequest(new { Message = "Dữ liệu thú cưng không hợp lệ" });
-
-            Pet pet = new Pet();
-
-            pet.UserId = petDto.UserId;
-            pet.Name = petDto.Name;
-            pet.Breed = petDto.Breed;
-            pet.Gender = petDto.Gender;
-            pet.Age = petDto.Age;
-            pet.IsActive = petDto.IsActive;
-            pet.Description = petDto.Description;
-            pet.CreatedAt = DateTime.Now;
-            pet.UpdatedAt = DateTime.Now;
-
-            _context.Pets.Add(pet);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetPetById), new { petId = pet.PetId }, pet);
+            try
+            {
+                var result = await _petService.CreatePetAsync(petDto, ct);
+                return Ok(result);
+            }
+            catch (ArgumentNullException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // PUT /pet/{petId}
-        //[Authorize(Roles = "User")]
         [HttpPut("{petId}")]
-        public async Task<IActionResult> UpdatePet(int petId, [FromBody] PetDto_2 updatedPet)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> UpdatePet(int petId, [FromBody] PetDto_2 updatedPet, CancellationToken ct = default)
         {
-            var pet = await _context.Pets.FindAsync(petId);
-            if (pet == null || pet.IsDeleted == false)
-                return NotFound(new { Message = "Không tìm thấy thú cưng" });
-
-            pet.Name = updatedPet.Name;
-            pet.Breed = updatedPet.Breed;
-            pet.Gender = updatedPet.Gender;
-            pet.Age = updatedPet.Age;
-            pet.IsActive = updatedPet.IsActive;
-            pet.Description = updatedPet.Description;
-            pet.UpdatedAt = DateTime.Now;
-
-            _context.Pets.Update(pet);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Cập nhật thông tin thú cưng thành công", Pet = pet });
+            try
+            {
+                var result = await _petService.UpdatePetAsync(petId, updatedPet, ct);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
         // DELETE /pet/{petId}
-        //[Authorize(Roles = "User")]
         [HttpDelete("{petId}")]
-        public async Task<IActionResult> DeletePet(int petId)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> DeletePet(int petId, CancellationToken ct = default)
         {
-            var pet = await _context.Pets.FindAsync(petId);
-            if (pet == null)
-                return NotFound(new { Message = "Không tìm thấy thú cưng" });
+            try
+            {
+                var success = await _petService.DeletePetAsync(petId, ct);
 
-            pet.IsDeleted = true;
-            pet.UpdatedAt = DateTime.Now;
+                if (!success)
+                    return NotFound(new { Message = "Không tìm thấy thú cưng" });
 
-            _context.Pets.Update(pet);
-            await _context.SaveChangesAsync();
+                return Ok(new { Message = "Xóa thú cưng thành công" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
 
-            return Ok(new { Message = "Xóa thú cưng thành công"});
+        // PUT /pet/{petId}/set-active - Set pet as active
+        [HttpPut("{petId}/set-active")]
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> SetActivePet(int petId, CancellationToken ct = default)
+        {
+            try
+            {
+                var success = await _petService.SetActivePetAsync(petId, ct);
+
+                if (!success)
+                    return NotFound(new { Message = "Không tìm thấy thú cưng" });
+
+                return Ok(new { Message = "Đã đặt thú cưng làm mặc định", PetId = petId });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
     }
 }

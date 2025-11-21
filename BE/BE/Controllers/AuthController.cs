@@ -1,61 +1,76 @@
-﻿using BE.Models;
-using BE.DTO;
-using BE.Services;
+﻿using BE.DTO;
+using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
-using System.Data;
 using System.Security.Claims;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho Auth - chỉ nhận request và trả response
+    /// </summary>
     [ApiController]
     [Route("api")]
     public class AuthController : ControllerBase
     {
-        private readonly PawnderDatabaseContext _context;
-        private readonly PasswordService _passwordService;
-        private readonly TokenService _tokenService;
-        public AuthController(PawnderDatabaseContext context, TokenService tokenService)
+        private readonly IAuthService _authService;
+
+        public AuthController(IAuthService authService)
         {
-            _context = context;
-            _passwordService = new PasswordService();
-            _tokenService = tokenService;
+            _authService = authService;
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult> Login([FromBody] LoginRequest request)
+        public async Task<ActionResult> Login([FromBody] LoginRequest request, CancellationToken ct = default)
         {
-            var user = _context.Users.Include(u => u.Role).FirstOrDefault(u => u.Email == request.Email);
-            if (user == null)
+            try
             {
-                return Unauthorized("Tài khoản không tồn tại");
+                var result = await _authService.LoginAsync(request, ct);
+                return Ok(result);
             }
-
-            bool isPasswordValid = _passwordService.VerifyPassword(request.Password, user.PasswordHash);
-
-            if (!isPasswordValid)
-                return Unauthorized("Sai mật khẩu");
-            
-            var token = _tokenService.GenerateToken(user.UserId,user.Role.RoleName);
-
-            user.TokenJwt = token;
-            _context.Users.Update(user);
-            _context.SaveChanges();
-
-            return Ok(new
+            catch (UnauthorizedAccessException ex)
             {
-                Message = "Đăng nhập thành công",
-                Token = token
-            });
+                return Unauthorized(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.Contains("bị khóa"))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { Message = ex.Message });
+                }
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
-       
+        [HttpPost("refresh")]
+        public async Task<ActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _authService.RefreshTokenAsync(request, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
         [HttpPost("logout")]
-        [Authorize]
-        public async Task<ActionResult> Logout()
+        [Authorize(Roles = "User,Expert,Admin")]
+        public async Task<ActionResult> Logout(CancellationToken ct = default)
         {
             try
             {
@@ -65,16 +80,12 @@ namespace BE.Controllers
                     return Unauthorized("Không xác định được người dùng.");
 
                 var id = int.Parse(userId);
-
-                var user = _context.Users.FirstOrDefault(u => u.UserId == id);
-                if (user == null)
-                    return NotFound("Không tìm thấy người dùng.");
-
-                user.TokenJwt = null;
-                _context.Users.Update(user);
-                await _context.SaveChangesAsync();
-
+                var success = await _authService.LogoutAsync(id, ct);
                 return Ok("Đăng xuất thành công.");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {

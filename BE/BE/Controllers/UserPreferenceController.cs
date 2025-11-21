@@ -1,160 +1,147 @@
 ﻿using System.Net.Mime;
 using BE.DTO;
-using BE.Models;
+using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers;
 
+/// <summary>
+/// Controller cho UserPreference - chỉ nhận request và trả response
+/// </summary>
 [ApiController]
 [Route("user-preference")]
 [Produces(MediaTypeNames.Application.Json)]
 public class UserPreferenceController : ControllerBase
 {
-    private readonly PawnderDatabaseContext _db;
+    private readonly IUserPreferenceService _userPreferenceService;
 
-    public UserPreferenceController(PawnderDatabaseContext db)
+    public UserPreferenceController(IUserPreferenceService userPreferenceService)
     {
-        _db = db;
+        _userPreferenceService = userPreferenceService;
     }
 
     // GET /user-preference/{userId}
-    // Lấy tất cả sở thích (preferences) của 1 user
     [HttpGet("{userId:int}")]
+    [Authorize(Roles = "User")]
     public async Task<ActionResult<IEnumerable<UserPreferenceResponse>>> GetAllByUser(
         int userId,
         CancellationToken ct = default)
     {
-        // Kiểm tra user tồn tại (và không bị xoá mềm nếu bạn dùng IsDeleted)
-        var userExists = await _db.Users
-            .AnyAsync(u => u.UserId == userId && (u.IsDeleted == null || u.IsDeleted == false), ct);
-
-        if (!userExists)
-            return NotFound(new { message = "User not found." });
-
-        var items = await _db.UserPreferences
-            .AsNoTracking()
-            .Where(up => up.UserId == userId)
-            .Include(up => up.Attribute)
-            .OrderBy(up => up.AttributeId)
-            .Select(up => new UserPreferenceResponse
-            {
-                AttributeId = up.AttributeId,
-                AttributeName = up.Attribute.Name!,
-                TypeValue = up.Attribute.TypeValue,
-                Unit = up.Attribute.Unit,
-                MaxValue = up.MaxValue,
-                MinValue = up.MinValue,
-                CreatedAt = up.CreatedAt,
-                UpdatedAt = up.UpdatedAt
-            })
-            .ToListAsync(ct);
-
-        return Ok(items);
+        try
+        {
+            var items = await _userPreferenceService.GetUserPreferencesAsync(userId, ct);
+            return Ok(new { message = "Lấy sở thích thành công.", data = items });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+        }
     }
 
     // POST /user-preference/{userId}/{attributeId}
-    // Tạo mới 1 preference (UserId, AttributeId là composite key)
     [HttpPost("{userId:int}/{attributeId:int}")]
+    [Authorize(Roles = "User")]
     public async Task<IActionResult> Create(
         int userId,
         int attributeId,
         [FromBody] UserPreferenceUpsertRequest req,
         CancellationToken ct = default)
     {
-        // Validate user
-        var userExists = await _db.Users
-            .AnyAsync(u => u.UserId == userId && (u.IsDeleted == null || u.IsDeleted == false), ct);
-        if (!userExists)
-            return NotFound(new { message = "User not found." });
-
-        // Validate attribute
-        var attribute = await _db.Attributes
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.AttributeId == attributeId && a.IsDeleted == false, ct);
-        if (attribute is null)
-            return NotFound(new { message = "Attribute not found." });
-
-        // Check duplicate (composite key)
-        var exists = await _db.UserPreferences
-            .AnyAsync(up => up.UserId == userId && up.AttributeId == attributeId, ct);
-        if (exists)
-            return Conflict(new { message = "User preference already exists for this attribute." });
-
-        var entity = new UserPreference
+        try
         {
-            UserId = userId,
-            AttributeId = attributeId,
-          
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now
-        };
-
-        _db.UserPreferences.Add(entity);
-        await _db.SaveChangesAsync(ct);
-
-        // Trả về 201 + Location header (trỏ về GET danh sách của user)
-        return CreatedAtAction(nameof(GetAllByUser), new { userId }, new
+            var result = await _userPreferenceService.CreateUserPreferenceAsync(userId, attributeId, req, ct);
+            return CreatedAtAction(nameof(GetAllByUser), new { userId }, result);
+        }
+        catch (KeyNotFoundException ex)
         {
-            userId,
-            attributeId,
-           
-        });
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+        }
     }
 
     // PUT /user-preference/{userId}/{attributeId}
-    // Cập nhật giá trị preference hiện có
     [HttpPut("{userId:int}/{attributeId:int}")]
+    [Authorize(Roles = "User")]
     public async Task<ActionResult<UserPreferenceResponse>> Update(
         int userId,
         int attributeId,
         [FromBody] UserPreferenceUpsertRequest req,
         CancellationToken ct = default)
     {
-        // Tìm entity theo composite key
-        var entity = await _db.UserPreferences
-            .Include(up => up.Attribute)
-            .FirstOrDefaultAsync(up => up.UserId == userId && up.AttributeId == attributeId, ct);
-
-        if (entity is null)
-            return NotFound(new { message = "User preference not found." });
-
-    
-        entity.UpdatedAt = DateTime.Now;
-
-        await _db.SaveChangesAsync(ct);
-
-        var resp = new UserPreferenceResponse
+        try
         {
-            AttributeId = entity.AttributeId,
-            AttributeName = entity.Attribute.Name!,
-            TypeValue = entity.Attribute.TypeValue,
-            Unit = entity.Attribute.Unit,
-           
-            CreatedAt = entity.CreatedAt,
-            UpdatedAt = entity.UpdatedAt
-        };
-
-        return Ok(resp);
+            var resp = await _userPreferenceService.UpdateUserPreferenceAsync(userId, attributeId, req, ct);
+            return Ok(resp);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+        }
     }
 
     // DELETE /user-preference/{userId}
     [HttpDelete("{userId}")]
-    public async Task<IActionResult> DeleteUserPreferences(int userId)
+    [Authorize(Roles = "User")]
+    public async Task<IActionResult> DeleteUserPreferences(int userId, CancellationToken ct = default)
     {
-        var preferences = await _db.UserPreferences
-            .Where(p => p.UserId == userId)
-            .ToListAsync();
-
-        if (preferences == null || preferences.Count == 0)
-            return NotFound("Người dùng không có sở thích nào để xóa.");
-
-        _db.UserPreferences.RemoveRange(preferences);
-        await _db.SaveChangesAsync();
-
-        return Ok(new
+        try
         {
-            Message = $"Đã xóa {preferences.Count} sở thích của người dùng {userId}."
-        });
+            var success = await _userPreferenceService.DeleteUserPreferencesAsync(userId, ct);
+            
+            if (!success)
+                return NotFound("Người dùng không có sở thích nào để xóa.");
+
+            return Ok(new { Message = $"Đã xóa sở thích của người dùng {userId}." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+        }
+    }
+
+    // POST /user-preference/{userId}/batch
+    [HttpPost("{userId:int}/batch")]
+    [Authorize(Roles = "User")]
+    public async Task<IActionResult> UpsertBatch(
+        int userId,
+        [FromBody] UserPreferenceBatchUpsertRequest request,
+        CancellationToken ct = default)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var result = await _userPreferenceService.UpsertBatchAsync(userId, request, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+        }
     }
 }

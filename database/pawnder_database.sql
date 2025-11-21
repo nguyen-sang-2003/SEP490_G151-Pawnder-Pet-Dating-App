@@ -61,6 +61,20 @@ ALTER TABLE "User"
 -- ===========================
 -- TABLE: Attribute
 -- ===========================
+CREATE TABLE "UserBanHistory" (
+    "BanId" SERIAL PRIMARY KEY,
+    "UserId" INT NOT NULL REFERENCES "User"("UserId") ON DELETE CASCADE,
+    "BanStart" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "BanEnd" TIMESTAMP, 
+    "BanReason" TEXT,
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW(),
+    "IsActive" BOOLEAN DEFAULT TRUE
+);
+
+-- ===========================
+-- TABLE: Attribute
+-- ===========================
 CREATE TABLE "Attribute" (
     "AttributeId" SERIAL PRIMARY KEY,
     "Name" VARCHAR(100) NOT NULL,
@@ -174,6 +188,7 @@ CREATE TABLE "ExpertConfirmation" (
     "ExpertId" INT REFERENCES "User"("UserId"),
     "UserId" INT REFERENCES "User"("UserId"),
     "ChatAIId" INT REFERENCES "ChatAI"("ChatAIId"),
+    "UserQuestion" TEXT,
     "Status" VARCHAR(50),
     "Message" TEXT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -186,8 +201,8 @@ CREATE TABLE "ExpertConfirmation" (
 -- ===========================
 CREATE TABLE "ChatUser" (
     "MatchId" SERIAL PRIMARY KEY,
-    "FromUserId" INT REFERENCES "User"("UserId"),
-    "ToUserId" INT REFERENCES "User"("UserId"),
+    "FromPetId" INT REFERENCES "Pet"("PetId"),
+    "ToPetId" INT REFERENCES "Pet"("PetId"),
     "Status" VARCHAR(50),
     "IsDeleted" BOOLEAN DEFAULT FALSE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -200,7 +215,7 @@ CREATE TABLE "ChatUser" (
 CREATE TABLE "ChatUserContent" (
     "ContentId" SERIAL PRIMARY KEY,
     "MatchId" INT REFERENCES "ChatUser"("MatchId"),
-    "FromUserId" INT REFERENCES "User"("UserId"),
+    "FromPetId" INT REFERENCES "Pet"("PetId"),
     "Message" TEXT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
@@ -237,9 +252,10 @@ CREATE TABLE "Block" (
 CREATE TABLE "PaymentHistory" (
     "HistoryId" SERIAL PRIMARY KEY,
     "UserId" INT REFERENCES "User"("UserId"),
-    "StatusService" VARCHAR(100),
+    "StatusService" VARCHAR(100),     -- "ACTIVE", "EXPIRED", "CANCELLED"
     "StartDate" DATE,
     "EndDate" DATE,
+    "Amount" DECIMAL(10,2),           -- Số tiền thanh toán VIP (99,000đ)
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
@@ -256,7 +272,46 @@ CREATE TABLE "Notification" (
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
 
+-- ===========================
+-- TABLE: Daily Limit
+-- ===========================
+CREATE TABLE "DailyLimit" (
+    "LimitId" SERIAL PRIMARY KEY,
+    "UserId" INTEGER NOT NULL REFERENCES "User"("UserId"),
+    "ActionType" VARCHAR(100) NOT NULL,   
+    "ActionDate" DATE NOT NULL,         
+    "Count" INTEGER DEFAULT 1,          
+    "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE("UserId", "ActionType", "ActionDate")
+);
 
+-- ===========================
+-- TABLE: ChatExpert
+-- ===========================
+CREATE TABLE "ChatExpert" (
+    "ChatExpertId" SERIAL PRIMARY KEY,
+    "ExpertId" INT REFERENCES "User"("UserId"),
+    "UserId" INT REFERENCES "User"("UserId"),
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- ===========================
+-- TABLE: ChatExpertContent
+-- ===========================
+CREATE TABLE "ChatExpertContent" (
+    "ContentId" SERIAL PRIMARY KEY,
+    "ChatExpertId" INT REFERENCES "ChatExpert"("ChatExpertId"),
+    "FromId" INT REFERENCES "User"("UserId"),
+    "Message" TEXT,
+    "ExpertId" INT,
+    "UserId" INT,
+    "ChatAIId" INT,
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW(),
+    FOREIGN KEY ("ExpertId", "UserId", "ChatAIId") 
+        REFERENCES "ExpertConfirmation"("ExpertId", "UserId", "ChatAIId")
+);
 
 -- ========================
 -- Thêm dữ liệu bảng Role
@@ -445,7 +500,7 @@ VALUES
 -- ===========================
 INSERT INTO "Pet" ("UserId", "Name", "Breed", "Gender", "Age", "Description")
 VALUES
-((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'), 'Milo', 'Golden Retriever', 'Đực', 3, 'Chó thân thiện, thích chạy nhảy'),
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'), 'Milo', 'Golden Retriever', 'Đực', 3, 'thân thiện, thích chạy nhảy'),
 ((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'), 'Luna', 'Poodle', 'Cái', 2, 'Rất ngoan và dễ thương');
 
 -- ===========================
@@ -512,22 +567,22 @@ VALUES
 -- ===========================
 -- BẢNG ChatUser
 -- ===========================
-INSERT INTO "ChatUser" ("FromUserId", "ToUserId", "Status")
+INSERT INTO "ChatUser" ("FromPetId", "ToPetId", "Status")
 VALUES
-((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
- (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+((SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
+ (SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
  'Accepted');
 
 -- ===========================
 -- BẢNG ChatUserContent
 -- ===========================
-INSERT INTO "ChatUserContent" ("MatchId", "FromUserId", "Message")
+INSERT INTO "ChatUserContent" ("MatchId", "FromPetId", "Message")
 VALUES
-((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Matched'),
- (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
+ (SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
  'Chào bạn, tôi muốn nhờ bạn tư vấn cho thú cưng của tôi!'),
-((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Matched'),
- (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
+ (SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
  'Chào bạn, tôi rất sẵn lòng giúp!');
 
 -- ===========================
@@ -539,4 +594,36 @@ VALUES
  'Chào mừng bạn đến với Pawnder!', 'Bạn đã đăng ký tài khoản thành công.'),
 ((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
  'Có yêu cầu tư vấn mới', 'Người dùng đã gửi yêu cầu tư vấn AI.');
+
+-- ===========================
+-- BẢNG ChatExpert
+-- ===========================
+INSERT INTO "ChatExpert" ("ExpertId", "UserId")
+VALUES
+((SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'));
+
+-- ===========================
+-- BẢNG ChatExpertContent
+-- ===========================
+INSERT INTO "ChatExpertContent" ("ChatExpertId", "FromId", "Message", "ExpertId", "UserId", "ChatAIId")
+VALUES
+((SELECT "ChatExpertId" FROM "ChatExpert" WHERE "ExpertId" = (SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com') AND "UserId" = (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com') LIMIT 1),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+  null,
+ (SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ (SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp')),
+((SELECT "ChatExpertId" FROM "ChatExpert" WHERE "ExpertId" = (SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com') AND "UserId" = (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com') LIMIT 1),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ 'Xin chào chuyên gia, tôi cần tư vấn về giống chó phù hợp.',
+ null,
+ null,
+ null),
+((SELECT "ChatExpertId" FROM "ChatExpert" WHERE "ExpertId" = (SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com') AND "UserId" = (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com') LIMIT 1),
+ (SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
+ 'Chào bạn! Tôi đã xem qua yêu cầu của bạn. Golden Retriever thực sự là lựa chọn tốt cho gia đình có trẻ nhỏ.',
+ null,
+ null,
+ null);
 

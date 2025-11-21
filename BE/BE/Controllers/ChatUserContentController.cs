@@ -1,92 +1,74 @@
-﻿using BE.Models;
-using BE.Services;
+﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
+    /// <summary>
+    /// Controller cho ChatUserContent - chỉ nhận request và trả response
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class ChatUserContentController : Controller
     {
-        private readonly PawnderDatabaseContext _context;
-        private readonly IHubContext<ChatHub> _hubContext;
+        private readonly IChatUserContentService _contentService;
 
-        public ChatUserContentController(PawnderDatabaseContext context, IHubContext<ChatHub> hubContext)
+        public ChatUserContentController(IChatUserContentService contentService)
         {
-            _context = context;
-            _hubContext = hubContext;
+            _contentService = contentService;
         }
 
         // GET /chat-user-content/{matchId}
         [HttpGet("chat-user-content/{matchId}")]
-        public async Task<IActionResult> GetChatMessages(int matchId)
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> GetChatMessages(int matchId, CancellationToken ct = default)
         {
-            var exitChat = await _context.ChatUsers.AnyAsync(c => c.MatchId == matchId && c.Status == "Accepted" && c.IsDeleted == false);
-            if(!exitChat)
+            try
             {
-                return NotFound(new { message = "Không tìm thấy đoạn chat." });
+                var messages = await _contentService.GetChatMessagesAsync(matchId, ct);
+                return Ok(messages);
             }
-
-            var messages = await _context.ChatUserContents
-                .Where(c => c.MatchId == matchId)
-                .OrderBy(c => c.CreatedAt)
-                .Select(c => new
-                {
-                    c.ContentId,
-                    c.MatchId,
-                    c.FromUserId,
-                    FromUserName = c.FromUser != null ? c.FromUser.FullName : null,
-                    c.Message,
-                    c.CreatedAt
-                })
-                .ToListAsync();
-
-            if (!messages.Any())
-                return NotFound(new { message = "Không tìm thấy nội dung trò chuyện." });
-
-            return Ok(messages);
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
         }
 
-        // POST /chat-user-content/{matchId}/{fromUserId}
-        [HttpPost("chat-user-content/{matchId}/{fromUserId}")]
-        public async Task<IActionResult> SendMessage(int matchId, int fromUserId, [FromBody] string message)
+        // POST /chat-user-content/{matchId}/{fromPetId}
+        [HttpPost("chat-user-content/{matchId}/{fromPetId}")]
+        [Authorize(Roles = "User")]
+        public async Task<IActionResult> SendMessage(int matchId, int fromPetId, [FromBody] string message, CancellationToken ct = default)
         {
-
-            if (string.IsNullOrWhiteSpace(message))
-                return BadRequest(new { message = "Tin nhắn không được để trống." });
-
-            var match = await _context.ChatUsers.FirstOrDefaultAsync(c => c.MatchId==matchId && c.Status == "Accepted" && c.IsDeleted == false);
-            if (match == null)
-                return NotFound(new { message = "Không tồn tại đoạn chat." });
-
-            var chatMessage = new ChatUserContent
+            try
             {
-                MatchId = matchId,
-                FromUserId = fromUserId,
-                Message = message,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
-            };
-
-            _context.ChatUserContents.Add(chatMessage);
-            await _context.SaveChangesAsync();
-
-            // ✅ Gửi realtime tới 2 người trong cuộc chat
-            await _hubContext.Clients.All.SendAsync($"ReceiveMessage_{matchId}", new
+                var result = await _contentService.SendMessageAsync(matchId, fromPetId, message, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
             {
-                MatchId = matchId,
-                FromUserId = fromUserId,
-                Message = message,
-                CreatedAt = chatMessage.CreatedAt
-            });
-
-            return Ok(new
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
             {
-                message = "Gửi tin nhắn thành công."
-            });
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Lỗi server khi gửi tin nhắn",
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message
+                });
+            }
         }
-
     }
 }

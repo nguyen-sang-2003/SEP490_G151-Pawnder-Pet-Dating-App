@@ -1,90 +1,120 @@
-﻿using BE.Services;
-using Microsoft.AspNetCore.Http;
+﻿using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 using System.Text.Json;
 
 namespace BE.Controllers
 {
+	/// <summary>
+	/// Controller cho PaymentHistory - chỉ nhận request và trả response
+	/// </summary>
 	[ApiController]
+	[Route("api/payment-history")]
 	public class PaymentHistoryController : ControllerBase
 	{
-		private readonly IHttpClientFactory _httpClientFactory;
-		private readonly IConfiguration _configuration;
+		private readonly IPaymentHistoryService _paymentHistoryService;
 
-		public PaymentHistoryController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+		public PaymentHistoryController(IPaymentHistoryService paymentHistoryService)
 		{
-			_httpClientFactory = httpClientFactory;
-			_configuration = configuration;
+			_paymentHistoryService = paymentHistoryService;
 		}
 
-		// Endpoint tạo QR từ config, nhận số tiền và ghi chú
+		// POST /api/payment-history/generate
 		[HttpPost("generate")]
-		public async Task<IActionResult> GenerateQr([FromQuery] decimal amount, [FromQuery] string addInfo)
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> GenerateQr([FromQuery] decimal amount, [FromQuery] string addInfo, CancellationToken ct = default)
 		{
-			var apiKey = _configuration["VietQr:ApiKey"];
-			var clientId = _configuration["VietQr:ClientId"];
-			var accountNo = _configuration["VietQr:AccountInfo:AccountNo"];
-			var accountName = _configuration["VietQr:AccountInfo:AccountName"];
-			var acqId = _configuration["VietQr:AccountInfo:AcqId"];
-			var template = _configuration["VietQr:AccountInfo:Template"];
-
-			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(accountNo))
-				return StatusCode(500, new { message = "Cấu hình VietQR chưa đầy đủ." });
-
-			var client = _httpClientFactory.CreateClient();
-			client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
-			client.DefaultRequestHeaders.Add("Accept", "application/json");
-			client.DefaultRequestHeaders.Add("X-Client-ID", clientId);
-
-			var payload = new
+			try
 			{
-				accountNo = accountNo,
-				accountName = accountName,
-				acqId = acqId,
-				addInfo = addInfo,
-				amount = amount,
-				template = template
-			};
-
-			string jsonPayload = JsonSerializer.Serialize(payload);
-			var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-			var response = await client.PostAsync("https://api.vietqr.io/v2/generate", content);
-			var responseContent = await response.Content.ReadAsStringAsync();
-
-			var root = JsonDocument.Parse(responseContent).RootElement;
-
-			if (root.TryGetProperty("code", out var codeProp) && codeProp.GetString() == "00")
-			{
-				if (root.TryGetProperty("data", out var dataProp) &&
-					dataProp.TryGetProperty("qrDataURL", out var qrProp))
-				{
-					string qrDataUrl = qrProp.GetString();
-					string base64Data = qrDataUrl.Split(",")[1];
-					byte[] qrBytes = Convert.FromBase64String(base64Data);
-
-					return File(qrBytes, "image/png");
-				}
-				else
-				{
-					return BadRequest(new { message = "Response không có trường data.qrDataURL." });
-				}
+				var qrBytes = await _paymentHistoryService.GenerateQrAsync(amount, addInfo, ct);
+				return File(qrBytes, "image/png");
 			}
-			else
+			catch (InvalidOperationException ex)
 			{
-				var msg = root.TryGetProperty("desc", out var descProp)
-					? descProp.GetString()
-					: root.ToString();
-				return BadRequest(new { message = "Lỗi khi gọi VietQR API.", response = msg });
+				return BadRequest(new { message = ex.Message });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { message = "Lỗi hệ thống", error = ex.Message });
 			}
 		}
 
 		[HttpPost("callback")]
-		public IActionResult PaymentCallback([FromBody] JsonElement notification)
+		public IActionResult PaymentCallback([FromBody] JsonElement notification, CancellationToken ct = default)
 		{
 			// Cập nhật trạng thái thanh toán đơn hàng
 			return Ok();
+		}
+
+		// POST /api/payment-history
+		[HttpPost]
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> CreatePaymentHistory([FromBody] CreatePaymentHistoryRequest request, CancellationToken ct = default)
+		{
+			try
+			{
+				var result = await _paymentHistoryService.CreatePaymentHistoryAsync(request, ct);
+				return Ok(result);
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { message = ex.Message });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi tạo payment history",
+					error = ex.Message
+				});
+			}
+		}
+
+		// GET /api/payment-history/user/{userId}
+		[HttpGet("user/{userId:int}")]
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> GetPaymentHistoryByUserId(int userId, CancellationToken ct = default)
+		{
+			try
+			{
+				var histories = await _paymentHistoryService.GetPaymentHistoriesByUserIdAsync(userId, ct);
+				return Ok(new
+				{
+					success = true,
+					data = histories
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi lấy payment history",
+					error = ex.Message
+				});
+			}
+		}
+
+		// GET /api/payment-history/user/{userId}/vip-status
+		[HttpGet("user/{userId:int}/vip-status")]
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> GetVipStatus(int userId, CancellationToken ct = default)
+		{
+			try
+			{
+				var result = await _paymentHistoryService.GetVipStatusAsync(userId, ct);
+				return Ok(result);
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi check VIP status",
+					error = ex.Message
+				});
+			}
 		}
 	}
 }

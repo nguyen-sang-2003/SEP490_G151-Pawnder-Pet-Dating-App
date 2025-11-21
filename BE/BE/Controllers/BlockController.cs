@@ -1,43 +1,33 @@
-﻿using BE.Models;
+﻿using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace BE.Controllers
 {
+	/// <summary>
+	/// Controller cho Block - chỉ nhận request và trả response
+	/// </summary>
 	[ApiController]
 	public class BlockController : ControllerBase
 	{
-		private readonly PawnderDatabaseContext _context;
+		private readonly IBlockService _blockService;
 
-		public BlockController(PawnderDatabaseContext context)
+		public BlockController(IBlockService blockService)
 		{
-			_context = context;
+			_blockService = blockService;
 		}
 
 		// GET /block/{fromUserId}
 		[HttpGet("block/{fromUserId}")]
-		public async Task<ActionResult> GetBlockedUsers(int fromUserId)
+		[Authorize(Roles = "User")]
+		public async Task<ActionResult> GetBlockedUsers(int fromUserId, CancellationToken ct = default)
 		{
 			try
 			{
-				var blockedUsers = await _context.Blocks
-					.Include(b => b.ToUser)
-					.Where(b => b.FromUserId == fromUserId)
-					.Select(b => new
-					{
-						b.ToUserId,
-						ToUserFullName = b.ToUser != null ? b.ToUser.FullName : null,
-						ToUserEmail = b.ToUser != null ? b.ToUser.Email : null,
-						b.CreatedAt
-					})
-					.ToListAsync();
+				var blockedUsers = await _blockService.GetBlockedUsersAsync(fromUserId, ct);
 
 				if (!blockedUsers.Any())
-				{
 					return NotFound(new { Message = "Người dùng này chưa chặn ai." });
-				}
 
 				return Ok(blockedUsers);
 			}
@@ -49,82 +39,50 @@ namespace BE.Controllers
 
 		// POST /block/{fromUserId}/{toUserId}
 		[HttpPost("block/{fromUserId}/{toUserId}")]
-		public async Task<ActionResult> CreateBlock(int fromUserId, int toUserId)
+		[Authorize(Roles = "User")]
+		public async Task<ActionResult> CreateBlock(int fromUserId, int toUserId, CancellationToken ct = default)
 		{
 			try
 			{
-				if (fromUserId == toUserId)
-				{
-					return BadRequest(new { Message = "Người dùng không thể tự chặn chính mình." });
-				}
-
-				var fromUserExists = await _context.Users.AnyAsync(u => u.UserId == fromUserId);
-				var toUserExists = await _context.Users.AnyAsync(u => u.UserId == toUserId);
-
-				if (!fromUserExists || !toUserExists)
-				{
-					return NotFound(new { Message = "Người dùng không tồn tại." });
-				}
-
-				var existingBlock = await _context.Blocks
-					.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
-
-				if (existingBlock != null)
-				{
-					return Conflict(new { Message = "Người dùng này đã bị chặn trước đó." });
-				}
-
-				var block = new Block
-				{
-					FromUserId = fromUserId,
-					ToUserId = toUserId,
-					CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-				};
-
-				_context.Blocks.Add(block);
-				await _context.SaveChangesAsync();
-
-				return Ok(new
-				{
-					block.FromUserId,
-					block.ToUserId,
-					block.CreatedAt,
-					Message = "Chặn người dùng thành công."
-				});
+				var result = await _blockService.CreateBlockAsync(fromUserId, toUserId, ct);
+				return Ok(result);
+			}
+			catch (InvalidOperationException ex)
+			{
+				return BadRequest(new { Message = ex.Message });
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { Message = ex.Message });
 			}
 			catch (Exception ex)
 			{
-				var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = errorMessage });
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
 
-		// DELETE /block/{blockId}
+		// DELETE /block/{fromUserId}/{toUserId}
 		[HttpDelete("block/{fromUserId}/{toUserId}")]
-		public async Task<ActionResult> DeleteBlock(int fromUserId, int toUserId)
+		[Authorize(Roles = "User")]
+		public async Task<ActionResult> DeleteBlock(int fromUserId, int toUserId, CancellationToken ct = default)
 		{
 			try
 			{
-				var block = await _context.Blocks
-					.FirstOrDefaultAsync(b => b.FromUserId == fromUserId && b.ToUserId == toUserId);
+				var success = await _blockService.DeleteBlockAsync(fromUserId, toUserId, ct);
 
-				if (block == null)
+				if (!success)
 					return NotFound(new { Message = "Chưa chặn người dùng này hoặc đã hủy chặn." });
-
-				_context.Blocks.Remove(block);
-				await _context.SaveChangesAsync();
 
 				return Ok(new
 				{
-					block.FromUserId,
-					block.ToUserId,
+					FromUserId = fromUserId,
+					ToUserId = toUserId,
 					Message = "Hủy chặn người dùng thành công."
 				});
 			}
 			catch (Exception ex)
 			{
-				var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = errorMessage });
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
 			}
 		}
 	}

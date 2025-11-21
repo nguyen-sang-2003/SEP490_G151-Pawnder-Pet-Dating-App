@@ -1,180 +1,105 @@
 ﻿using BE.DTO;
-using BE.Models;
-using BE.Services;
-using Microsoft.AspNetCore.Http;
+using BE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Globalization;
-using System.Net.Http;
-using System.Text.Json;
 
 namespace BE.Controllers
 {
+	/// <summary>
+	/// Controller cho Address - chỉ nhận request và trả response
+	/// </summary>
 	[ApiController]
+	[Route("[controller]")]
 	public class AddressController : ControllerBase
 	{
-		private readonly PawnderDatabaseContext _context;
-		private readonly HttpClient _httpClient;
+		private readonly IAddressService _addressService;
 
-		public AddressController(PawnderDatabaseContext context, IHttpClientFactory httpClientFactory)
+		public AddressController(IAddressService addressService)
 		{
-			_context = context;
-			_httpClient = httpClientFactory.CreateClient();
+			_addressService = addressService;
 		}
 
-		[HttpPost("address/{userId}")]
-		public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto)
+		[HttpPost("{userId}")]
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto, CancellationToken ct = default)
 		{
-			var user = await _context.Users.FindAsync(userId);
-			if (user == null)
-				return NotFound(new { message = "Không tìm thấy người dùng" });
-
-			if (user.AddressId.HasValue)
-			{
-				return BadRequest(new { message = "User đã có địa chỉ, không thể tạo mới" });
-			}
-
-			string latStr = locationDto.Latitude.ToString(CultureInfo.InvariantCulture);
-			string lonStr = locationDto.Longitude.ToString(CultureInfo.InvariantCulture);
-			string url = $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={latStr}&lon={lonStr}";
-
-			string fullAddress;
-
 			try
 			{
-				var request = new HttpRequestMessage(HttpMethod.Get, url);
-				request.Headers.UserAgent.ParseAdd("PawnderApp/1.0 (contact@example.com)");
-
-				var response = await _httpClient.SendAsync(request);
-				if (response.IsSuccessStatusCode)
-				{
-					var json = await response.Content.ReadAsStringAsync();
-					var osmResult = JsonSerializer.Deserialize<OpenStreetMapResponse>(json);
-					fullAddress = osmResult?.display_name;
-				}
-				else
-				{
-					fullAddress = null;
-				}
+				var result = await _addressService.CreateAddressForUserAsync(userId, locationDto, ct);
+				return Ok(result);
 			}
-			catch
+			catch (KeyNotFoundException ex)
 			{
-				fullAddress = null;
+				return NotFound(new { message = ex.Message });
 			}
-
-			if (string.IsNullOrEmpty(fullAddress))
+			catch (InvalidOperationException ex)
 			{
-				return BadRequest(new { message = $"Không tìm thấy địa chỉ hợp lệ tại Lat:{latStr}, Lon:{lonStr}" });
+				return BadRequest(new { message = ex.Message });
 			}
-
-			var address = new Address
+			catch (Exception ex)
 			{
-				Latitude = locationDto.Latitude,
-				Longitude = locationDto.Longitude,
-				FullAddress = fullAddress,
-				CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-				UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
-			};
-
-			_context.Addresses.Add(address);
-			await _context.SaveChangesAsync(); 
-
-			user.AddressId = address.AddressId;
-			user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-			await _context.SaveChangesAsync();
-
-			return Ok(new
-			{
-				User = new
-				{
-					user.UserId,
-					user.FullName,
-					user.Email,
-					user.AddressId
-				},
-				Address = new
-				{
-					address.AddressId,
-					address.Latitude,
-					address.Longitude,
-					address.FullAddress
-				}
-			});
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
 		}
 
 		// PUT: /address/{addressId}
-		[HttpPut("address/{addressId}")]
-		public async Task<IActionResult> UpdateAddress(int addressId, [FromBody] LocationDto locationDto)
+		[HttpPut("{addressId}")]
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> UpdateAddress(int addressId, [FromBody] LocationDto locationDto, CancellationToken ct = default)
 		{
-			var address = await _context.Addresses.FindAsync(addressId);
-			if (address == null)
-				return NotFound(new { message = "Không tìm thấy địa chỉ" });
-
-			address.Latitude = locationDto.Latitude;
-			address.Longitude = locationDto.Longitude;
-
-			string latStr = locationDto.Latitude.ToString(CultureInfo.InvariantCulture);
-			string lonStr = locationDto.Longitude.ToString(CultureInfo.InvariantCulture);
-			string url = $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={latStr}&lon={lonStr}";
-
-			var request = new HttpRequestMessage(HttpMethod.Get, url);
-			request.Headers.UserAgent.ParseAdd("PawnderApp/1.0 (contact@example.com)");
-
-			var response = await _httpClient.SendAsync(request);
-
-			if (response.IsSuccessStatusCode)
+			try
 			{
-				var json = await response.Content.ReadAsStringAsync();
-				var osmResult = JsonSerializer.Deserialize<OpenStreetMapResponse>(json);
-
-				address.FullAddress = !string.IsNullOrEmpty(osmResult?.display_name)
-					? osmResult.display_name
-					: $"Địa chỉ sai, Lat:{latStr}, Lon:{lonStr}";
+				var result = await _addressService.UpdateAddressAsync(addressId, locationDto, ct);
+				return Ok(result);
 			}
-			else
+			catch (KeyNotFoundException ex)
 			{
-				address.FullAddress = $"Địa chỉ sai, Lat:{latStr}, Lon:{lonStr}";
+				return NotFound(new { message = ex.Message });
 			}
-
-			address.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
-			await _context.SaveChangesAsync();
-
-			return Ok(new
+			catch (Exception ex)
 			{
-				Address = new
-				{
-					address.AddressId,
-					address.Latitude,
-					address.Longitude,
-					address.FullAddress,
-					address.UpdatedAt
-				}
-			});
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
+		}
+
+		// PATCH: /address/{addressId}/manual
+		[HttpPatch("{addressId}/manual")]
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> UpdateAddressManual(int addressId, [FromBody] ManualAddressDto dto, CancellationToken ct = default)
+		{
+			try
+			{
+				var result = await _addressService.UpdateAddressManualAsync(addressId, dto, ct);
+				return Ok(result);
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { message = ex.Message });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
 		}
 
 		// GET: /address/{addressId}
-		[HttpGet("address/{addressId}")]
-		public async Task<IActionResult> GetAddressById(int addressId)
+		[HttpGet("{addressId}")]
+		[Authorize(Roles = "User,Admin")]
+		public async Task<IActionResult> GetAddressById(int addressId, CancellationToken ct = default)
 		{
-			var address = await _context.Addresses.FindAsync(addressId);
-			if (address == null)
-				return NotFound(new { message = "Không tìm thấy địa chỉ" });
-
-			return Ok(new
+			try
 			{
-				Address = new
-				{
-					address.AddressId,
-					address.Latitude,
-					address.Longitude,
-					address.FullAddress,
-					address.City,
-					address.District,
-					address.Ward,
-					CreatedAt = address.CreatedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
-					UpdatedAt = address.UpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss")
-				}
-			});
+				var result = await _addressService.GetAddressByIdAsync(addressId, ct);
+				return Ok(result);
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { message = ex.Message });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
 		}
 	}
 }

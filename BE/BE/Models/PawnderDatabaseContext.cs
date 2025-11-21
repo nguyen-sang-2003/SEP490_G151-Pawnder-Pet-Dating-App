@@ -27,9 +27,15 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<ChatAicontent> ChatAicontents { get; set; }
 
+    public virtual DbSet<ChatExpert> ChatExperts { get; set; }
+
+    public virtual DbSet<ChatExpertContent> ChatExpertContents { get; set; }
+
     public virtual DbSet<ChatUser> ChatUsers { get; set; }
 
     public virtual DbSet<ChatUserContent> ChatUserContents { get; set; }
+
+    public virtual DbSet<DailyLimit> DailyLimits { get; set; }
 
     public virtual DbSet<ExpertConfirmation> ExpertConfirmations { get; set; }
 
@@ -48,6 +54,8 @@ public partial class PawnderDatabaseContext : DbContext
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+
+    public virtual DbSet<UserBanHistory> UserBanHistories { get; set; }
 
     public virtual DbSet<UserPreference> UserPreferences { get; set; }
 
@@ -179,6 +187,55 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasConstraintName("ChatAIContent_ChatAIId_fkey");
         });
 
+        modelBuilder.Entity<ChatExpert>(entity =>
+        {
+            entity.HasKey(e => e.ChatExpertId).HasName("ChatExpert_pkey");
+
+            entity.ToTable("ChatExpert");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.Expert).WithMany(p => p.ChatExpertExperts)
+                .HasForeignKey(d => d.ExpertId)
+                .HasConstraintName("ChatExpert_ExpertId_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ChatExpertUsers)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("ChatExpert_UserId_fkey");
+        });
+
+        modelBuilder.Entity<ChatExpertContent>(entity =>
+        {
+            entity.HasKey(e => e.ContentId).HasName("ChatExpertContent_pkey");
+
+            entity.ToTable("ChatExpertContent");
+
+            entity.Property(e => e.ChatAiid).HasColumnName("ChatAIId");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.ChatExpert).WithMany(p => p.ChatExpertContents)
+                .HasForeignKey(d => d.ChatExpertId)
+                .HasConstraintName("ChatExpertContent_ChatExpertId_fkey");
+
+            entity.HasOne(d => d.From).WithMany(p => p.ChatExpertContents)
+                .HasForeignKey(d => d.FromId)
+                .HasConstraintName("ChatExpertContent_FromId_fkey");
+
+            entity.HasOne(d => d.ExpertConfirmation).WithMany(p => p.ChatExpertContents)
+                .HasForeignKey(d => new { d.ExpertId, d.UserId, d.ChatAiid })
+                .HasConstraintName("ChatExpertContent_ExpertId_UserId_ChatAIId_fkey");
+        });
+
         modelBuilder.Entity<ChatUser>(entity =>
         {
             entity.HasKey(e => e.MatchId).HasName("ChatUser_pkey");
@@ -194,13 +251,13 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.ChatUserFromUsers)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("ChatUser_FromUserId_fkey");
+            entity.HasOne(d => d.FromPet).WithMany(p => p.ChatUserFromPets)
+                .HasForeignKey(d => d.FromPetId)
+                .HasConstraintName("ChatUser_FromPetId_fkey");
 
-            entity.HasOne(d => d.ToUser).WithMany(p => p.ChatUserToUsers)
-                .HasForeignKey(d => d.ToUserId)
-                .HasConstraintName("ChatUser_ToUserId_fkey");
+            entity.HasOne(d => d.ToPet).WithMany(p => p.ChatUserToPets)
+                .HasForeignKey(d => d.ToPetId)
+                .HasConstraintName("ChatUser_ToPetId_fkey");
         });
 
         modelBuilder.Entity<ChatUserContent>(entity =>
@@ -216,13 +273,33 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
 
-            entity.HasOne(d => d.FromUser).WithMany(p => p.ChatUserContents)
-                .HasForeignKey(d => d.FromUserId)
-                .HasConstraintName("ChatUserContent_FromUserId_fkey");
+            entity.HasOne(d => d.FromPet).WithMany(p => p.ChatUserContents)
+                .HasForeignKey(d => d.FromPetId)
+                .HasConstraintName("ChatUserContent_FromPetId_fkey");
 
             entity.HasOne(d => d.Match).WithMany(p => p.ChatUserContents)
                 .HasForeignKey(d => d.MatchId)
                 .HasConstraintName("ChatUserContent_MatchId_fkey");
+        });
+
+        modelBuilder.Entity<DailyLimit>(entity =>
+        {
+            entity.HasKey(e => e.LimitId).HasName("DailyLimit_pkey");
+
+            entity.ToTable("DailyLimit");
+
+            entity.HasIndex(e => new { e.UserId, e.ActionType, e.ActionDate }, "DailyLimit_UserId_ActionType_ActionDate_key").IsUnique();
+
+            entity.Property(e => e.ActionType).HasMaxLength(100);
+            entity.Property(e => e.Count).HasDefaultValue(1);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.User).WithMany(p => p.DailyLimits)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("DailyLimit_UserId_fkey");
         });
 
         modelBuilder.Entity<ExpertConfirmation>(entity =>
@@ -285,6 +362,8 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.StatusService).HasMaxLength(100);
+           
+            entity.Property(e => e.Amount).HasPrecision(10, 2);
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
@@ -393,7 +472,6 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasFilter("\"IsDeleted\" = FALSE");   // PostgreSQL filtered index
         });
 
-
         modelBuilder.Entity<Report>(entity =>
         {
             entity.HasKey(e => e.ReportId).HasName("Report_pkey");
@@ -466,6 +544,29 @@ public partial class PawnderDatabaseContext : DbContext
             entity.HasOne(d => d.UserStatus).WithMany(p => p.Users)
                 .HasForeignKey(d => d.UserStatusId)
                 .HasConstraintName("User_UserStatusId_fkey");
+        });
+
+        modelBuilder.Entity<UserBanHistory>(entity =>
+        {
+            entity.HasKey(e => e.BanId).HasName("UserBanHistory_pkey");
+
+            entity.ToTable("UserBanHistory");
+
+            entity.Property(e => e.BanEnd).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.BanStart)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserBanHistories)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("UserBanHistory_UserId_fkey");
         });
 
         modelBuilder.Entity<UserPreference>(entity =>
