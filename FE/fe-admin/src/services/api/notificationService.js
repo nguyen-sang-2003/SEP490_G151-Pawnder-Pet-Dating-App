@@ -54,5 +54,6 @@ class NotificationService {
   }
 }
 
-export default new NotificationService();
+const notificationServiceInstance = new NotificationService();
+export default notificationServiceInstance;
 

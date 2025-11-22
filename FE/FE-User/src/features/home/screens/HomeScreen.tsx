@@ -223,7 +223,7 @@ const HomeScreen = ({ navigation }: Props) => {
             }, 4000);
         };
 
-        // Setup SignalR
+        // Setup SignalR (NewNotification listener is in AppNavigator globally)
         const setupSignalR = async () => {
             try {
                 await signalRService.connect(userId);

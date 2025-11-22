@@ -46,7 +46,7 @@ class SignalRService {
           return 60000;
         },
       })
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging(signalR.LogLevel.None) // Tắt log hiển thị trên màn hình
       .build();
 
     // Setup event handlers
@@ -55,7 +55,7 @@ class SignalRService {
     try {
       // Start connection
       await this.connection.start();
-
+      console.log(`✅ [SignalR] Connected successfully for user ${userId}`);
 
       // Register user after connection
       await this.registerUser(userId);
@@ -156,6 +156,12 @@ class SignalRService {
 
       this.notifyListeners('MatchSuccess', data);
     });
+
+    // New general notification
+    this.connection.on('NewNotification', (data) => {
+      console.log('🔔 [SignalR] NewNotification received:', data);
+      this.notifyListeners('NewNotification', data);
+    });
   }
 
   /**
@@ -166,7 +172,7 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('RegisterUser', userId);
-
+      console.log(`✅ [SignalR] User ${userId} registered successfully`);
     } catch (error) {
       console.error('❌ Failed to register user:', error);
     }

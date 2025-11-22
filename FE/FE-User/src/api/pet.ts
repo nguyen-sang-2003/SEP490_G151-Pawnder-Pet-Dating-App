@@ -413,3 +413,52 @@ export const reorderPetPhotos = async (photos: { photoId: number; sortOrder: num
     throw error;
   }
 };
+
+/**
+ * AI Image Analysis Response
+ */
+export interface AIAttributeResult {
+  attributeName: string;
+  optionName?: string | null;
+  value?: number | null;
+  attributeId?: number | null;
+  optionId?: number | null;
+}
+
+export interface AnalyzePetImageResponse {
+  success: boolean;
+  message: string;
+  attributes?: AIAttributeResult[];
+  sqlInsertScript?: string | null;
+}
+
+/**
+ * Analyze pet image using AI
+ * POST /api/PetImageAnalysis/analyze
+ */
+export const analyzePetImage = async (photo: any): Promise<AnalyzePetImageResponse> => {
+  try {
+    const formData = new FormData();
+    formData.append('image', {
+      uri: photo.uri,
+      type: photo.type || 'image/jpeg',
+      name: photo.fileName || 'pet_photo.jpg',
+    } as any);
+
+    console.log('🤖 Analyzing pet image with AI...');
+    
+    const response = await client.post('/api/PetImageAnalysis/analyze', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 30000, // 30 seconds for AI processing
+    });
+    
+    console.log('✅ AI analysis completed:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error analyzing image with AI:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
