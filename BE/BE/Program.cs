@@ -93,6 +93,9 @@ builder.Services.AddScoped<PasswordService>();
 // Register DailyLimitService
 builder.Services.AddScoped<DailyLimitService>();
 
+// Register PetImageAnalysisService with HttpClient
+builder.Services.AddHttpClient<IPetImageAnalysisService, PetImageAnalysisService>();
+
 // ============================================
 // Register Repositories (Repository Pattern)
 // ============================================
