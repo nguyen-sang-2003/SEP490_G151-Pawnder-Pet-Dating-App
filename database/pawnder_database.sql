@@ -268,6 +268,8 @@ CREATE TABLE "Notification" (
     "UserId" INT REFERENCES "User"("UserId"),
     "Title" VARCHAR(200),
     "Message" TEXT,
+    "Type" VARCHAR(50),
+    "IsRead" BOOLEAN DEFAULT FALSE, 
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
