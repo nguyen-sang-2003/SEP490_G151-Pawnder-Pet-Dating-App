@@ -11,15 +11,18 @@ namespace BE.Services
         private readonly IExpertConfirmationRepository _expertConfirmationRepository;
         private readonly PawnderDatabaseContext _context;
         private readonly DailyLimitService _dailyLimitService;
+        private readonly INotificationService _notificationService;
 
         public ExpertConfirmationService(
             IExpertConfirmationRepository expertConfirmationRepository,
             PawnderDatabaseContext context,
-            DailyLimitService dailyLimitService)
+            DailyLimitService dailyLimitService,
+            INotificationService notificationService)
         {
             _expertConfirmationRepository = expertConfirmationRepository;
             _context = context;
             _dailyLimitService = dailyLimitService;
+            _notificationService = notificationService;
         }
 
         public async Task<IEnumerable<ExpertConfirmationDTO>> GetAllExpertConfirmationsAsync(CancellationToken ct = default)
@@ -140,11 +143,16 @@ namespace BE.Services
             };
         }
 
-        public async Task<ExpertConfirmationResponseDTO> UpdateExpertConfirmationAsync(int confirmationId, int userId, int chatId, ExpertConfirmationUpdateDto dto, CancellationToken ct = default)
+        public async Task<ExpertConfirmationResponseDTO> UpdateExpertConfirmationAsync(int expertId, int userId, int chatId, ExpertConfirmationUpdateDto dto, CancellationToken ct = default)
         {
-            var expertConfirmation = await _expertConfirmationRepository.GetExpertConfirmationAsync(confirmationId, userId, chatId, ct);
+            var expertConfirmation = await _expertConfirmationRepository.GetExpertConfirmationAsync(expertId, userId, chatId, ct);
             if (expertConfirmation == null)
                 throw new KeyNotFoundException("Yêu cầu xác nhận không tồn tại.");
+
+            // Track if status is being changed to "confirmed"
+            bool isConfirming = !string.IsNullOrEmpty(dto.Status) && 
+                                dto.Status.ToLower() == "confirmed" && 
+                                expertConfirmation.Status?.ToLower() != "confirmed";
 
             // Business logic: Update status and message
             if (!string.IsNullOrEmpty(dto.Status))
@@ -156,6 +164,33 @@ namespace BE.Services
             expertConfirmation.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             await _expertConfirmationRepository.UpdateAsync(expertConfirmation, ct);
+
+            // Business logic: Create notification for user when expert confirms
+            if (isConfirming && !string.IsNullOrEmpty(dto.Message))
+            {
+                try
+                {
+                    // Get expert name for notification
+                    var expert = await _context.Users.FindAsync([expertConfirmation.ExpertId], ct);
+                    var expertName = expert?.FullName ?? "Chuyên gia";
+
+                    // Create notification for user
+                    var notificationDto = new NotificationDto_1
+                    {
+                        UserId = expertConfirmation.UserId,
+                        Title = $"Chuyên gia #{expertConfirmation.ExpertId} ({expertName}) đã xác nhận thông tin",
+                        Message = dto.Message
+                    };
+
+                    await _notificationService.CreateNotificationAsync(notificationDto, ct);
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't fail the confirmation update
+                    // In production, use proper logging
+                    Console.WriteLine($"Error creating notification: {ex.Message}");
+                }
+            }
 
             return new ExpertConfirmationResponseDTO
             {
