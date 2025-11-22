@@ -2,6 +2,7 @@ using BE.DTO;
 using BE.Models;
 using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BE.Services
@@ -12,17 +13,20 @@ namespace BE.Services
         private readonly PawnderDatabaseContext _context;
         private readonly DailyLimitService _dailyLimitService;
         private readonly INotificationService _notificationService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
         public ExpertConfirmationService(
             IExpertConfirmationRepository expertConfirmationRepository,
             PawnderDatabaseContext context,
             DailyLimitService dailyLimitService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IHubContext<ChatHub> hubContext)
         {
             _expertConfirmationRepository = expertConfirmationRepository;
             _context = context;
             _dailyLimitService = dailyLimitService;
             _notificationService = notificationService;
+            _hubContext = hubContext;
         }
 
         public async Task<IEnumerable<ExpertConfirmationDTO>> GetAllExpertConfirmationsAsync(CancellationToken ct = default)
@@ -166,29 +170,76 @@ namespace BE.Services
             await _expertConfirmationRepository.UpdateAsync(expertConfirmation, ct);
 
             // Business logic: Create notification for user when expert confirms
+            Console.WriteLine($"[ExpertConfirmation] isConfirming={isConfirming}, dto.Status={dto.Status}, expertConfirmation.Status={expertConfirmation.Status}, dto.Message={dto.Message}");
+            
             if (isConfirming && !string.IsNullOrEmpty(dto.Message))
             {
                 try
                 {
+                    Console.WriteLine($"[ExpertConfirmation] Creating notification for UserId={expertConfirmation.UserId}");
+                    
                     // Get expert name for notification
                     var expert = await _context.Users.FindAsync([expertConfirmation.ExpertId], ct);
                     var expertName = expert?.FullName ?? "Chuyên gia";
+                    
+                    Console.WriteLine($"[ExpertConfirmation] Expert found: {expertName} (ID={expertConfirmation.ExpertId})");
 
                     // Create notification for user
                     var notificationDto = new NotificationDto_1
                     {
                         UserId = expertConfirmation.UserId,
-                        Title = $"Chuyên gia #{expertConfirmation.ExpertId} ({expertName}) đã xác nhận thông tin",
+                        Title = $"Chuyên gia {expertName} đã xác nhận thông tin",
                         Message = dto.Message
                     };
+                    
+                    Console.WriteLine($"[ExpertConfirmation] Calling NotificationService.CreateNotificationAsync with UserId={notificationDto.UserId}, Title={notificationDto.Title}");
+                    
+                    var createdNotification = await _notificationService.CreateNotificationAsync(notificationDto, ct);
+                    
+                    Console.WriteLine($"✅ [ExpertConfirmation] Notification created successfully! NotificationId={createdNotification?.NotificationId}");
 
-                    await _notificationService.CreateNotificationAsync(notificationDto, ct);
+                    // Send real-time notification via SignalR
+                    try
+                    {
+                        Console.WriteLine($"[ExpertConfirmation] Sending real-time notification to UserId={expertConfirmation.UserId}");
+                        await ChatHub.SendNotification(
+                            _hubContext, 
+                            expertConfirmation.UserId, 
+                            notificationDto.Title, 
+                            notificationDto.Message, 
+                            "expert_confirmation"
+                        );
+                        Console.WriteLine($"✅ [ExpertConfirmation] Real-time notification sent successfully!");
+                    }
+                    catch (Exception signalREx)
+                    {
+                        // Don't fail if SignalR fails (user might be offline)
+                        Console.WriteLine($"⚠️ [ExpertConfirmation] SignalR notification failed (user might be offline): {signalREx.Message}");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    // Log error but don't fail the confirmation update
-                    // In production, use proper logging
-                    Console.WriteLine($"Error creating notification: {ex.Message}");
+                    // Log detailed error for debugging
+                    Console.WriteLine($"❌ [ExpertConfirmation] ERROR creating notification: {ex.Message}");
+                    Console.WriteLine($"❌ [ExpertConfirmation] Exception type: {ex.GetType().Name}");
+                    Console.WriteLine($"❌ [ExpertConfirmation] Stack trace: {ex.StackTrace}");
+                    if (ex.InnerException != null)
+                    {
+                        Console.WriteLine($"❌ [ExpertConfirmation] Inner exception: {ex.InnerException.Message}");
+                    }
+                    
+                    // Don't fail the confirmation update, but log the error clearly
+                }
+            }
+            else
+            {
+                if (!isConfirming)
+                {
+                    Console.WriteLine($"⚠️ [ExpertConfirmation] Skipping notification: not confirming (dto.Status={dto.Status}, current status={expertConfirmation.Status})");
+                }
+                else if (string.IsNullOrEmpty(dto.Message))
+                {
+                    Console.WriteLine($"⚠️ [ExpertConfirmation] Skipping notification: message is empty");
                 }
             }
 

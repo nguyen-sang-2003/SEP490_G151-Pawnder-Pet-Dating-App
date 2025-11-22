@@ -11,6 +11,8 @@ import {
   detailScreenOptions,
   navigationTheme 
 } from "./navigationConfig";
+import signalRService from "../services/signalr.service";
+import { refreshBadgesForActivePet } from "../utils/badgeRefresh";
 
 // Import critical screens immediately (needed for initial render)
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
@@ -178,6 +180,57 @@ const AppNavigator = () => {
 
     return () => clearInterval(checkLogoutInterval);
   }, []);
+
+  // Setup global SignalR listener for notifications (works from any screen)
+  useEffect(() => {
+    let isSetup = false;
+
+    const setupGlobalNotificationListener = async () => {
+      if (isSetup) return;
+      
+      try {
+        const userIdStr = await AsyncStorage.getItem('userId');
+        if (!userIdStr || !isAuthenticated) return;
+
+        const userId = parseInt(userIdStr);
+        console.log('🔔 [AppNavigator] Setting up global notification listener for userId:', userId);
+
+        // Connect to SignalR if not already connected
+        if (!signalRService.isConnected()) {
+          await signalRService.connect(userId);
+          console.log('✅ [AppNavigator] SignalR connected');
+        }
+
+        // Listen for new notifications globally
+        const handleNewNotification = (data: any) => {
+          console.log('🔔 [AppNavigator] New notification received via SignalR:', data);
+          
+          // Refresh badge count immediately
+          refreshBadgesForActivePet(userId).then(() => {
+            console.log('✅ [AppNavigator] Badge refreshed after notification');
+          }).catch(err => {
+            console.error('❌ [AppNavigator] Failed to refresh badges:', err);
+          });
+        };
+
+        signalRService.on('NewNotification', handleNewNotification);
+        isSetup = true;
+        console.log('✅ [AppNavigator] Global notification listener setup complete');
+
+        // Cleanup on unmount
+        return () => {
+          signalRService.off('NewNotification', handleNewNotification);
+          console.log('🧹 [AppNavigator] Cleaned up global notification listener');
+        };
+      } catch (error) {
+        console.error('❌ [AppNavigator] Error setting up notification listener:', error);
+      }
+    };
+
+    if (isAuthenticated) {
+      setupGlobalNotificationListener();
+    }
+  }, [isAuthenticated]);
 
   const checkAuth = async () => {
     try {

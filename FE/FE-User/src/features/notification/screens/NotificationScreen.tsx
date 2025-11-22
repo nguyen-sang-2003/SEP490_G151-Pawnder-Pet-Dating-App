@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, Notification } from "../../../api/notification";
 import { useFocusEffect } from "@react-navigation/native";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
+import signalRService from "../../../services/signalr.service";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Notification">;
 
@@ -88,6 +89,54 @@ const NotificationScreen = ({ navigation }: Props) => {
       loadNotifications();
     }, [])
   );
+
+  // Setup SignalR to listen for real-time notifications
+  useEffect(() => {
+    const setupSignalR = async () => {
+      try {
+        const userIdStr = await AsyncStorage.getItem('userId');
+        if (!userIdStr) return;
+        
+        const userId = parseInt(userIdStr);
+        
+        // Connect if not already connected
+        if (!signalRService.isConnected()) {
+          await signalRService.connect(userId);
+        }
+        
+        // Listen for new notifications
+        const handleNewNotification = (data: any) => {
+          console.log('🔔 New notification received via SignalR:', data);
+          
+          // Reload notifications from API to get the correct data including NotificationId
+          loadNotifications().then(() => {
+            console.log('✅ Notifications reloaded from API after realtime notification');
+          }).catch(err => {
+            console.error('❌ Failed to reload notifications:', err);
+          });
+          
+          // Refresh badge count if userId is available
+          if (userId) {
+            refreshBadgesForActivePet(userId).catch(err => {
+              console.error('❌ Failed to refresh badges:', err);
+            });
+          }
+        };
+        
+        signalRService.on('NewNotification', handleNewNotification);
+        console.log('✅ SignalR listener setup for notifications');
+        
+        // Cleanup
+        return () => {
+          signalRService.off('NewNotification', handleNewNotification);
+        };
+      } catch (error) {
+        console.error('❌ Error setting up SignalR for notifications:', error);
+      }
+    };
+    
+    setupSignalR();
+  }, []);
 
   // Pull to refresh
   const onRefresh = () => {
@@ -231,7 +280,7 @@ const NotificationScreen = ({ navigation }: Props) => {
       if (filterType === "all") return true;
       if (filterType === "unread") return !n.isRead;
       if (filterType === "system") return n.type === "system";
-      if (filterType === "expert") return n.type === "expert_reply" || n.type === "expert";
+      if (filterType === "expert") return n.type === "expert_reply" || n.type === "expert" || n.type === "expert_confirmation";
       return true;
     });
   }, [notifications, filterType]);
@@ -530,7 +579,7 @@ const NotificationScreen = ({ navigation }: Props) => {
 
             {/* Modal Actions */}
             <View style={styles.modalActions}>
-              {(selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert") ? (
+              {(selectedNotification?.type === "expert_confirmation" || selectedNotification?.type === "expert") ? (
                 <>
                   <TouchableOpacity 
                     style={styles.modalButton}
