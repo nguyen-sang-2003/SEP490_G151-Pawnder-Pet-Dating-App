@@ -189,8 +189,7 @@ namespace BE.Services
                     {
                         UserId = expertConfirmation.UserId,
                         Title = $"Chuyên gia {expertName} đã xác nhận thông tin",
-                        Message = dto.Message,
-                        ReferenceId = expertConfirmation.ExpertId // Store expertId for chat navigation
+                        Message = dto.Message
                     };
                     
                     Console.WriteLine($"[ExpertConfirmation] Calling NotificationService.CreateNotificationAsync with UserId={notificationDto.UserId}, Title={notificationDto.Title}");

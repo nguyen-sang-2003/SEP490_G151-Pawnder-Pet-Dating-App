@@ -231,7 +231,7 @@ namespace BE.Services
         /// <summary>
         /// Send general notification to a specific user (STATIC for use in services)
         /// </summary>
-        public static async Task SendNotification(IHubContext<ChatHub> hubContext, int toUserId, string title, string message, string type = "system", int? referenceId = null)
+        public static async Task SendNotification(IHubContext<ChatHub> hubContext, int toUserId, string title, string message, string type = "system")
         {
             // Debug: Show all currently connected users
             var connectedUsers = string.Join(", ", UserConnections.Keys);
@@ -245,12 +245,11 @@ namespace BE.Services
                     Title = title,
                     Message = message,
                     Type = type,
-                    ReferenceId = referenceId, // ExpertId for expert confirmations
                     Timestamp = DateTime.UtcNow
                 };
                 
                 Console.WriteLine($"✅ [ChatHub] User {toUserId} is ONLINE with {connections.Count} connection(s)");
-                Console.WriteLine($"[ChatHub] Sending notification: {title} (ReferenceId={referenceId})");
+                Console.WriteLine($"[ChatHub] Sending notification: {title}");
                 
                 foreach (var connectionId in connections)
                 {
