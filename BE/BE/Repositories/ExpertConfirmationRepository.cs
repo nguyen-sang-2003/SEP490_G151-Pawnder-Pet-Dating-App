@@ -65,6 +65,36 @@ namespace BE.Repositories
             return await _dbSet
                 .FirstOrDefaultAsync(ec => ec.UserId == userId && ec.ChatAiid == chatId, ct);
         }
+
+        // Override UpdateAsync to properly handle composite key
+        public override async Task UpdateAsync(ExpertConfirmation entity, CancellationToken ct = default)
+        {
+            // For composite key entities, we need to attach and set state manually
+            var existing = await _dbSet
+                .FirstOrDefaultAsync(
+                    ec => ec.ExpertId == entity.ExpertId && 
+                          ec.UserId == entity.UserId && 
+                          ec.ChatAiid == entity.ChatAiid, 
+                    ct);
+
+            if (existing != null)
+            {
+                // Update properties
+                existing.Status = entity.Status;
+                existing.Message = entity.Message;
+                existing.UpdatedAt = entity.UpdatedAt;
+                existing.UserQuestion = entity.UserQuestion;
+
+                // Mark as modified
+                _context.Entry(existing).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+                await _context.SaveChangesAsync(ct);
+            }
+            else
+            {
+                // If not found, use base implementation
+                await base.UpdateAsync(entity, ct);
+            }
+        }
     }
 }
 

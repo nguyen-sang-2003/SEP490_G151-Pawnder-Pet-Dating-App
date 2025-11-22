@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import expertService from '../../services/api/expertService';
 import userService from '../../services/api/userService';
+import notificationService from '../../services/api/notificationService';
 import { mockUsers } from '../../data/mockUsers';
 import './ExpertNotifications.css';
 
@@ -134,6 +136,7 @@ const buildStaticAiHistory = (chatAiId, userName) => {
 
 const ExpertNotifications = () => {
   const { updatePendingNotifications } = useNotification();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -280,8 +283,17 @@ const ExpertNotifications = () => {
       }
       
       const userInfo = await fetchUserInfo(userId);
-      const status = (item.Status || 'pending').toLowerCase();
-      const expertNote = item.Message || '';
+      // Normalize status: handle various formats from backend (Confirmed, CONFIRMED, confirmed, etc.)
+      let status = (item.Status || item.status || 'pending').toLowerCase();
+      // Map common status variations to standard format
+      if (status === 'confirmed' || status === 'accepted' || status === 'completed') {
+        status = 'confirmed';
+      } else if (status === 'rejected' || status === 'declined') {
+        status = 'rejected';
+      } else {
+        status = 'pending';
+      }
+      const expertNote = item.Message || item.message || '';
       // Backend trả về UserQuestion, không phải RequestMessage
       const requestMessage =
         item.UserQuestion ||
@@ -409,6 +421,9 @@ const ExpertNotifications = () => {
     if (filterStatus === 'pending') {
       return notifications.filter((n) => n.status === 'pending');
     }
+    if (filterStatus === 'all') {
+      return notifications.filter((n) => n.status === 'confirmed');
+    }
     return notifications.filter((n) => n.status === 'confirmed');
   }, [filterStatus, notifications]);
 
@@ -480,13 +495,135 @@ const ExpertNotifications = () => {
 
     try {
       setIsSubmitting(true);
-      await expertService.updateExpertConfirmation(
-        selectedNotification.expertId,
+      // Lấy expertId từ notification hoặc từ user đang đăng nhập
+      const expertId = selectedNotification.expertId || user?.UserId || user?.userId;
+      if (!expertId) {
+        alert('Không thể xác định chuyên gia. Vui lòng đăng nhập lại.');
+        return;
+      }
+
+      // Step 1: Update expert confirmation
+      const confirmResult = await expertService.updateExpertConfirmation(
+        expertId,
         selectedNotification.userId,
         selectedNotification.chatAiId,
         { Status: 'confirmed', Message: trimmedNote }
       );
+      
+      console.log('✅ Expert confirmation updated:', confirmResult);
 
+      // Step 2: Send notification to user about expert confirmation
+      // IMPORTANT: This must be awaited and errors must be shown to user
+      let notificationSuccess = false;
+      let notificationError = null;
+      
+      try {
+        const notificationData = {
+          UserId: selectedNotification.userId,
+          Title: 'Chuyên gia đã xác nhận yêu cầu tư vấn',
+          Message: `Chuyên gia đã xem xét và xác nhận yêu cầu tư vấn của bạn. Ghi chú từ chuyên gia: ${trimmedNote}`
+        };
+        
+        console.log('📤 ========== SENDING NOTIFICATION ==========');
+        console.log('📤 Notification data:', JSON.stringify(notificationData, null, 2));
+        console.log('📤 Current user:', user);
+        console.log('📤 Current user role:', user?.Role || user?.role);
+        console.log('📤 API endpoint:', '/api/notification');
+        console.log('📤 API base URL:', process.env.REACT_APP_API_URL || 'http://localhost:5297');
+        
+        const notificationResponse = await notificationService.createNotification(notificationData);
+        
+        console.log('✅ Notification API response received:', notificationResponse);
+        console.log('✅ Response type:', typeof notificationResponse);
+        console.log('✅ Response keys:', notificationResponse ? Object.keys(notificationResponse) : 'null');
+        
+        // Check response structure - apiClient returns response.data
+        if (notificationResponse) {
+          if (notificationResponse.NotificationId) {
+            console.log('✅✅✅ Notification created successfully with ID:', notificationResponse.NotificationId);
+            notificationSuccess = true;
+          } else if (notificationResponse.notificationId) {
+            console.log('✅✅✅ Notification created successfully with ID:', notificationResponse.notificationId);
+            notificationSuccess = true;
+          } else {
+            // Check if response has any indication of success
+            console.warn('⚠️ Notification response structure unexpected:', notificationResponse);
+            console.warn('⚠️ Full response:', JSON.stringify(notificationResponse, null, 2));
+            // If we got a response object, consider it success (backend might return different structure)
+            if (typeof notificationResponse === 'object' && Object.keys(notificationResponse).length > 0) {
+              console.log('✅ Considering as success - got response object');
+              notificationSuccess = true;
+            } else {
+              console.error('❌ Response is not a valid object');
+            }
+          }
+        } else {
+          console.error('❌ Notification response is null or undefined');
+        }
+        
+        console.log('📤 ========== NOTIFICATION SEND COMPLETE ==========');
+      } catch (notifError) {
+        notificationError = notifError;
+        console.error('❌ ========== NOTIFICATION ERROR ==========');
+        console.error('❌ Error creating notification for user:', notifError);
+        console.error('❌ Error type:', typeof notifError);
+        console.error('❌ Error constructor:', notifError.constructor?.name);
+        console.error('❌ Error message:', notifError.message);
+        console.error('❌ Error stack:', notifError.stack);
+        
+        if (notifError.response) {
+          console.error('❌ Response status:', notifError.response.status);
+          console.error('❌ Response statusText:', notifError.response.statusText);
+          console.error('❌ Response data:', JSON.stringify(notifError.response.data, null, 2));
+          console.error('❌ Response headers:', notifError.response.headers);
+        }
+        
+        if (notifError.config) {
+          console.error('❌ Request config:', {
+            url: notifError.config.url,
+            method: notifError.config.method,
+            baseURL: notifError.config.baseURL,
+            data: notifError.config.data,
+            headers: notifError.config.headers
+          });
+        }
+        
+        console.error('❌ ========== END ERROR DETAILS ==========');
+        
+        // Check if it's an authorization error
+        if (notifError.response?.status === 401 || notifError.response?.status === 403) {
+          console.error('❌ Authorization error: Expert may not have permission to create notifications');
+          alert('⚠️ Đã xác nhận thành công nhưng KHÔNG THỂ gửi thông báo cho người dùng do vấn đề quyền truy cập (401/403).\n\nVui lòng:\n1. Kiểm tra backend đã được rebuild và restart chưa\n2. Kiểm tra Expert có quyền tạo notification không\n3. Liên hệ admin nếu vấn đề vẫn tiếp tục');
+        } else if (notifError.response?.status === 400) {
+          console.error('❌ Bad Request:', notifError.response?.data);
+          const errorMsg = notifError.response?.data?.Message || notifError.response?.data?.message || 'Dữ liệu không hợp lệ';
+          alert(`⚠️ Đã xác nhận thành công nhưng KHÔNG THỂ gửi thông báo.\n\nLỗi 400 (Bad Request): ${errorMsg}\n\nVui lòng kiểm tra:\n1. UserId có hợp lệ không (${selectedNotification.userId})\n2. Dữ liệu gửi đi có đúng format không`);
+        } else if (notifError.response?.status === 500) {
+          console.error('❌ Server Error:', notifError.response?.data);
+          alert(`⚠️ Đã xác nhận thành công nhưng KHÔNG THỂ gửi thông báo.\n\nLỗi 500 (Server Error): ${notifError.response?.data?.Message || notifError.response?.data?.Error || 'Lỗi server'}\n\nVui lòng kiểm tra logs của backend server.`);
+        } else if (!notifError.response) {
+          console.error('❌ Network Error - No response from server');
+          alert(`⚠️ Đã xác nhận thành công nhưng KHÔNG THỂ gửi thông báo.\n\nLỗi mạng: Không nhận được phản hồi từ server.\n\nVui lòng kiểm tra:\n1. Backend server có đang chạy không\n2. Kết nối mạng có ổn định không`);
+        } else {
+          // Show error to user but don't block the confirmation flow
+          const errorMessage = notifError.response?.data?.Message || 
+                              notifError.response?.data?.message || 
+                              notifError.message || 
+                              'Lỗi không xác định';
+          alert(`⚠️ Đã xác nhận thành công nhưng KHÔNG THỂ gửi thông báo cho người dùng.\n\nLỗi: ${errorMessage}\n\nStatus: ${notifError.response?.status || 'Unknown'}\n\nVui lòng kiểm tra console để xem chi tiết.`);
+        }
+      }
+      
+      if (notificationSuccess) {
+        console.log('✅✅✅ Notification process completed successfully');
+      } else {
+        console.warn('⚠️⚠️⚠️ Notification FAILED - check logs above for details');
+        if (notificationError) {
+          console.warn('⚠️ Error object:', notificationError);
+        }
+      }
+
+      // Update local state immediately for better UX
       setNotifications((prev) =>
         prev.map((notif) =>
           notif.id === selectedNotification.id
@@ -507,8 +644,15 @@ const ExpertNotifications = () => {
 
       alert('Đã xác nhận thông báo thành công.');
       handleCloseModal();
+      // Switch to "all processed" view to show the confirmed notification
       setFilterStatus('all');
       setCurrentPage(1);
+
+      // Reload notifications from backend in background to ensure sync
+      // This ensures that when user clicks "Làm mới", the status is correctly displayed
+      loadNotifications().catch((err) => {
+        console.error('Error reloading notifications after confirmation:', err);
+      });
     } catch (err) {
       console.error('Lỗi khi xác nhận thông báo:', err);
       alert('Không thể xác nhận thông báo. Vui lòng thử lại.');

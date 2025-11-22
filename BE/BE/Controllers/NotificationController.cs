@@ -3,6 +3,7 @@ using BE.Models;
 using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
@@ -73,7 +74,7 @@ namespace BE.Controllers
         }
 
         // POST /notification
-        [Authorize(Roles = "Admin,User")]
+        [Authorize(Roles = "Admin,User,Expert")]
         [HttpPost]
         public async Task<IActionResult> CreateNotification([FromBody] NotificationDto_1 notificationDto, CancellationToken ct = default)
         {
@@ -86,9 +87,30 @@ namespace BE.Controllers
             {
                 return BadRequest(new { Message = ex.Message });
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (DbUpdateException dbEx)
+            {
+                // Log detailed database error
+                var innerException = dbEx.InnerException?.Message ?? dbEx.Message;
+                return StatusCode(500, new { 
+                    Message = "Lỗi khi lưu vào database", 
+                    Error = innerException,
+                    Details = dbEx.Message
+                });
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+                // Log full exception details for debugging
+                var innerException = ex.InnerException?.Message ?? "";
+                return StatusCode(500, new { 
+                    Message = "Lỗi hệ thống", 
+                    Error = ex.Message,
+                    InnerException = innerException,
+                    StackTrace = ex.StackTrace
+                });
             }
         }
 
