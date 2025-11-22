@@ -74,7 +74,17 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { email: string };
   AddPetBasicInfo: { isFromProfile?: boolean };
-  AddPetCharacteristics: { petId: number; isFromProfile?: boolean };
+  AddPetCharacteristics: { 
+    petId: number; 
+    isFromProfile?: boolean;
+    aiResults?: Array<{
+      attributeName: string;
+      optionName?: string | null;
+      value?: number | null;
+      attributeId?: number | null;
+      optionId?: number | null;
+    }>;
+  };
   AddPetPhotos: { petId: number; isFromProfile?: boolean };
   OnboardingPreferences: undefined;
   Home: undefined;
