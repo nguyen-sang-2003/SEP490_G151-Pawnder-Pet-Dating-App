@@ -12,23 +12,35 @@ namespace BE.Repositories
 
         public async Task<IEnumerable<object>> GetChatsByUserIdAsync(int userId, CancellationToken ct = default)
         {
-            return await _dbSet
+            var chats = await _dbSet
                 .Include(c => c.Expert)
                 .Include(c => c.User)
+                .Include(c => c.ChatExpertContents)
                 .Where(c => c.UserId == userId)
-                .Select(c => new
+                .ToListAsync(ct);
+
+            return chats.Select(c =>
+            {
+                var lastMessage = c.ChatExpertContents
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault();
+
+                return new
                 {
+                    id = c.ChatExpertId.ToString(),
                     chatExpertId = c.ChatExpertId,
                     expertId = c.ExpertId,
-                    expertName = c.Expert != null ? c.Expert.FullName : null,
-                    expertEmail = c.Expert != null ? c.Expert.Email : null,
-                    userId = c.UserId,
-                    userName = c.User != null ? c.User.FullName : null,
-                    userEmail = c.User != null ? c.User.Email : null,
+                    expertName = c.Expert != null ? c.Expert.FullName : "Chuyên gia",
+                    specialty = "Chuyên gia thú y", // Default specialty
+                    lastMessage = lastMessage != null ? lastMessage.Message : "Chưa có tin nhắn",
+                    time = lastMessage != null ? lastMessage.CreatedAt : c.CreatedAt,
+                    unread = 0, // TODO: Implement unread count if needed
+                    isOnline = false, // TODO: Check online status from SignalR
                     createdAt = c.CreatedAt,
                     updatedAt = c.UpdatedAt
-                })
-                .ToListAsync(ct);
+                };
+            })
+            .OrderByDescending(c => c.time);
         }
 
         public async Task<IEnumerable<object>> GetChatsByExpertIdAsync(int expertId, CancellationToken ct = default)

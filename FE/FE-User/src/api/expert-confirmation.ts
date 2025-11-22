@@ -102,7 +102,7 @@ export const updateExpertConfirmation = async (
 };
 
 // Expert Chat Types
-export interface ExpertChat {
+export interface ExpertChatListItem {
   id: string;
   chatExpertId: number;
   expertId: number;
@@ -115,12 +115,13 @@ export interface ExpertChat {
 }
 
 /**
- * Get user's expert chats
+ * Get user's expert chats (legacy endpoint)
  * GET /api/expert-chats/{userId}
+ * @deprecated Use getUserExpertChats from expert-chat.ts instead
  */
-export const getUserExpertChats = async (
+export const getUserExpertChatsList = async (
   userId: number
-): Promise<ExpertChat[]> => {
+): Promise<ExpertChatListItem[]> => {
   try {
     const response = await apiClient.get(`/expert-chats/${userId}`);
     return response.data.data || [];

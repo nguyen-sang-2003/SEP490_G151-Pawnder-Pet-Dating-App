@@ -21,6 +21,10 @@ import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, N
 import { useFocusEffect } from "@react-navigation/native";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import signalRService from "../../../services/signalr.service";
+import { createOrGetExpertChat } from "../../../api/expert-chat";
+import { getUserExpertConfirmations } from "../../../api/expert-confirmation";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Notification">;
 
@@ -32,6 +36,8 @@ const NotificationScreen = ({ navigation }: Props) => {
   const [filterType, setFilterType] = useState<string>("all");
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [creatingChat, setCreatingChat] = useState(false);
+  const { visible: alertVisible, alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   // Get time ago string
   const getTimeAgo = (dateString: string): string => {
@@ -64,6 +70,24 @@ const NotificationScreen = ({ navigation }: Props) => {
 
       console.log('🔄 Loading notifications for user:', userId);
       const data = await getNotifications(userId);
+      
+      // Merge expertId from AsyncStorage for expert_confirmation notifications
+      for (const notification of data) {
+        if (notification.type === 'expert_confirmation') {
+          const mappingKey = `notification_expert_${notification.notificationId}`;
+          try {
+            const mappingStr = await AsyncStorage.getItem(mappingKey);
+            if (mappingStr) {
+              const mapping = JSON.parse(mappingStr);
+              notification.expertId = mapping.expertId;
+              notification.chatId = mapping.chatId;
+              console.log(`✅ Loaded expertId ${mapping.expertId} for notification ${notification.notificationId}`);
+            }
+          } catch (err) {
+            console.error('❌ Failed to load notification-expert mapping:', err);
+          }
+        }
+      }
       
       // Sort by createdAt descending (newest first)
       const sortedData = data.sort((a, b) => {
@@ -108,9 +132,38 @@ const NotificationScreen = ({ navigation }: Props) => {
         const handleNewNotification = (data: any) => {
           console.log('🔔 New notification received via SignalR:', data);
           
-          // Reload notifications from API to get the correct data including NotificationId
-          loadNotifications().then(() => {
+          // Reload notifications first to get NotificationId from DB
+          loadNotifications().then(async () => {
             console.log('✅ Notifications reloaded from API after realtime notification');
+            
+            // After reload, if we have expertId in SignalR data, store it with the newest notification
+            if (data.ExpertId && data.Type === 'expert_confirmation') {
+              try {
+                const notifications = await getNotifications(userId);
+                // Find the newest expert_confirmation notification (just created)
+                const newestExpertNotif = notifications
+                  .filter(n => n.type === 'expert_confirmation')
+                  .sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return dateB - dateA;
+                  })[0];
+                
+                if (newestExpertNotif) {
+                  // Store mapping: notificationId -> expertId
+                  const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
+                  const mappingData = {
+                    expertId: data.ExpertId,
+                    chatId: data.ChatId,
+                    timestamp: Date.now()
+                  };
+                  await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
+                  console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
+                }
+              } catch (err) {
+                console.error('❌ Failed to store notification-expert mapping:', err);
+              }
+            }
           }).catch(err => {
             console.error('❌ Failed to reload notifications:', err);
           });
@@ -213,6 +266,112 @@ const NotificationScreen = ({ navigation }: Props) => {
   const closeModal = () => {
     setModalVisible(false);
     setSelectedNotification(null);
+  };
+
+  // Handle chat with expert
+  const handleChatWithExpert = async () => {
+    if (!selectedNotification || !currentUserId) {
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Không thể tạo chat với chuyên gia'
+      });
+      return;
+    }
+
+    try {
+      setCreatingChat(true);
+      let expertId = selectedNotification.expertId;
+      
+      // Fallback: If expertId not in AsyncStorage (old notification), try to find from ExpertConfirmation
+      if (!expertId) {
+        console.log('⚠️ ExpertId not found in AsyncStorage for notification:', selectedNotification.notificationId);
+        console.log('🔄 Attempting fallback: Loading from ExpertConfirmation API...');
+        
+        try {
+          const confirmations = await getUserExpertConfirmations(currentUserId);
+          console.log('✅ Loaded expert confirmations:', confirmations);
+          
+          if (confirmations.length === 0) {
+            throw new Error('Không tìm thấy yêu cầu xác nhận nào.');
+          }
+          
+          // Find confirmation with matching timestamp (within 5 seconds of notification)
+          const notificationTime = selectedNotification.createdAt ? new Date(selectedNotification.createdAt).getTime() : 0;
+          
+          let matchingConfirmation = confirmations.find(c => {
+            if (c.status?.toLowerCase() !== 'confirmed') return false;
+            const confirmTime = c.updatedAt ? new Date(c.updatedAt).getTime() : 0;
+            const timeDiff = Math.abs(confirmTime - notificationTime);
+            return timeDiff < 5000; // Within 5 seconds
+          });
+          
+          // If no exact match, use the most recent confirmed expert
+          if (!matchingConfirmation) {
+            console.log('⚠️ No exact timestamp match, using most recent confirmed expert');
+            matchingConfirmation = confirmations
+              .filter(c => c.status?.toLowerCase() === 'confirmed')
+              .sort((a, b) => {
+                const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                return dateB - dateA;
+              })[0];
+          }
+          
+          if (matchingConfirmation) {
+            expertId = matchingConfirmation.expertId;
+            console.log('✅ Found expertId from ExpertConfirmation:', expertId);
+            
+            // Store for future use
+            const mappingKey = `notification_expert_${selectedNotification.notificationId}`;
+            const mappingData = {
+              expertId: expertId,
+              chatId: matchingConfirmation.chatAiId,
+              timestamp: Date.now()
+            };
+            await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
+            console.log('💾 Stored expert mapping for future use');
+          }
+        } catch (err) {
+          console.error('❌ Failed to load expert from ExpertConfirmation:', err);
+        }
+      }
+      
+      if (!expertId) {
+        showAlert({
+          type: 'error',
+          title: 'Lỗi',
+          message: 'Không tìm thấy thông tin chuyên gia. Vui lòng thử lại sau hoặc liên hệ admin.'
+        });
+        console.error('❌ ExpertId not found for notification:', selectedNotification.notificationId);
+        return;
+      }
+
+      console.log(`🔄 Creating chat with expert: expertId=${expertId}, userId=${currentUserId}, notificationId=${selectedNotification.notificationId}`);
+
+      // Create or get existing chat
+      const chatResponse = await createOrGetExpertChat(expertId, currentUserId);
+      console.log('✅ Chat created/retrieved:', chatResponse);
+
+      // Close modal
+      closeModal();
+
+      // Navigate to expert chat screen
+      navigation.navigate("ExpertChat", {
+        chatExpertId: chatResponse.chatExpertId,
+        expertId: chatResponse.expertId,
+        expertName: selectedNotification.title?.replace('đã xác nhận thông tin', '').replace('Chuyên gia', '').trim() || "Chuyên gia"
+      });
+    } catch (error: any) {
+      console.error('❌ Error creating chat with expert:', error);
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.message || 'Không thể tạo chat với chuyên gia'
+      });
+    } finally {
+      setCreatingChat(false);
+    }
   };
 
   // 🚀 OPTIMIZATION: Memoize renderNotification with useCallback
@@ -583,14 +742,8 @@ const NotificationScreen = ({ navigation }: Props) => {
                 <>
                   <TouchableOpacity 
                     style={styles.modalButton}
-                    onPress={() => {
-                      closeModal();
-                      // Navigate to expert chat
-                      navigation.navigate("ExpertChat", { 
-                        expertId: selectedNotification?.userId || undefined,
-                        expertName: "Chuyên gia thú y"
-                      });
-                    }}
+                    onPress={handleChatWithExpert}
+                    disabled={creatingChat}
                   >
                     <LinearGradient
                       colors={["#FF6EA7", "#FF9BC0"]}
@@ -598,8 +751,14 @@ const NotificationScreen = ({ navigation }: Props) => {
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                     >
-                      <Icon name="chatbubbles" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                      <Text style={styles.modalButtonText}>Nhắn tin với chuyên gia</Text>
+                      {creatingChat ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <>
+                          <Icon name="chatbubbles" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                          <Text style={styles.modalButtonText}>Nhắn tin với chuyên gia</Text>
+                        </>
+                      )}
                     </LinearGradient>
                   </TouchableOpacity>
                   <TouchableOpacity 
@@ -628,6 +787,17 @@ const NotificationScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          onClose={hideAlert}
+        />
+      )}
     </LinearGradient>
   );
 };

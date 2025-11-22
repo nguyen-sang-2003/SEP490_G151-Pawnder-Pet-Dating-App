@@ -15,13 +15,13 @@ import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getUserExpertChats, ExpertChat } from "../../../api/expert-confirmation";
+import { getUserExpertChats, ExpertChatListItem } from "../../../api/expert-chat";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChatList">;
 
 const ExpertChatListScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(false);
-  const [expertChats, setExpertChats] = useState<ExpertChat[]>([]);
+  const [expertChats, setExpertChats] = useState<ExpertChatListItem[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,7 +83,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
     return 'Vừa xong';
   };
 
-  const renderExpertChat = ({ item }: { item: ExpertChat }) => {
+  const renderExpertChat = ({ item }: { item: ExpertChatListItem }) => {
     const formattedTime = formatTime(item.time);
     
     return (
@@ -91,6 +91,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
         style={styles.chatItem}
         onPress={() =>
           navigation.navigate("ExpertChat", {
+            chatExpertId: item.chatExpertId,
             expertId: item.expertId,
             expertName: item.expertName,
           })

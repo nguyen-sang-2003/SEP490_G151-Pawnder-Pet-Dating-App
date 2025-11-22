@@ -101,7 +101,7 @@ export type RootStackParamList = {
   AIChatList: undefined;
   AIChat: { chatId?: string };
   ExpertChatList: undefined;
-  ExpertChat: { expertId?: number; expertName?: string };
+  ExpertChat: { expertId?: number; expertName?: string; chatExpertId?: number };
   Favorite: undefined;
   Profile: undefined;
   Notification: undefined;

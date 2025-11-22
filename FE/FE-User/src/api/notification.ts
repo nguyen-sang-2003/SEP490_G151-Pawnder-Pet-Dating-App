@@ -5,10 +5,12 @@ export interface Notification {
   userId?: number | null;
   title?: string | null;
   message?: string | null;
-  type?: string | null; // 'system' or 'expert'
+  type?: string | null; // 'system', 'expert', 'expert_confirmation', etc.
   isRead?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
+  expertId?: number | null; // For expert confirmations
+  chatId?: number | null; // For expert confirmations (chatAiId)
 }
 
 /**

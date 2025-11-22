@@ -162,6 +162,12 @@ class SignalRService {
       console.log('🔔 [SignalR] NewNotification received:', data);
       this.notifyListeners('NewNotification', data);
     });
+
+    // Expert chat message
+    this.connection.on('ReceiveExpertMessage', (data) => {
+      console.log('💬 [SignalR] ReceiveExpertMessage received:', data);
+      this.notifyListeners('ReceiveExpertMessage', data);
+    });
   }
 
   /**
@@ -207,6 +213,38 @@ class SignalRService {
 
     } catch (error) {
       console.error('❌ Failed to leave chat:', error);
+    }
+  }
+
+  /**
+   * Join an expert chat room
+   */
+  async joinExpertChat(chatExpertId: number, userId: number): Promise<void> {
+    if (!this.isConnected()) {
+      console.warn('⚠️ Cannot join expert chat - not connected');
+      return;
+    }
+
+    try {
+      await this.connection!.invoke('JoinExpertChat', chatExpertId, userId);
+      console.log(`✅ Joined expert chat ${chatExpertId}`);
+    } catch (error) {
+      console.error('❌ Failed to join expert chat:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Leave an expert chat room
+   */
+  async leaveExpertChat(chatExpertId: number, userId: number): Promise<void> {
+    if (!this.isConnected()) return;
+
+    try {
+      await this.connection!.invoke('LeaveExpertChat', chatExpertId, userId);
+      console.log(`✅ Left expert chat ${chatExpertId}`);
+    } catch (error) {
+      console.error('❌ Failed to leave expert chat:', error);
     }
   }
 

@@ -25,7 +25,7 @@ export interface CreateChatRequest {
   title?: string;
 }
 
-export interface SendMessageRequest {
+export interface SendAIMessageRequest {
   question: string;
 }
 
