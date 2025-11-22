@@ -63,7 +63,9 @@ namespace BE.Services
             // Mark user as online
             OnlineUsers[userId] = DateTime.UtcNow;
             
-            Console.WriteLine($"[ChatHub] User {userId} registered with connection {Context.ConnectionId}");
+            Console.WriteLine($"✅✅✅ [ChatHub] User {userId} registered with connection {Context.ConnectionId}");
+            Console.WriteLine($"[ChatHub] Total connections for user {userId}: {UserConnections[userId].Count}");
+            Console.WriteLine($"[ChatHub] Total online users: {UserConnections.Count}");
             
             // Notify others that user is online
             await Clients.Others.SendAsync("UserOnline", userId);
@@ -223,6 +225,45 @@ namespace BE.Services
                 {
                     await hubContext.Clients.Client(connectionId).SendAsync("MatchSuccess", payload);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Send general notification to a specific user (STATIC for use in services)
+        /// </summary>
+        public static async Task SendNotification(IHubContext<ChatHub> hubContext, int toUserId, string title, string message, string type = "system", int? referenceId = null)
+        {
+            // Debug: Show all currently connected users
+            var connectedUsers = string.Join(", ", UserConnections.Keys);
+            Console.WriteLine($"[ChatHub] Currently connected users: [{connectedUsers}]");
+            Console.WriteLine($"[ChatHub] Trying to send notification to user {toUserId}");
+            
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                var payload = new
+                {
+                    Title = title,
+                    Message = message,
+                    Type = type,
+                    ReferenceId = referenceId, // ExpertId for expert confirmations
+                    Timestamp = DateTime.UtcNow
+                };
+                
+                Console.WriteLine($"✅ [ChatHub] User {toUserId} is ONLINE with {connections.Count} connection(s)");
+                Console.WriteLine($"[ChatHub] Sending notification: {title} (ReferenceId={referenceId})");
+                
+                foreach (var connectionId in connections)
+                {
+                    Console.WriteLine($"   → Sending to connection: {connectionId}");
+                    await hubContext.Clients.Client(connectionId).SendAsync("NewNotification", payload);
+                }
+                
+                Console.WriteLine($"✅ [ChatHub] Notification sent successfully to user {toUserId}");
+            }
+            else
+            {
+                Console.WriteLine($"❌ [ChatHub] User {toUserId} is NOT connected (offline). Notification saved to DB only.");
+                Console.WriteLine($"   Available users in connections: [{connectedUsers}]");
             }
         }
     }
