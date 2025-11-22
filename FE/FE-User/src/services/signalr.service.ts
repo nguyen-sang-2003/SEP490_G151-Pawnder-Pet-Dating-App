@@ -46,7 +46,7 @@ class SignalRService {
           return 60000;
         },
       })
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging(signalR.LogLevel.None) // Tắt log hiển thị trên màn hình
       .build();
 
     // Setup event handlers
