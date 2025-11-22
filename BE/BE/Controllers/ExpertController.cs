@@ -108,15 +108,15 @@ namespace BE.Controllers
 			}
 		}
 
-		[HttpPut("expert-confirmation/{confirmationId:int}/{userId:int}/{chatId:int}")]
+		[HttpPut("expert-confirmation/{expertId:int}/{userId:int}/{chatId:int}")]
 		[Authorize(Roles = "Expert,Admin")]
 		public async Task<ActionResult<ExpertConfirmationResponseDTO>> UpdateExpertConfirmation(
-			int confirmationId, int userId, int chatId,
+			int expertId, int userId, int chatId,
 			[FromBody] ExpertConfirmationUpdateDto dto, CancellationToken ct = default)
 		{
 			try
 			{
-				var response = await _expertConfirmationService.UpdateExpertConfirmationAsync(confirmationId, userId, chatId, dto, ct);
+				var response = await _expertConfirmationService.UpdateExpertConfirmationAsync(expertId, userId, chatId, dto, ct);
 				return Ok(response);
 			}
 			catch (KeyNotFoundException ex)
