@@ -27,6 +27,13 @@ jobs:
     - name: Publish
       run: dotnet publish BE/BE/BE.csproj --configuration Release --no-build --output ./publish-output
     
+    - name: Remove nested BE directory if exists
+      run: |
+        if [ -d "publish-output/BE" ]; then
+          rm -rf publish-output/BE
+          echo "Removed nested BE directory"
+        fi
+    
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
