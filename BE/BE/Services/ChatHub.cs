@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 
 namespace BE.Services
@@ -239,6 +239,29 @@ namespace BE.Services
                         Timestamp = DateTime.UtcNow
                     });
                 }
+            }
+        }
+
+        /// <summary>
+        /// Send notification to a specific user about new expert message badge (STATIC for use in services)
+        /// </summary>
+        public static async Task SendNewExpertMessageBadge(IHubContext<ChatHub> hubContext, int toUserId, int chatExpertId)
+        {
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                foreach (var connectionId in connections)
+                {
+                    await hubContext.Clients.Client(connectionId).SendAsync("NewExpertMessageBadge", new
+                    {
+                        ChatExpertId = chatExpertId,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+                Console.WriteLine($"✅ [ChatHub] Sent NewExpertMessageBadge to user {toUserId} for chat {chatExpertId}");
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ [ChatHub] User {toUserId} is offline, badge will be shown on next app open");
             }
         }
 

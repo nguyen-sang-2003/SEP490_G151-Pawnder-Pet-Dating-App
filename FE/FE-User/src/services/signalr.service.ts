@@ -168,6 +168,12 @@ class SignalRService {
       console.log('💬 [SignalR] ReceiveExpertMessage received:', data);
       this.notifyListeners('ReceiveExpertMessage', data);
     });
+
+    // Expert chat badge
+    this.connection.on('NewExpertMessageBadge', (data) => {
+      console.log('🔔 [SignalR] NewExpertMessageBadge received:', data);
+      this.notifyListeners('NewExpertMessageBadge', data);
+    });
   }
 
   /**

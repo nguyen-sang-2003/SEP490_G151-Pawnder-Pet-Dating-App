@@ -177,10 +177,14 @@ apiClient.interceptors.response.use(
         );
 
         console.log(
-          `🔄 [ApiClient] Retry attempt ${nextAttempt}/${maxAttempts} for ${originalRequest.url} after ${delay}ms`
+          `🔄 [ApiClient] Retry attempt ${nextAttempt}/${maxAttempts} for ${originalRequest.url} after ${delay}ms (timeout: ${originalRequest.timeout || API_CONFIG.TIMEOUT}ms)`
         );
 
         await sleep(delay);
+        
+        // IMPORTANT: Preserve the original timeout for retry
+        // This is critical for long-running requests like AI chat (50s timeout)
+        // Without this, retries would use the default 10s timeout and fail
         return apiClient(originalRequest);
       } else {
         console.log(

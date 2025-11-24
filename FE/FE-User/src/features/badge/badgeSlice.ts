@@ -12,6 +12,7 @@ interface MatchModalData {
 
 interface BadgeState {
   unreadChats: number[]; // Array of matchIds with unread messages
+  unreadExpertChats: number[]; // Array of chatExpertIds with unread messages
   favoriteBadge: number;
   notificationBadge: number;
   matchModal: MatchModalData;
@@ -20,6 +21,7 @@ interface BadgeState {
 
 const initialState: BadgeState = {
   unreadChats: [],
+  unreadExpertChats: [],
   favoriteBadge: 0,
   notificationBadge: 0,
   activePetId: null,
@@ -58,6 +60,19 @@ const badgeSlice = createSlice({
     },
     resetAllUnreadChats: (state) => {
       state.unreadChats = [];
+    },
+    addUnreadExpertChat: (state, action: PayloadAction<number>) => {
+      const chatExpertId = action.payload;
+      if (!state.unreadExpertChats.includes(chatExpertId)) {
+        state.unreadExpertChats.push(chatExpertId);
+      }
+    },
+    markExpertChatAsRead: (state, action: PayloadAction<number>) => {
+      const chatExpertId = action.payload;
+      state.unreadExpertChats = state.unreadExpertChats.filter(id => id !== chatExpertId);
+    },
+    resetAllUnreadExpertChats: (state) => {
+      state.unreadExpertChats = [];
     },
     incrementFavoriteBadge: (state) => {
       state.favoriteBadge += 1;
@@ -117,6 +132,9 @@ export const {
   addUnreadChat,
   markChatAsRead,
   resetAllUnreadChats,
+  addUnreadExpertChat,
+  markExpertChatAsRead,
+  resetAllUnreadExpertChats,
   incrementFavoriteBadge,
   decrementFavoriteBadge,
   resetFavoriteBadge,
@@ -132,6 +150,9 @@ export const {
 // Selectors
 export const selectUnreadChats = (state: RootState) => state.badge.unreadChats;
 export const selectChatBadge = (state: RootState) => state.badge.unreadChats.length; // Badge = count of unread chats
+export const selectUnreadExpertChats = (state: RootState) => state.badge.unreadExpertChats;
+export const selectExpertChatBadge = (state: RootState) => state.badge.unreadExpertChats.length; // Badge = count of unread expert chats
+export const selectTotalChatBadge = (state: RootState) => state.badge.unreadChats.length + state.badge.unreadExpertChats.length; // Total badge = user chats + expert chats
 export const selectFavoriteBadge = (state: RootState) => state.badge.favoriteBadge;
 export const selectNotificationBadge = (state: RootState) => state.badge.notificationBadge;
 export const selectMatchModal = (state: RootState) => state.badge.matchModal;

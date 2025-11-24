@@ -45,15 +45,25 @@ namespace BE.Controllers
         {
             try
             {
+                Console.WriteLine($"📡 [ChatExpertController] GET /chat-expert/expert/{expertId}");
+                Console.WriteLine($"👤 [ChatExpertController] User claims: {string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+                
                 var chats = await _chatExpertService.GetChatsByExpertIdAsync(expertId, ct);
-                return Ok(chats);
+                
+                var chatsList = chats.ToList();
+                Console.WriteLine($"✅ [ChatExpertController] Found {chatsList.Count} chats for expert {expertId}");
+                
+                return Ok(chatsList);
             }
             catch (KeyNotFoundException ex)
             {
+                Console.WriteLine($"❌ [ChatExpertController] Not found: {ex.Message}");
                 return NotFound(new { message = ex.Message });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"❌ [ChatExpertController] Error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
             }
         }

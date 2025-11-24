@@ -17,10 +17,13 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDispatch } from "react-redux";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, radius, shadows } from "../../../theme";
 import { getExpertChatMessages, sendExpertChatMessage, ExpertChatMessage } from "../../../api/expert-chat";
 import signalRService from "../../../services/signalr.service";
+import { markExpertChatAsRead } from "../../badge/badgeSlice";
+import { AppDispatch } from "../../../app/store";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChat">;
 
@@ -34,12 +37,20 @@ interface Message {
 
 const ExpertChatScreen = ({ navigation, route }: Props) => {
   const { chatExpertId, expertId, expertName } = route.params || {};
+  const dispatch = useDispatch<AppDispatch>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  // Mark chat as read when entering screen
+  useEffect(() => {
+    if (chatExpertId) {
+      dispatch(markExpertChatAsRead(chatExpertId));
+    }
+  }, [chatExpertId, dispatch]);
 
   // Load messages
   const loadMessages = useCallback(async () => {
@@ -67,13 +78,21 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       const data = await getExpertChatMessages(chatExpertId);
 
       // Transform API messages to UI messages
-      const transformedMessages: Message[] = data.map((msg: ExpertChatMessage) => ({
-        id: msg.contentId.toString(),
-        text: msg.message,
-        isExpert: msg.fromId !== userId, // If fromId is not current user, it's from expert
-        timestamp: new Date(msg.createdAt),
-        status: "sent" as const,
-      }));
+      const transformedMessages: Message[] = data.map((msg: ExpertChatMessage) => {
+        // Backend trả về UTC, cần thêm 'Z' nếu chưa có
+        let dateStr = msg.createdAt;
+        if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+          dateStr = dateStr + 'Z';
+        }
+        
+        return {
+          id: msg.contentId.toString(),
+          text: msg.message,
+          isExpert: msg.fromId !== userId, // If fromId is not current user, it's from expert
+          timestamp: new Date(dateStr),
+          status: "sent" as const,
+        };
+      });
 
       setMessages(transformedMessages);
       console.log('✅ Loaded', transformedMessages.length, 'messages');
@@ -112,35 +131,59 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         // Listen for new messages
         const handleNewMessage = (data: any) => {
           console.log('💬 [ExpertChat] New message received via SignalR:', data);
+          console.log('💬 [ExpertChat] Current userId:', userId);
+          console.log('💬 [ExpertChat] Current chatExpertId:', chatExpertId);
+          console.log('💬 [ExpertChat] Message fromId:', data.FromId);
+          console.log('💬 [ExpertChat] Message chatExpertId:', data.ChatExpertId);
           
-          // Only add if it's not from current user (to avoid duplicates with optimistic update)
-          if (data.FromId !== userId && data.ChatExpertId === chatExpertId) {
-            const newMessage: Message = {
-              id: `temp_${Date.now()}`, // Temporary ID
-              text: data.Message,
-              isExpert: data.FromId !== userId,
-              timestamp: new Date(data.CreatedAt),
-              status: "sent" as const,
-            };
-
-            setMessages((prev) => {
-              // Check if message already exists (avoid duplicates)
-              const exists = prev.some(m => 
-                m.text === newMessage.text && 
-                Math.abs(m.timestamp.getTime() - newMessage.timestamp.getTime()) < 2000
-              );
-              if (exists) {
-                console.log('⚠️ Message already exists, skipping');
-                return prev;
-              }
-              return [...prev, newMessage];
-            });
-
-            // Scroll to bottom
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+          // Check if message is for this chat
+          const messageChatId = data.ChatExpertId || data.chatExpertId;
+          if (messageChatId !== chatExpertId) {
+            console.log('⚠️ Message is for different chat, ignoring');
+            return;
           }
+          
+          // Check if message is from current user (skip to avoid duplicate with optimistic update)
+          const messageFromId = data.FromId || data.fromId;
+          if (messageFromId === userId) {
+            console.log('⚠️ Message is from current user, skipping (already added optimistically)');
+            return;
+          }
+          
+          // Add message from expert
+          let dateStr = data.CreatedAt || data.createdAt;
+          if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+            dateStr = dateStr + 'Z';
+          }
+          
+          const newMessage: Message = {
+            id: `signalr_${Date.now()}`,
+            text: data.Message || data.message,
+            isExpert: true, // Message from expert
+            timestamp: new Date(dateStr),
+            status: "sent" as const,
+          };
+
+          console.log('✅ [ExpertChat] Adding expert message:', newMessage);
+
+          setMessages((prev) => {
+            // Check if message already exists (avoid duplicates)
+            const exists = prev.some(m => 
+              m.text === newMessage.text && 
+              Math.abs(m.timestamp.getTime() - newMessage.timestamp.getTime()) < 2000
+            );
+            if (exists) {
+              console.log('⚠️ Message already exists, skipping');
+              return prev;
+            }
+            console.log('✅ Adding message to state');
+            return [...prev, newMessage];
+          });
+
+          // Scroll to bottom
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
         };
 
         signalRService.on('ReceiveExpertMessage', handleNewMessage);
@@ -206,13 +249,18 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       });
 
       // Update message with actual data from server
+      let dateStr = sentMessage.createdAt;
+      if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+        dateStr = dateStr + 'Z';
+      }
+      
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempId
             ? {
                 ...msg,
                 id: sentMessage.contentId.toString(),
-                timestamp: new Date(sentMessage.createdAt),
+                timestamp: new Date(dateStr),
                 status: "sent" as const,
               }
             : msg
@@ -237,9 +285,13 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
   };
 
   const formatTime = (date: Date) => {
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+    // Date object đã được convert từ UTC sang local time của device
+    // Chỉ cần format lại
+    return date.toLocaleTimeString('vi-VN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false
+    });
   };
 
   const renderMessage = ({ item }: { item: Message }) => {

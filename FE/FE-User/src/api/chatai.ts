@@ -129,15 +129,27 @@ export const sendMessageToAI = async (
   question: string
 ): Promise<AIMessageResponse> => {
   try {
+    console.log(`📞 Sending message to AI: ${JSON.stringify({ chatId: chatAiId, messageText: question })}`);
+    
     // AI requests need longer timeout (50 seconds) because backend calls Gemini API (45s timeout)
     const response = await apiClient.post(
       `/api/chat-ai/${chatAiId}/messages`, 
       { question },
-      { timeout: 50000 } // 50 seconds
+      { 
+        timeout: 50000, // 50 seconds
+        retryAttempts: 1 // Only retry once for AI requests (they're expensive)
+      }
     );
 
+    console.log(`✅ AI response received successfully`);
     return response.data.data;
   } catch (error: any) {
+    console.error(`❌ AI request failed:`, {
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+      isTimeout: error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+    });
+    
     // Silent fail for all errors (handled by UI modal or screen)
     throw error;
   }

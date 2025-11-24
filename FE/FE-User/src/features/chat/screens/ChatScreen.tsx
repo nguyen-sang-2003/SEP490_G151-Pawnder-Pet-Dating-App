@@ -23,7 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import signalRService from "../../../services/signalr.service";
 import { getUserPetAvatar, getPetAvatar } from "../../../utils/petAvatar";
 import { useDispatch, useSelector } from "react-redux";
-import { selectUnreadChats, selectActivePetId } from "../../badge/badgeSlice";
+import { selectUnreadChats, selectActivePetId, selectExpertChatBadge, selectTotalChatBadge } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
 import { getVipStatus } from "../../../api/payment";
 import { getPetsByUserId } from "../../../api/pet";
@@ -48,6 +48,8 @@ interface ChatItem {
 const ChatScreen = ({ navigation }: Props) => {
   const dispatch = useDispatch<AppDispatch>();
   const unreadChats = useSelector(selectUnreadChats); // Get list of unread matchIds
+  const expertChatBadge = useSelector(selectExpertChatBadge); // Get expert chat badge count
+  const totalChatBadge = useSelector(selectTotalChatBadge); // Get total badge (user + expert)
   const activePetId = useSelector(selectActivePetId); // Get current active pet ID
   const [searchQuery, setSearchQuery] = useState("");
   const [chatData, setChatData] = useState<ChatItem[]>([]);
@@ -460,6 +462,28 @@ const ChatScreen = ({ navigation }: Props) => {
             </View>
             <Text style={styles.specialChatTitle}>Chuyên gia</Text>
             <Text style={styles.specialChatSubtitle}>Tư vấn chuyên sâu</Text>
+            {expertChatBadge > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                backgroundColor: '#FF4444',
+                minWidth: 20,
+                height: 20,
+                borderRadius: 10,
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingHorizontal: 6,
+              }}>
+                <Text style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: colors.white,
+                }}>
+                  {expertChatBadge > 99 ? '99+' : expertChatBadge}
+                </Text>
+              </View>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -474,11 +498,13 @@ const ChatScreen = ({ navigation }: Props) => {
           <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
             All Chats
           </Text>
-          <View style={[styles.filterBadge, activeFilter === 'all' && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, activeFilter === 'all' && styles.filterBadgeTextActive]}>
-              {chatData.length}
-            </Text>
-          </View>
+          {totalChatBadge > 0 && (
+            <View style={[styles.filterBadge, activeFilter === 'all' && styles.filterBadgeActive]}>
+              <Text style={[styles.filterBadgeText, activeFilter === 'all' && styles.filterBadgeTextActive]}>
+                {totalChatBadge}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity

@@ -45,7 +45,13 @@ namespace BE.Repositories
 
         public async Task<IEnumerable<object>> GetChatsByExpertIdAsync(int expertId, CancellationToken ct = default)
         {
-            return await _dbSet
+            Console.WriteLine($"🗄️ [ChatExpertRepository] Querying database for expertId: {expertId}");
+            
+            var allChats = await _dbSet.ToListAsync(ct);
+            Console.WriteLine($"📊 [ChatExpertRepository] Total chats in database: {allChats.Count}");
+            Console.WriteLine($"📊 [ChatExpertRepository] All expert IDs: {string.Join(", ", allChats.Select(c => c.ExpertId).Distinct())}");
+            
+            var result = await _dbSet
                 .Include(c => c.Expert)
                 .Include(c => c.User)
                 .Where(c => c.ExpertId == expertId)
@@ -62,6 +68,14 @@ namespace BE.Repositories
                     updatedAt = c.UpdatedAt
                 })
                 .ToListAsync(ct);
+            
+            Console.WriteLine($"✅ [ChatExpertRepository] Query returned {result.Count} chats");
+            foreach (var chat in result)
+            {
+                Console.WriteLine($"   - ChatExpertId: {chat.chatExpertId}, UserId: {chat.userId}, UserName: {chat.userName}");
+            }
+            
+            return result;
         }
 
         public async Task<ChatExpert?> GetChatExpertByExpertAndUserAsync(int expertId, int userId, CancellationToken ct = default)

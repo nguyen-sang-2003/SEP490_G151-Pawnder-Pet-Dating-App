@@ -4,6 +4,7 @@ import { AppDispatch, store } from '../app/store';
 import { 
   setBadgeCounts, 
   addUnreadChat,
+  addUnreadExpertChat,
   incrementFavoriteBadge,
   incrementNotificationBadge,
   showMatchModal,
@@ -94,14 +95,29 @@ export const useBadgeNotifications = (userId: number | null) => {
       }));
     };
 
+    const handleNewExpertMessageBadge = (data: any) => {
+      console.log('🔔 [NewExpertMessageBadge] Received:', data);
+      const chatExpertId = data.chatExpertId || data.ChatExpertId;
+      
+      if (!chatExpertId) {
+        console.log('❌ [NewExpertMessageBadge] No chatExpertId, ignoring');
+        return;
+      }
+      
+      console.log(`📬 [NewExpertMessageBadge] New message from expert in chat ${chatExpertId}`);
+      dispatch(addUnreadExpertChat(chatExpertId));
+    };
+
     signalRService.on('NewMessageBadge', handleNewMessageBadge);
     signalRService.on('NewLikeBadge', handleNewLikeBadge);
     signalRService.on('MatchSuccess', handleMatchSuccess);
+    signalRService.on('NewExpertMessageBadge', handleNewExpertMessageBadge);
 
     return () => {
       signalRService.off('NewMessageBadge', handleNewMessageBadge);
       signalRService.off('NewLikeBadge', handleNewLikeBadge);
       signalRService.off('MatchSuccess', handleMatchSuccess);
+      signalRService.off('NewExpertMessageBadge', handleNewExpertMessageBadge);
     };
   }, [userId, dispatch]);
 };

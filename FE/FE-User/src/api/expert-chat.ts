@@ -71,9 +71,24 @@ export interface ExpertChatListItem {
 export const getUserExpertChats = async (userId: number): Promise<ExpertChatListItem[]> => {
   try {
     console.log(`🔄 Getting expert chats for user: ${userId}`);
-    const response = await apiClient.get<ExpertChatListItem[]>(`/api/ChatExpert/user/${userId}`);
-    console.log('✅ Expert chats retrieved:', response.data);
-    return response.data || [];
+    const response = await apiClient.get(`/api/ChatExpert/user/${userId}`);
+    console.log('✅ Expert chats retrieved (raw):', response.data);
+    
+    // Transform backend response to match interface
+    const chats = (response.data || []).map((chat: any) => ({
+      id: chat.id || chat.chatExpertId?.toString() || '',
+      chatExpertId: chat.chatExpertId,
+      expertId: chat.expertId,
+      expertName: chat.expertName || 'Chuyên gia',
+      specialty: chat.specialty || 'Chuyên gia thú y',
+      lastMessage: chat.lastMessage || 'Chưa có tin nhắn',
+      time: chat.time || chat.createdAt || new Date().toISOString(),
+      unread: chat.unread || 0,
+      isOnline: chat.isOnline || false,
+    }));
+    
+    console.log('✅ Transformed chats:', chats);
+    return chats;
   } catch (error: any) {
     console.error('❌ Get expert chats error:', error);
     if (error.response?.data?.message) {
