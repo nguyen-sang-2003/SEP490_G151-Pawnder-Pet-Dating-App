@@ -9,6 +9,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v3
@@ -25,7 +26,7 @@ jobs:
       run: dotnet build BackEnd/BE/BE.csproj --configuration Release --no-restore
     
     - name: Publish
-      run: dotnet publish BackEnd/BE/BE.csproj --configuration Release --no-build --output ./publish-output
+      run: dotnet publish BackEnd/BE/BE.csproj --configuration Release --output ./publish-output
     
     - name: Remove nested BE directory if exists
       run: |
@@ -39,7 +40,7 @@ jobs:
         fi
     
     - name: Create deployment package
-      run: cd publish-output && zip -r ../deploy.zip . && cd ..
+      run: cd publish-output && zip -r ../deploy.zip . -q && cd ..
     
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
