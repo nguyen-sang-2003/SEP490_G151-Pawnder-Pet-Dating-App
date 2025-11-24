@@ -28,7 +28,7 @@ jobs:
     - name: Publish
       run: dotnet publish BackEnd/BE/BE.csproj --configuration Release --output ./publish-output
     
-    - name: Remove nested BE directory if exists
+    - name: Remove nested directories if exists
       run: |
         if [ -d "publish-output/BE" ]; then
           rm -rf publish-output/BE
@@ -38,14 +38,13 @@ jobs:
           rm -rf publish-output/BackEnd
           echo "Removed nested BackEnd directory"
         fi
-    
-    - name: Create deployment package
-      run: cd publish-output && zip -r ../deploy.zip . -q && cd ..
+        echo "Listing publish-output contents:"
+        ls -la publish-output/
     
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: 'pawnder-backend-2024'
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ./deploy.zip
+        package: ./publish-output
         clean: true
