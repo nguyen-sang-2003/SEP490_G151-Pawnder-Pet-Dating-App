@@ -28,25 +28,35 @@ jobs:
     - name: Publish
       run: dotnet publish BackEnd/BE/BE.csproj --configuration Release --output ./publish-output --no-build
     
-    - name: Remove nested directories if exists
+    - name: Verify publish output
       run: |
-        if [ -d "publish-output/BE" ]; then
-          mv publish-output/BE/* publish-output/ 2>/dev/null || true
-          rm -rf publish-output/BE
-          echo "Removed nested BE directory"
-        fi
-        if [ -d "publish-output/BackEnd" ]; then
-          mv publish-output/BackEnd/* publish-output/ 2>/dev/null || true
-          rm -rf publish-output/BackEnd
-          echo "Removed nested BackEnd directory"
-        fi
         echo "Listing publish-output contents:"
         ls -la publish-output/
+        echo "Checking for required files:"
+        if [ -f "publish-output/BE.dll" ]; then
+          echo "✓ BE.dll found"
+        else
+          echo "✗ BE.dll not found"
+          find publish-output -name "*.dll" -type f | head -5
+        fi
+        if [ -f "publish-output/appsettings.json" ]; then
+          echo "✓ appsettings.json found"
+        else
+          echo "✗ appsettings.json not found"
+        fi
+    
+    - name: Create deployment package
+      run: |
+        cd publish-output
+        zip -r ../deploy-package.zip .
+        cd ..
+        echo "Package size:"
+        ls -lh deploy-package.zip
     
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: 'pawnder-backend-2024'
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ./publish-output
+        package: ./deploy-package.zip
         clean: true
