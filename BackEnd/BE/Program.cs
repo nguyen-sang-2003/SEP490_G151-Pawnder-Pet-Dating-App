@@ -57,7 +57,7 @@ builder.Services.AddDbContext<PawnderDatabaseContext>(options =>
 builder.Services.AddScoped<TokenService>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var secret = jwtSection["Secret"];
+var secret = jwtSection["Secret"] ?? throw new ArgumentNullException("Jwt:Secret is required");
 
 builder.Services.AddAuthentication(options =>
 {
