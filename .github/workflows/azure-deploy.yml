@@ -33,6 +33,10 @@ jobs:
           rm -rf publish-output/BE
           echo "Removed nested BE directory"
         fi
+        if [ -d "publish-output/BackEnd" ]; then
+          rm -rf publish-output/BackEnd
+          echo "Removed nested BackEnd directory"
+        fi
     
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
