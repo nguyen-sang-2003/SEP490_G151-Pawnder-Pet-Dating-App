@@ -33,7 +33,16 @@ jobs:
     
     - name: Fix publish output structure
       run: |
-        echo "=== Checking for nested directories ==="
+        echo "=== Checking publish output ==="
+        ls -la publish-output/ | head -20
+        echo ""
+        echo "=== Checking for conflicts ==="
+        # Check if there's a file named "BE" (executable) that conflicts with directory
+        if [ -f "publish-output/BE" ] && [ ! -d "publish-output/BE" ]; then
+          echo "Found BE executable file, renaming to BE.exe"
+          mv publish-output/BE publish-output/BE.exe || true
+        fi
+        # Check for nested directories
         if [ -d "publish-output/BE" ]; then
           echo "Found nested BE directory, flattening..."
           mv publish-output/BE/* publish-output/ 2>/dev/null || true
