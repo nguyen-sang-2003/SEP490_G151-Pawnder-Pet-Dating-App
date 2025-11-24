@@ -48,23 +48,23 @@ namespace BE.Services
 
             // Business logic: Build query for match requests (both pending and accepted) excluding blocked users
             var query = _context.ChatUsers
-                .Include(c => c.FromPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Address)
-                .Include(c => c.FromPet)
-                    .ThenInclude(p => p.User!)
-                        .ThenInclude(u => u.Pets.Where(p => p.IsDeleted == false))
-                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.FromPet)
-                    .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.ToPet)
+                .Include(c => c.FromPet!)
                     .ThenInclude(p => p.User!)
                         .ThenInclude(u => u.Address)
-                .Include(c => c.ToPet)
+                .Include(c => c.FromPet!)
                     .ThenInclude(p => p.User!)
                         .ThenInclude(u => u.Pets.Where(p => p.IsDeleted == false))
                             .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.ToPet)
+                .Include(c => c.FromPet!)
+                    .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                .Include(c => c.ToPet!)
+                    .ThenInclude(p => p.User!)
+                        .ThenInclude(u => u.Address)
+                .Include(c => c.ToPet!)
+                    .ThenInclude(p => p.User!)
+                        .ThenInclude(u => u.Pets.Where(p => p.IsDeleted == false))
+                            .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                .Include(c => c.ToPet!)
                     .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Where(c => c.IsDeleted == false &&
                            c.FromPet != null && c.ToPet != null &&
@@ -401,8 +401,8 @@ namespace BE.Services
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromPet.UserId.Value, user2.FullName, chatUser.ToPet.UserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToPet.UserId.Value, user1.FullName, chatUser.FromPet.UserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromPet.UserId.Value, user2.FullName ?? "User", chatUser.ToPet.UserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToPet.UserId.Value, user1.FullName ?? "User", chatUser.FromPet.UserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
                 }
 
                 return new
