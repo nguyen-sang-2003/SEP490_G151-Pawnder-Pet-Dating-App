@@ -1,3 +1,3 @@
 # SEP490_G151 : Pawnder: Pet Dating App
 
-<!-- Deployment trigger - Fixed package path -->
+<!-- Deployment trigger - After renaming BE to BackEnd -->
