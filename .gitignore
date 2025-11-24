@@ -1,0 +1,19 @@
+# Build outputs
+publish-output/
+**/bin/
+**/obj/
+**/publish/
+
+# Azure
+.azure/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
