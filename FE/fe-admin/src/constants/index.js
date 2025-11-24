@@ -42,6 +42,21 @@ export const API_ENDPOINTS = {
     CREATE: '/api/notification', // POST /api/notification
     DELETE: (id) => `/api/notification/${id}`, // DELETE /api/notification/{notificationId}
   },
+  ATTRIBUTES: {
+    LIST: '/api/attribute',
+    DETAIL: (id) => `/api/attribute/${id}`,
+    CREATE: '/api/attribute',
+    UPDATE: (id) => `/api/attribute/${id}`,
+    DELETE: (id) => `/api/attribute/${id}`, // append ?hard=true if needed
+    FOR_FILTER: '/api/attribute/for-filter',
+  },
+  ATTRIBUTE_OPTIONS: {
+    LIST_ALL: '/api/attributeoption/attribute-option',
+    LIST_BY_ATTRIBUTE: (attributeId) => `/api/attributeoption/${attributeId}`,
+    CREATE: (attributeId) => `/api/attributeoption/attribute-option/${attributeId}`,
+    UPDATE: (optionId) => `/api/attributeoption/attribute-option/${optionId}`,
+    DELETE: (optionId) => `/api/attributeoption/attribute-option/${optionId}`,
+  },
   EXPERT: {
     // ExpertController không có [Route("api")] ở controller level
     LIST: '/expert-confirmation', // GET /expert-confirmation

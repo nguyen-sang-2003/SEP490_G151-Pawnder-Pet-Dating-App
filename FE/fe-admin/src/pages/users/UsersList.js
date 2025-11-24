@@ -5,6 +5,12 @@ import petService from '../../services/api/petService';
 import { STORAGE_KEYS } from '../../constants';
 import './UsersList.css';
 
+const ROLE_ID = {
+  ADMIN: 1,
+  EXPERT: 2,
+  USER: 3
+};
+
 const UsersList = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -446,17 +452,14 @@ const UsersList = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle search with debounce
+  // Handle search/filter changes with debounce -> always reset to page 1
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      // Reset to page 1 when search or filter changes
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      }
+      setCurrentPage(1);
     }, 500); // Debounce 500ms
     
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, filterStatus, currentPage]);
+  }, [searchTerm, filterStatus]);
 
   const handleUserClick = (userId) => {
     navigate(`/users/${userId}`);
@@ -663,16 +666,22 @@ const UsersList = () => {
                   {getVerificationBadge(user.isVerified)}
                 </td>
                 <td>
-                  <div className="user-stats">
-                    <div className="stat-item">
-                      <span className="stat-label">Thú cưng:</span>
-                      <span className="stat-value">{user.totalPets}</span>
+                  {user.roleId === ROLE_ID.EXPERT ? (
+                    <div className="user-stats placeholder">
+                      <span className="stat-label">Không áp dụng cho Expert</span>
                     </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Ghép đôi:</span>
-                      <span className="stat-value">{user.totalMatches}</span>
+                  ) : (
+                    <div className="user-stats">
+                      <div className="stat-item">
+                        <span className="stat-label">Thú cưng:</span>
+                        <span className="stat-value">{user.totalPets}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">Ghép đôi:</span>
+                        <span className="stat-value">{user.totalMatches}</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </td>
                 <td>
                   {user.createdAt ? (

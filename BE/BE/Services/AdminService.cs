@@ -275,17 +275,26 @@ namespace BE.Services
             // Business logic: Hash password
             var hashed = _passwordService.HashPassword(req.Password);
 
+            var now = DateTime.Now;
+            var desiredStatusId = req.UserStatusId;
+            if (!desiredStatusId.HasValue)
+            {
+                // Default to "Tài khoản thường" (2) when not provided
+                desiredStatusId = 2;
+            }
+
             var entity = new User
             {
                 RoleId = req.RoleId,
-                UserStatusId = 1,
+                UserStatusId = desiredStatusId,
                 FullName = req.FullName,
                 Gender = req.Gender,
                 Email = req.Email,
                 PasswordHash = hashed,
+                IsProfileComplete = req.IsProfileComplete ?? (req.RoleId == 2),
                 IsDeleted = false,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             await _userRepository.AddAsync(entity, ct);
@@ -300,6 +309,7 @@ namespace BE.Services
                 Gender = entity.Gender,
                 Email = entity.Email,
                 ProviderLogin = entity.ProviderLogin,
+                isProfileComplete = entity.IsProfileComplete,
                 IsDeleted = entity.IsDeleted ?? false,
                 CreatedAt = entity.CreatedAt,
                 UpdatedAt = entity.UpdatedAt

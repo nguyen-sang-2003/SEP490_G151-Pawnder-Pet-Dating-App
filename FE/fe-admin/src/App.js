@@ -21,6 +21,7 @@ import ExpertChat from './pages/expert/ExpertChat';
 import ExpertList from './pages/expert/ExpertList';
 import ExpertDetail from './pages/expert/ExpertDetail';
 import CreateExpert from './pages/expert/CreateExpert';
+import AttributeManagement from './pages/attributes/AttributeManagement';
 
 // Layout
 import AdminLayout from './components/layout/AdminLayout';
@@ -134,6 +135,14 @@ function App() {
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <PaymentManagement />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/attributes" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <AttributeManagement />
                   </AdminLayout>
                 </ProtectedRoute>
               } />
