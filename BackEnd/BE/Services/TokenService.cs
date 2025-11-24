@@ -15,9 +15,9 @@ namespace BE.Services
 
         public TokenService(IConfiguration config)
         {
-            _secret = config["Jwt:Secret"];
-            _issuer = config["Jwt:Issuer"];
-            _audience = config["Jwt:Audience"];
+            _secret = config["Jwt:Secret"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Secret is required");
+            _issuer = config["Jwt:Issuer"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Issuer is required");
+            _audience = config["Jwt:Audience"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Audience is required");
             _accessTokenExpirationMinutes = int.Parse(config["Jwt:AccessTokenExpirationMinutes"] ?? "30");
             _refreshTokenExpirationDays = int.Parse(config["Jwt:RefreshTokenExpirationDays"] ?? "7");
         }
