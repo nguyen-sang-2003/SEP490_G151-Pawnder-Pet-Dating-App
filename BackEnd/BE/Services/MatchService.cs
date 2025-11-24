@@ -52,17 +52,17 @@ namespace BE.Services
                     .ThenInclude(p => p.User)
                         .ThenInclude(u => u!.Address)
                 .Include(c => c.FromPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
+                    .ThenInclude(p => p.User!)
+                        .ThenInclude(u => u.Pets.Where(p => p.IsDeleted == false))
                             .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(c => c.FromPet)
                     .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(c => c.ToPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Address)
+                    .ThenInclude(p => p.User!)
+                        .ThenInclude(u => u.Address)
                 .Include(c => c.ToPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Pets.Where(p => p.IsDeleted == false))
+                    .ThenInclude(p => p.User!)
+                        .ThenInclude(u => u.Pets.Where(p => p.IsDeleted == false))
                             .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(c => c.ToPet)
                     .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
@@ -276,8 +276,8 @@ namespace BE.Services
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
-                    await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName, request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
-                    await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName, request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName ?? "User", request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName ?? "User", request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
                 }
 
                 var fromUserId = reciprocalLike.FromPet?.UserId;

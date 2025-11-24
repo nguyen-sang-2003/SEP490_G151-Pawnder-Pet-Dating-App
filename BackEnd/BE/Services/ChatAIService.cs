@@ -44,7 +44,7 @@ namespace BE.Services
 
         public async Task<object> CreateChatAsync(int userId, string? title, CancellationToken ct = default)
         {
-            var chat = await _geminiService.CreateChatSessionAsync(userId, title);
+            var chat = await _geminiService.CreateChatSessionAsync(userId, title ?? "New Chat");
 
             return new
             {
