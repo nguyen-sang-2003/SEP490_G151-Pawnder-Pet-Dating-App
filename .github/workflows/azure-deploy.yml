@@ -30,13 +30,14 @@ jobs:
     
     - name: Verify publish output
       run: |
-        echo "Listing publish-output contents:"
-        ls -la publish-output/
-        echo "Checking for required files:"
+        echo "=== Publish Output Structure ==="
+        ls -la publish-output/ | head -20
+        echo ""
+        echo "=== Checking Required Files ==="
         if [ -f "publish-output/BE.dll" ]; then
           echo "✓ BE.dll found"
         else
-          echo "✗ BE.dll not found"
+          echo "✗ BE.dll not found - searching..."
           find publish-output -name "*.dll" -type f | head -5
         fi
         if [ -f "publish-output/appsettings.json" ]; then
@@ -44,14 +45,22 @@ jobs:
         else
           echo "✗ appsettings.json not found"
         fi
+        if [ -f "publish-output/appsettings.Development.json" ]; then
+          echo "✓ appsettings.Development.json found"
+        fi
+        echo ""
+        echo "=== File Count ==="
+        echo "Total files: $(find publish-output -type f | wc -l)"
+        echo "DLL files: $(find publish-output -name "*.dll" | wc -l)"
     
     - name: Create deployment package
       run: |
         cd publish-output
-        zip -r ../deploy-package.zip .
+        zip -r ../deploy-package.zip . -q
         cd ..
-        echo "Package size:"
+        echo "=== Package Created ==="
         ls -lh deploy-package.zip
+        echo "Package size: $(du -h deploy-package.zip | cut -f1)"
     
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
