@@ -29,6 +29,17 @@ builder.Services.AddScoped<IPhotoStorage, CloudinaryPhotoStorage>();
 // Add services to the container.
 //Address service
 builder.Services.AddHttpClient();
+// CORS Configuration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 // Register OData + Controllers
 builder.Services
     .AddControllers()
@@ -145,10 +156,15 @@ builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.Mat
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+// Enable Swagger in all environments (Development and Production)
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pawnder API V1");
+    c.RoutePrefix = "swagger"; // Set Swagger UI at /swagger
+});
 
-app.UseHttpsRedirection();
+app.UseCors("AllowAll");
 
 app.UseAuthentication();
 
