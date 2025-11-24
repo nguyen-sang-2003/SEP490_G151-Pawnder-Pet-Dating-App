@@ -53,9 +53,16 @@ jobs:
         echo "Total files: $(find publish-output -type f | wc -l)"
         echo "DLL files: $(find publish-output -name "*.dll" | wc -l)"
     
+    - name: Create ZIP package
+      run: |
+        cd publish-output
+        zip -r ../deploy.zip . -q
+        cd ..
+        echo "ZIP created: $(ls -lh deploy.zip | awk '{print $5}')"
+    
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
         app-name: 'pawnder-backend-2024'
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ./publish-output
+        package: ./deploy.zip

@@ -62,7 +62,7 @@ namespace BE.Repositories
         {
             return await _dbSet
                 .Include(r => r.UserReport)
-                .Include(r => r.Content)
+                .Include(r => r.Content!)
                     .ThenInclude(c => c.FromPet!)
                         .ThenInclude(p => p.User!)
                 .Where(r => r.UserReportId == userReportId)
