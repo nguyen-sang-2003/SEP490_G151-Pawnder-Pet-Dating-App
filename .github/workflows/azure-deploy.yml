@@ -19,6 +19,9 @@ jobs:
       with:
         dotnet-version: '8.0.x'
     
+    - name: Clean
+      run: dotnet clean BackEnd/BE/BE.csproj --configuration Release
+    
     - name: Restore dependencies
       run: dotnet restore BackEnd/BE/BE.csproj
     
