@@ -2,6 +2,7 @@ using BE.Models;
 using BE.Services;
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -156,6 +157,37 @@ builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.Mat
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+// Global Exception Handler - Log errors to Azure
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+
+        var exceptionHandlerPathFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>();
+        var exception = exceptionHandlerPathFeature?.Error;
+
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        
+        if (exception != null)
+        {
+            logger.LogError(exception, 
+                "Unhandled exception occurred. Path: {Path}, Method: {Method}", 
+                context.Request.Path, 
+                context.Request.Method);
+        }
+
+        var response = new { 
+            message = "An error occurred while processing your request.",
+            error = exception?.Message,
+            path = context.Request.Path
+        };
+
+        await context.Response.WriteAsJsonAsync(response);
+    });
+});
+
 // Enable Swagger in all environments (Development and Production)
 app.UseSwagger();
 app.UseSwaggerUI(c =>
