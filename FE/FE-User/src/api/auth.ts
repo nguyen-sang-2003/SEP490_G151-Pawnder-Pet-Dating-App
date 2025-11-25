@@ -246,20 +246,22 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
 
 /**
  * Logout user
+ * Calls server logout endpoint to invalidate tokens, then clears local storage
  */
 export const logout = async (): Promise<void> => {
   try {
-    await apiClient.post('/logout');
-    // Clear both tokens
-    await removeAuthToken();
-    await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
-    await removeUserId();
+    // Call API logout to invalidate tokens on server
+    await apiClient.post('/api/logout');
+    console.log('✅ Server logout successful');
   } catch (error) {
-    // Even if API call fails, remove local tokens and userId
+    // Log warning but don't throw - we still want to clear local tokens
+    console.warn('⚠️ Server logout failed, clearing local tokens anyway:', error);
+  } finally {
+    // Always clear local tokens (even if API call fails)
     await removeAuthToken();
     await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
     await removeUserId();
-    throw error;
+    console.log('✅ Local tokens cleared');
   }
 };
 
