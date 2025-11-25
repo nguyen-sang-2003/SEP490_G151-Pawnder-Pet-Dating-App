@@ -37,6 +37,15 @@ const Sidebar = () => {
       label: 'Quản lý thú cưng'
     },
     {
+      path: '/attributes',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l2.09 6.26H20l-5.17 3.76L16.18 18 12 13.97 7.82 18l1.35-5.98L4 8.26h5.91z"/>
+        </svg>
+      ),
+      label: 'Quản lý thuộc tính'
+    },
+    {
       path: '/reports',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

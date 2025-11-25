@@ -129,6 +129,7 @@ const CreateExpert = () => {
         Gender: gender === 'Other' ? null : gender,
         Email: email,
         Password: password,
+        IsProfileComplete: true,
       });
 
       const newExpert = { Email: email };

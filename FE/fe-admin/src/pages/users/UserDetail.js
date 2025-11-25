@@ -12,6 +12,12 @@ const USER_STATUS = {
   PREMIUM: 3
 };
 
+const ROLE_ID = {
+  ADMIN: 1,
+  EXPERT: 2,
+  USER: 3
+};
+
 const UserDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -154,6 +160,25 @@ const UserDetail = () => {
     fetchUserData();
   }, [id]);
 
+  const tabs = [
+    { id: 'profile', label: 'Thông tin cá nhân', icon: '👤' },
+    { id: 'pets', label: 'Thú cưng', icon: '🐕' },
+    { id: 'matches', label: 'Ghép đôi', icon: '💕' },
+    { id: 'activity', label: 'Hoạt động', icon: '📊' }
+  ];
+
+  const isExpert = user?.roleId === ROLE_ID.EXPERT;
+
+  useEffect(() => {
+    if (isExpert && activeTab !== 'profile' && activeTab !== 'activity') {
+      setActiveTab('profile');
+    }
+  }, [isExpert, activeTab]);
+
+  const filteredTabs = isExpert
+    ? tabs.filter(tab => tab.id === 'profile' || tab.id === 'activity')
+    : tabs;
+
   if (loading) {
     return (
       <div className="user-detail-page">
@@ -244,13 +269,6 @@ const UserDetail = () => {
     return new Date().getFullYear() - new Date(dateOfBirth).getFullYear();
   };
 
-  const tabs = [
-    { id: 'profile', label: 'Thông tin cá nhân', icon: '👤' },
-    { id: 'pets', label: 'Thú cưng', icon: '🐕' },
-    { id: 'matches', label: 'Ghép đôi', icon: '💕' },
-    { id: 'activity', label: 'Hoạt động', icon: '📊' }
-  ];
-
   return (
     <div className="user-detail-page">
       <div className="page-header">
@@ -296,14 +314,18 @@ const UserDetail = () => {
           </div>
 
           <div className="user-stats">
-            <div className="stat-item">
-              <span className="stat-number">{user.totalPets}</span>
-              <span className="stat-label">Thú cưng</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">{user.totalMatches}</span>
-              <span className="stat-label">Ghép đôi</span>
-            </div>
+            {!isExpert && (
+              <>
+                <div className="stat-item">
+                  <span className="stat-number">{user.totalPets}</span>
+                  <span className="stat-label">Thú cưng</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-number">{user.totalMatches}</span>
+                  <span className="stat-label">Ghép đôi</span>
+                </div>
+              </>
+            )}
             <div className="stat-item">
               <span className="stat-number">{user.createdAt ? formatDate(user.createdAt) : 'N/A'}</span>
               <span className="stat-label">Tham gia</span>
@@ -313,7 +335,7 @@ const UserDetail = () => {
 
         {/* Tabs Navigation */}
         <div className="tabs-navigation">
-          {tabs.map(tab => (
+          {filteredTabs.map(tab => (
             <button
               key={tab.id}
               className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
@@ -434,7 +456,7 @@ const UserDetail = () => {
             </div>
           )}
 
-          {activeTab === 'pets' && (
+          {!isExpert && activeTab === 'pets' && (
             <div className="pets-tab">
               <div className="pets-header">
                 <h3>Thú cưng của {user.firstName}</h3>
@@ -466,7 +488,7 @@ const UserDetail = () => {
             </div>
           )}
 
-          {activeTab === 'matches' && (
+          {!isExpert && activeTab === 'matches' && (
             <div className="matches-tab">
               <div className="matches-header">
                 <h3>Lịch sử ghép đôi</h3>
