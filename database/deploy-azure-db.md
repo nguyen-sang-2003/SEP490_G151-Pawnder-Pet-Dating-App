@@ -36,7 +36,7 @@ az postgres flexible-server create \
   --storage-size 32
 
 # Tạo database
-az postgres flexible-server db create \
+az postgres flexible-server db create \//
   --resource-group <your-resource-group> \
   --server-name pawnder-db \
   --database-name pawnder_database
