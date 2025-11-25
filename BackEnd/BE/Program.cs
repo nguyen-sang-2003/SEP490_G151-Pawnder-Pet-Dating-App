@@ -7,7 +7,11 @@ using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using System;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -50,9 +54,50 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Connect PostgreSql
+// Connect PostgreSql với force IPv4
+var connectionString = builder.Configuration.GetConnectionString("DbContext");
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DbContext' is not configured.");
+}
+
+// Resolve hostname thành IPv4 để tránh lỗi IPv6 trên Azure
+var builderConn = new NpgsqlConnectionStringBuilder(connectionString);
+var hostname = builderConn.Host;
+
+try
+{
+    // Resolve hostname và lấy IPv4 address đầu tiên
+    var hostEntry = Dns.GetHostEntry(hostname);
+    var ipv4Address = hostEntry.AddressList
+        .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+    
+    if (ipv4Address != null)
+    {
+        builderConn.Host = ipv4Address.ToString();
+        connectionString = builderConn.ConnectionString;
+        Console.WriteLine($"[DB] Resolved {hostname} to IPv4: {ipv4Address}");
+    }
+    else
+    {
+        Console.WriteLine($"[DB] Warning: Could not resolve IPv4 for {hostname}, using hostname directly");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[DB] Warning: Could not resolve hostname {hostname}: {ex.Message}, using hostname directly");
+}
+
+// Configure DbContext với connection string đã resolve IPv4
 builder.Services.AddDbContext<PawnderDatabaseContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DbContext")));
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+    {
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorCodesToAdd: null);
+        npgsqlOptions.CommandTimeout(30);
+    }));
 
 // Config JWT
 builder.Services.AddScoped<TokenService>();
