@@ -198,7 +198,7 @@ apiClient.interceptors.response.use(
       const url = originalRequest.url || '';
       const isAuthEndpoint = url.includes('/login') || 
                             url.includes('/register') || 
-                            url.includes('/auth/refresh') ||
+                            url.includes('/refresh') ||
                             url.includes('/forgot-password');
       
       if (isAuthEndpoint) {
@@ -231,7 +231,7 @@ apiClient.interceptors.response.use(
         console.log('🔄 Refreshing access token...');
         
         // Call refresh endpoint
-        const response = await axios.post(`${BASE_URL}/api/auth/refresh`, {
+        const response = await axios.post(`${BASE_URL}/api/refresh`, {
           RefreshToken: refreshToken,
         });
 
