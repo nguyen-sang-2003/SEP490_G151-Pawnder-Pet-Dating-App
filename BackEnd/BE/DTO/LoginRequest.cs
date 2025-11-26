@@ -6,9 +6,9 @@ namespace BE.DTO
     {
         [Required(ErrorMessage = "Email không được để trống")]
         [EmailAddress(ErrorMessage = "Email không hợp lệ")]
-        public string Email { get; set; }
+        public required string Email { get; set; }
         [Required(ErrorMessage = "Mật khẩu không được để trống")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu phải ít nhất 6 ký tự")]
-        public string Password { get; set; }
+        public required string Password { get; set; }
     }
 }

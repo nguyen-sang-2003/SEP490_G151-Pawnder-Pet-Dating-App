@@ -127,7 +127,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
                 Console.WriteLine($"🤖 [Chat {chatAiId}] Calling Gemini API... (history: {recentHistory.Count} pairs, question length: {question.Length})");
                 var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 var response = await model.GenerateContent(promptBuilder.ToString(), cancellationToken: cts.Token);
-                answer = response.Text;
+                answer = response.Text ?? throw new Exception("Gemini API returned null response");
                 
                 // Lấy thông tin token usage từ response
                 if (response.UsageMetadata != null)

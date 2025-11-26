@@ -9,7 +9,7 @@
         public int? Age { get; set; }
         public bool? IsActive { get; set; }
         public string? Description { get; set; }
-        public string UrlImageAvatar{ get; set; }
+        public string? UrlImageAvatar{ get; set; }
     }
     public class PetDto_1
     {
@@ -20,7 +20,7 @@
         public int? Age { get; set; }
         public bool? IsActive { get; set; }
         public string? Description { get; set; }
-        public List<string> UrlImage { get; set; }
+        public List<string>? UrlImage { get; set; }
     }
     public class PetDto_2
     {

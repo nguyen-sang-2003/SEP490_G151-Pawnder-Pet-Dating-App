@@ -1,3 +1,4 @@
 {
-    "typescript.autoClosingTags": false
+    "appService.defaultWebAppToDeploy": "None",
+    "appService.deploySubpath": "."
 }
