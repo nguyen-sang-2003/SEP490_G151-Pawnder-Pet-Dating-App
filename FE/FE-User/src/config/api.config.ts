@@ -8,8 +8,8 @@ export const API_CONFIG = {
   ANDROID_EMULATOR: 'http://10.0.2.2:5297',
   IOS_SIMULATOR: 'http://localhost:5297',
   
-  // Production URL (update with your actual production URL)
-  PRODUCTION: 'https://api.pawnder.com',
+  // Production URL - Azure Backend
+  PRODUCTION: 'https://pawnder-backend-2024-bwajcqa2axg9fjcf.eastasia-01.azurewebsites.net',
   
   // For testing on real device, use your computer's IP
   // Find your IP:
@@ -30,10 +30,11 @@ export type Environment = 'android' | 'ios' | 'local_network' | 'production';
  * Current environment - Change this to switch between different environments
  * 
  * IMPORTANT: 
+ * - Use 'production' to connect to Azure backend (no need to run dotnet locally)
  * - Use 'android' if BE runs on SAME machine as emulator (localhost)
  * - Use 'local_network' if BE runs on DIFFERENT machine (use IP address)
  */
-const CURRENT_ENVIRONMENT: Environment = 'android'; // Use 'android' for same machine, 'local_network' for different machines
+const CURRENT_ENVIRONMENT: Environment = 'production'; // Changed to 'production' to use Azure backend
 
 /**
  * Get the appropriate base URL based on platform and environment
