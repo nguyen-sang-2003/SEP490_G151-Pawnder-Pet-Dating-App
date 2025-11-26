@@ -70,8 +70,8 @@ namespace BE.Services
 
             var entity = new User
             {
-                RoleId = req.RoleId,
-                UserStatusId = req.UserStatusId,
+                RoleId = 3, // FIXED: Always assign User role (RoleId = 3) on registration
+                UserStatusId = req.UserStatusId ?? 1, // Default to status 1 if not provided
                 FullName = req.FullName?.Trim(),
                 Gender = req.Gender,
                 Email = email!,

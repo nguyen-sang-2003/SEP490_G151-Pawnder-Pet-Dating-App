@@ -161,6 +161,7 @@ export const login = async (
     const response = await apiClient.post<LoginResponse>('/api/login', {
       Email: email,
       Password: password,
+      Platform: 'user', // FE-User is for mobile app (User role only)
     });
     
     // Store both access token and refresh token (handle both PascalCase and camelCase)
@@ -198,7 +199,8 @@ export const login = async (
       
       // Specific error messages based on status code
       if (status === 401) {
-        throw new Error('Email hoặc mật khẩu không đúng');
+        // Prioritize backend error message for custom role validation messages
+        throw new Error(errorMessage || 'Email hoặc mật khẩu không đúng');
       } else if (status === 404) {
         throw new Error('Tài khoản không tồn tại');
       } else if (status === 400) {

@@ -27,6 +27,8 @@
 
     public record UserCreateRequest
     {
+        // NOTE: RoleId is IGNORED during registration. All new users are assigned User role (RoleId = 3)
+        // This field is kept for backward compatibility but should not be sent by clients
         public int? RoleId { get; init; }
         public int? UserStatusId { get; init; }
       

@@ -54,14 +54,27 @@ apiClient.interceptors.response.use(
       
       if (status === 401) {
         // Token expired or invalid
-        // Only redirect if not already on login page
         const currentPath = window.location.pathname;
-        if (!currentPath.includes('/login')) {
-          localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-          localStorage.removeItem(STORAGE_KEYS.USER_INFO);
-          window.location.href = '/login';
+        
+        // If on login page, extract error message from backend for better UX
+        if (currentPath.includes('/login')) {
+          const message = errorData?.message || errorData?.Message || errorData || 'Đăng nhập thất bại';
+          const customError = new Error(typeof message === 'string' ? message : 'Đăng nhập thất bại');
+          customError.response = error.response;
+          return Promise.reject(customError);
         }
+        
+        // Otherwise, redirect to login
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER_INFO);
+        window.location.href = '/login';
       }
+      // For other status codes, extract error message from backend
+      const message = errorData?.message || errorData?.Message || errorData || 'Có lỗi xảy ra';
+      const customError = new Error(typeof message === 'string' ? message : 'Có lỗi xảy ra');
+      customError.response = error.response;
+      customError.status = status;
+      return Promise.reject(customError);
     } else if (error.request) {
       // Request was made but no response received (network error)
       console.error('Network Error - No response received:', {
@@ -69,13 +82,12 @@ apiClient.interceptors.response.use(
         method: error.config?.method,
         message: error.message
       });
+      return Promise.reject(new Error('Không thể kết nối đến máy chủ'));
     } else {
       // Error setting up the request
       console.error('Request Setup Error:', error.message);
+      return Promise.reject(error);
     }
-    
-    // Always reject to allow error handling in components
-    return Promise.reject(error);
   }
 );
 

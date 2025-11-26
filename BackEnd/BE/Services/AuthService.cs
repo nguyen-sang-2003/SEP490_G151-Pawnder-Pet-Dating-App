@@ -41,6 +41,27 @@ namespace BE.Services
             if (!isPasswordValid)
                 throw new UnauthorizedAccessException("Sai mật khẩu");
 
+            // Business logic: Validate role based on platform
+            var platform = request.Platform?.ToLower() ?? "user"; // Default to user platform
+            int[] allowedRoleIds;
+            string errorMessage;
+            
+            if (platform == "admin")
+            {
+                // Admin/Web platform: Only Admin (1) and Expert (2) allowed
+                allowedRoleIds = new[] { 1, 2 };
+                errorMessage = "Chỉ tài khoản Admin hoặc Expert mới có thể đăng nhập vào hệ thống quản trị";
+            }
+            else
+            {
+                // User/Mobile platform: Only User (3) allowed
+                allowedRoleIds = new[] { 3 };
+                errorMessage = "Chỉ tài khoản User mới có thể đăng nhập vào ứng dụng này";
+            }
+            
+            if (!user.RoleId.HasValue || !allowedRoleIds.Contains(user.RoleId.Value))
+                throw new UnauthorizedAccessException(errorMessage);
+
             // Business logic: Auto-upgrade legacy SHA256 passwords to BCrypt
             if (_passwordService.IsLegacyHash(user.PasswordHash))
             {
@@ -154,6 +175,11 @@ namespace BE.Services
             var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.UserId == userId, ct);
             if (user == null || user.TokenJwt != request.RefreshToken)
                 throw new UnauthorizedAccessException("Refresh Token không hợp lệ hoặc đã bị thu hồi");
+
+            // Business logic: Validate role - Only allow User (3), Expert (2), Admin (1)
+            var validRoleIds = new[] { 1, 2, 3 }; // Admin, Expert, User
+            if (!user.RoleId.HasValue || !validRoleIds.Contains(user.RoleId.Value))
+                throw new UnauthorizedAccessException("Tài khoản không có quyền truy cập hệ thống");
 
             // Business logic: Generate new tokens
             var newAccessToken = _tokenService.GenerateAccessToken(user.UserId, user.Role?.RoleName ?? "User");
