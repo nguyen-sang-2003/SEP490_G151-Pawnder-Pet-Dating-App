@@ -23,7 +23,7 @@ public class UserController : ControllerBase
 
     // GET /user?search=&roleId=&statusId=&page=1&pageSize=20&includeDeleted=false
     [HttpGet]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Roles = "Admin,Expert,User")]
     public async Task<ActionResult<PagedResult<UserResponse>>> GetUsers(
         [FromQuery] string? search,
         [FromQuery] int? roleId,
@@ -46,7 +46,7 @@ public class UserController : ControllerBase
 
     // GET /user/{userId}
     [HttpGet("{userId:int}")]
-    [Authorize(Roles = "User,Admin")]
+    [Authorize(Roles = "User,Expert,Admin")]
     public async Task<ActionResult<UserResponse>> GetUser(int userId, CancellationToken ct = default)
     {
         try
@@ -87,7 +87,7 @@ public class UserController : ControllerBase
 
     // PUT /user/{userId}
     [HttpPut("{userId:int}")]
-    [Authorize(Roles = "User,Admin")]
+    [Authorize(Roles = "User,Expert,Admin")]
     public async Task<ActionResult<UserResponse>> UpdateUser(
         int userId,
         [FromBody] UserUpdateRequest req,

@@ -1,0 +1,150 @@
+.expert-list-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.expert-list-card {
+  margin-top: 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(250, 245, 255, 0.95));
+  border-radius: 18px;
+  padding: 2rem;
+  border: 1px solid rgba(116, 75, 162, 0.12);
+  box-shadow: 0 20px 40px rgba(102, 126, 234, 0.08);
+}
+
+body.dark-theme .expert-list-card {
+  background: linear-gradient(135deg, rgba(32, 32, 41, 0.98), rgba(22, 22, 30, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 50px rgba(8, 8, 12, 0.7);
+}
+
+.expert-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.expert-table th,
+.expert-table td {
+  padding: 1rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(103, 84, 226, 0.08);
+}
+
+body.dark-theme .expert-table th,
+body.dark-theme .expert-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.expert-table th {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b6b80;
+}
+
+body.dark-theme .expert-table th {
+  color: #caccff;
+}
+
+.expert-table td {
+  color: #2b2c34;
+}
+
+body.dark-theme .expert-table td {
+  color: #f0f4ff;
+}
+
+.expert-table tbody tr {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.expert-table tbody tr:hover {
+  background: rgba(247, 37, 133, 0.08);
+  transform: translateY(-1px);
+}
+
+body.dark-theme .expert-table tbody tr:hover {
+  background: rgba(247, 37, 133, 0.12);
+}
+
+.expert-table .empty-row {
+  text-align: center;
+  color: #777;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: #f72585;
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pagination button {
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 84, 226, 0.3);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  color: #6054d4;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 15px rgba(110, 87, 236, 0.15);
+}
+
+.pagination button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f72585, #7209b7);
+  color: #fff;
+  box-shadow: 0 12px 20px rgba(114, 9, 183, 0.3);
+}
+
+body.dark-theme .pagination button {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f1f2ff;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.table-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 0;
+  gap: 0.5rem;
+}
+
+.alert {
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+.alert-error {
+  background: rgba(231, 76, 60, 0.15);
+  color: #c0392b;
+}
+
+

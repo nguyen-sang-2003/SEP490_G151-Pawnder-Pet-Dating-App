@@ -273,6 +273,10 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
 
+            entity.HasOne(d => d.FromUser).WithMany(p => p.ChatUserContents)
+                .HasForeignKey(d => d.FromUserId)
+                .HasConstraintName("ChatUserContent_FromUserId_fkey");
+
             entity.HasOne(d => d.FromPet).WithMany(p => p.ChatUserContents)
                 .HasForeignKey(d => d.FromPetId)
                 .HasConstraintName("ChatUserContent_FromPetId_fkey");
@@ -343,6 +347,12 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Type)
+                .HasColumnName("Type")
+                .HasMaxLength(50);
+            entity.Property(e => e.IsRead)
+                .HasColumnName("IsRead")
+                .HasDefaultValue(false);
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");

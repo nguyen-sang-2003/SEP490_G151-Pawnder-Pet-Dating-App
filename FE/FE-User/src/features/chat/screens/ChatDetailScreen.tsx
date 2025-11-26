@@ -8,7 +8,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Image,
   Dimensions,
   Modal,
   Pressable,
@@ -33,6 +32,7 @@ import ReportMessageModal from "../../../components/ReportMessageModal";
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../../app/store';
 import { markChatAsRead } from '../../badge/badgeSlice';
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -350,6 +350,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  // 🚀 OPTIMIZED: Load messages with pagination and parallel loading
   const loadMessages = async () => {
     try {
       setLoading(true);
@@ -366,27 +367,34 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       console.log('👤 Current user:', userId);
       console.log('💬 Loading messages for matchId:', matchId);
       
-      // Load my pet avatar
-      const avatar = await getUserPetAvatar(userId);
+      // 🚀 OPTIMIZATION 1: Parallel loading - Load avatars and messages simultaneously
+      const [avatar, chatMessages] = await Promise.all([
+        getUserPetAvatar(userId),
+        getChatMessages(matchId)
+      ]);
+      
       setMyAvatar(avatar);
       console.log('👤 My avatar loaded');
       
-      // Load other user's pet avatar
-      try {
-        const otherAvatar = await getUserPetAvatar(otherUserId);
-        setOtherUserAvatar(otherAvatar);
-        console.log('👤 Other user avatar loaded');
-      } catch (error) {
-        console.log('⚠️ Could not load other user avatar, using default');
-        setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
-      }
+      // Load other user's avatar in background (non-blocking)
+      getUserPetAvatar(otherUserId)
+        .then(otherAvatar => {
+          setOtherUserAvatar(otherAvatar);
+          console.log('👤 Other user avatar loaded');
+        })
+        .catch(() => {
+          console.log('⚠️ Could not load other user avatar, using default');
+          setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
+        });
       
-      // Load messages from API
-      const chatMessages = await getChatMessages(matchId);
       console.log('✅ Loaded messages:', chatMessages.length);
       
+      // 🚀 OPTIMIZATION 2: Only show last 50 messages initially
+      const INITIAL_MESSAGE_COUNT = 50;
+      const messagesToShow = chatMessages.slice(-INITIAL_MESSAGE_COUNT);
+      
       // Convert API messages to UI format
-      const formattedMessages: Message[] = chatMessages.map((msg) => {
+      const formattedMessages: Message[] = messagesToShow.map((msg) => {
         // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
         let dateString = msg.createdAt;
         if (!dateString.endsWith('Z') && !dateString.includes('+')) {
@@ -405,10 +413,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       
       setMessages(formattedMessages);
       
-      // Scroll to bottom after loading
-      setTimeout(() => {
+      // 🚀 OPTIMIZATION 3: Immediate scroll without setTimeout
+      requestAnimationFrame(() => {
         flatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
+      });
       
     } catch (error: any) {
       console.error('❌ Error loading messages:', error);
@@ -443,10 +451,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }
     signalRService.sendTyping(matchId, currentUserId, false);
     
-    // Scroll to bottom
-    setTimeout(() => {
+    // 🚀 OPTIMIZATION 6: Use requestAnimationFrame for smoother scroll
+    requestAnimationFrame(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    });
     
     try {
       setSending(true);
@@ -743,7 +751,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     return currentDate.getTime() !== prevDate.getTime();
   };
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+  // 🚀 OPTIMIZATION 4: Memoize renderMessage to prevent unnecessary re-renders
+  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const prevMessage = index > 0 ? messages[index - 1] : null;
     const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
     
@@ -776,7 +785,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         >
           {/* Avatar - Messenger style (show for last message in group) */}
           {!item.isMe && isLastInGroup && (
-            <Image source={otherUserAvatar} style={styles.messageAvatar} />
+            <OptimizedImage source={otherUserAvatar} style={styles.messageAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
           )}
           {!item.isMe && !isLastInGroup && (
             <View style={styles.messageAvatarPlaceholder} />
@@ -836,7 +845,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           
           {/* Avatar for my messages - Messenger style */}
           {item.isMe && isLastInGroup && (
-            <Image source={myAvatar} style={styles.messageAvatar} />
+            <OptimizedImage source={myAvatar} style={styles.messageAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
           )}
           {item.isMe && !isLastInGroup && (
             <View style={styles.messageAvatarPlaceholder} />
@@ -844,7 +853,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         </View>
       </View>
     );
-  };
+  }, [messages, otherUserAvatar, myAvatar]);
 
   return (
     <View style={styles.container}>
@@ -862,7 +871,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Image source={otherUserAvatar} style={styles.headerAvatar} />
+          <OptimizedImage source={otherUserAvatar} style={styles.headerAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{userName}</Text>
             <Text style={styles.headerStatus}>
@@ -907,10 +916,21 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
             showsVerticalScrollIndicator={false}
+            // 🚀 OPTIMIZATION 5: FlatList performance props
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={20}
+            windowSize={10}
+            getItemLayout={(data, index) => ({
+              length: 80, // Approximate message height
+              offset: 80 * index,
+              index,
+            })}
             ListFooterComponent={
               isTyping ? (
                 <View style={styles.typingIndicator}>
-                  <Image source={otherUserAvatar} style={styles.messageAvatar} />
+                  <OptimizedImage source={otherUserAvatar} style={styles.messageAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
                   <View style={styles.typingBubble}>
                     <Animated.View 
                       style={[
@@ -1026,7 +1046,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           <Pressable style={styles.menuModal} onPress={(e) => e.stopPropagation()}>
             {/* Menu Header */}
             <View style={styles.menuHeader}>
-              <Image source={otherUserAvatar} style={styles.menuAvatar} />
+              <OptimizedImage source={otherUserAvatar} style={styles.menuAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
               <View style={styles.menuHeaderText}>
                 <Text style={styles.menuUserName}>{userName}</Text>
                 <Text style={styles.menuUserStatus}>Active now</Text>

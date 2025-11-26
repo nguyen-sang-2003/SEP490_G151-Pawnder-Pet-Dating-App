@@ -18,7 +18,7 @@ namespace BE.Controllers
 			_expertConfirmationService = expertConfirmationService;
 		}
 
-		// GET: /api/expert-confirmation
+		// GET: /expert-confirmation
 		[HttpGet("expert-confirmation")]
 		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetAllExpertConfirmations(CancellationToken ct = default)
@@ -34,7 +34,7 @@ namespace BE.Controllers
 			}
 		}
 
-		// GET: /api/expert-confirmation/{userId}/{chatId}
+		// GET: /expert-confirmation/{userId}/{chatId}
 		[HttpGet("expert-confirmation/{userId:int}/{chatId:int}")]
 		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<ExpertConfirmationDTO>> GetExpertConfirmation(
@@ -55,9 +55,9 @@ namespace BE.Controllers
 			}
 		}
 
-		// GET: /api/expert-confirmation/{userId}
+		// GET: /expert-confirmation/{userId}
 		[HttpGet("expert-confirmation/{userId:int}")]
-		[Authorize(Roles = "User,Admin")]
+		[Authorize(Roles = "User,Expert,Admin")]
 		public async Task<ActionResult<List<ExpertConfirmationDTO>>> GetUserExpertConfirmations(int userId, CancellationToken ct = default)
 		{
 			try
@@ -108,15 +108,15 @@ namespace BE.Controllers
 			}
 		}
 
-		[HttpPut("expert-confirmation/{confirmationId:int}/{userId:int}/{chatId:int}")]
+		[HttpPut("expert-confirmation/{expertId:int}/{userId:int}/{chatId:int}")]
 		[Authorize(Roles = "Expert,Admin")]
 		public async Task<ActionResult<ExpertConfirmationResponseDTO>> UpdateExpertConfirmation(
-			int confirmationId, int userId, int chatId,
+			int expertId, int userId, int chatId,
 			[FromBody] ExpertConfirmationUpdateDto dto, CancellationToken ct = default)
 		{
 			try
 			{
-				var response = await _expertConfirmationService.UpdateExpertConfirmationAsync(confirmationId, userId, chatId, dto, ct);
+				var response = await _expertConfirmationService.UpdateExpertConfirmationAsync(expertId, userId, chatId, dto, ct);
 				return Ok(response);
 			}
 			catch (KeyNotFoundException ex)
@@ -126,6 +126,22 @@ namespace BE.Controllers
 			catch (Exception ex)
 			{
 				return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+			}
+		}
+
+		// GET: /expert-chats/{userId}
+		[HttpGet("expert-chats/{userId:int}")]
+		[Authorize(Roles = "User,Expert,Admin")]
+		public async Task<ActionResult> GetUserExpertChats(int userId, CancellationToken ct = default)
+		{
+			try
+			{
+				var chats = await _expertConfirmationService.GetUserExpertChatsAsync(userId, ct);
+				return Ok(new { success = true, data = chats });
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { success = false, message = "Lỗi hệ thống", error = ex.Message });
 			}
 		}
 	}

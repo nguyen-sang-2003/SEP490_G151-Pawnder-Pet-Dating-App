@@ -80,6 +80,18 @@ namespace BE.Services
             if (pet == null)
                 return null;
 
+            // Business logic: Get Age from both Pet.Age (old) and PetCharacteristic (new)
+            // Priority: PetCharacteristic > Pet.Age
+            int? age = pet.Age;
+            var ageChar = pet.PetCharacteristics
+                .FirstOrDefault(pc => pc.Attribute != null &&
+                                     (pc.Attribute.Name.ToLower() == "tuổi" ||
+                                      pc.Attribute.Name.ToLower() == "age"));
+            if (ageChar != null && ageChar.Value.HasValue)
+            {
+                age = (int)Math.Round((double)ageChar.Value.Value);
+            }
+
             // Business logic: Build response với owner và address
             return new
             {
@@ -88,7 +100,7 @@ namespace BE.Services
                 Name = pet.Name,
                 Breed = pet.Breed,
                 Gender = pet.Gender,
-                Age = pet.Age,
+                Age = age,
                 IsActive = pet.IsActive,
                 Description = pet.Description,
                 UrlImage = pet.PetPhotos

@@ -51,6 +51,32 @@ namespace BE.Repositories
                 .OrderByDescending(n => n.CreatedAt)
                 .ToListAsync(ct);
         }
+
+        public async Task<int> MarkAllAsReadAsync(int userId, CancellationToken ct = default)
+        {
+            var notifications = await _dbSet
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .ToListAsync(ct);
+
+            foreach (var notification in notifications)
+            {
+                notification.IsRead = true;
+                notification.UpdatedAt = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync(ct);
+            return notifications.Count;
+        }
+
+        public async Task<int> GetUnreadCountAsync(int userId, CancellationToken ct = default)
+        {
+            // Count system, expert, and expert_confirmation notifications
+            return await _dbSet
+                .Where(n => n.UserId == userId 
+                           && !n.IsRead 
+                           && (n.Type == "system" || n.Type == "expert_confirmation"))
+                .CountAsync(ct);
+        }
     }
 }
 

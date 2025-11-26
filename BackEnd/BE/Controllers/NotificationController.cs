@@ -1,8 +1,9 @@
-﻿using BE.DTO;
+using BE.DTO;
 using BE.Models;
 using BE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BE.Controllers
 {
@@ -73,7 +74,7 @@ namespace BE.Controllers
         }
 
         // POST /notification
-        [Authorize(Roles = "Admin,User")]
+        [Authorize(Roles = "Admin,User,Expert")]
         [HttpPost]
         public async Task<IActionResult> CreateNotification([FromBody] NotificationDto_1 notificationDto, CancellationToken ct = default)
         {
@@ -85,6 +86,79 @@ namespace BE.Controllers
             catch (ArgumentNullException ex)
             {
                 return BadRequest(new { Message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (DbUpdateException dbEx)
+            {
+                // Log detailed database error
+                var innerException = dbEx.InnerException?.Message ?? dbEx.Message;
+                return StatusCode(500, new { 
+                    Message = "Lỗi khi lưu vào database", 
+                    Error = innerException,
+                    Details = dbEx.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log full exception details for debugging
+                var innerException = ex.InnerException?.Message ?? "";
+                return StatusCode(500, new { 
+                    Message = "Lỗi hệ thống", 
+                    Error = ex.Message,
+                    InnerException = innerException,
+                    StackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        // PUT /notification/{notificationId}/read
+        [Authorize(Roles = "User")]
+        [HttpPut("{notificationId:int}/read")]
+        public async Task<IActionResult> MarkAsRead(int notificationId, CancellationToken ct = default)
+        {
+            try
+            {
+                var success = await _notificationService.MarkAsReadAsync(notificationId, ct);
+                
+                if (!success)
+                    return NotFound(new { Message = "Không tìm thấy thông báo" });
+
+                return Ok(new { Message = "Đã đánh dấu đã đọc" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // PUT /notification/user/{userId}/read-all
+        [Authorize(Roles = "User")]
+        [HttpPut("user/{userId:int}/read-all")]
+        public async Task<IActionResult> MarkAllAsRead(int userId, CancellationToken ct = default)
+        {
+            try
+            {
+                var count = await _notificationService.MarkAllAsReadAsync(userId, ct);
+                return Ok(new { Message = $"Đã đánh dấu {count} thông báo đã đọc" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
+
+        // GET /notification/user/{userId}/unread-count
+        [Authorize(Roles = "User")]
+        [HttpGet("user/{userId:int}/unread-count")]
+        public async Task<IActionResult> GetUnreadCount(int userId, CancellationToken ct = default)
+        {
+            try
+            {
+                var count = await _notificationService.GetUnreadCountAsync(userId, ct);
+                return Ok(new { count });
             }
             catch (Exception ex)
             {

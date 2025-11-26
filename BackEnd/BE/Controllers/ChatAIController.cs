@@ -1,4 +1,5 @@
 ﻿using BE.Services.Interfaces;
+using BE.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -10,7 +11,7 @@ namespace BE.Controllers
     /// </summary>
     [ApiController]
     [Route("api/chat-ai")]
-    [Authorize(Roles = "User,Admin")]
+    [Authorize(Roles = "User,Admin,Expert")]
     public class ChatAIController : ControllerBase
     {
         private readonly IChatAIService _chatAIService;
@@ -28,6 +29,26 @@ namespace BE.Controllers
                 return int.Parse(userIdClaim);
             }
             return 0;
+        }
+
+        // GET: /api/chat-ai/token-usage
+        [HttpGet("token-usage")]
+        public async Task<IActionResult> GetTokenUsage(CancellationToken ct = default)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                
+                if (userId == 0)
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+                var data = await _chatAIService.GetTokenUsageAsync(userId, ct);
+                return Ok(new { success = true, data = data });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         // GET: /api/chat-ai/{userId}
@@ -140,7 +161,11 @@ namespace BE.Controllers
                 if (userId == 0)
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-                var data = await _chatAIService.GetChatHistoryAsync(chatAiId, userId, ct);
+                // Check if user is Expert or Admin - allow them to view any chat
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var effectiveUserId = (userRole == "Expert" || userRole == "Admin") ? 0 : userId;
+
+                var data = await _chatAIService.GetChatHistoryAsync(chatAiId, effectiveUserId, ct);
                 return Ok(new { success = true, data = data });
             }
             catch (KeyNotFoundException ex)
@@ -157,23 +182,54 @@ namespace BE.Controllers
         [HttpPost("{chatAiId}/messages")]
         public async Task<IActionResult> SendMessage(int chatAiId, [FromBody] SendMessageRequest request, CancellationToken ct = default)
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 var userId = GetCurrentUserId();
+                Console.WriteLine($"📨 [API] Received AI message request - ChatId: {chatAiId}, UserId: {userId}, Question length: {request.Question?.Length ?? 0}");
 
                 var data = await _chatAIService.SendMessageAsync(chatAiId, userId, request.Question, ct);
+                
+                stopwatch.Stop();
+                Console.WriteLine($"✅ [API] AI message processed successfully in {stopwatch.ElapsedMilliseconds}ms");
+                
                 return Ok(new
                 {
                     success = true,
                     data = data
                 });
             }
+            catch (QuotaExceededException ex)
+            {
+                stopwatch.Stop();
+                Console.WriteLine($"⚠️ [API] Quota exceeded after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                
+                // Trả về 429 với đầy đủ usage info
+                return StatusCode(429, new
+                {
+                    success = false,
+                    message = ex.Message,
+                    actionType = "ai_chat_question",
+                    usage = new
+                    {
+                        isVip = ex.IsVip,
+                        dailyQuota = ex.DailyQuota,
+                        tokensUsed = ex.TokensUsed,
+                        tokensRemaining = ex.TokensRemaining
+                    }
+                });
+            }
             catch (ArgumentException ex)
             {
+                stopwatch.Stop();
+                Console.WriteLine($"❌ [API] Bad request after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
                 return BadRequest(new { success = false, message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {
+                stopwatch.Stop();
+                Console.WriteLine($"❌ [API] Invalid operation after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                
                 if (ex.Message.Contains("hết lượt"))
                 {
                     return StatusCode(429, new
@@ -187,6 +243,10 @@ namespace BE.Controllers
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
+                Console.WriteLine($"❌ [API] Error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                
                 if (ex.Message.Contains("not found") || ex.Message.Contains("access denied"))
                 {
                     return NotFound(new { success = false, message = ex.Message });

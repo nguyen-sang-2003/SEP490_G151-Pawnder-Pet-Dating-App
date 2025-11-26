@@ -102,6 +102,8 @@
 
         public bool isDelete { get; init; } = false;
 
+        public bool? IsProfileComplete { get; init; }
+
        
     }
 

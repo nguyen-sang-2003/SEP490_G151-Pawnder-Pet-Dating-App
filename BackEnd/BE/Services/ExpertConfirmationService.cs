@@ -2,6 +2,7 @@ using BE.DTO;
 using BE.Models;
 using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BE.Services
@@ -11,15 +12,21 @@ namespace BE.Services
         private readonly IExpertConfirmationRepository _expertConfirmationRepository;
         private readonly PawnderDatabaseContext _context;
         private readonly DailyLimitService _dailyLimitService;
+        private readonly INotificationService _notificationService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
         public ExpertConfirmationService(
             IExpertConfirmationRepository expertConfirmationRepository,
             PawnderDatabaseContext context,
-            DailyLimitService dailyLimitService)
+            DailyLimitService dailyLimitService,
+            INotificationService notificationService,
+            IHubContext<ChatHub> hubContext)
         {
             _expertConfirmationRepository = expertConfirmationRepository;
             _context = context;
             _dailyLimitService = dailyLimitService;
+            _notificationService = notificationService;
+            _hubContext = hubContext;
         }
 
         public async Task<IEnumerable<ExpertConfirmationDTO>> GetAllExpertConfirmationsAsync(CancellationToken ct = default)
@@ -76,10 +83,31 @@ namespace BE.Services
             if (chat == null)
                 throw new KeyNotFoundException("Chat AI không tồn tại.");
 
-            // Business logic: Validate expert
-            var expert = await _context.Users.FindAsync([dto.ExpertId], ct);
-            if (expert == null)
-                throw new KeyNotFoundException("Chuyên gia không tồn tại.");
+            // Business logic: Auto-assign expert if not provided
+            int expertId;
+            if (dto.ExpertId.HasValue && dto.ExpertId.Value > 0)
+            {
+                // Validate provided expert
+                var providedExpert = await _context.Users.FindAsync([dto.ExpertId.Value], ct);
+                if (providedExpert == null || providedExpert.RoleId != 2) // RoleId 2 = Expert
+                    throw new KeyNotFoundException("Chuyên gia không tồn tại.");
+                expertId = dto.ExpertId.Value;
+            }
+            else
+            {
+                // Auto-assign: Get random available expert
+                var availableExperts = await _context.Users
+                    .Where(u => u.RoleId == 2 && u.IsDeleted == false)
+                    .Select(u => u.UserId)
+                    .ToListAsync(ct);
+                
+                if (!availableExperts.Any())
+                    throw new InvalidOperationException("Hiện tại không có chuyên gia nào khả dụng.");
+                
+                // Random selection
+                var random = new Random();
+                expertId = availableExperts[random.Next(availableExperts.Count)];
+            }
 
             // Business logic: Check duplicate
             var existingConfirmation = await _expertConfirmationRepository.GetExpertConfirmationByUserAndChatAsync(userId, chatId, ct);
@@ -90,10 +118,11 @@ namespace BE.Services
             var expertConfirmation = new ExpertConfirmation
             {
                 UserId = userId,
-                ExpertId = expert.UserId,
+                ExpertId = expertId,  // Auto-assigned or provided expert
                 ChatAiid = chatId,
                 Status = "pending",
-                Message = dto.Message,
+                Message = dto.Message,  // NULL initially - will be filled when expert responds
+                UserQuestion = dto.UserQuestion,  // User's original question
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -118,11 +147,16 @@ namespace BE.Services
             };
         }
 
-        public async Task<ExpertConfirmationResponseDTO> UpdateExpertConfirmationAsync(int confirmationId, int userId, int chatId, ExpertConfirmationUpdateDto dto, CancellationToken ct = default)
+        public async Task<ExpertConfirmationResponseDTO> UpdateExpertConfirmationAsync(int expertId, int userId, int chatId, ExpertConfirmationUpdateDto dto, CancellationToken ct = default)
         {
-            var expertConfirmation = await _expertConfirmationRepository.GetExpertConfirmationAsync(confirmationId, userId, chatId, ct);
+            var expertConfirmation = await _expertConfirmationRepository.GetExpertConfirmationAsync(expertId, userId, chatId, ct);
             if (expertConfirmation == null)
                 throw new KeyNotFoundException("Yêu cầu xác nhận không tồn tại.");
+
+            // Track if status is being changed to "confirmed"
+            bool isConfirming = !string.IsNullOrEmpty(dto.Status) && 
+                                dto.Status.ToLower() == "confirmed" && 
+                                expertConfirmation.Status?.ToLower() != "confirmed";
 
             // Business logic: Update status and message
             if (!string.IsNullOrEmpty(dto.Status))
@@ -134,6 +168,82 @@ namespace BE.Services
             expertConfirmation.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             await _expertConfirmationRepository.UpdateAsync(expertConfirmation, ct);
+
+            // Business logic: Create notification for user when expert confirms
+            Console.WriteLine($"[ExpertConfirmation] isConfirming={isConfirming}, dto.Status={dto.Status}, expertConfirmation.Status={expertConfirmation.Status}, dto.Message={dto.Message}");
+            
+            if (isConfirming && !string.IsNullOrEmpty(dto.Message))
+            {
+                try
+                {
+                    Console.WriteLine($"[ExpertConfirmation] Creating notification for UserId={expertConfirmation.UserId}");
+                    
+                    // Get expert name for notification
+                    var expert = await _context.Users.FindAsync([expertConfirmation.ExpertId], ct);
+                    var expertName = expert?.FullName ?? "Chuyên gia";
+                    
+                    Console.WriteLine($"[ExpertConfirmation] Expert found: {expertName} (ID={expertConfirmation.ExpertId})");
+
+                    // Create notification for user
+                    var notificationDto = new NotificationDto_1
+                    {
+                        UserId = expertConfirmation.UserId,
+                        Title = $"Chuyên gia {expertName} đã xác nhận thông tin",
+                        Message = dto.Message
+                    };
+                    
+                    Console.WriteLine($"[ExpertConfirmation] Calling NotificationService.CreateNotificationAsync with UserId={notificationDto.UserId}, Title={notificationDto.Title}");
+                    
+                    var createdNotification = await _notificationService.CreateNotificationAsync(notificationDto, ct);
+                    
+                    Console.WriteLine($"✅ [ExpertConfirmation] Notification created successfully! NotificationId={createdNotification?.NotificationId}");
+
+                    // Send real-time notification via SignalR with metadata (expertId, chatId)
+                    try
+                    {
+                        Console.WriteLine($"[ExpertConfirmation] Sending real-time notification to UserId={expertConfirmation.UserId} with ExpertId={expertConfirmation.ExpertId}, ChatAiId={expertConfirmation.ChatAiid}");
+                        await ChatHub.SendNotificationWithMetadata(
+                            _hubContext, 
+                            expertConfirmation.UserId, 
+                            notificationDto.Title, 
+                            notificationDto.Message, 
+                            "expert_confirmation",
+                            expertId: expertConfirmation.ExpertId,
+                            chatId: expertConfirmation.ChatAiid
+                        );
+                        Console.WriteLine($"✅ [ExpertConfirmation] Real-time notification sent successfully!");
+                    }
+                    catch (Exception signalREx)
+                    {
+                        // Don't fail if SignalR fails (user might be offline)
+                        Console.WriteLine($"⚠️ [ExpertConfirmation] SignalR notification failed (user might be offline): {signalREx.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log detailed error for debugging
+                    Console.WriteLine($"❌ [ExpertConfirmation] ERROR creating notification: {ex.Message}");
+                    Console.WriteLine($"❌ [ExpertConfirmation] Exception type: {ex.GetType().Name}");
+                    Console.WriteLine($"❌ [ExpertConfirmation] Stack trace: {ex.StackTrace}");
+                    if (ex.InnerException != null)
+                    {
+                        Console.WriteLine($"❌ [ExpertConfirmation] Inner exception: {ex.InnerException.Message}");
+                    }
+                    
+                    // Don't fail the confirmation update, but log the error clearly
+                }
+            }
+            else
+            {
+                if (!isConfirming)
+                {
+                    Console.WriteLine($"⚠️ [ExpertConfirmation] Skipping notification: not confirming (dto.Status={dto.Status}, current status={expertConfirmation.Status})");
+                }
+                else if (string.IsNullOrEmpty(dto.Message))
+                {
+                    Console.WriteLine($"⚠️ [ExpertConfirmation] Skipping notification: message is empty");
+                }
+            }
 
             return new ExpertConfirmationResponseDTO
             {
@@ -147,6 +257,46 @@ namespace BE.Services
                 CreatedAt = expertConfirmation.CreatedAt,
                 UpdatedAt = expertConfirmation.UpdatedAt
             };
+        }
+
+        public async Task<IEnumerable<object>> GetUserExpertChatsAsync(int userId, CancellationToken ct = default)
+        {
+            // Get all ChatExpert for this user
+            var expertChats = await _context.ChatExperts
+                .Where(ce => ce.UserId == userId)
+                .Include(ce => ce.Expert)
+                .OrderByDescending(ce => ce.UpdatedAt)
+                .ToListAsync(ct);
+
+            var result = new List<object>();
+
+            foreach (var chat in expertChats)
+            {
+                // Get last message
+                var lastMessage = await _context.ChatExpertContents
+                    .Where(cec => cec.ChatExpertId == chat.ChatExpertId)
+                    .OrderByDescending(cec => cec.CreatedAt)
+                    .FirstOrDefaultAsync(ct);
+
+                // Count unread messages (messages from expert that user hasn't seen)
+                // For now, we'll set unread to 0 - can be enhanced later
+                var unreadCount = 0;
+
+                result.Add(new
+                {
+                    id = chat.ChatExpertId.ToString(),
+                    chatExpertId = chat.ChatExpertId,
+                    expertId = chat.ExpertId,
+                    expertName = chat.Expert?.FullName ?? "Chuyên gia",
+                    specialty = "Chuyên gia thú y",
+                    lastMessage = lastMessage?.Message ?? "Chưa có tin nhắn",
+                    time = lastMessage?.CreatedAt ?? chat.CreatedAt,
+                    unread = unreadCount,
+                    isOnline = false // Can be enhanced with SignalR
+                });
+            }
+
+            return result;
         }
     }
 }

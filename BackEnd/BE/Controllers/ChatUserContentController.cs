@@ -38,14 +38,14 @@ namespace BE.Controllers
             }
         }
 
-        // POST /chat-user-content/{matchId}/{fromPetId}
-        [HttpPost("chat-user-content/{matchId}/{fromPetId}")]
+        // POST /chat-user-content/{matchId}/{fromUserId}
+        [HttpPost("chat-user-content/{matchId}/{fromUserId}")]
         [Authorize(Roles = "User")]
-        public async Task<IActionResult> SendMessage(int matchId, int fromPetId, [FromBody] string message, CancellationToken ct = default)
+        public async Task<IActionResult> SendMessage(int matchId, int fromUserId, [FromBody] string message, CancellationToken ct = default)
         {
             try
             {
-                var result = await _contentService.SendMessageAsync(matchId, fromPetId, message, ct);
+                var result = await _contentService.SendMessageAsync(matchId, fromUserId, message, ct);
                 return Ok(result);
             }
             catch (ArgumentException ex)

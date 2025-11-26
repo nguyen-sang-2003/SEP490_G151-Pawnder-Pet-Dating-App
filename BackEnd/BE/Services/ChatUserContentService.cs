@@ -32,13 +32,13 @@ namespace BE.Services
                 throw new KeyNotFoundException("Không tìm thấy đoạn chat.");
 
             var messages = await _contentRepository.GetChatMessagesAsync(matchId, ct);
-            if (!messages.Any())
-                throw new KeyNotFoundException("Không tìm thấy nội dung trò chuyện.");
-
+            
+            // Return empty array if no messages yet (newly matched chat)
+            // Don't throw exception - allow empty chat to be displayed
             return messages;
         }
 
-        public async Task<object> SendMessageAsync(int matchId, int fromPetId, string message, CancellationToken ct = default)
+        public async Task<object> SendMessageAsync(int matchId, int fromUserId, string message, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(message))
                 throw new ArgumentException("Tin nhắn không được để trống.");
@@ -51,15 +51,30 @@ namespace BE.Services
             if (match == null)
                 throw new KeyNotFoundException("Không tồn tại đoạn chat.");
 
-            // Business logic: Validate pet belongs to this chat
-            if (match.FromPetId != fromPetId && match.ToPetId != fromPetId)
-                throw new InvalidOperationException("Pet không thuộc cuộc chat này.");
+            // Business logic: Find which pet belongs to the user in this match
+            int? fromPetId = null;
+            int? toUserId = null;
+            
+            if (match.FromPet != null && match.FromPet.UserId == fromUserId)
+            {
+                fromPetId = match.FromPetId;
+                toUserId = match.ToPet?.UserId;
+            }
+            else if (match.ToPet != null && match.ToPet.UserId == fromUserId)
+            {
+                fromPetId = match.ToPetId;
+                toUserId = match.FromPet?.UserId;
+            }
+            
+            if (fromPetId == null)
+                throw new InvalidOperationException("Người dùng không thuộc cuộc chat này.");
 
             // Business logic: Create message
             var now = DateTime.Now;
             var chatMessage = new ChatUserContent
             {
                 MatchId = matchId,
+                FromUserId = fromUserId,
                 FromPetId = fromPetId,
                 Message = message,
                 CreatedAt = now,
@@ -70,34 +85,42 @@ namespace BE.Services
 
             // Business logic: Send SignalR notification
             var groupName = $"Match_{matchId}";
-            await _hubContext.Clients.Group(groupName).SendAsync("ReceiveMessage", new
+            var messageData = new
             {
                 MatchId = matchId,
-                FromPetId = fromPetId,
+                FromUserId = fromUserId,
                 Message = message,
                 CreatedAt = chatMessage.CreatedAt
-            });
+            };
+            
+            // Send to group (people in ChatDetail screen)
+            await _hubContext.Clients.Group(groupName).SendAsync("ReceiveMessage", messageData);
 
-            // Business logic: Send badge notification to recipient
-            int? toUserId = null;
-            if (match.FromPetId == fromPetId && match.ToPet != null)
-            {
-                toUserId = match.ToPet.UserId;
-            }
-            else if (match.ToPetId == fromPetId && match.FromPet != null)
-            {
-                toUserId = match.FromPet.UserId;
-            }
-
+            // Business logic: Send notification to recipient (for ChatScreen and badge)
             if (toUserId.HasValue)
             {
                 try
                 {
-                    await ChatHub.SendNewMessageBadge(_hubContext, toUserId.Value, matchId, match.FromPetId, match.ToPetId);
+                    // Send ReceiveMessage directly to recipient (for ChatScreen)
+                    if (ChatHub.UserConnections.TryGetValue(toUserId.Value, out var connections))
+                    {
+                        foreach (var connectionId in connections)
+                        {
+                            await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveMessage", messageData);
+                        }
+                    }
+                    
+                    // Send badge notification
+                    // Send fromPetId (sender) and toPetId (recipient) so frontend can decide whether to show badge
+                    // Determine which pet is receiving the message
+                    int? recipientPetId = (match.FromPetId == fromPetId) ? match.ToPetId : match.FromPetId;
+                    
+                    Console.WriteLine($"[SendMessage] Sending badge notification: toUserId={toUserId.Value}, matchId={matchId}, fromPetId={fromPetId}, recipientPetId={recipientPetId}");
+                    await ChatHub.SendNewMessageBadge(_hubContext, toUserId.Value, matchId, fromPetId, recipientPetId);
                 }
                 catch (Exception notifEx)
                 {
-                    Console.WriteLine($"[SendMessage] Error sending badge notification: {notifEx.Message}");
+                    Console.WriteLine($"[SendMessage] Error sending notification to recipient: {notifEx.Message}");
                 }
             }
 

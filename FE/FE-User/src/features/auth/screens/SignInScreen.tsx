@@ -83,13 +83,10 @@ const SignInScreen = ({ navigation }: Props) => {
       const isComplete = response.IsProfileComplete ?? (response as any).isProfileComplete ?? false;
       
       if (isComplete === true) {
-        // Profile complete -> Go to Home
-        showAlert({
-          type: 'success',
-          title: 'Chào mừng! 🎉',
-          message: response.Message || 'Đăng nhập thành công',
-          onClose: () => navigation.replace("Home"),
-        });
+        // Profile complete -> Navigate immediately to Home
+        // Toast will be shown in Home screen
+        await setItem('showLoginSuccess', 'true');
+        navigation.replace("Home");
       } else {
         // Profile incomplete -> Continue onboarding
         showAlert({

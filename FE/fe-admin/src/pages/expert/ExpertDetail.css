@@ -1,0 +1,139 @@
+.expert-detail-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.expert-detail-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.expert-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 182, 193, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+}
+
+body.dark-theme .expert-card {
+  background: rgba(25, 25, 25, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.field-row {
+  margin-bottom: 1rem;
+}
+
+.field-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.field-row input,
+.field-row select {
+  border-radius: 10px;
+  border: 1px solid #e1e8ed;
+  padding: 0.75rem 1rem;
+  color: #1f1f2d;
+  background: #fff;
+}
+
+body.dark-theme .field-row input,
+body.dark-theme .field-row select {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f5f6ff;
+}
+
+.field-row select option {
+  color: #1f1f2d;
+  background: #fff;
+}
+
+body.dark-theme .field-row select option {
+  color: #f5f6ff;
+  background: #2a2a36;
+}
+
+.back-btn {
+  border: none;
+  background: none;
+  color: #f72585;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.primary-btn,
+.secondary-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #f72585, #7209b7);
+  color: #fff;
+  width: 100%;
+}
+
+.secondary-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(114, 9, 183, 0.2);
+  color: #7209b7;
+}
+
+body.dark-theme .secondary-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.password-box {
+  margin-top: 1rem;
+}
+
+.new-password-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: rgba(46, 204, 113, 0.08);
+  margin: 0.75rem 0;
+}
+
+.hint {
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.alert {
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: rgba(52, 152, 219, 0.12);
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0;
+  gap: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .expert-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+

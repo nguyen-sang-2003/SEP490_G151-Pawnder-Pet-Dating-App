@@ -14,7 +14,8 @@
 	public class ExpertConfirmationCreateDTO
 	{
 		public string? Message { get; set; }       
-		public int ExpertId { get; set; }          
+		public int? ExpertId { get; set; }  // Optional - will be auto-assigned if not provided
+		public string? UserQuestion { get; set; }
 	}
 
 	public class ExpertConfirmationResponseDTO

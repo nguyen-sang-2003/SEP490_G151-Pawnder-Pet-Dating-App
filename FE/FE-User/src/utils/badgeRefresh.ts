@@ -1,7 +1,8 @@
 import { getBadgeCounts } from '../api/match';
 import { getPetsByUserId } from '../api/pet';
+import { getUnreadNotificationCount } from '../api/notification';
 import { store } from '../app/store';
-import { setBadgeCounts } from '../features/badge/badgeSlice';
+import { setBadgeCounts, setActivePetId } from '../features/badge/badgeSlice';
 
 // Track the last pet ID we fetched badges for
 let lastRefreshedPetId: number | null = null;
@@ -22,6 +23,9 @@ export const refreshBadgesForActivePet = async (userId: number): Promise<void> =
     const userPets = await getPetsByUserId(userId);
     const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
     
+    // Fetch notification badge count (independent of pet)
+    const notificationCount = await getUnreadNotificationCount(userId);
+    
     if (activePet) {
       const activePetId = activePet.PetId || activePet.petId;
       if (!activePetId) {
@@ -38,6 +42,9 @@ export const refreshBadgesForActivePet = async (userId: number): Promise<void> =
       
       // Update last refreshed pet ID
       lastRefreshedPetId = activePetId;
+      
+      // ✅ Update Redux with active pet ID
+      store.dispatch(setActivePetId(activePetId));
       
       // Fetch badge counts filtered by active pet from server
       const counts = await getBadgeCounts(userId, activePetId);
@@ -64,17 +71,19 @@ export const refreshBadgesForActivePet = async (userId: number): Promise<void> =
         mergedUnreadChats = [...currentUnreadChats, ...newUnreadChats];
       }
       
-      // Update Redux store with merged data
+      // Update Redux store with merged data (including notification badge)
       store.dispatch(setBadgeCounts({
         ...counts,
-        unreadChats: mergedUnreadChats
+        unreadChats: mergedUnreadChats,
+        notificationBadge: notificationCount
       }));
       
       console.log('✅ Badges refreshed:', {
         isPetSwitch,
         fromAPI: apiUnreadChats.length,
         currentLocal: currentUnreadChats.length,
-        final: mergedUnreadChats.length
+        final: mergedUnreadChats.length,
+        notifications: notificationCount
       });
     } else {
       console.log('⚠️ No active pet found, fetching all badges...');
@@ -82,10 +91,16 @@ export const refreshBadgesForActivePet = async (userId: number): Promise<void> =
       // No active pet
       lastRefreshedPetId = null;
       
+      // ✅ Clear active pet ID in Redux
+      store.dispatch(setActivePetId(null));
+      
       // Fetch all badges and overwrite (no merging when no active pet)
       const counts = await getBadgeCounts(userId);
       
-      store.dispatch(setBadgeCounts(counts));
+      store.dispatch(setBadgeCounts({
+        ...counts,
+        notificationBadge: notificationCount
+      }));
     }
   } catch (error) {
     console.error('❌ Error refreshing badges:', error);

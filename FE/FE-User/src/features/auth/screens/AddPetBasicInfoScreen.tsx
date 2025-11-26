@@ -84,10 +84,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'success',
         title: 'Success!',
-        message: `${petName}'s profile created. Let's add more details!`,
+        message: `${petName}'s profile created. Let's add some photos!`,
         confirmText: 'Continue',
         onClose: () => {
-          navigation.navigate("AddPetCharacteristics", { petId, isFromProfile });
+          navigation.navigate("AddPetPhotos", { petId, isFromProfile });
         },
       });
     } catch (error: any) {

@@ -17,8 +17,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
-import { uploadPetPhotosMultipart, completeUserProfile } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { uploadPetPhotosMultipart, analyzePetImage, AIAttributeResult } from "../../../api";
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 
 const { width } = Dimensions.get("window");
@@ -37,6 +36,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   const { petId, isFromProfile } = route.params;
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [analyzingAI, setAnalyzingAI] = useState(false);
   const maxPhotos = 6;
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
@@ -104,46 +104,57 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     try {
       setUploading(true);
 
+      // Step 1: Upload photos
       await uploadPetPhotosMultipart(petId, photos);
       console.log('✅ Pet photos uploaded successfully');
 
-      if (!isFromProfile) {
-        try {
-          const userIdStr = await getItem('userId');
-          console.log('Retrieved userId from storage:', userIdStr);
-          
-          if (userIdStr) {
-            const userId = parseInt(userIdStr, 10);
-            console.log('Parsed userId:', userId);
-            
-            if (isNaN(userId) || userId <= 0) {
-              console.error('Invalid userId:', userId);
-              throw new Error('Invalid userId');
-            }
-            
-            await completeUserProfile(userId);
-            console.log('✅ User profile marked as complete');
-          } else {
-            console.warn('No userId found in storage');
-          }
-        } catch (err) {
-          console.warn('Failed to mark profile complete, but continuing:', err);
-        }
-      }
+      setUploading(false);
+      setAnalyzingAI(true);
 
-      showAlert({
-        type: 'success',
-        title: 'Success!',
-        message: 'Your pet profile has been created successfully!',
-        confirmText: isFromProfile ? 'Go to Profile' : 'Continue',
-        onClose: () => {
-          if (isFromProfile) {
-            navigation.navigate("Profile");
-          } else {
-            navigation.replace("OnboardingPreferences");
-          }
-        },
-      });
+      // Step 2: Analyze first photo with AI
+      let aiResults: AIAttributeResult[] | undefined;
+      try {
+        console.log('🤖 Starting AI analysis...');
+        const analysisResponse = await analyzePetImage(photos[0]);
+        
+        if (analysisResponse.success && analysisResponse.attributes) {
+          aiResults = analysisResponse.attributes;
+          console.log('✅ AI analysis successful:', aiResults);
+          
+          showAlert({
+            type: 'success',
+            title: 'AI Analysis Complete! 🤖',
+            message: `Found ${aiResults.length} characteristics. You can review and edit them next.`,
+            confirmText: 'Continue',
+            onClose: () => {
+              navigation.navigate("AddPetCharacteristics", { 
+                petId, 
+                isFromProfile,
+                aiResults 
+              });
+            },
+          });
+        } else {
+          throw new Error('AI analysis failed');
+        }
+      } catch (aiError: any) {
+        console.warn('⚠️ AI analysis failed, continuing without AI:', aiError);
+        
+        // AI failed, but still allow user to continue manually
+        showAlert({
+          type: 'info',
+          title: 'Photos Uploaded!',
+          message: 'AI analysis unavailable. You can add characteristics manually.',
+          confirmText: 'Continue',
+          onClose: () => {
+            navigation.navigate("AddPetCharacteristics", { 
+              petId, 
+              isFromProfile,
+              aiResults: undefined 
+            });
+          },
+        });
+      }
     } catch (error: any) {
       console.error('Error uploading photos:', error);
       showAlert({
@@ -153,6 +164,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       });
     } finally {
       setUploading(false);
+      setAnalyzingAI(false);
     }
   };
 
@@ -191,9 +203,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             <View style={styles.stepBarsContainer}>
               <View style={[styles.stepBar, styles.stepBarActive]} />
               <View style={[styles.stepBar, styles.stepBarActive]} />
-              <View style={[styles.stepBar, styles.stepBarActive]} />
+              <View style={[styles.stepBar, styles.stepBarInactive]} />
             </View>
-            <Text style={styles.stepText}>Step 3 of 3</Text>
+            <Text style={styles.stepText}>Step 2 of 3</Text>
           </View>
           
           <Text style={styles.title}>
@@ -282,9 +294,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       {/* Bottom Buttons */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
-          style={[styles.btnShadow, photos.length < 3 && styles.btnDisabled]}
+          style={[styles.btnShadow, (photos.length < 3 || uploading || analyzingAI) && styles.btnDisabled]}
           onPress={handleNext}
-          disabled={uploading || photos.length < 3}
+          disabled={uploading || analyzingAI || photos.length < 3}
         >
           <LinearGradient
             colors={photos.length < 3 ? [colors.textLight, colors.textLight] : gradients.auth.buttonPrimary}
@@ -293,11 +305,19 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             end={{ x: 1, y: 1 }}
           >
             {uploading ? (
-              <ActivityIndicator color={colors.white} />
+              <>
+                <ActivityIndicator color={colors.white} />
+                <Text style={[styles.buttonText, { marginLeft: 8 }]}>Uploading...</Text>
+              </>
+            ) : analyzingAI ? (
+              <>
+                <ActivityIndicator color={colors.white} />
+                <Text style={[styles.buttonText, { marginLeft: 8 }]}>AI Analyzing...</Text>
+              </>
             ) : (
               <>
-                <Text style={styles.buttonText}>{isFromProfile ? 'Save Photos' : 'Finish'}</Text>
-                <Icon name="checkmark-circle" size={22} color={colors.white} />
+                <Text style={styles.buttonText}>Continue with AI</Text>
+                <Icon name="sparkles" size={22} color={colors.white} />
               </>
             )}
           </LinearGradient>
