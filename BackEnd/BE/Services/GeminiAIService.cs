@@ -108,7 +108,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             var history = await GetChatHistoryAsync(chatAiId);
 
             // Gọi Gemini API với model name
-            string modelName = "gemini-1.5-flash"; // Stable model
+            string modelName = "gemini-2.5-flash"; // Stable model
             Console.WriteLine($"🤖 [Chat {chatAiId}] Using Gemini model: {modelName}");
             
             GenerativeModel model;
