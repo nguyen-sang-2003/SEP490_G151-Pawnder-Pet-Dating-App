@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { ExpertChatListItem } from './expert-chat';
 
 // Types
 export interface ExpertConfirmation {
@@ -100,19 +101,6 @@ export const updateExpertConfirmation = async (
     throw new Error('Không thể cập nhật yêu cầu.');
   }
 };
-
-// Expert Chat Types
-export interface ExpertChatListItem {
-  id: string;
-  chatExpertId: number;
-  expertId: number;
-  expertName: string;
-  specialty: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  isOnline: boolean;
-}
 
 /**
  * Get user's expert chats (legacy endpoint)
