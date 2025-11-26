@@ -30,8 +30,11 @@ namespace BE.Services
             
             try
             {
+                // Note: Gemini API có thể bị giới hạn theo region
+                // Nếu deploy trên Azure East Asia, có thể gặp lỗi "User location is not supported"
                 _googleAI = new GoogleAI(apiKey: apiKey);
                 Console.WriteLine("✅ GoogleAI client initialized successfully");
+                Console.WriteLine("⚠️ Note: Gemini API may not work from certain regions (e.g., Asia). Consider using Vertex AI or allowed regions.");
             }
             catch (Exception ex)
             {
@@ -200,6 +203,13 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
                 if (ex.Message.Contains("API key"))
                 {
                     throw new Exception("Gemini API key không hợp lệ. Vui lòng kiểm tra cấu hình.");
+                }
+                else if (ex.Message.Contains("location") || ex.Message.Contains("FAILED_PRECONDITION") || ex.Message.Contains("not supported"))
+                {
+                    throw new Exception("⚠️ Gemini API không khả dụng từ khu vực này (Azure East Asia). Vui lòng:\n" +
+                        "1. Tạo API key mới từ region được hỗ trợ (US, EU)\n" +
+                        "2. Hoặc deploy backend ở region khác (US East, West Europe)\n" +
+                        "3. Hoặc sử dụng Vertex AI thay thế");
                 }
                 else if (ex.Message.Contains("429") || ex.Message.Contains("quota"))
                 {
