@@ -13,11 +13,11 @@ export const sendOtp = async (email: string): Promise<SendOtpResponse> => {
     const response = await apiClient.get<SendOtpResponse>('/api/send-mail-otp', {
       params: { email },
     });
-    
+
 
     return response.data;
   } catch (error: any) {
-    console.error('Send OTP error:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -34,21 +34,21 @@ export const verifyOtp = async (
 ): Promise<boolean> => {
   try {
 
-    
+
     const response = await apiClient.post('/api/check-otp', {
       email,
       otp: otpCode
     });
-    
+
 
     return true;
   } catch (error: any) {
-    console.error('❌ Verify OTP error:', error);
-    
+
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
-    
+
     throw new Error('Mã OTP không đúng hoặc đã hết hạn');
   }
 };
@@ -65,10 +65,10 @@ export const resetPassword = async (
       email,
       newPassword
     });
-    
+
     return response.data;
   } catch (error: any) {
-    console.error('Reset password error:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

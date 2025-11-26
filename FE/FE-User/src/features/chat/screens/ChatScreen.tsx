@@ -62,7 +62,7 @@ const ChatScreen = ({ navigation }: Props) => {
   // Setup SignalR connection once
   useEffect(() => {
     setupSignalR();
-    
+
     return () => {
       // Don't disconnect on unmount, keep connection alive
       // signalRService.disconnect();
@@ -82,7 +82,7 @@ const ChatScreen = ({ navigation }: Props) => {
     useCallback(() => {
       loadChats();
       refreshOnlineUsers();
-      
+
       // Don't refresh badges here - they are managed by useBadgeNotifications hook
       // and ChatDetailScreen marks chats as read locally
     }, [])
@@ -92,26 +92,26 @@ const ChatScreen = ({ navigation }: Props) => {
     try {
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) return;
-      
+
       const userId = parseInt(userIdStr);
-      
+
       // Connect to SignalR if not connected
       if (!signalRService.isConnected()) {
         await signalRService.connect(userId);
       }
-      
+
       // Listen for online/offline events
       signalRService.on('UserOnline', handleUserOnline);
       signalRService.on('UserOffline', handleUserOffline);
       signalRService.on('ReceiveMessage', handleNewMessage);
-      
+
       // Get initial online users
       const online = await signalRService.getOnlineUsers();
       setOnlineUsers(new Set(online));
-      
+
       console.log('✅ SignalR setup complete in ChatScreen');
     } catch (error) {
-      console.error('❌ Error setting up SignalR:', error);
+
     }
   };
 
@@ -142,7 +142,7 @@ const ChatScreen = ({ navigation }: Props) => {
         setOnlineUsers(new Set(online));
       }
     } catch (error) {
-      console.error('❌ Error refreshing online users:', error);
+
     }
   };
 
@@ -158,7 +158,7 @@ const ChatScreen = ({ navigation }: Props) => {
   const loadChats = async (forceRefresh = false) => {
     try {
       setLoading(true);
-      
+
       // Get current user ID
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
@@ -166,11 +166,11 @@ const ChatScreen = ({ navigation }: Props) => {
         setLoading(false);
         return;
       }
-      
+
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
       console.log('👤 Current user:', userId);
-      
+
       // 🚀 OPTIMIZATION: Get user's active pet ID with cache
       let activePetId: number | undefined;
       try {
@@ -189,7 +189,7 @@ const ChatScreen = ({ navigation }: Props) => {
       } catch (error) {
         console.log('⚠️ Could not get active pet - showing all chats');
       }
-      
+
       // 🚀 OPTIMIZATION: Check cache first (unless force refresh)
       const cacheKey = CACHE_KEYS.CHATS(userId, activePetId);
       if (!forceRefresh) {
@@ -201,27 +201,27 @@ const ChatScreen = ({ navigation }: Props) => {
           return;
         }
       }
-      
+
       // Get accepted matches (chats), filtered by active pet if available
       const chats = await getChats(userId, activePetId);
       console.log('💬 Got chats:', chats);
-      
+
       // For each chat, get the other user's info and last message
       const chatItems = await Promise.all(
         chats.map(async (chat) => {
           // Determine the other user ID and pet ID
           const otherUserId = chat.fromUserId === userId ? chat.toUserId : chat.fromUserId;
           const otherPetId = chat.fromUserId === userId ? chat.toPetId : chat.fromPetId;
-          
+
           try {
             // Get other user's info
             const otherUser = await getUserById(otherUserId);
-            
+
             // Get pet avatar (use petId from match, not active pet)
-            const userAvatar = otherPetId 
+            const userAvatar = otherPetId
               ? await getPetAvatar(otherPetId)
               : await getUserPetAvatar(otherUserId);
-            
+
             // Check VIP status
             let isVip = false;
             try {
@@ -230,13 +230,13 @@ const ChatScreen = ({ navigation }: Props) => {
               console.log(`💎 Chat user ${otherUserId} VIP:`, vipStatus.isVip);
               isVip = vipStatus.isVip;
             } catch (error: any) {
-              console.error(`❌ Failed to get VIP status for chat user ${otherUserId}:`, error?.response?.data || error?.message || error);
+
             }
-            
+
             // Get last message
             let lastMessage = "Start chatting!";
             let lastMessageTime = chat.createdAt;
-            
+
             try {
               const messages = await getChatMessages(chat.matchId);
               if (messages && messages.length > 0) {
@@ -247,7 +247,7 @@ const ChatScreen = ({ navigation }: Props) => {
             } catch (error) {
               console.log('No messages yet for match:', chat.matchId);
             }
-            
+
             return {
               id: chat.matchId.toString(),
               matchId: chat.matchId,
@@ -260,23 +260,23 @@ const ChatScreen = ({ navigation }: Props) => {
               isVip: isVip,
             } as ChatItem;
           } catch (error) {
-            console.error('Error loading user/messages for chat:', chat.matchId, error);
+
             return null;
           }
         })
       );
-      
+
       // Filter out null values and set state
       const validChats = chatItems.filter((item): item is ChatItem => item !== null);
-      
+
       // 🚀 OPTIMIZATION: Cache the result
       cache.set(cacheKey, validChats);
       console.log('💾 Cached chats for future use');
-      
+
       setChatData(validChats);
-      
+
     } catch (error: any) {
-      console.error('❌ Error loading chats:', error);
+
     } finally {
       setLoading(false);
     }
@@ -288,26 +288,26 @@ const ChatScreen = ({ navigation }: Props) => {
     if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
       dateStr = dateStr + 'Z';
     }
-    
+
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffDays > 0) {
       return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày`;
     }
-    
+
     if (diffHours > 0) {
       return `${diffHours} giờ`;
     }
-    
+
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins > 0) {
       return `${diffMins} phút`;
     }
-    
+
     return 'Vừa xong';
   };
 
@@ -340,52 +340,52 @@ const ChatScreen = ({ navigation }: Props) => {
   const renderChatItem = ({ item }: { item: ChatItem }) => {
     const isOnline = onlineUsers.has(item.otherUserId);
     const isUnread = unreadChats.includes(item.matchId); // Check if this chat is unread
-    
+
     return (
-    <TouchableOpacity 
-      style={[styles.chatItem, isUnread && styles.chatItemUnread]}
-      onPress={() => handleChatPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.avatarWrapper}>
-        <LinearGradient
-          colors={item.isAI ? gradients.ai : gradients.chat}
-          style={styles.avatarGradient}
-        >
-          <Image source={item.avatar} style={styles.avatar} />
-        </LinearGradient>
-        {item.isAI ? (
-          <View style={styles.aiBadge}>
-            <Icon name="sparkles" size={12} color={colors.white} />
-          </View>
-        ) : isOnline && (
-          <View style={styles.onlineBadge}>
-            <View style={styles.onlineDot} />
-          </View>
-        )}
-      </View>
-      <View style={styles.chatInfo}>
-        <View style={styles.chatHeader}>
-          <View style={styles.chatNameContainer}>
-            <Text style={[styles.chatName, isUnread && styles.chatNameUnread]}>{item.name}</Text>
-            {item.isVip && (
-              <View style={styles.vipBadgeChat}>
-                <Icon name="diamond" size={12} color="#FFD700" />
-              </View>
-            )}
-          </View>
-          <Text style={styles.chatTime}>{item.time}</Text>
-        </View>
-        <View style={styles.chatFooter}>
-          <Text style={[styles.lastMessage, isUnread && styles.lastMessageUnread]} numberOfLines={1}>
-            {item.lastMessage}
-          </Text>
-          {isUnread && (
-            <View style={styles.unreadDot} />
+      <TouchableOpacity
+        style={[styles.chatItem, isUnread && styles.chatItemUnread]}
+        onPress={() => handleChatPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.avatarWrapper}>
+          <LinearGradient
+            colors={item.isAI ? gradients.ai : gradients.chat}
+            style={styles.avatarGradient}
+          >
+            <Image source={item.avatar} style={styles.avatar} />
+          </LinearGradient>
+          {item.isAI ? (
+            <View style={styles.aiBadge}>
+              <Icon name="sparkles" size={12} color={colors.white} />
+            </View>
+          ) : isOnline && (
+            <View style={styles.onlineBadge}>
+              <View style={styles.onlineDot} />
+            </View>
           )}
         </View>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.chatInfo}>
+          <View style={styles.chatHeader}>
+            <View style={styles.chatNameContainer}>
+              <Text style={[styles.chatName, isUnread && styles.chatNameUnread]}>{item.name}</Text>
+              {item.isVip && (
+                <View style={styles.vipBadgeChat}>
+                  <Icon name="diamond" size={12} color="#FFD700" />
+                </View>
+              )}
+            </View>
+            <Text style={styles.chatTime}>{item.time}</Text>
+          </View>
+          <View style={styles.chatFooter}>
+            <Text style={[styles.lastMessage, isUnread && styles.lastMessageUnread]} numberOfLines={1}>
+              {item.lastMessage}
+            </Text>
+            {isUnread && (
+              <View style={styles.unreadDot} />
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -426,7 +426,7 @@ const ChatScreen = ({ navigation }: Props) => {
       {/* Special Chat Options */}
       <View style={styles.specialChatsContainer}>
         {/* AI Chat Option */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.specialChatCard}
           onPress={() => navigation.navigate("AIChatList")}
           activeOpacity={0.8}
@@ -446,7 +446,7 @@ const ChatScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
 
         {/* Expert Chat Option */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.specialChatCard}
           onPress={() => navigation.navigate("ExpertChatList")}
           activeOpacity={0.8}
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.white,
   },
-  
+
   // Unread chat styles (Messenger-like)
   chatItemUnread: {
     backgroundColor: colors.white, // Slightly different background

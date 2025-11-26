@@ -23,7 +23,7 @@ export const requestLocationPermission = async (): Promise<boolean> => {
           buttonPositive: 'Đồng ý',
         }
       );
-      
+
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         console.log('✅ Location permission granted');
         return true;
@@ -37,7 +37,7 @@ export const requestLocationPermission = async (): Promise<boolean> => {
       return true;
     }
   } catch (error) {
-    console.error('Error requesting location permission:', error);
+
     return false;
   }
 };
@@ -55,10 +55,10 @@ export const getCurrentLocation = (): Promise<LocationCoordinates> => {
         resolve({ latitude, longitude });
       },
       (error) => {
-        console.error('❌ Get location error:', error);
-        
+
+
         let errorMessage = 'Không thể lấy vị trí. ';
-        
+
         switch (error.code) {
           case 1: // PERMISSION_DENIED
             errorMessage += 'Vui lòng cấp quyền truy cập vị trí trong cài đặt.';
@@ -72,7 +72,7 @@ export const getCurrentLocation = (): Promise<LocationCoordinates> => {
           default:
             errorMessage += 'Vui lòng thử lại.';
         }
-        
+
         reject(new Error(errorMessage));
       },
       {
@@ -92,16 +92,16 @@ export const requestLocationAndGetCoordinates = async (): Promise<LocationCoordi
   try {
     // Step 1: Request permission
     const hasPermission = await requestLocationPermission();
-    
+
     if (!hasPermission) {
       throw new Error('Bạn cần cấp quyền truy cập vị trí để tiếp tục.');
     }
-    
+
     // Step 2: Get coordinates
     const coordinates = await getCurrentLocation();
     return coordinates;
   } catch (error: any) {
-    console.error('Location service error:', error);
+
     throw error;
   }
 };

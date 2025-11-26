@@ -142,7 +142,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
         try {
           likesData = await getLikesReceived(userId);
         } catch (e) {
-          console.error('❌ Failed to load likes:', e);
+
         }
       }
 
@@ -183,7 +183,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       setPets(formattedPets);
     } catch (error) {
-      console.error('❌ Error loading likes:', error);
+
     } finally {
       setLoading(false);
     }
@@ -254,7 +254,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
         petPhotoUrl: petPhotoUrl,
       }));
     } catch (error) {
-      console.error('❌ Error matching:', error);
+
     }
   }, [pets, dispatch]);
 
@@ -280,7 +280,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       console.log('✅ Passed successfully');
     } catch (error) {
-      console.error('❌ Error passing:', error);
+
     }
   }, []);
 
@@ -307,7 +307,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       console.log('✅ Unmatched successfully');
     } catch (error) {
-      console.error('❌ Error unmatching:', error);
+
     }
   }, []);
 

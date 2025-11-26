@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { AppDispatch, store } from '../app/store';
-import { 
-  setBadgeCounts, 
+import {
+  setBadgeCounts,
   addUnreadChat,
   addUnreadExpertChat,
   incrementFavoriteBadge,
@@ -32,7 +32,7 @@ export const useBadgeNotifications = (userId: number | null) => {
         await refreshBadgesForActivePet(userId);
         console.log('✅ Initial badges loaded for active pet');
       } catch (error) {
-        console.error('❌ Error fetching badge counts:', error);
+
       }
     };
 
@@ -44,18 +44,18 @@ export const useBadgeNotifications = (userId: number | null) => {
       const matchId = data.matchId || data.MatchId;
       const fromPetId = data.fromPetId || data.FromPetId;
       const toPetId = data.toPetId || data.ToPetId;
-      
+
       if (!matchId) {
         console.log('❌ [NewMessageBadge] No matchId, ignoring');
         return;
       }
-      
+
       // ✅ FIX STALE CLOSURE: Read activePetId from store EACH TIME
       const currentState = store.getState();
       const activePetId = selectActivePetId(currentState);
-      
+
       console.log(`🐾 [NewMessageBadge] Active pet: ${activePetId}, from: ${fromPetId}, to: ${toPetId}`);
-      
+
       // ONLY show badge if the RECIPIENT is the active pet
       if (activePetId && toPetId === activePetId) {
         console.log(`📬 [NewMessageBadge] Message TO active pet ${activePetId}, showing badge`);
@@ -81,11 +81,11 @@ export const useBadgeNotifications = (userId: number | null) => {
       const otherUserName = data.otherUserName || data.OtherUserName || 'Someone';
       const petName = data.petName || data.PetName;
       const petPhotoUrl = data.petPhotoUrl || data.PetPhotoUrl;
-      
+
       // Don't increment notification badge for matches
       // Notification badge is only for admin and expert notifications
       // dispatch(incrementNotificationBadge());
-      
+
       dispatch(showMatchModal({
         otherUserName,
         otherUserId,
@@ -98,12 +98,12 @@ export const useBadgeNotifications = (userId: number | null) => {
     const handleNewExpertMessageBadge = (data: any) => {
       console.log('🔔 [NewExpertMessageBadge] Received:', data);
       const chatExpertId = data.chatExpertId || data.ChatExpertId;
-      
+
       if (!chatExpertId) {
         console.log('❌ [NewExpertMessageBadge] No chatExpertId, ignoring');
         return;
       }
-      
+
       console.log(`📬 [NewExpertMessageBadge] New message from expert in chat ${chatExpertId}`);
       dispatch(addUnreadExpertChat(chatExpertId));
     };

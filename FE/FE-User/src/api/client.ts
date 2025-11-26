@@ -41,7 +41,7 @@ const getStoredToken = async (): Promise<string | null> => {
     }
     return null;
   } catch (error) {
-    console.error('Error getting stored token:', error);
+
     return null;
   }
 };
@@ -59,7 +59,7 @@ const getStoredRefreshToken = async (): Promise<string | null> => {
     }
     return null;
   } catch (error) {
-    console.error('Error getting stored refresh token:', error);
+
     return null;
   }
 };
@@ -78,7 +78,7 @@ export const storeTokens = async (accessToken: string, refreshToken: string): Pr
       service: 'pawnder.refresh',
     });
   } catch (error) {
-    console.error('Error storing tokens:', error);
+
   }
 };
 
@@ -266,7 +266,7 @@ apiClient.interceptors.response.use(
           await AsyncStorage.setItem('shouldLogout', 'true');
           console.log('🔐 Cleared all tokens and set logout flag');
         } catch (e) {
-          console.error('❌ Error clearing tokens:', e);
+
         }
 
         return Promise.reject(refreshError);

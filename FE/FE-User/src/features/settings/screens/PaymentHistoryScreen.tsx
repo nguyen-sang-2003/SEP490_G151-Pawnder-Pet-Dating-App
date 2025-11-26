@@ -63,7 +63,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
 
       setPayments(mappedPayments);
     } catch (err: any) {
-      console.error("Failed to load payment history:", err);
+
       setError(err.message || "Không thể tải lịch sử thanh toán");
     } finally {
       setLoading(false);
@@ -109,10 +109,10 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('vi-VN', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
     } catch {
       return dateString;
@@ -227,7 +227,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
         <View style={styles.errorContainer}>
           <Icon name="alert-circle-outline" size={48} color={colors.error} />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.retryButton}
             onPress={() => loadPaymentHistory()}
           >

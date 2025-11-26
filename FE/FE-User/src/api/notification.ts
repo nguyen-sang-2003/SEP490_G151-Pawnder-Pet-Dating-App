@@ -20,14 +20,14 @@ export const getNotifications = async (userId: number): Promise<Notification[]> 
   try {
     const response = await apiClient.get(`/api/notification/user/${userId}`);
     const notifications = response.data as Notification[];
-    
+
     // Ensure type is set (fallback to auto-detect if not provided by backend)
     return notifications.map(n => ({
       ...n,
       type: n.type || detectNotificationType(n.title, n.message),
     }));
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+
     throw error;
   }
 };
@@ -37,12 +37,12 @@ export const getNotifications = async (userId: number): Promise<Notification[]> 
  */
 const detectNotificationType = (title?: string | null, message?: string | null): 'match' | 'like' | 'message' | 'system' | 'expert' => {
   const text = `${title} ${message}`.toLowerCase();
-  
+
   if (text.includes('match') || text.includes('ghép đôi')) return 'match';
   if (text.includes('like') || text.includes('thích')) return 'like';
   if (text.includes('message') || text.includes('tin nhắn')) return 'message';
   if (text.includes('expert') || text.includes('chuyên gia')) return 'expert';
-  
+
   return 'system';
 };
 
@@ -54,7 +54,7 @@ export const markNotificationAsRead = async (notificationId: number): Promise<vo
     await apiClient.put(`/api/notification/${notificationId}/read`);
     console.log('✅ Marked notification as read:', notificationId);
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+
     throw error;
   }
 };
@@ -67,7 +67,7 @@ export const markAllNotificationsAsRead = async (userId: number): Promise<void> 
     await apiClient.put(`/api/notification/user/${userId}/read-all`);
     console.log('✅ Marked all notifications as read for user:', userId);
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+
     throw error;
   }
 };
@@ -80,7 +80,7 @@ export const getUnreadNotificationCount = async (userId: number): Promise<number
     const response = await apiClient.get(`/api/notification/user/${userId}/unread-count`);
     return response.data.count || 0;
   } catch (error) {
-    console.error('Error fetching unread notification count:', error);
+
     return 0;
   }
 };
@@ -92,7 +92,7 @@ export const deleteNotification = async (notificationId: number): Promise<void> 
   try {
     await apiClient.delete(`/api/notification/${notificationId}`);
   } catch (error) {
-    console.error('Error deleting notification:', error);
+
     throw error;
   }
 };

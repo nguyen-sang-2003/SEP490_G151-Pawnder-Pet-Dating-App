@@ -20,8 +20,7 @@ export const getUserById = async (userId: number): Promise<UserResponse> => {
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error fetching user:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -40,8 +39,7 @@ export const updateUser = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error updating user:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
