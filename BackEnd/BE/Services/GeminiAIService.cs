@@ -14,8 +14,30 @@ namespace BE.Services
         {
             _context = context;
             _configuration = configuration;
+            
             var apiKey = _configuration["GeminiAI:ApiKey"];
-            _googleAI = new GoogleAI(apiKey: apiKey);
+            
+            // Validate API key
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                Console.WriteLine("❌ GEMINI API KEY IS NULL OR EMPTY!");
+                Console.WriteLine($"   Checking configuration sections:");
+                Console.WriteLine($"   - GeminiAI:ApiKey = {apiKey ?? "NULL"}");
+                throw new InvalidOperationException("Gemini API Key is not configured in appsettings.json");
+            }
+            
+            Console.WriteLine($"✅ Gemini API Key loaded: {apiKey.Substring(0, Math.Min(10, apiKey.Length))}... (length: {apiKey.Length})");
+            
+            try
+            {
+                _googleAI = new GoogleAI(apiKey: apiKey);
+                Console.WriteLine("✅ GoogleAI client initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to initialize GoogleAI client: {ex.Message}");
+                throw;
+            }
         }
 
         // System Prompt cố định cho mèo
@@ -85,9 +107,22 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             // Lấy lịch sử chat
             var history = await GetChatHistoryAsync(chatAiId);
 
-            // Gọi Gemini API
-            //var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash-exp");
-            var model = _googleAI.GenerativeModel(model: "gemini-2.5-flash");
+            // Gọi Gemini API với model name
+            string modelName = "gemini-1.5-flash"; // Stable model
+            Console.WriteLine($"🤖 [Chat {chatAiId}] Using Gemini model: {modelName}");
+            
+            GenerativeModel model;
+            try
+            {
+                model = _googleAI.GenerativeModel(model: modelName);
+                Console.WriteLine($"✅ [Chat {chatAiId}] Model initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ [Chat {chatAiId}] Failed to initialize model '{modelName}': {ex.Message}");
+                throw new Exception($"Không thể khởi tạo AI model: {ex.Message}");
+            }
+            
             // Xây dựng prompt
             var promptBuilder = new System.Text.StringBuilder();
 
@@ -149,8 +184,35 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"❌ [Chat {chatAiId}] Gemini error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
-                throw new Exception("Không thể kết nối với AI. Vui lòng thử lại sau.");
+                Console.WriteLine($"❌ [Chat {chatAiId}] Gemini error after {stopwatch.ElapsedMilliseconds}ms");
+                Console.WriteLine($"   Exception Type: {ex.GetType().FullName}");
+                Console.WriteLine($"   Message: {ex.Message}");
+                
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"   InnerException Type: {ex.InnerException.GetType().FullName}");
+                    Console.WriteLine($"   InnerException Message: {ex.InnerException.Message}");
+                }
+                
+                Console.WriteLine($"   StackTrace: {ex.StackTrace}");
+                
+                // Return more specific error messages
+                if (ex.Message.Contains("API key"))
+                {
+                    throw new Exception("Gemini API key không hợp lệ. Vui lòng kiểm tra cấu hình.");
+                }
+                else if (ex.Message.Contains("429") || ex.Message.Contains("quota"))
+                {
+                    throw new Exception("AI đã vượt quá giới hạn sử dụng. Vui lòng thử lại sau.");
+                }
+                else if (ex.Message.Contains("404") || ex.Message.Contains("not found"))
+                {
+                    throw new Exception("Không tìm thấy AI model. Vui lòng liên hệ quản trị viên.");
+                }
+                else
+                {
+                    throw new Exception($"Lỗi kết nối AI: {ex.Message}");
+                }
             }
 
             // Lưu Q&A
