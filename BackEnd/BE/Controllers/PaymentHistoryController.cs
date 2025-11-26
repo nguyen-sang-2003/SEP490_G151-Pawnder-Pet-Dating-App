@@ -21,11 +21,23 @@ namespace BE.Controllers
 
 		// POST /api/payment-history/generate
 		[HttpPost("generate")]
-		//[Authorize(Roles = "User")]
-		public async Task<IActionResult> GenerateQr([FromQuery] decimal amount, [FromQuery] string addInfo, CancellationToken ct = default)
+		[Authorize(Roles = "User")]
+		public async Task<IActionResult> GenerateQr(CancellationToken ct = default)
 		{
 			try
 			{
+				// Lấy userId từ token JWT (sử dụng ClaimTypes.NameIdentifier)
+				var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+				if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+				{
+					return Unauthorized(new { message = "Không tìm thấy thông tin user trong token" });
+				}
+
+				// Amount mặc định 10000, months cố định 1 tháng
+				decimal amount = 10000;
+				int months = 1;
+				string addInfo = $"userId_{userId}_months_{months}";
+
 				var qrBytes = await _paymentHistoryService.GenerateQrAsync(amount, addInfo, ct);
 				return File(qrBytes, "image/png");
 			}
@@ -153,6 +165,27 @@ namespace BE.Controllers
 				{
 					success = false,
 					message = "Lỗi khi kiểm tra trạng thái thanh toán",
+					error = ex.Message
+				});
+			}
+		}
+
+		// PUT /api/payment-history/update-expired
+		[HttpPut("update-expired")]
+		// [Authorize(Roles = "Admin")]
+		public async Task<IActionResult> UpdateExpiredPayments(CancellationToken ct = default)
+		{
+			try
+			{
+				var result = await _paymentHistoryService.UpdateExpiredPaymentsAsync(ct);
+				return Ok(result);
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi update expired payments",
 					error = ex.Message
 				});
 			}

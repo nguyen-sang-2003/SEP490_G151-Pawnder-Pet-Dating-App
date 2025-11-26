@@ -11,6 +11,7 @@ namespace BE.Services.Interfaces
         Task<object> ProcessPaymentCallbackAsync(JsonElement notification, CancellationToken ct = default);
         Task<object> CheckPaymentStatusAsync(int userId, decimal amount, string description, CancellationToken ct = default);
         Task<bool> ValidateWebhookAsync(string? authHeader, CancellationToken ct = default);
+        Task<object> UpdateExpiredPaymentsAsync(CancellationToken ct = default);
     }
 
     public record CreatePaymentHistoryRequest

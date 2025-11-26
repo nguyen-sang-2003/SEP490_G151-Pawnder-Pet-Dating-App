@@ -421,6 +421,49 @@ namespace BE.Services
                 return Task.FromResult(false);
             }
         }
+
+        public async Task<object> UpdateExpiredPaymentsAsync(CancellationToken ct = default)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+
+            // Tìm tất cả payment history có EndDate < today và StatusService = "active"
+            var expiredPayments = await _context.PaymentHistories
+                .Where(p => p.EndDate < today && p.StatusService == "active")
+                .ToListAsync(ct);
+
+            if (!expiredPayments.Any())
+            {
+                return new
+                {
+                    success = true,
+                    message = "Không có payment nào hết hạn",
+                    updatedCount = 0
+                };
+            }
+
+            // Update tất cả về pending
+            foreach (var payment in expiredPayments)
+            {
+                payment.StatusService = "pending";
+                payment.UpdatedAt = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync(ct);
+
+            return new
+            {
+                success = true,
+                message = $"Đã update {expiredPayments.Count} payment về trạng thái 'pending'",
+                updatedCount = expiredPayments.Count,
+                payments = expiredPayments.Select(p => new
+                {
+                    historyId = p.HistoryId,
+                    userId = p.UserId,
+                    endDate = p.EndDate,
+                    statusService = p.StatusService
+                })
+            };
+        }
     }
 }
 

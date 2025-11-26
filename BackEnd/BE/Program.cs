@@ -199,6 +199,9 @@ builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertService, BE.Service
 builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.Services.ChatExpertContentService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
 
+// Register Background Service để tự động update expired payments
+builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
