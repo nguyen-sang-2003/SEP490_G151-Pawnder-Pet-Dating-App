@@ -75,10 +75,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
       // Reset favorite badge when user views this screen
       console.log('🔔 Resetting favorite badge to 0');
       dispatch(resetFavoriteBadge());
-      
+
       // 🚀 FORCE REFRESH: Always fetch fresh data when entering screen
       loadLikes(true); // Force refresh = true
-      
+
       // Don't refresh badges here - they are managed by useBadgeNotifications hook
     }, [dispatch])
   );
@@ -96,7 +96,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       const userId = parseInt(userIdStr);
       console.log('📞 Loading likes for user:', userId);
-      
+
       // 🚀 OPTIMIZATION 1: Get active pet with cache
       let activePetId: number | undefined;
       try {
@@ -105,7 +105,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
           () => getPetsByUserId(userId),
           CACHE_TTL.MEDIUM
         );
-        
+
         const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
         if (activePet) {
           activePetId = activePet.PetId || activePet.petId;
@@ -116,7 +116,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
       } catch (error) {
         console.log('⚠️ Could not get active pet - showing all likes');
       }
-      
+
       // 🚀 OPTIMIZATION 2: Check cache first (unless force refresh)
       const cacheKey = CACHE_KEYS.LIKES(userId, activePetId);
       if (!forceRefresh) {
@@ -128,7 +128,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
           return;
         }
       }
-      
+
       // 🚀 OPTIMIZATION 3: Fetch fresh data with petId filter
       let likesData: LikeReceivedItem[] = [];
       try {
@@ -145,22 +145,22 @@ const FavoriteScreen = ({ navigation }: Props) => {
           console.error('❌ Failed to load likes:', e);
         }
       }
-      
+
       console.log('✅ Final likes to display:', likesData.length);
 
       // Convert API data to LikeCat format
       const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => {
         const photos = item.petPhotos && item.petPhotos.length > 0
           ? item.petPhotos
-              .filter((url: string) => url && url.trim() !== '') // Filter empty URLs
-              .map((url: string) => ({ uri: url }))
+            .filter((url: string) => url && url.trim() !== '') // Filter empty URLs
+            .map((url: string) => ({ uri: url }))
           : [require("../../../assets/cat_avatar.png")];
-        
+
         // Fallback if all URLs are invalid
         if (photos.length === 0) {
           photos.push(require("../../../assets/cat_avatar.png"));
         }
-        
+
         return {
           id: item.matchId.toString(),                      // matchId for match/unmatch actions
           petId: item.pet?.petId?.toString() || '0',        // actual petId for navigation
@@ -180,7 +180,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
       // 🚀 OPTIMIZATION 4: Cache the result
       cache.set(cacheKey, formattedPets);
       console.log('💾 Cached likes for future use');
-      
+
       setPets(formattedPets);
     } catch (error) {
       console.error('❌ Error loading likes:', error);
@@ -220,7 +220,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
     try {
       console.log('💘 Matching with:', petId);
-      
+
       // Call API to accept the match
       const response = await respondToLike({
         matchId: parseInt(petId),
@@ -261,7 +261,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const handlePass = useCallback(async (petId: string) => {
     try {
       console.log('👎 Passing on:', petId);
-      
+
       // Call API to reject/pass
       await respondToLike({
         matchId: parseInt(petId),
@@ -270,14 +270,14 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       // Remove from list immediately
       setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
-      
+
       // 🚀 OPTIMIZATION: Invalidate cache after action
       const userIdStr = await AsyncStorage.getItem('userId');
       if (userIdStr) {
         const userId = parseInt(userIdStr);
         invalidateCache.likes(userId);
       }
-      
+
       console.log('✅ Passed successfully');
     } catch (error) {
       console.error('❌ Error passing:', error);
@@ -287,7 +287,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const handleUnmatch = useCallback(async (petId: string) => {
     try {
       console.log('💔 Unmatching:', petId);
-      
+
       // Call API to unmatch (pass on already matched)
       await respondToLike({
         matchId: parseInt(petId),
@@ -296,7 +296,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       // Remove from list immediately
       setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
-      
+
       // 🚀 OPTIMIZATION: Invalidate cache after action
       const userIdStr = await AsyncStorage.getItem('userId');
       if (userIdStr) {
@@ -304,7 +304,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
         invalidateCache.likes(userId);
         invalidateCache.chats(userId); // Also invalidate chats
       }
-      
+
       console.log('✅ Unmatched successfully');
     } catch (error) {
       console.error('❌ Error unmatching:', error);
@@ -313,7 +313,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
   const handleChat = useCallback((matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
     console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
-    navigation.navigate('ChatDetail', { 
+    navigation.navigate('ChatDetail', {
       matchId: parseInt(matchId),
       otherUserId: ownerId,
       userName: ownerName,
@@ -333,7 +333,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
     return (
       <Animated.View style={[styles.cardWrapper]}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.card}
           onPress={() => handleViewProfile(item.petId)}
           activeOpacity={0.95}
@@ -341,7 +341,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
           {/* Image Container with Photo Navigation */}
           <View style={styles.imageContainer}>
             <OptimizedImage source={item.images[currentPhotoIndex]} style={styles.catImage} resizeMode="cover" showLoader={true} imageSize="card" />
-            
+
             {/* Photo Navigation - Left/Right tap areas */}
             {hasMultiplePhotos && (
               <>
@@ -365,7 +365,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 />
               </>
             )}
-            
+
             {/* Photo Dots Pagination */}
             {hasMultiplePhotos && (
               <View style={styles.photoDots}>
@@ -380,7 +380,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 ))}
               </View>
             )}
-            
+
             {/* Top Badges Row */}
             <View style={styles.topBadgesRow}>
               {/* Match Badge */}
@@ -397,14 +397,14 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   </LinearGradient>
                 </View>
               )}
-              
+
               {/* Time Badge */}
               <View style={styles.timeBadge}>
                 <Icon name="time-outline" size={12} color={colors.white} />
                 <Text style={styles.timeBadgeText}>{item.likedAt}</Text>
               </View>
             </View>
-            
+
             {/* Gradient Overlay for better text readability */}
             <LinearGradient
               colors={["transparent", "rgba(0,0,0,0.75)"]}
@@ -437,7 +437,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
             {item.isMatch ? (
               // Already matched - show Chat and Unmatch
               <>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.actionBtnChat}
                   onPress={(e) => {
                     e.stopPropagation();
@@ -455,8 +455,8 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     <Text style={styles.actionTextWhite}>Send Message</Text>
                   </LinearGradient>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.actionBtnUnmatch}
                   onPress={(e) => {
                     e.stopPropagation();
@@ -471,7 +471,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
             ) : (
               // Not matched yet - show Pass and Match
               <>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={(e) => {
                     e.stopPropagation();
                     handlePass(item.id);
@@ -485,8 +485,8 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     <Icon name="close" size={20} color={colors.white} />
                   </LinearGradient>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.actionBtnMatch}
                   onPress={(e) => {
                     e.stopPropagation();
@@ -543,7 +543,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-      
+
       {/* Animated Header with Gradient */}
       <LinearGradient
         colors={["rgba(255,240,247,1)", "rgba(250,251,252,0)"]}
@@ -578,10 +578,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
               colors={activeTab === 'likes' ? gradients.favorite : ['transparent', 'transparent']}
               style={styles.tabGradient}
             >
-              <Icon 
-                name="heart" 
-                size={20} 
-                color={activeTab === 'likes' ? colors.white : colors.textMedium} 
+              <Icon
+                name="heart"
+                size={20}
+                color={activeTab === 'likes' ? colors.white : colors.textMedium}
               />
               <Text style={[
                 styles.tabText,
@@ -601,10 +601,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
               colors={activeTab === 'matches' ? gradients.favorite : ['transparent', 'transparent']}
               style={styles.tabGradient}
             >
-              <Icon 
-                name="people" 
-                size={20} 
-                color={activeTab === 'matches' ? colors.white : colors.textMedium} 
+              <Icon
+                name="people"
+                size={20}
+                color={activeTab === 'matches' ? colors.white : colors.textMedium}
               />
               <Text style={[
                 styles.tabText,
@@ -619,10 +619,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       {/* List or Empty State */}
       {(() => {
-        const filteredPets = pets.filter(pet => 
+        const filteredPets = pets.filter(pet =>
           activeTab === 'likes' ? !pet.isMatch : pet.isMatch
         );
-        
+
         if (filteredPets.length === 0) {
           return (
             <View style={styles.emptyState}>
@@ -630,17 +630,17 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 colors={["rgba(255,110,167,0.1)", "rgba(255,155,192,0.05)"]}
                 style={styles.emptyIconBg}
               >
-                <Icon 
-                  name={activeTab === 'likes' ? "heart-dislike-outline" : "people-outline"} 
-                  size={60} 
-                  color={colors.primary} 
+                <Icon
+                  name={activeTab === 'likes' ? "heart-dislike-outline" : "people-outline"}
+                  size={60}
+                  color={colors.primary}
                 />
               </LinearGradient>
               <Text style={styles.emptyTitle}>
                 {activeTab === 'likes' ? 'No Likes Yet' : 'No Matches Yet'}
               </Text>
               <Text style={styles.emptyText}>
-                {activeTab === 'likes' 
+                {activeTab === 'likes'
                   ? "When other pets like you, they'll appear here.\nKeep swiping to find your perfect match!"
                   : "When you match with someone, they'll appear here.\nStart liking pets to create matches!"
                 }
@@ -658,10 +658,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   <Text style={styles.emptyButtonText}>Start Swiping</Text>
                 </LinearGradient>
               </TouchableOpacity>
-            </View>
+            </View >
           );
         }
-        
+
         return (
           <Animated.FlatList
             data={filteredPets}
@@ -680,7 +680,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       {/* Bottom Navigation */}
       <BottomNav active="Favorite" />
-    </View>
+    </View >
   );
 };
 

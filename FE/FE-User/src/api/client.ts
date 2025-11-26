@@ -3,11 +3,11 @@ import * as Keychain from 'react-native-keychain';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBaseUrl, API_CONFIG } from '../config/api.config';
 import { apiCache, createCacheKey } from '../utils/apiCache';
-import { 
-  isRetryableError, 
-  getRetryDelay, 
-  sleep, 
-  getRetryAttempt, 
+import {
+  isRetryableError,
+  getRetryDelay,
+  sleep,
+  getRetryAttempt,
   setRetryAttempt
 } from '../utils/apiRetry';
 import { apiCancel, isCancel } from '../utils/apiCancel';
@@ -17,7 +17,7 @@ import { API_OPTIMIZATION_CONFIG, OptimizedRequestConfig } from '../utils/apiOpt
 const BASE_URL = getBaseUrl();
 
 // Extended request config interface
-export interface ExtendedAxiosRequestConfig extends AxiosRequestConfig, OptimizedRequestConfig {}
+export interface ExtendedAxiosRequestConfig extends AxiosRequestConfig, OptimizedRequestConfig { }
 
 // Create axios instance with default config
 export const apiClient = axios.create({
@@ -122,7 +122,7 @@ const processQueue = (error: any, token: string | null = null) => {
       prom.resolve(token);
     }
   });
-  
+
   failedQueue = [];
 };
 
@@ -133,7 +133,7 @@ apiClient.interceptors.response.use(
     const method = response.config.method?.toUpperCase();
     if (method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
       const url = response.config.url || '';
-      
+
       // Extract resource type from URL (e.g., /api/pet/123 -> pet)
       const resourceMatch = url.match(/\/api\/([^\/]+)/);
       if (resourceMatch) {
@@ -142,7 +142,7 @@ apiClient.interceptors.response.use(
         console.log(`🗑️ [ApiClient] Invalidated cache for resource: ${resource}`);
       }
     }
-    
+
     return response;
   },
   async error => {
@@ -162,8 +162,8 @@ apiClient.interceptors.response.use(
       !originalRequest._retry // Don't retry token refresh attempts
     ) {
       const retryAttempt = getRetryAttempt(originalRequest);
-      const maxAttempts = (originalRequest as ExtendedAxiosRequestConfig).retryAttempts || 
-                         API_OPTIMIZATION_CONFIG.retry.attempts;
+      const maxAttempts = (originalRequest as ExtendedAxiosRequestConfig).retryAttempts ||
+        API_OPTIMIZATION_CONFIG.retry.attempts;
 
       if (retryAttempt < maxAttempts) {
         const nextAttempt = retryAttempt + 1;
@@ -171,7 +171,7 @@ apiClient.interceptors.response.use(
 
         const delay = getRetryDelay(
           nextAttempt,
-          (originalRequest as ExtendedAxiosRequestConfig).retryDelay || 
+          (originalRequest as ExtendedAxiosRequestConfig).retryDelay ||
           API_OPTIMIZATION_CONFIG.retry.baseDelay,
           API_OPTIMIZATION_CONFIG.retry.maxDelay
         );
@@ -181,7 +181,7 @@ apiClient.interceptors.response.use(
         );
 
         await sleep(delay);
-        
+
         // IMPORTANT: Preserve the original timeout for retry
         // This is critical for long-running requests like AI chat (50s timeout)
         // Without this, retries would use the default 10s timeout and fail
@@ -192,20 +192,20 @@ apiClient.interceptors.response.use(
         );
       }
     }
-    
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Skip token refresh for login/register endpoints (they don't need tokens)
       const url = originalRequest.url || '';
-      const isAuthEndpoint = url.includes('/login') || 
-                            url.includes('/register') || 
-                            url.includes('/refresh') ||
-                            url.includes('/forgot-password');
-      
+      const isAuthEndpoint = url.includes('/login') ||
+        url.includes('/register') ||
+        url.includes('/refresh') ||
+        url.includes('/forgot-password');
+
       if (isAuthEndpoint) {
         // Don't try to refresh token for auth endpoints, just reject
         return Promise.reject(error);
       }
-      
+
       if (isRefreshing) {
         // Queue this request
         return new Promise((resolve, reject) => {
@@ -223,38 +223,38 @@ apiClient.interceptors.response.use(
 
       try {
         const refreshToken = await getStoredRefreshToken();
-        
+
         if (!refreshToken) {
           throw new Error('No refresh token');
         }
 
         console.log('🔄 Refreshing access token...');
-        
+
         // Call refresh endpoint
         const response = await axios.post(`${BASE_URL}/api/refresh`, {
           RefreshToken: refreshToken,
         });
 
         const { AccessToken, RefreshToken: newRefreshToken } = response.data;
-        
+
         // Store new tokens
         await storeTokens(AccessToken, newRefreshToken);
-        
+
         console.log('✅ Token refreshed successfully');
-        
+
         // Update header and retry original request
         originalRequest.headers.Authorization = `Bearer ${AccessToken}`;
-        
+
         processQueue(null, AccessToken);
         isRefreshing = false;
-        
+
         return apiClient(originalRequest);
       } catch (refreshError) {
         console.log('❌ Refresh token failed, logging out...');
-        
+
         processQueue(refreshError, null);
         isRefreshing = false;
-        
+
         // Clear all tokens and user data
         try {
           await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
@@ -268,11 +268,11 @@ apiClient.interceptors.response.use(
         } catch (e) {
           console.error('❌ Error clearing tokens:', e);
         }
-        
+
         return Promise.reject(refreshError);
       }
     }
-    
+
     return Promise.reject(error);
   },
 );
@@ -286,7 +286,7 @@ export const cachedGet = async <T = any>(
 ): Promise<T> => {
   const useCache = config?.useCache ?? API_OPTIMIZATION_CONFIG.cache.enabled;
   const cacheDuration = config?.cacheDuration ?? API_OPTIMIZATION_CONFIG.cache.defaultDuration;
-  
+
   if (!useCache || config?.method?.toUpperCase() !== 'GET') {
     const response = await apiClient.get<T>(url, config);
     return response.data;
@@ -294,7 +294,7 @@ export const cachedGet = async <T = any>(
 
   // Create cache key
   const cacheKey = config?.cacheKey || createCacheKey(url, config?.params);
-  
+
   // Use cache
   return apiCache.get(
     cacheKey,

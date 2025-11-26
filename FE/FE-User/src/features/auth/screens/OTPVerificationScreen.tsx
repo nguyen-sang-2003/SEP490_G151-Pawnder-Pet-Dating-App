@@ -17,7 +17,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { sendOtp, verifyOtp, register, createAddressForUser } from "../../../api";
+import { sendOtp, verifyOtp, register, createAddressForUser, login } from "../../../api";
 import { requestLocationAndGetCoordinates } from "../../../services/location.service";
 import { setItem } from "../../../utils/storage";
 
@@ -94,7 +94,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
   const handleVerify = async () => {
     const otpCode = otp.join("");
-    
+
     if (otpCode.length !== 6) {
       showAlert({
         type: 'warning',
@@ -134,19 +134,31 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               console.log('OTP verified successfully. Creating account...');
               const registerResponse = await register(userData);
               const newUserId = registerResponse.userId || registerResponse.UserId;
-              
+
               if (!newUserId) {
                 throw new Error('Không thể lấy UserId từ response');
               }
-              
+
               console.log('✅ Account created. UserId:', newUserId);
-              
+
               // Save userId to AsyncStorage for later use
               await setItem('userId', newUserId.toString());
               console.log('💾 UserId saved to storage');
-              
+
+              // 🔐 AUTO-LOGIN: Get access and refresh tokens
+              // This is critical because register API doesn't return tokens
+              console.log('🔐 Auto-logging in to get access tokens...');
+              try {
+                await login(userData.Email, userData.Password);
+                console.log('✅ Auto-login successful - tokens stored in Keychain');
+              } catch (loginError: any) {
+                console.error('⚠️ Auto-login failed:', loginError);
+                // Don't block the flow - user can login manually later
+                // But this means subsequent API calls might fail due to missing tokens
+              }
+
               setLoading(false);
-              
+
               // Step 3: Request location permission and get GPS
               showAlert({
                 type: 'info',
@@ -161,16 +173,16 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
             } catch (error: any) {
               setLoading(false);
               console.error('Registration error:', error);
-              
+
               let errorTitle = 'Tạo tài khoản thất bại';
               let errorMessage = error.message || 'Có lỗi xảy ra. Vui lòng thử lại.';
-              
+
               // Check if error is from registration
               if (error.message?.includes('Email') || error.message?.includes('đã tồn tại')) {
                 errorTitle = 'Email đã được sử dụng';
                 errorMessage = 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác.';
               }
-              
+
               showAlert({
                 type: 'error',
                 title: errorTitle,
@@ -192,7 +204,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
       });
     } catch (error: any) {
       console.error('OTP Verification error:', error);
-      
+
       showAlert({
         type: 'error',
         title: 'Xác thực thất bại',
@@ -206,11 +218,11 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
   const handleLocationSetup = async (newUserId: number) => {
     try {
       setLoading(true);
-      
+
       // Get GPS coordinates
       console.log('Requesting location permission...');
       const coordinates = await requestLocationAndGetCoordinates();
-      
+
       if (!coordinates) {
         // User denied permission, skip and navigate
         console.warn('Location permission denied');
@@ -223,11 +235,11 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
         });
         return;
       }
-      
+
       // Create address in database
       console.log('Creating address with coordinates:', coordinates);
       await createAddressForUser(newUserId, coordinates.latitude, coordinates.longitude);
-      
+
       showAlert({
         type: 'success',
         title: 'Đăng ký hoàn tất! 🎉',
@@ -237,7 +249,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
       });
     } catch (error: any) {
       console.error('Location setup error:', error);
-      
+
       // Show error but allow user to continue
       showAlert({
         type: 'warning',
@@ -258,14 +270,14 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
     try {
       console.log('📧 Resending OTP to:', email);
       await sendOtp(email);
-      
+
       setResendTimer(60);
       setOtpValidTimer(300); // Reset to 5 minutes
       setCanResend(false);
       setIsOtpExpired(false);
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-      
+
       showAlert({
         type: 'success',
         title: 'Đã gửi lại! 📧',
@@ -321,18 +333,18 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
           {/* OTP Validity Timer */}
           <View style={styles.validityContainer}>
-            <Icon 
-              name="time-outline" 
-              size={16} 
-              color={isOtpExpired ? colors.error : otpValidTimer <= 60 ? colors.warning : colors.primary} 
+            <Icon
+              name="time-outline"
+              size={16}
+              color={isOtpExpired ? colors.error : otpValidTimer <= 60 ? colors.warning : colors.primary}
             />
             <Text style={[
               styles.validityText,
               isOtpExpired && styles.expiredText,
               otpValidTimer <= 60 && !isOtpExpired && styles.warningText,
             ]}>
-              {isOtpExpired 
-                ? "Mã đã hết hạn! Vui lòng gửi lại" 
+              {isOtpExpired
+                ? "Mã đã hết hạn! Vui lòng gửi lại"
                 : `Mã có hiệu lực: ${Math.floor(otpValidTimer / 60)}:${String(otpValidTimer % 60).padStart(2, '0')}`}
             </Text>
           </View>
