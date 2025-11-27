@@ -84,15 +84,16 @@ export const useBadgeNotifications = (userId: number | null) => {
     };
 
     const handleMatchSuccess = (data: any) => {
+      console.log('🎉 [MatchSuccess] Received:', data);
       const matchId = data.matchId || data.MatchId || 0;
       const otherUserId = data.otherUserId || data.OtherUserId || 0;
       const otherUserName = data.otherUserName || data.OtherUserName || 'Someone';
       const petName = data.petName || data.PetName;
       const petPhotoUrl = data.petPhotoUrl || data.PetPhotoUrl;
 
-      // Don't increment notification badge for matches
-      // Notification badge is only for admin and expert notifications
-      // dispatch(incrementNotificationBadge());
+      // Increment favorite badge when match happens
+      console.log('📬 [MatchSuccess] Incrementing favorite badge for new match');
+      dispatch(incrementFavoriteBadge());
 
       dispatch(showMatchModal({
         otherUserName,
