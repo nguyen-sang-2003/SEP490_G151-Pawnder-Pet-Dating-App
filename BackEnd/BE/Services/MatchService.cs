@@ -134,7 +134,7 @@ namespace BE.Services
                 if (ageChar != null && ageChar.Value.HasValue)
                 {
                     age = (int)Math.Round((double)ageChar.Value.Value);
-                }
+                 }
 
                 return new
                 {
