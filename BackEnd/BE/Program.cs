@@ -202,6 +202,7 @@ builder.Services.AddScoped<BE.Services.Interfaces.IChatUserContentService, BE.Se
 builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertService, BE.Services.ChatExpertService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.Services.ChatExpertContentService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
+builder.Services.AddScoped<BE.Services.IPetImageAnalysisService, BE.Services.PetImageAnalysisService>();
 
 // Register Background Service để tự động update expired payments
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
