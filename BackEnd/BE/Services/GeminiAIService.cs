@@ -89,7 +89,7 @@ CHỦ ĐỀ: Hành vi, dinh dưỡng, sức khỏe, vệ sinh, vui chơi, môi t
             var history = await GetChatHistoryAsync(chatAiId);
 
             // Gọi Gemini API với model name (gemini-1.5-flash nhanh hơn 3x so với 2.5)
-            string modelName = "gemini-1.5-flash"; // Stable & Fast model
+            string modelName = "gemini-2.5-flash"; // Stable & Fast model
             Console.WriteLine($"🤖 [Chat {chatAiId}] Using Gemini model: {modelName}");
             
             GenerativeModel model;
