@@ -14,9 +14,9 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { 
-  getAttributesForFilter, 
-  getUserPreferences, 
+import {
+  getAttributesForFilter,
+  getUserPreferences,
   saveUserPreferencesBatch,
   AttributeForFilter,
   UserPreference,
@@ -37,7 +37,7 @@ interface PreferenceValue {
 
 const UserPreferenceScreen = ({ navigation }: Props) => {
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
@@ -51,7 +51,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // Get userId from storage
       const userIdStr = await getItem('userId');
       if (!userIdStr) {
@@ -70,7 +70,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
       try {
         const existingPrefs = await getUserPreferences(uid);
         console.log('💾 Existing preferences:', existingPrefs);
-        
+
         const prefsMap = new Map<number, PreferenceValue>();
         existingPrefs.forEach((pref: UserPreference) => {
           prefsMap.set(pref.AttributeId, {
@@ -86,7 +86,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
         console.log('ℹ️ No existing preferences or error loading them:', error.message);
       }
     } catch (error: any) {
-      console.error('❌ Error loading data:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải dữ liệu' });
     } finally {
       setLoading(false);
@@ -110,18 +110,18 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
 
     try {
       setSaving(true);
-      
+
       // Convert preferences map to array
       const prefsArray: UserPreferenceBatchRequest[] = Array.from(preferences.values())
         .filter(pref => {
           // Include if has optionId (for string type attributes)
           if (pref.optionId != null) return true;
-          
+
           // Include if has at least one value set (for numeric attributes)
           // For distance: only maxValue is needed
           // For range: both minValue and maxValue should be set
           if (pref.minValue != null || pref.maxValue != null) return true;
-          
+
           return false;
         })
         .map(pref => ({
@@ -139,10 +139,10 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
       console.log('💾 Saving preferences:', prefsArray);
       const result = await saveUserPreferencesBatch(userId, prefsArray);
       console.log('✅ Saved:', result);
-      
-      showAlert({ 
-        type: 'success', 
-        title: 'Thành công', 
+
+      showAlert({
+        type: 'success',
+        title: 'Thành công',
         message: `Đã lưu sở thích (${result.created} mới, ${result.updated} cập nhật)`,
         onConfirm: () => {
           hideAlert();
@@ -150,7 +150,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
         }
       });
     } catch (error: any) {
-      console.error('❌ Error saving preferences:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể lưu sở thích' });
     } finally {
       setSaving(false);
@@ -247,10 +247,10 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
                   style={styles.rangeButton}
                   onPress={() => {
                     const newMin = Math.max(0, (pref?.minValue || 0) - 1);
-                    updatePreference(attr.AttributeId, { 
+                    updatePreference(attr.AttributeId, {
                       minValue: newMin,
                       maxValue: pref?.maxValue || newMin + 1,
-                      optionId: null 
+                      optionId: null
                     });
                   }}
                 >
@@ -261,10 +261,10 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
                   style={styles.rangeButton}
                   onPress={() => {
                     const newMin = Math.min((pref?.maxValue || 1) - 1, (pref?.minValue || 0) + 1);
-                    updatePreference(attr.AttributeId, { 
+                    updatePreference(attr.AttributeId, {
                       minValue: newMin,
                       maxValue: pref?.maxValue || newMin + 1,
-                      optionId: null 
+                      optionId: null
                     });
                   }}
                 >
@@ -279,10 +279,10 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
                   style={styles.rangeButton}
                   onPress={() => {
                     const newMax = Math.max((pref?.minValue || 0) + 1, (pref?.maxValue || 1) - 1);
-                    updatePreference(attr.AttributeId, { 
+                    updatePreference(attr.AttributeId, {
                       maxValue: newMax,
                       minValue: pref?.minValue || 0,
-                      optionId: null 
+                      optionId: null
                     });
                   }}
                 >
@@ -292,10 +292,10 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
                 <TouchableOpacity
                   style={styles.rangeButton}
                   onPress={() => {
-                    updatePreference(attr.AttributeId, { 
+                    updatePreference(attr.AttributeId, {
                       maxValue: (pref?.maxValue || 0) + 1,
                       minValue: pref?.minValue || 0,
-                      optionId: null 
+                      optionId: null
                     });
                   }}
                 >
@@ -362,8 +362,8 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
 
         {/* Save Button - Fixed at bottom */}
         <View style={styles.footer}>
-          <TouchableOpacity 
-            style={styles.saveButton} 
+          <TouchableOpacity
+            style={styles.saveButton}
             onPress={handleSave}
             disabled={saving}
           >
@@ -378,7 +378,7 @@ const UserPreferenceScreen = ({ navigation }: Props) => {
                 </>
               ) : (
                 <>
-              <Icon name="checkmark-circle" size={24} color={colors.white} />
+                  <Icon name="checkmark-circle" size={24} color={colors.white} />
                   <Text style={styles.saveText}>Lưu sở thích</Text>
                 </>
               )}

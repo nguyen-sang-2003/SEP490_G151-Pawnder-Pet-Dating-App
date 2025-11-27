@@ -72,24 +72,21 @@ const SignInScreen = ({ navigation }: Props) => {
     setLoading(true);
     try {
       const response = await login(email.trim(), pass.trim());
-      
+
       // Save userId to AsyncStorage (handle both PascalCase and camelCase)
       const userId = response.UserId || (response as any).userId;
       if (userId) {
         await setItem('userId', userId.toString());
       }
-      
+
       // Handle both PascalCase and camelCase from BE
       const isComplete = response.IsProfileComplete ?? (response as any).isProfileComplete ?? false;
-      
+
       if (isComplete === true) {
-        // Profile complete -> Go to Home
-        showAlert({
-          type: 'success',
-          title: 'Chào mừng! 🎉',
-          message: response.Message || 'Đăng nhập thành công',
-          onClose: () => navigation.replace("Home"),
-        });
+        // Profile complete -> Navigate immediately to Home
+        // Toast will be shown in Home screen
+        await setItem('showLoginSuccess', 'true');
+        navigation.replace("Home");
       } else {
         // Profile incomplete -> Continue onboarding
         showAlert({
@@ -103,7 +100,7 @@ const SignInScreen = ({ navigation }: Props) => {
     } catch (error: any) {
       showAlert({
         type: 'error',
-        title: 'Đăng nhập thất bại 😿',
+        title: 'Đăng nhập thất bại ',
         message: error.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
       });
     } finally {
@@ -151,9 +148,9 @@ const SignInScreen = ({ navigation }: Props) => {
         />
 
         <Animatable.View ref={buttonRef} style={styles.btnShadow}>
-          <TouchableOpacity 
-            activeOpacity={0.9} 
-            onPressIn={handlePressIn} 
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPressIn={handlePressIn}
             onPress={handleSignIn}
             disabled={loading}
           >
@@ -179,7 +176,7 @@ const SignInScreen = ({ navigation }: Props) => {
           >
             Register Now!
           </Text>{" "}
-          / <Text 
+          / <Text
             style={[styles.link, { color: "#666" }]}
             onPress={() => navigation.navigate("ForgotPassword")}
           >

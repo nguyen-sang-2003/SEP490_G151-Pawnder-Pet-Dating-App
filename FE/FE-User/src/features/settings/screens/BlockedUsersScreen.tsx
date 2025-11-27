@@ -50,13 +50,13 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
         return;
       }
       const currentUserId = parseInt(currentUserIdStr, 10);
-      
+
       console.log('📋 Loading blocked users for:', currentUserId);
       const users = await getBlockedUsers(currentUserId);
       console.log('✅ Loaded blocked users:', users.length);
       setBlockedUsers(users);
     } catch (error: any) {
-      console.error('❌ Error loading blocked users:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải danh sách người dùng đã chặn' });
     } finally {
       setLoading(false);
@@ -82,21 +82,21 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
           try {
             console.log("✅ Unblocking user:", currentUserId, "->", toUserId);
             await unblockUser(currentUserId, toUserId);
-            
+
             // Remove from list
             setBlockedUsers((prev) =>
               prev.filter((user) => user.toUserId !== toUserId)
             );
-            
+
             showAlert({ type: 'success', title: "Đã bỏ chặn", message: `${userName} đã được bỏ chặn.` });
           } catch (error: any) {
-            console.error('❌ Error unblocking user:', error);
+
             showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể bỏ chặn người dùng' });
           }
         },
       });
     } catch (error) {
-      console.error('❌ Error:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: 'Đã xảy ra lỗi' });
     }
   };
@@ -106,7 +106,7 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return "Hôm nay";
     if (diffDays === 1) return "Hôm qua";
     if (diffDays < 7) return `${diffDays} ngày trước`;

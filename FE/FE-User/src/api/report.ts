@@ -54,14 +54,11 @@ export const reportMessage = async (
       `/api/report/${userReportId}/${contentId}`,
       { Reason: reason }
     );
-    
+
     return response.data;
   } catch (error: any) {
-    console.error('❌ Report message error:', error);
-    console.error('❌ Error response:', error.response);
-    console.error('❌ Error data:', error.response?.data);
-    console.error('❌ Error status:', error.response?.status);
-    
+
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -78,11 +75,11 @@ export const getMyReports = async (userId: number): Promise<Report[]> => {
     const response = await apiClient.get<MyReportsResponse>(
       `/api/report/user/${userId}`
     );
-    
+
     return response.data.data || [];
   } catch (error: any) {
-    console.error('❌ Get my reports error:', error);
-    
+
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

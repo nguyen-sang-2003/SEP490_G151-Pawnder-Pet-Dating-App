@@ -94,7 +94,7 @@ const FilterScreen = ({ navigation }: Props) => {
 
             // Load existing preferences
             const preferencesData = await getUserPreferences(userId);
-            
+
             const filtersMap: { [key: number]: ActiveFilter } = {};
             preferencesData.forEach((pref: any) => {
                 filtersMap[pref.AttributeId] = {
@@ -106,8 +106,7 @@ const FilterScreen = ({ navigation }: Props) => {
 
             setActiveFilters(filtersMap);
         } catch (error: any) {
-            console.error("❌ Error loading filter data:", error);
-            console.error("❌ Error details:", error.response?.data || error.message);
+
         } finally {
             setLoading(false);
         }
@@ -149,7 +148,7 @@ const FilterScreen = ({ navigation }: Props) => {
 
     const handleSaveFilters = async () => {
         if (!currentUserId) {
-            console.error("❌ No userId found");
+
             return;
         }
 
@@ -161,30 +160,30 @@ const FilterScreen = ({ navigation }: Props) => {
                 .filter(([attributeIdStr, filter]) => {
                     const attrId = parseInt(attributeIdStr);
                     const attr = attributes.find(a => a.AttributeId === attrId);
-                    
+
                     // Always include if has optionId (string type attribute)
                     if (filter.optionId !== undefined) return true;
-                    
+
                     // Skip if no min/max values (no numeric filter set)
                     if (filter.minValue === undefined && filter.maxValue === undefined) return false;
-                    
+
                     // For Distance (single max handle) - attribute "Khoảng cách"
                     if (attr?.Name?.toLowerCase() === "khoảng cách") {
                         // Only save if user has set a specific distance limit (not unlimited)
                         // Backend will use this to filter pets by distance
                         return filter.maxValue !== undefined && filter.maxValue < maxDistanceLimit;
                     }
-                    
+
                     // For Height/Weight (dual handles) - other float attributes
                     const maxLimit = attr?.Name?.toLowerCase().includes("cao") ? 100 : 50;
                     const min = filter.minValue || 0;
                     const max = filter.maxValue || maxLimit;
-                    
+
                     // Skip if full range (= "Any" selection)
                     if (min === 0 && max === maxLimit) {
                         return false;
                     }
-                    
+
                     return true;
                 })
                 .map(([attributeId, filter]) => ({
@@ -197,12 +196,11 @@ const FilterScreen = ({ navigation }: Props) => {
             console.log("💾 Saving preferences:", preferences);
             await saveUserPreferencesBatch(currentUserId, preferences);
             console.log("✅ Filters saved successfully!");
-            
+
             // Navigate back to Home screen - will auto-reload pets with new recommendations
             navigation.goBack();
         } catch (error: any) {
-            console.error("❌ Error saving filters:", error);
-            console.error("❌ Error details:", error.response?.data || error.message);
+
             Alert.alert(
                 "Failed to Save",
                 error.response?.data?.message || error.message || "Unknown error. Please try again.",
@@ -223,7 +221,7 @@ const FilterScreen = ({ navigation }: Props) => {
 
     // Slider layout refs
     const distanceSliderRef = useRef({ x: 0, width: 0 });
-    
+
     // Distance slider PanResponder helper (create new each render like height/weight)
     const createDistanceSliderPanResponder = () => {
         return PanResponder.create({
@@ -236,16 +234,16 @@ const FilterScreen = ({ navigation }: Props) => {
             },
             onPanResponderMove: (event, gesture) => {
                 const { x, width: trackWidth } = distanceSliderRef.current;
-                
+
                 if (trackWidth > 0) {
                     const distanceAttr = attributes.find((a) => a.Name?.toLowerCase() === "khoảng cách");
                     if (!distanceAttr) return;
-                    
+
                     // Calculate from absolute position
                     const touchX = gesture.moveX - x;
                     const progress = Math.max(0, Math.min(1, touchX / trackWidth));
                     const newValue = Math.round(progress * maxDistanceLimit);
-                    
+
                     setActiveFilters((prev) => {
                         const newFilters = { ...prev };
                         if (newValue === maxDistanceLimit) {
@@ -265,11 +263,11 @@ const FilterScreen = ({ navigation }: Props) => {
             },
         });
     };
-    
+
     // Create PanResponder for range sliders (height, weight) - dual handle
     const rangeSliderRefs = useRef<{ [key: number]: { x: number; width: number } }>({});
     const [draggingStates, setDraggingStates] = useState<{ [key: string]: boolean }>({});
-    
+
     const createRangeSliderPanResponder = (attributeId: number, isMin: boolean, maxLimit: number) => {
         return PanResponder.create({
             onStartShouldSetPanResponder: () => true,
@@ -282,16 +280,16 @@ const FilterScreen = ({ navigation }: Props) => {
             onPanResponderMove: (event, gesture) => {
                 const sliderRef = rangeSliderRefs.current[attributeId];
                 if (!sliderRef || sliderRef.width === 0) return;
-                
+
                 const filter = activeFilters[attributeId] || {};
                 const currentMin = filter.minValue || 0;
                 const currentMax = filter.maxValue || maxLimit;
-                
+
                 // Calculate from absolute position (gesture.moveX)
                 const touchX = gesture.moveX - sliderRef.x;
                 const progress = Math.max(0, Math.min(1, touchX / sliderRef.width));
                 const newValue = Math.round(progress * maxLimit);
-                
+
                 if (isMin) {
                     if (newValue < currentMax) {
                         setActiveFilters(prev => ({
@@ -321,28 +319,28 @@ const FilterScreen = ({ navigation }: Props) => {
     const activeFilterCount = Object.entries(activeFilters).filter(([attributeIdStr, filter]) => {
         const attrId = parseInt(attributeIdStr);
         const attr = attributes.find(a => a.AttributeId === attrId);
-        
+
         // Count string type filters (optionId)
         if (filter.optionId !== undefined) return true;
-        
+
         // Skip if no min/max values
         if (filter.minValue === undefined && filter.maxValue === undefined) return false;
-        
+
         // For Distance - skip if at maximum (= "Any")
         if (attr?.Name?.toLowerCase() === "khoảng cách") {
             return filter.maxValue !== undefined && filter.maxValue < maxDistanceLimit;
         }
-        
+
         // For Height/Weight - skip if full range (= "Any")
         const maxLimit = attr?.Name?.toLowerCase().includes("cao") ? 100 : 50;
         const min = filter.minValue || 0;
         const max = filter.maxValue || maxLimit;
-        
+
         // Skip if full range
         if (min === 0 && max === maxLimit) {
             return false;
         }
-        
+
         return true;
     }).length;
 
@@ -433,7 +431,7 @@ const FilterScreen = ({ navigation }: Props) => {
                         const maxPercent = (maxValue / maxDistanceLimit) * 100;
                         const distanceSliderResponder = createDistanceSliderPanResponder();
                         const isAny = maxValue === maxDistanceLimit;
-                        
+
                         return (
                             <View style={styles.section}>
                                 <View style={styles.sectionHeaderWithValue}>
@@ -447,7 +445,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                 </View>
                                 <View style={styles.distanceCard}>
                                     {/* Single-handle Slider */}
-                                    <View 
+                                    <View
                                         style={styles.sliderContainer}
                                         onLayout={(event) => {
                                             const { width } = event.nativeEvent.layout;
@@ -457,7 +455,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                         {/* Slider Track Background */}
                                         <View style={styles.sliderTrack}>
                                             {/* Filled Progress (from 0 to max) */}
-                                            <View 
+                                            <View
                                                 style={[
                                                     styles.sliderProgress,
                                                     {
@@ -466,7 +464,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                                 ]}
                                             />
                                         </View>
-                                        
+
                                         {/* Max Thumb (draggable) */}
                                         <View
                                             style={[
@@ -498,14 +496,14 @@ const FilterScreen = ({ navigation }: Props) => {
                         const minPercent = (min / maxLimit) * 100;
                         const maxPercent = (max / maxLimit) * 100;
                         const isAny = min === 0 && max === maxLimit;
-                        
+
                         // Create PanResponders for this attribute
                         const minResponder = createRangeSliderPanResponder(attribute.AttributeId, true, maxLimit);
                         const maxResponder = createRangeSliderPanResponder(attribute.AttributeId, false, maxLimit);
-                        
+
                         const isMinDragging = draggingStates[`${attribute.AttributeId}_min`];
                         const isMaxDragging = draggingStates[`${attribute.AttributeId}_max`];
-                        
+
                         return (
                             <View key={attribute.AttributeId} style={styles.section}>
                                 <View style={styles.sectionHeaderWithValue}>
@@ -519,7 +517,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                 </View>
                                 <View style={styles.rangeCard}>
                                     {/* Dual-handle Slider */}
-                                    <View 
+                                    <View
                                         style={styles.sliderContainer}
                                         onLayout={(event) => {
                                             const { width } = event.nativeEvent.layout;
@@ -529,7 +527,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                         {/* Slider Track Background */}
                                         <View style={styles.sliderTrack}>
                                             {/* Filled Range */}
-                                            <View 
+                                            <View
                                                 style={[
                                                     styles.sliderProgress,
                                                     {
@@ -539,7 +537,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                                 ]}
                                             />
                                         </View>
-                                        
+
                                         {/* Min Thumb (draggable) */}
                                         <View
                                             style={[
@@ -555,7 +553,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                                 />
                                             </Animated.View>
                                         </View>
-                                        
+
                                         {/* Max Thumb (draggable) */}
                                         <View
                                             style={[
@@ -589,7 +587,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                 const isHighWeight = percent >= 9; // >= 9%: Rất quan trọng
                                 const isMediumWeight = percent >= 7 && percent < 9; // 7-8%: Quan trọng
                                 const isRecommended = isHighWeight || isMediumWeight;
-                                
+
                                 // Xác định label và màu
                                 let badge = null;
                                 if (isHighWeight) {
@@ -597,7 +595,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                 } else if (isMediumWeight) {
                                     badge = { label: 'Nên chọn', icon: 'heart', color: '#FF9800', bgColor: '#FFF3E0' };
                                 }
-                                
+
                                 return (
                                     <View key={attribute.AttributeId} style={[
                                         styles.optionCard,
@@ -805,7 +803,7 @@ const styles = StyleSheet.create({
         padding: 20,
         ...shadows.medium,
     },
-    
+
     // Tinder-style Slider
     sliderContainer: {
         paddingVertical: 20,

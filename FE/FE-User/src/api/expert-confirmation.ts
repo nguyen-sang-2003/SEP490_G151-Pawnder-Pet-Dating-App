@@ -7,13 +7,15 @@ export interface ExpertConfirmation {
   expertId: number;
   status: string;
   message?: string;
+  userQuestion?: string;
   createdAt: string;
   updatedAt?: string;
 }
 
 export interface ExpertConfirmationCreateRequest {
-  expertId: number;
+  expertId?: number;  // Optional - will be auto-assigned if not provided
   message?: string;
+  userQuestion?: string;
 }
 
 export interface ExpertConfirmationResponse {
@@ -40,7 +42,7 @@ export const getUserExpertConfirmations = async (
     );
     return response.data;
   } catch (error: any) {
-    console.error('❌ Get expert confirmations error:', error);
+
     if (error.response?.data?.Message) {
       throw new Error(error.response.data.Message);
     }
@@ -66,7 +68,7 @@ export const createExpertConfirmation = async (
   } catch (error: any) {
     // Don't log 429 limit errors (handled by UI modal)
     if (error.response?.status !== 429) {
-      console.error('❌ Create expert confirmation error:', error);
+
     }
     // Pass through the original error for UI handling
     throw error;
@@ -91,11 +93,44 @@ export const updateExpertConfirmation = async (
     );
     return response.data;
   } catch (error: any) {
-    console.error('❌ Update expert confirmation error:', error);
+
     if (error.response?.data?.Message) {
       throw new Error(error.response.data.Message);
     }
     throw new Error('Không thể cập nhật yêu cầu.');
+  }
+};
+
+// Expert Chat Types
+export interface ExpertChatListItem {
+  id: string;
+  chatExpertId: number;
+  expertId: number;
+  expertName: string;
+  specialty: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+  isOnline: boolean;
+}
+
+/**
+ * Get user's expert chats (legacy endpoint)
+ * GET /api/expert-chats/{userId}
+ * @deprecated Use getUserExpertChats from expert-chat.ts instead
+ */
+export const getUserExpertChatsList = async (
+  userId: number
+): Promise<ExpertChatListItem[]> => {
+  try {
+    const response = await apiClient.get(`/expert-chats/${userId}`);
+    return response.data.data || [];
+  } catch (error: any) {
+
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Không thể tải danh sách chat với chuyên gia.');
   }
 };
 

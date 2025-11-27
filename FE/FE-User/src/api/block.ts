@@ -34,7 +34,7 @@ export const getBlockedUsers = async (fromUserId: number): Promise<BlockedUser[]
 
       return [];
     }
-    console.error('❌ Error getting blocked users:', error);
+
     throw error;
   }
 };
@@ -53,7 +53,7 @@ export const blockUser = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error blocking user:', error);
+
     if (error.response?.status === 409) {
       throw new Error('Người dùng này đã bị chặn trước đó.');
     }
@@ -78,7 +78,7 @@ export const unblockUser = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error unblocking user:', error);
+
     if (error.response?.status === 404) {
       throw new Error('Chưa chặn người dùng này hoặc đã hủy chặn.');
     }

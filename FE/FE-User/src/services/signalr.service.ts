@@ -46,7 +46,7 @@ class SignalRService {
           return 60000;
         },
       })
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging(signalR.LogLevel.None) // Tắt log hiển thị trên màn hình
       .build();
 
     // Setup event handlers
@@ -55,14 +55,14 @@ class SignalRService {
     try {
       // Start connection
       await this.connection.start();
-
+      console.log(`✅ [SignalR] Connected successfully for user ${userId}`);
 
       // Register user after connection
       await this.registerUser(userId);
-      
+
       this.reconnectAttempts = 0;
     } catch (error) {
-      console.error('❌ SignalR connection failed:', error);
+
       this.handleReconnect();
     }
   }
@@ -89,12 +89,12 @@ class SignalRService {
     this.connection.onreconnected((connectionId) => {
 
       this.reconnectAttempts = 0;
-      
+
       // Re-register user
       if (this.currentUserId) {
         this.registerUser(this.currentUserId);
       }
-      
+
       this.notifyListeners('reconnected', connectionId);
     });
 
@@ -156,6 +156,24 @@ class SignalRService {
 
       this.notifyListeners('MatchSuccess', data);
     });
+
+    // New general notification
+    this.connection.on('NewNotification', (data) => {
+      console.log('🔔 [SignalR] NewNotification received:', data);
+      this.notifyListeners('NewNotification', data);
+    });
+
+    // Expert chat message
+    this.connection.on('ReceiveExpertMessage', (data) => {
+      console.log('💬 [SignalR] ReceiveExpertMessage received:', data);
+      this.notifyListeners('ReceiveExpertMessage', data);
+    });
+
+    // Expert chat badge
+    this.connection.on('NewExpertMessageBadge', (data) => {
+      console.log('🔔 [SignalR] NewExpertMessageBadge received:', data);
+      this.notifyListeners('NewExpertMessageBadge', data);
+    });
   }
 
   /**
@@ -166,9 +184,9 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('RegisterUser', userId);
-
+      console.log(`✅ [SignalR] User ${userId} registered successfully`);
     } catch (error) {
-      console.error('❌ Failed to register user:', error);
+
     }
   }
 
@@ -185,7 +203,7 @@ class SignalRService {
       await this.connection!.invoke('JoinChat', matchId, userId);
 
     } catch (error) {
-      console.error('❌ Failed to join chat:', error);
+
       throw error;
     }
   }
@@ -200,7 +218,39 @@ class SignalRService {
       await this.connection!.invoke('LeaveChat', matchId, userId);
 
     } catch (error) {
-      console.error('❌ Failed to leave chat:', error);
+
+    }
+  }
+
+  /**
+   * Join an expert chat room
+   */
+  async joinExpertChat(chatExpertId: number, userId: number): Promise<void> {
+    if (!this.isConnected()) {
+      console.warn('⚠️ Cannot join expert chat - not connected');
+      return;
+    }
+
+    try {
+      await this.connection!.invoke('JoinExpertChat', chatExpertId, userId);
+      console.log(`✅ Joined expert chat ${chatExpertId}`);
+    } catch (error) {
+
+      throw error;
+    }
+  }
+
+  /**
+   * Leave an expert chat room
+   */
+  async leaveExpertChat(chatExpertId: number, userId: number): Promise<void> {
+    if (!this.isConnected()) return;
+
+    try {
+      await this.connection!.invoke('LeaveExpertChat', chatExpertId, userId);
+      console.log(`✅ Left expert chat ${chatExpertId}`);
+    } catch (error) {
+
     }
   }
 
@@ -216,7 +266,7 @@ class SignalRService {
       await this.connection!.invoke('SendMessage', matchId, fromUserId, message);
 
     } catch (error) {
-      console.error('❌ Failed to send message via SignalR:', error);
+
       throw error;
     }
   }
@@ -230,7 +280,7 @@ class SignalRService {
     try {
       await this.connection!.invoke('Typing', matchId, userId, isTyping);
     } catch (error) {
-      console.error('❌ Failed to send typing indicator:', error);
+
     }
   }
 
@@ -244,7 +294,7 @@ class SignalRService {
       await this.connection!.invoke('MarkAsRead', matchId, userId);
 
     } catch (error) {
-      console.error('❌ Failed to mark as read:', error);
+
     }
   }
 
@@ -257,7 +307,7 @@ class SignalRService {
     try {
       return await this.connection!.invoke('IsUserOnline', userId);
     } catch (error) {
-      console.error('❌ Failed to check online status:', error);
+
       return false;
     }
   }
@@ -271,7 +321,7 @@ class SignalRService {
     try {
       return await this.connection!.invoke('GetOnlineUsers');
     } catch (error) {
-      console.error('❌ Failed to get online users:', error);
+
       return [];
     }
   }
@@ -285,9 +335,9 @@ class SignalRService {
         await this.connection.stop();
 
       } catch (error) {
-        console.error('❌ Error disconnecting:', error);
+
       }
-      
+
       this.connection = null;
       this.currentUserId = null;
       this.listeners.clear();
@@ -331,7 +381,7 @@ class SignalRService {
         try {
           callback(data);
         } catch (error) {
-          console.error(`Error in ${eventName} listener:`, error);
+
         }
       });
     }
@@ -342,16 +392,16 @@ class SignalRService {
    */
   private handleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('❌ Max reconnection attempts reached');
+
       this.notifyListeners('connectionFailed', null);
       return;
     }
 
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-    
 
-    
+
+
     setTimeout(() => {
       if (this.currentUserId) {
         this.connect(this.currentUserId);

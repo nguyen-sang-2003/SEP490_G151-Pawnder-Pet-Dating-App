@@ -53,7 +53,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       };
       reader.readAsDataURL(qrBlob);
     } catch (err) {
-      console.error("Failed to generate QR code:", err);
+
       setError("Không thể tạo mã QR. Vui lòng thử lại.");
       setLoading(false);
     }
@@ -124,7 +124,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       }
     } catch (err: any) {
       setProcessing(false);
-      console.error("Payment error:", err);
+
       Alert.alert(
         "Lỗi thanh toán",
         err.response?.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau."
@@ -151,7 +151,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

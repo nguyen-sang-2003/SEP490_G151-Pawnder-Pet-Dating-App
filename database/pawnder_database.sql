@@ -1,4 +1,4 @@
--- ===========================
+﻿-- ===========================
 -- DATABASE: Pawnder (PostgreSQL, EF Core friendly)
 -- ===========================
 
@@ -134,7 +134,7 @@ CREATE TABLE "Pet" (
 -- ===========================
 CREATE TABLE "PetPhoto" (
     "PhotoId"   SERIAL PRIMARY KEY,
-    "PetId"     INT NOT NULL REFERENCES "Pet"("PetId"),
+    "PetId"     INT NOT NULL REFERENCES "Pet"("PetId") ON DELETE CASCADE,
     "ImageUrl"       TEXT NOT NULL,        -- đổi từ ImageUrl -> Url (khớp EF & code)
     "PublicId"  TEXT,                 -- để xóa Cloudinary
     "IsPrimary" BOOLEAN DEFAULT FALSE,
@@ -143,6 +143,14 @@ CREATE TABLE "PetPhoto" (
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes for PetPhoto
+CREATE INDEX "IX_PetPhoto_PetId" ON "PetPhoto"("PetId");
+
+-- Unique index: Mỗi pet chỉ có 1 ảnh primary (chưa bị xóa)
+CREATE UNIQUE INDEX "UX_PetPhoto_OnePrimaryPerPet" 
+ON "PetPhoto"("PetId", "IsPrimary") 
+WHERE "IsDeleted" = FALSE AND "IsPrimary" = TRUE;
 
 -- ===========================
 -- TABLE: PetCharacteristic
@@ -203,6 +211,8 @@ CREATE TABLE "ChatUser" (
     "MatchId" SERIAL PRIMARY KEY,
     "FromPetId" INT REFERENCES "Pet"("PetId"),
     "ToPetId" INT REFERENCES "Pet"("PetId"),
+    "FromUserId" INT REFERENCES "User"("UserId"),
+    "ToUserId" INT REFERENCES "User"("UserId"),
     "Status" VARCHAR(50),
     "IsDeleted" BOOLEAN DEFAULT FALSE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -215,6 +225,7 @@ CREATE TABLE "ChatUser" (
 CREATE TABLE "ChatUserContent" (
     "ContentId" SERIAL PRIMARY KEY,
     "MatchId" INT REFERENCES "ChatUser"("MatchId"),
+    "FromUserId" INT REFERENCES "User"("UserId"),
     "FromPetId" INT REFERENCES "Pet"("PetId"),
     "Message" TEXT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -268,6 +279,9 @@ CREATE TABLE "Notification" (
     "UserId" INT REFERENCES "User"("UserId"),
     "Title" VARCHAR(200),
     "Message" TEXT,
+    "Type" VARCHAR(50),
+    "IsRead" BOOLEAN DEFAULT FALSE,
+    "ReferenceId" INT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
@@ -549,8 +563,26 @@ VALUES
 -- ===========================
 INSERT INTO "ChatAIContent" ("ChatAIId", "Question", "Answer")
 VALUES
+-- Chat "Tư vấn giống chó phù hợp" - Đoạn chat dài với nhiều tin nhắn
 ((SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
- 'Tôi muốn nuôi chó hiền, phù hợp trẻ nhỏ.', 'Golden Retriever là lựa chọn tốt.'),
+ 'Tôi muốn nuôi chó hiền, phù hợp trẻ nhỏ. Bạn có thể tư vấn giúp tôi không?', 
+ 'Chào bạn! Tôi rất vui được tư vấn cho bạn. Golden Retriever là một lựa chọn tuyệt vời cho gia đình có trẻ nhỏ vì chúng rất hiền lành, thân thiện và kiên nhẫn với trẻ em.'),
+((SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
+ 'Golden Retriever có cần không gian rộng không? Nhà tôi chỉ có sân nhỏ thôi.', 
+ 'Golden Retriever là giống chó lớn và năng động, chúng cần không gian để vận động. Tuy nhiên, nếu bạn có thể đưa chúng đi dạo hàng ngày ít nhất 30-60 phút và có sân nhỏ để chúng chơi, thì vẫn có thể nuôi được.'),
+((SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
+ 'Vậy còn giống nào khác phù hợp với không gian nhỏ hơn không?', 
+ 'Nếu không gian hạn chế, bạn có thể cân nhắc các giống nhỏ hơn như: Cavalier King Charles Spaniel (rất hiền và thích hợp với trẻ em), Beagle (vui vẻ, thân thiện), hoặc Poodle (thông minh, ít rụng lông).'),
+((SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
+ 'Poodle có dễ chăm sóc không? Tôi nghe nói chúng cần cắt tỉa lông thường xuyên.', 
+ 'Đúng vậy, Poodle cần được cắt tỉa lông định kỳ khoảng 4-6 tuần một lần. Tuy nhiên, ưu điểm là chúng ít rụng lông, phù hợp với người bị dị ứng. Ngoài ra, Poodle rất thông minh và dễ huấn luyện, rất phù hợp với gia đình có trẻ nhỏ.'),
+((SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
+ 'Cảm ơn bạn! Vậy chi phí nuôi một chú chó như vậy khoảng bao nhiêu một tháng?', 
+ 'Chi phí nuôi chó phụ thuộc vào nhiều yếu tố. Ước tính hàng tháng: thức ăn (500k-1.5 triệu), chăm sóc sức khỏe (200k-500k), đồ chơi và phụ kiện (100k-300k), cắt tỉa lông (nếu cần, 200k-500k/tháng). Tổng cộng khoảng 1-2.5 triệu/tháng tùy giống và kích thước.'),
+((SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
+ 'Tôi muốn xác nhận lại thông tin này với chuyên gia để chắc chắn. Bạn có thể kết nối tôi với chuyên gia không?', 
+ 'Tất nhiên! Tôi sẽ gửi yêu cầu của bạn đến chuyên gia để họ xem xét và xác nhận lại thông tin. Chuyên gia sẽ đánh giá chi tiết hơn về từng giống chó và đưa ra lời khuyên phù hợp nhất với tình huống cụ thể của bạn.'),
+-- Chat "Phân tích gen thú cưng" - Giữ nguyên
 ((SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Phân tích gen thú cưng'),
  'Con này có thể phối với giống nào tốt?', 'Phối với Labrador sẽ ra đời con khỏe và dễ huấn luyện.');
 
@@ -562,7 +594,11 @@ VALUES
 ((SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
  (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
  (SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
- 'Approved', 'Tư vấn đã được chuyên gia xác nhận.');
+'Pending', 'Người dùng cần xác nhận chuyên gia cho câu trả lời AI về giống chó.'),
+((SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+ (SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Phân tích gen thú cưng'),
+'Confirmed', 'Chuyên gia đã kiểm tra và đồng ý với câu trả lời.');
 
 -- ===========================
 -- BẢNG ChatUser
@@ -626,4 +662,40 @@ VALUES
  null,
  null,
  null);
+
+-- ===========================
+-- BẢNG Report (dữ liệu mẫu giữa các User)
+-- ===========================
+INSERT INTO "Report" ("UserReportId", "ContentId", "Reason", "Status", "Resolution")
+VALUES
+-- user1 báo cáo user2 vì spam tin nhắn
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi muốn nhờ bạn tư vấn%' LIMIT 1),
+ '[ReportedUser=Lê Minh D] Người dùng bên kia gửi tin nhắn lặp lại gây phiền.',
+ 'Pending',
+ NULL),
+-- user2 báo cáo user1 nhưng đã được xử lý
+((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi rất sẵn lòng giúp%' LIMIT 1),
+ '[ReportedUser=Lê Minh C] Nội dung bị phản hồi không đúng chủ đề, đề nghị admin kiểm tra.',
+ 'Resolved',
+ 'Admin đã nhắc nhở user1 và khóa chat 24h.'),
+-- user1 báo cáo thêm một nội dung khác nhưng bị từ chối
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi rất sẵn lòng giúp%' LIMIT 1),
+ '[ReportedUser=Lê Minh D] Báo cáo nhầm, không có bằng chứng vi phạm.',
+ 'Rejected',
+ 'Không phát hiện vi phạm, báo cáo bị từ chối.'),
+-- user2 báo cáo user1 vì nội dung không phù hợp (chờ xử lý)
+((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi muốn nhờ bạn tư vấn%' LIMIT 1),
+ '[ReportedUser=Lê Minh C] Người dùng này gửi tin nhắn có nội dung không phù hợp với mục đích của ứng dụng.',
+ 'Pending',
+ NULL),
+-- user1 báo cáo user2 vì hành vi quấy rối (đang chờ xử lý)
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ (SELECT "ContentId" FROM "ChatUserContent" WHERE "Message" LIKE 'Chào bạn, tôi rất sẵn lòng giúp%' LIMIT 1),
+ '[ReportedUser=Lê Minh D] Người dùng này có hành vi quấy rối, gửi tin nhắn liên tục và không tôn trọng người khác.',
+ 'Pending',
+ NULL);
 

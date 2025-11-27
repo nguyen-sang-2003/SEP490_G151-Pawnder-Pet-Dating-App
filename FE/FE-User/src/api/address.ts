@@ -43,7 +43,7 @@ export const createAddressForUser = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Create address error:', error.response?.data || error.message);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -73,7 +73,7 @@ export const updateAddress = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Update address error:', error.response?.data || error.message);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -89,14 +89,14 @@ export const getAddressById = async (addressId: number): Promise<any> => {
 
     const response = await apiClient.get(`/address/${addressId}`);
 
-    
+
     // Handle both PascalCase and camelCase
     const address = response.data.Address || response.data.address || response.data;
 
-    
+
     return address;
   } catch (error: any) {
-    console.error('❌ Get address error:', error.response?.data || error.message);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -123,7 +123,7 @@ export const updateAddressManual = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Update address error:', error.response?.data || error.message);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

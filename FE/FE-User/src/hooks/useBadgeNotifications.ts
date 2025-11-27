@@ -1,16 +1,17 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../app/store';
-import { 
-  setBadgeCounts, 
+import { AppDispatch, store } from '../app/store';
+import {
+  setBadgeCounts,
   addUnreadChat,
+  addUnreadExpertChat,
   incrementFavoriteBadge,
   incrementNotificationBadge,
-  showMatchModal
+  showMatchModal,
+  selectActivePetId
 } from '../features/badge/badgeSlice';
 import signalRService from '../services/signalr.service';
-import { getBadgeCounts } from '../api/match';
-import { getPetsByUserId } from '../api/pet';
+import { refreshBadgesForActivePet } from '../utils/badgeRefresh';
 
 /**
  * Custom hook to manage badge notifications
@@ -25,51 +26,56 @@ export const useBadgeNotifications = (userId: number | null) => {
       return;
     }
 
-    // Fetch initial badge counts
-    const fetchBadgeCounts = async () => {
+    // Flag to prevent state updates after unmount
+    let isMounted = true;
+
+    // ✅ Fetch initial badge counts WITH active pet filtering
+    const initializeBadges = async () => {
       try {
-        const counts = await getBadgeCounts(userId);
-        dispatch(setBadgeCounts(counts));
+        if (!isMounted) return;
+        await refreshBadgesForActivePet(userId);
+        if (isMounted) {
+          console.log('✅ Initial badges loaded for active pet');
+        }
       } catch (error) {
-        console.error('Error fetching badge counts:', error);
+        if (isMounted) {
+          console.error('❌ Failed to initialize badges:', error);
+        }
       }
     };
 
-    fetchBadgeCounts();
+    initializeBadges();
 
     // Setup SignalR listeners for real-time badge updates
-    const handleNewMessageBadge = async (data: any) => {
+    const handleNewMessageBadge = (data: any) => {
+      console.log('🔔 [NewMessageBadge] Received:', data);
       const matchId = data.matchId || data.MatchId;
       const fromPetId = data.fromPetId || data.FromPetId;
       const toPetId = data.toPetId || data.ToPetId;
-      
-      if (!matchId) return;
-      
-      // Check if this message is for the user's active pet
-      try {
-        const userPets = await getPetsByUserId(userId);
-        const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
-        
-        if (activePet) {
-          const activePetId = activePet.PetId || activePet.petId;
-          
-          // Only show badge if the message is for the active pet
-          // The message is relevant if active pet matches either fromPetId or toPetId
-          if (activePetId === fromPetId || activePetId === toPetId) {
-            console.log(`📬 New message for active pet ${activePetId}, showing badge`);
-            dispatch(addUnreadChat(matchId));
-          } else {
-            console.log(`🔕 Message for pet ${fromPetId}/${toPetId}, but active pet is ${activePetId} - ignoring`);
-          }
-        } else {
-          // No active pet, show all notifications (fallback)
-          console.log(`⚠️ No active pet found, showing all notifications`);
-          dispatch(addUnreadChat(matchId));
-        }
-      } catch (error) {
-        console.error('Error checking active pet for notification:', error);
-        // On error, show notification (fallback)
+
+      if (!matchId) {
+        console.log('❌ [NewMessageBadge] No matchId, ignoring');
+        return;
+      }
+
+      // ✅ FIX STALE CLOSURE: Read activePetId from store EACH TIME
+      const currentState = store.getState();
+      const activePetId = selectActivePetId(currentState);
+
+      console.log(`🐾 [NewMessageBadge] Active pet: ${activePetId}, from: ${fromPetId}, to: ${toPetId}`);
+
+      // ONLY show badge if the RECIPIENT is the active pet
+      if (activePetId && toPetId === activePetId) {
+        console.log(`📬 [NewMessageBadge] Message TO active pet ${activePetId}, showing badge`);
         dispatch(addUnreadChat(matchId));
+      } else if (activePetId && fromPetId === activePetId) {
+        console.log(`📤 [NewMessageBadge] Message FROM active pet ${activePetId}, no badge (user sent it)`);
+      } else if (!activePetId) {
+        // No active pet set, show notification (fallback)
+        console.log(`⚠️ [NewMessageBadge] No active pet set, showing notification`);
+        dispatch(addUnreadChat(matchId));
+      } else {
+        console.log(`🔕 [NewMessageBadge] Message for different pet (from: ${fromPetId}, to: ${toPetId}), active: ${activePetId} - ignoring`);
       }
     };
 
@@ -78,13 +84,17 @@ export const useBadgeNotifications = (userId: number | null) => {
     };
 
     const handleMatchSuccess = (data: any) => {
+      console.log('🎉 [MatchSuccess] Received:', data);
       const matchId = data.matchId || data.MatchId || 0;
       const otherUserId = data.otherUserId || data.OtherUserId || 0;
       const otherUserName = data.otherUserName || data.OtherUserName || 'Someone';
       const petName = data.petName || data.PetName;
       const petPhotoUrl = data.petPhotoUrl || data.PetPhotoUrl;
-      
-      dispatch(incrementNotificationBadge());
+
+      // Increment favorite badge when match happens
+      console.log('📬 [MatchSuccess] Incrementing favorite badge for new match');
+      dispatch(incrementFavoriteBadge());
+
       dispatch(showMatchModal({
         otherUserName,
         otherUserId,
@@ -94,14 +104,33 @@ export const useBadgeNotifications = (userId: number | null) => {
       }));
     };
 
+    const handleNewExpertMessageBadge = (data: any) => {
+      console.log('🔔 [NewExpertMessageBadge] Received:', data);
+      const chatExpertId = data.chatExpertId || data.ChatExpertId;
+
+      if (!chatExpertId) {
+        console.log('❌ [NewExpertMessageBadge] No chatExpertId, ignoring');
+        return;
+      }
+
+      console.log(`📬 [NewExpertMessageBadge] New message from expert in chat ${chatExpertId}`);
+      dispatch(addUnreadExpertChat(chatExpertId));
+    };
+
     signalRService.on('NewMessageBadge', handleNewMessageBadge);
     signalRService.on('NewLikeBadge', handleNewLikeBadge);
     signalRService.on('MatchSuccess', handleMatchSuccess);
+    signalRService.on('NewExpertMessageBadge', handleNewExpertMessageBadge);
 
     return () => {
+      // Set unmount flag to prevent state updates
+      isMounted = false;
+      
+      // Clean up SignalR listeners
       signalRService.off('NewMessageBadge', handleNewMessageBadge);
       signalRService.off('NewLikeBadge', handleNewLikeBadge);
       signalRService.off('MatchSuccess', handleMatchSuccess);
+      signalRService.off('NewExpertMessageBadge', handleNewExpertMessageBadge);
     };
   }, [userId, dispatch]);
 };

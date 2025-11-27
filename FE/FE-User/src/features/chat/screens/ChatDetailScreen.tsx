@@ -8,7 +8,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Image,
   Dimensions,
   Modal,
   Pressable,
@@ -33,6 +32,7 @@ import ReportMessageModal from "../../../components/ReportMessageModal";
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../../app/store';
 import { markChatAsRead } from '../../badge/badgeSlice';
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -50,7 +50,7 @@ interface Message {
 const ChatDetailScreen = ({ navigation, route }: Props) => {
   const { matchId, otherUserId, userName: initialUserName, userAvatar } = route.params;
   const dispatch = useDispatch<AppDispatch>();
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -69,7 +69,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentUserIdRef = useRef<number | null>(null);
-  
+
   // Keep ref updated
   useEffect(() => {
     currentUserIdRef.current = currentUserId;
@@ -85,7 +85,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           setUserName(userInfo.fullName || "User");
           console.log('✅ User info loaded:', userInfo.fullName);
         } catch (error) {
-          console.error('❌ Error fetching user info:', error);
+
           setUserName("User");
         }
       }
@@ -93,7 +93,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
     fetchUserInfo();
   }, [otherUserId, initialUserName]);
-  
+
   // Typing animation
   const typingAnim1 = useRef(new Animated.Value(0)).current;
   const typingAnim2 = useRef(new Animated.Value(0)).current;
@@ -137,16 +137,16 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       };
     }
   }, [isTyping]);
-  
+
   // Setup SignalR connection and listeners
   useEffect(() => {
     setupSignalR();
-    
+
     return () => {
       cleanupSignalR();
     };
   }, [matchId]);
-  
+
   // Load messages when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -155,7 +155,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       dispatch(markChatAsRead(matchId));
     }, [matchId, dispatch])
   );
-  
+
   const setupSignalR = async () => {
     try {
       console.log('🔧 [setupSignalR] Starting setup...');
@@ -164,13 +164,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         console.log('❌ [setupSignalR] No userId found');
         return;
       }
-      
+
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
       console.log('👤 [setupSignalR] Current user ID:', userId);
       console.log('💬 [setupSignalR] Match ID:', matchId);
       console.log('👥 [setupSignalR] Other user ID:', otherUserId);
-      
+
       // Connect to SignalR if not already connected
       if (!signalRService.isConnected()) {
         console.log('🔌 [setupSignalR] Connecting to SignalR...');
@@ -179,12 +179,12 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       } else {
         console.log('✅ [setupSignalR] Already connected to SignalR');
       }
-      
+
       // Join this chat room
       console.log('🚪 [setupSignalR] Joining chat room...');
       await signalRService.joinChat(matchId, userId);
       console.log('✅ [setupSignalR] Joined chat room Match_' + matchId);
-      
+
       // Setup listeners
       console.log('👂 [setupSignalR] Setting up event listeners...');
       signalRService.on('ReceiveMessage', handleReceiveMessage);
@@ -193,15 +193,15 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       signalRService.on('UserOffline', handleUserOffline);
       signalRService.on('UserJoinedChat', handleUserJoinedChat);
       console.log('✅ [setupSignalR] Event listeners attached');
-      
+
       // Check if other user is online
       const isOnline = await signalRService.isUserOnline(otherUserId);
       setOtherUserOnline(isOnline);
       console.log('👤 [setupSignalR] Other user online status:', isOnline);
-      
+
       console.log('✅ [setupSignalR] Complete setup for match:', matchId);
     } catch (error) {
-      console.error('❌ [setupSignalR] Error:', error);
+
     }
   };
 
@@ -210,68 +210,68 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       if (currentUserId) {
         await signalRService.leaveChat(matchId, currentUserId);
       }
-      
+
       // Remove listeners
       signalRService.off('ReceiveMessage', handleReceiveMessage);
       signalRService.off('UserTyping', handleUserTyping);
       signalRService.off('UserOnline', handleUserOnline);
       signalRService.off('UserOffline', handleUserOffline);
       signalRService.off('UserJoinedChat', handleUserJoinedChat);
-      
+
       console.log('✅ SignalR cleanup complete');
     } catch (error) {
-      console.error('❌ Error cleaning up SignalR:', error);
+
     }
   };
 
   const handleReceiveMessage = (data: any) => {
     console.log('📨 [handleReceiveMessage] Received message via SignalR:', data);
-    
+
     // SignalR sends keys in camelCase: fromUserId, message, matchId, createdAt
     const fromUserId = data.fromUserId || data.FromUserId;
     const messageText = data.message || data.Message;
     let createdAt = data.createdAt || data.CreatedAt;
-    
+
     // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
     if (typeof createdAt === 'string' && !createdAt.endsWith('Z') && !createdAt.includes('+')) {
       createdAt = createdAt + 'Z';
     }
-    
+
     console.log('📨 [handleReceiveMessage] From user:', fromUserId);
     console.log('📨 [handleReceiveMessage] Message:', messageText);
     console.log('📨 [handleReceiveMessage] Current userId (ref):', currentUserIdRef.current);
-    
+
     const isFromMe = currentUserIdRef.current && fromUserId === currentUserIdRef.current;
     console.log('📨 [handleReceiveMessage] Is from me:', isFromMe);
-    
+
     // Parse timestamp as UTC
     const timestamp = new Date(createdAt);
-    
+
     setMessages(prev => {
       // Check if message already exists (by text content and recent time)
-      const existingMsg = prev.find(msg => 
-        msg.text === messageText && 
+      const existingMsg = prev.find(msg =>
+        msg.text === messageText &&
         Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 10000 // 10 seconds window
       );
-      
+
       if (existingMsg) {
         console.log('📨 [handleReceiveMessage] Message already exists:', existingMsg.id);
-        
+
         // If it's our message in "sending" state, update to "sent"
         if (isFromMe && existingMsg.status === "sending") {
           console.log('📨 [handleReceiveMessage] Updating our message status to sent');
-          return prev.map(msg => 
+          return prev.map(msg =>
             msg.id === existingMsg.id
               ? { ...msg, status: "sent" as const }
               : msg
           );
         }
-        
+
         // Message already exists, don't add duplicate
         console.log('📨 [handleReceiveMessage] Skipping duplicate message');
         return prev;
       }
-      
+
       // Add new message (only if it doesn't exist)
       // This should only happen for messages from other users
       if (!isFromMe) {
@@ -283,14 +283,14 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           timestamp: timestamp,
           status: "read" as const,
         };
-        
+
         return [...prev, newMessage];
       }
-      
+
       console.log('📨 [handleReceiveMessage] Ignoring our own message (should have been added optimistically)');
       return prev;
     });
-    
+
     // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
@@ -299,25 +299,25 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleUserTyping = (data: any) => {
     console.log('⌨️ [handleUserTyping] Received typing event:', data);
-    
+
     // SignalR sends keys in camelCase
     const userId = data.userId || data.UserId;
     const isTyping = data.isTyping !== undefined ? data.isTyping : data.IsTyping;
-    
+
     console.log('⌨️ [handleUserTyping] User ID:', userId);
     console.log('⌨️ [handleUserTyping] Other user ID:', otherUserId);
     console.log('⌨️ [handleUserTyping] Is typing:', isTyping);
-    
+
     if (userId === otherUserId) {
       setIsTyping(isTyping);
-      
+
       // Clear existing timeout
       if (typingTimeoutRef.current) {
         console.log('⌨️ [handleUserTyping] Clearing existing timeout');
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
       }
-      
+
       // Auto-hide typing indicator after 3 seconds only if currently typing
       if (isTyping) {
         console.log('⌨️ [handleUserTyping] Setting auto-hide timeout');
@@ -350,49 +350,57 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  // 🚀 OPTIMIZED: Load messages with pagination and parallel loading
   const loadMessages = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user ID
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
         console.log('❌ No userId found');
         return;
       }
-      
+
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
       console.log('👤 Current user:', userId);
       console.log('💬 Loading messages for matchId:', matchId);
-      
-      // Load my pet avatar
-      const avatar = await getUserPetAvatar(userId);
+
+      // 🚀 OPTIMIZATION 1: Parallel loading - Load avatars and messages simultaneously
+      const [avatar, chatMessages] = await Promise.all([
+        getUserPetAvatar(userId),
+        getChatMessages(matchId)
+      ]);
+
       setMyAvatar(avatar);
       console.log('👤 My avatar loaded');
-      
-      // Load other user's pet avatar
-      try {
-        const otherAvatar = await getUserPetAvatar(otherUserId);
-        setOtherUserAvatar(otherAvatar);
-        console.log('👤 Other user avatar loaded');
-      } catch (error) {
-        console.log('⚠️ Could not load other user avatar, using default');
-        setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
-      }
-      
-      // Load messages from API
-      const chatMessages = await getChatMessages(matchId);
+
+      // Load other user's avatar in background (non-blocking)
+      getUserPetAvatar(otherUserId)
+        .then(otherAvatar => {
+          setOtherUserAvatar(otherAvatar);
+          console.log('👤 Other user avatar loaded');
+        })
+        .catch(() => {
+          console.log('⚠️ Could not load other user avatar, using default');
+          setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
+        });
+
       console.log('✅ Loaded messages:', chatMessages.length);
-      
+
+      // 🚀 OPTIMIZATION 2: Only show last 50 messages initially
+      const INITIAL_MESSAGE_COUNT = 50;
+      const messagesToShow = chatMessages.slice(-INITIAL_MESSAGE_COUNT);
+
       // Convert API messages to UI format
-      const formattedMessages: Message[] = chatMessages.map((msg) => {
+      const formattedMessages: Message[] = messagesToShow.map((msg) => {
         // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
         let dateString = msg.createdAt;
         if (!dateString.endsWith('Z') && !dateString.includes('+')) {
           dateString = dateString + 'Z';
         }
-        
+
         return {
           id: msg.contentId.toString(),
           text: msg.message,
@@ -402,16 +410,16 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           contentId: msg.contentId, // Store contentId for reporting
         };
       });
-      
+
       setMessages(formattedMessages);
-      
-      // Scroll to bottom after loading
-      setTimeout(() => {
+
+      // 🚀 OPTIMIZATION 3: Immediate scroll without setTimeout
+      requestAnimationFrame(() => {
         flatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
-      
+      });
+
     } catch (error: any) {
-      console.error('❌ Error loading messages:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải tin nhắn. Vui lòng thử lại.' });
     } finally {
       setLoading(false);
@@ -420,10 +428,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleSend = async () => {
     if (!inputText.trim() || !currentUserId || sending) return;
-    
+
     const messageText = inputText.trim();
     const tempId = Date.now().toString();
-    
+
     // Optimistic UI update
     const newMessage: Message = {
       id: tempId,
@@ -432,49 +440,49 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       timestamp: new Date(),
       status: "sending",
     };
-    
+
     setMessages(prev => [...prev, newMessage]);
     setInputText("");
-    
+
     // Stop typing indicator and clear timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
     signalRService.sendTyping(matchId, currentUserId, false);
-    
-    // Scroll to bottom
-    setTimeout(() => {
+
+    // 🚀 OPTIMIZATION 6: Use requestAnimationFrame for smoother scroll
+    requestAnimationFrame(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-    
+    });
+
     try {
       setSending(true);
       console.log('📤 [handleSend] Sending message:', { matchId, currentUserId, messageText });
       console.log('📤 [handleSend] SignalR connected:', signalRService.isConnected());
-      
+
       // Send message to API (backend will broadcast via SignalR automatically)
       console.log('📤 [handleSend] Saving to API (backend will broadcast)...');
       await sendMessage(matchId, currentUserId, messageText);
       console.log('✅ [handleSend] Saved to API and broadcast via SignalR');
-      
+
       // Update status to sent
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === tempId 
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempId
             ? { ...msg, status: "sent" as const }
             : msg
         )
       );
-      
+
       console.log('✅ [handleSend] Message sent successfully');
-      
+
     } catch (error: any) {
-      console.error('❌ Error sending message:', error);
-      
+
+
       // Remove failed message
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
-      
+
       showAlert({
         type: 'error',
         title: 'Lỗi gửi tin nhắn',
@@ -490,20 +498,20 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleInputChange = (text: string) => {
     setInputText(text);
-    
+
     if (!currentUserId) return;
-    
+
     // Clear previous timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
-    
+
     // Send typing indicator
     if (text.trim().length > 0) {
       console.log('⌨️ [handleInputChange] User is typing, sending indicator');
       signalRService.sendTyping(matchId, currentUserId, true);
-      
+
       // Auto-stop typing after 2 seconds of inactivity
       typingTimeoutRef.current = setTimeout(() => {
         console.log('⌨️ [handleInputChange] User stopped typing (timeout)');
@@ -525,50 +533,50 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleViewProfile = async () => {
     closeMenu();
-    
+
     try {
       console.log('📱 Fetching pets for userId:', otherUserId);
-      
+
       // Get pets of the other user
       const pets = await getPetsByUserId(otherUserId);
-      
+
       if (!pets || pets.length === 0) {
-        showAlert({ 
-          type: 'info', 
-          title: 'Thông báo', 
-          message: 'Người dùng này chưa có thông tin thú cưng' 
+        showAlert({
+          type: 'info',
+          title: 'Thông báo',
+          message: 'Người dùng này chưa có thông tin thú cưng'
         });
         return;
       }
-      
+
       // Get the first pet (or active pet if you have that logic)
       const firstPet = pets[0];
       const petId = firstPet.petId || firstPet.PetId;
       const petName = firstPet.name || firstPet.Name || 'Pet';
-      
+
       if (!petId) {
-        showAlert({ 
-          type: 'error', 
-          title: 'Lỗi', 
-          message: 'Không tìm thấy thông tin thú cưng' 
+        showAlert({
+          type: 'error',
+          title: 'Lỗi',
+          message: 'Không tìm thấy thông tin thú cưng'
         });
         return;
       }
-      
+
       console.log('✅ Found pet:', petId, petName);
-      
+
       // Navigate to PetProfile screen (from chat = already matched)
-      navigation.navigate('PetProfile' as any, { 
+      navigation.navigate('PetProfile' as any, {
         petId: petId.toString(),
         fromChat: true  // Hide match/report/block actions
       });
-      
+
     } catch (error: any) {
-      console.error('❌ Error loading pet profile:', error);
-      showAlert({ 
-        type: 'error', 
-        title: 'Lỗi', 
-        message: 'Không thể tải thông tin profile. Vui lòng thử lại.' 
+
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Không thể tải thông tin profile. Vui lòng thử lại.'
       });
     }
   };
@@ -585,7 +593,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         try {
           console.log("🗑️ Unmatching matchId:", matchId);
           await deleteChat(matchId);
-          
+
           showAlert({
             type: 'success',
             title: "Đã hủy kết nối",
@@ -598,7 +606,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             },
           });
         } catch (error: any) {
-          console.error('❌ Error unmatching:', error);
+
           showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể hủy kết nối. Vui lòng thử lại.' });
         }
       },
@@ -607,22 +615,22 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleReportMessage = () => {
     if (!selectedMessage || !selectedMessage.contentId || !currentUserId) return;
-    
+
     setShowMessageMenu(false);
     setShowReportModal(true);
   };
 
   const handleSubmitReport = async (reason: string) => {
     if (!selectedMessage || !selectedMessage.contentId || !currentUserId) return;
-    
+
     setShowReportModal(false);
-    
+
     try {
       console.log(`🚨 Reporting message: contentId=${selectedMessage.contentId}, reason=${reason}`);
-      
+
       // Report the message (backend will auto-block and delete chat)
       await reportMessage(currentUserId, selectedMessage.contentId!, reason);
-      
+
       showAlert({
         type: 'success',
         title: "Đã báo cáo",
@@ -635,7 +643,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         },
       });
     } catch (error: any) {
-      console.error('❌ Error reporting message:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể gửi báo cáo. Vui lòng thử lại.' });
     }
   };
@@ -658,10 +666,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           const currentUserId = parseInt(currentUserIdStr, 10);
 
           console.log("🚫 Blocking user:", currentUserId, "->", otherUserId);
-          
+
           // Block user (backend will auto-delete chat)
           await blockUser(currentUserId, otherUserId);
-          
+
           showAlert({
             type: 'success',
             title: "Đã chặn",
@@ -674,7 +682,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             },
           });
         } catch (error: any) {
-          console.error('❌ Error blocking user:', error);
+
           showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chặn người dùng. Vui lòng thử lại.' });
         }
       },
@@ -733,20 +741,21 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const shouldShowDateSeparator = (currentMsg: Message, prevMsg: Message | null) => {
     if (!prevMsg) return true;
-    
+
     const currentDate = new Date(currentMsg.timestamp);
     const prevDate = new Date(prevMsg.timestamp);
-    
+
     currentDate.setHours(0, 0, 0, 0);
     prevDate.setHours(0, 0, 0, 0);
-    
+
     return currentDate.getTime() !== prevDate.getTime();
   };
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+  // 🚀 OPTIMIZATION 4: Memoize renderMessage to prevent unnecessary re-renders
+  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const prevMessage = index > 0 ? messages[index - 1] : null;
     const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
-    
+
     // Messenger style: show avatar for each message
     // Group consecutive messages from same person
     const isFirstInGroup = !prevMessage || prevMessage.isMe !== item.isMe;
@@ -765,7 +774,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.dateSeparatorLine} />
           </View>
         )}
-        
+
         <View
           style={[
             styles.messageContainer,
@@ -776,12 +785,12 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         >
           {/* Avatar - Messenger style (show for last message in group) */}
           {!item.isMe && isLastInGroup && (
-            <Image source={otherUserAvatar} style={styles.messageAvatar} />
+            <OptimizedImage source={otherUserAvatar} style={styles.messageAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
           )}
           {!item.isMe && !isLastInGroup && (
             <View style={styles.messageAvatarPlaceholder} />
           )}
-          
+
           <View style={styles.messageBubbleWrapper}>
             <View
               style={[
@@ -810,7 +819,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 </Pressable>
               )}
             </View>
-            
+
             {/* Time & Status - Show for last message in group */}
             {isLastInGroup && (
               <View style={[styles.messageTimeContainer, item.isMe && styles.myMessageTimeContainer]}>
@@ -833,10 +842,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               </View>
             )}
           </View>
-          
+
           {/* Avatar for my messages - Messenger style */}
           {item.isMe && isLastInGroup && (
-            <Image source={myAvatar} style={styles.messageAvatar} />
+            <OptimizedImage source={myAvatar} style={styles.messageAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
           )}
           {item.isMe && !isLastInGroup && (
             <View style={styles.messageAvatarPlaceholder} />
@@ -844,7 +853,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         </View>
       </View>
     );
-  };
+  }, [messages, otherUserAvatar, myAvatar]);
 
   return (
     <View style={styles.container}>
@@ -853,31 +862,31 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         colors={["#FFFFFF", "#FFF8FB"]}
         style={styles.headerGradient}
       >
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="arrow-back" size={24} color={colors.textDark} />
-        </TouchableOpacity>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={colors.textDark} />
+          </TouchableOpacity>
 
-        <View style={styles.headerCenter}>
-          <Image source={otherUserAvatar} style={styles.headerAvatar} />
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerName}>{userName}</Text>
-            <Text style={styles.headerStatus}>
-              {isTyping ? "typing..." : otherUserOnline ? "Online" : "Offline"}
-            </Text>
+          <View style={styles.headerCenter}>
+            <OptimizedImage source={otherUserAvatar} style={styles.headerAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerName}>{userName}</Text>
+              <Text style={styles.headerStatus}>
+                {isTyping ? "typing..." : otherUserOnline ? "Online" : "Offline"}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <TouchableOpacity 
-          style={styles.menuButton}
-          onPress={handleMenuPress}
-        >
-          <Icon name="ellipsis-vertical" size={24} color={colors.textDark} />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={handleMenuPress}
+          >
+            <Icon name="ellipsis-vertical" size={24} color={colors.textDark} />
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -907,12 +916,23 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
             showsVerticalScrollIndicator={false}
+            // 🚀 OPTIMIZATION 5: FlatList performance props
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={20}
+            windowSize={10}
+            getItemLayout={(data, index) => ({
+              length: 80, // Approximate message height
+              offset: 80 * index,
+              index,
+            })}
             ListFooterComponent={
               isTyping ? (
                 <View style={styles.typingIndicator}>
-                  <Image source={otherUserAvatar} style={styles.messageAvatar} />
+                  <OptimizedImage source={otherUserAvatar} style={styles.messageAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
                   <View style={styles.typingBubble}>
-                    <Animated.View 
+                    <Animated.View
                       style={[
                         styles.typingDot,
                         {
@@ -927,11 +947,11 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                             }),
                           }],
                         },
-                      ]} 
+                      ]}
                     />
-                    <Animated.View 
+                    <Animated.View
                       style={[
-                        styles.typingDot, 
+                        styles.typingDot,
                         { marginLeft: 4 },
                         {
                           opacity: typingAnim2.interpolate({
@@ -945,11 +965,11 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                             }),
                           }],
                         },
-                      ]} 
+                      ]}
                     />
-                    <Animated.View 
+                    <Animated.View
                       style={[
-                        styles.typingDot, 
+                        styles.typingDot,
                         { marginLeft: 4 },
                         {
                           opacity: typingAnim3.interpolate({
@@ -963,7 +983,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                             }),
                           }],
                         },
-                      ]} 
+                      ]}
                     />
                   </View>
                 </View>
@@ -978,7 +998,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             <TouchableOpacity style={styles.attachButton}>
               <Icon name="add-circle-outline" size={28} color={colors.primary} />
             </TouchableOpacity>
-            
+
             <TextInput
               style={styles.input}
               placeholder="Nhắn tin..."
@@ -988,7 +1008,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               multiline
               maxLength={500}
             />
-            
+
             <TouchableOpacity
               style={styles.sendButton}
               onPress={handleSend}
@@ -1026,7 +1046,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           <Pressable style={styles.menuModal} onPress={(e) => e.stopPropagation()}>
             {/* Menu Header */}
             <View style={styles.menuHeader}>
-              <Image source={otherUserAvatar} style={styles.menuAvatar} />
+              <OptimizedImage source={otherUserAvatar} style={styles.menuAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
               <View style={styles.menuHeaderText}>
                 <Text style={styles.menuUserName}>{userName}</Text>
                 <Text style={styles.menuUserStatus}>Active now</Text>
@@ -1212,7 +1232,7 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
   },
-  
+
   // Date Separator
   dateSeparatorContainer: {
     flexDirection: "row",
@@ -1237,7 +1257,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
   },
-  
+
   // Message Container - Messenger style with avatars
   messageContainer: {
     flexDirection: "row",
@@ -1257,7 +1277,7 @@ const styles = StyleSheet.create({
   theirMessage: {
     justifyContent: "flex-start",
   },
-  
+
   // Avatar - Messenger style
   messageAvatar: {
     width: 28,
@@ -1269,13 +1289,13 @@ const styles = StyleSheet.create({
     width: 28,
     marginHorizontal: 6,
   },
-  
+
   // Message Bubble Wrapper
   messageBubbleWrapper: {
     flexDirection: "column",
     maxWidth: width * 0.65,
   },
-  
+
   // Message Bubble
   messageBubble: {
     maxWidth: "100%",
@@ -1328,7 +1348,7 @@ const styles = StyleSheet.create({
     color: colors.textDark,
     lineHeight: 22,
   },
-  
+
   // Time & Status - Dating app style
   messageTimeContainer: {
     flexDirection: "row",

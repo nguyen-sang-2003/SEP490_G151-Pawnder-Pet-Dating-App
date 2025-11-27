@@ -36,10 +36,10 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const loadRequests = async () => {
     try {
       setLoading(true);
-      
+
       const userIdStr = await AsyncStorage.getItem("userId");
       if (!userIdStr) {
-        console.error("❌ No userId found");
+
         return;
       }
 
@@ -48,7 +48,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       setRequests(data);
       console.log("✅ Loaded expert confirmations:", data.length);
     } catch (error: any) {
-      console.error("❌ Error loading expert confirmations:", error);
+
     } finally {
       setLoading(false);
     }
@@ -110,7 +110,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
     const utcString = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
     const date = new Date(utcString);
     const now = new Date();
-    
+
     // Calculate difference
     const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -124,13 +124,13 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       }
       return `${diffHours} giờ trước`;
     }
-    
+
     // Yesterday
     if (diffDays === 1) return "Hôm qua";
-    
+
     // Within a week
     if (diffDays < 7) return `${diffDays} ngày trước`;
-    
+
     // Older - show full date time (will be in local timezone UTC+7)
     return date.toLocaleString('vi-VN', {
       day: '2-digit',
@@ -169,35 +169,35 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       <View style={styles.divider} />
 
       {/* User Request Message */}
-      {item.message && (
+      {item.userQuestion && (
         <View style={styles.messageSection}>
           <Text style={styles.messageSectionLabel}>Nội dung yêu cầu:</Text>
           <View style={styles.messageBox}>
             <Icon name="document-text-outline" size={14} color={colors.textMedium} style={{ marginTop: 2 }} />
             <Text style={styles.messageText} numberOfLines={5}>
-              {item.message}
+              {item.userQuestion}
             </Text>
           </View>
         </View>
       )}
 
       {/* Expert Response */}
-      {(item.status.toLowerCase() === "answered" || 
+      {(item.status.toLowerCase() === "answered" ||
         item.status.toLowerCase() === "approved" ||
-        item.status.toLowerCase() === "confirmed") && (item as any).resultMessage && (
-        <View style={styles.expertResponseSection}>
-          <View style={styles.expertResponseHeader}>
-            <Icon name="checkmark-circle" size={14} color="#4CAF50" />
-            <Text style={styles.expertResponseHeaderText}>Phản hồi của chuyên gia:</Text>
+        item.status.toLowerCase() === "confirmed") && item.message && (
+          <View style={styles.expertResponseSection}>
+            <View style={styles.expertResponseHeader}>
+              <Icon name="checkmark-circle" size={14} color="#4CAF50" />
+              <Text style={styles.expertResponseHeaderText}>Phản hồi của chuyên gia:</Text>
+            </View>
+            <Text style={styles.expertResponseText}>{item.message}</Text>
+            {item.updatedAt && (
+              <Text style={styles.expertResponseTime}>
+                Trả lời lúc: {formatTime(item.updatedAt)}
+              </Text>
+            )}
           </View>
-          <Text style={styles.expertResponseText}>{(item as any).resultMessage}</Text>
-          {item.updatedAt && (
-            <Text style={styles.expertResponseTime}>
-              Trả lời lúc: {formatTime(item.updatedAt)}
-            </Text>
-          )}
-        </View>
-      )}
+        )}
 
       {/* Pending Status */}
       {item.status.toLowerCase() === "pending" && (
@@ -220,7 +220,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const renderEmpty = () => {
     let emptyMessage = "Khi bạn cần chuyên gia xác nhận lời khuyên của AI, các yêu cầu sẽ xuất hiện ở đây";
     let emptyTitle = "Chưa có yêu cầu chuyên gia";
-    
+
     if (selectedFilter === 'answered') {
       emptyTitle = "Chưa có yêu cầu được trả lời";
       emptyMessage = "Các yêu cầu đã được chuyên gia trả lời sẽ xuất hiện ở đây";
@@ -228,7 +228,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       emptyTitle = "Chưa có yêu cầu đang chờ";
       emptyMessage = "Các yêu cầu đang chờ chuyên gia xử lý sẽ xuất hiện ở đây";
     }
-    
+
     return (
       <View style={styles.emptyContainer}>
         <Icon name="shield-checkmark-outline" size={80} color={colors.textLabel} />
@@ -239,7 +239,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   };
 
   const pendingCount = requests.filter((r) => r.status.toLowerCase() === "pending").length;
-  const answeredCount = requests.filter((r) => 
+  const answeredCount = requests.filter((r) =>
     ["answered", "approved", "confirmed"].includes(r.status.toLowerCase())
   ).length;
 
@@ -319,11 +319,11 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         {!loading && requests.length > 0 && (
           <View style={styles.filterInfo}>
             <Text style={styles.filterInfoText}>
-              {selectedFilter === 'all' 
+              {selectedFilter === 'all'
                 ? `Hiển thị tất cả ${filteredRequests.length} yêu cầu`
                 : selectedFilter === 'answered'
-                ? `${filteredRequests.length} yêu cầu đã được trả lời`
-                : `${filteredRequests.length} yêu cầu đang chờ xử lý`}
+                  ? `${filteredRequests.length} yêu cầu đã được trả lời`
+                  : `${filteredRequests.length} yêu cầu đang chờ xử lý`}
             </Text>
           </View>
         )}
@@ -594,6 +594,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#F57C00",
     lineHeight: 18,
+  },
+
+  // Chat Expert Button
+  chatExpertButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(76, 175, 80, 0.3)",
+    marginBottom: 12,
+  },
+  chatExpertButtonText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4CAF50",
   },
 
   // Card Footer

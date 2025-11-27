@@ -1,0 +1,394 @@
+/* Payment Management Page Styles */
+.payments-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.page-header p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Dark theme */
+body.dark-theme .page-header h1 {
+  color: #fff;
+}
+
+body.dark-theme .page-header p {
+  color: #ccc;
+}
+
+/* Statistics */
+.payments-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-number {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #FFB3D9;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Dark theme */
+body.dark-theme .stat-card {
+  background: rgba(30, 30, 30, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme .stat-number {
+  color: #f72585;
+}
+
+body.dark-theme .stat-label {
+  color: #ccc;
+}
+
+/* Controls */
+.payments-controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.search-section {
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-wrapper svg {
+  position: absolute;
+  left: 1rem;
+  color: #999;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #FFB3D9;
+  box-shadow: 0 0 0 3px rgba(255, 179, 217, 0.1);
+}
+
+.filter-section {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.filter-select {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #FFB3D9;
+  box-shadow: 0 0 0 3px rgba(255, 179, 217, 0.1);
+}
+
+/* Dark theme */
+body.dark-theme .search-input,
+body.dark-theme .filter-select {
+  background: rgba(30, 30, 30, 0.9);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+body.dark-theme .search-input:focus,
+body.dark-theme .filter-select:focus {
+  border-color: #f72585;
+  box-shadow: 0 0 0 3px rgba(247, 37, 133, 0.1);
+}
+
+/* Table */
+.payments-table-container {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.payments-table thead {
+  background: rgba(255, 240, 245, 0.8);
+}
+
+.payments-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e1e8ed;
+  white-space: nowrap;
+}
+
+.payments-table td {
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+}
+
+.payments-table tbody tr:hover {
+  background: rgba(255, 240, 245, 0.5);
+}
+
+.no-data {
+  text-align: center;
+  padding: 3rem;
+  color: #999;
+}
+
+/* Transaction ID */
+.transaction-id {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* User Info */
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.user-email {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* Amount */
+.amount {
+  font-weight: 700;
+  color: #27ae60;
+  font-size: 1rem;
+}
+
+/* Payment Method */
+.payment-method {
+  padding: 0.25rem 0.75rem;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 6px;
+  color: #667eea;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Plan Info */
+.plan-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.plan-type {
+  font-weight: 600;
+  color: #f39c12;
+  font-size: 0.9rem;
+}
+
+.plan-duration {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.failure-reason {
+  font-size: 0.75rem;
+  color: #e74c3c;
+  margin-top: 0.25rem;
+}
+
+/* Date */
+.date-cell {
+  font-size: 0.8rem;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.pagination-btn {
+  padding: 0.5rem 1.5rem;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #FFB3D9;
+  color: white;
+  border-color: #FFB3D9;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Dark theme */
+body.dark-theme .payments-table-container {
+  background: rgba(30, 30, 30, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme .payments-table thead {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-theme .payments-table th {
+  color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-theme .payments-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-theme .payments-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-theme .no-data {
+  color: #999;
+}
+
+body.dark-theme .user-name {
+  color: #fff;
+}
+
+body.dark-theme .user-email {
+  color: #ccc;
+}
+
+body.dark-theme .date-cell {
+  color: #ccc;
+}
+
+body.dark-theme .pagination-btn {
+  background: rgba(30, 30, 30, 0.9);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+body.dark-theme .pagination-btn:hover:not(:disabled) {
+  background: #f72585;
+  border-color: #f72585;
+}
+
+body.dark-theme .pagination-info {
+  color: #ccc;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .payments-page {
+    padding: 1rem;
+  }
+
+  .payments-controls {
+    flex-direction: column;
+  }
+
+  .filter-section {
+    flex-direction: column;
+  }
+
+  .payments-table {
+    font-size: 0.75rem;
+  }
+
+  .payments-table th,
+  .payments-table td {
+    padding: 0.5rem;
+  }
+}
+

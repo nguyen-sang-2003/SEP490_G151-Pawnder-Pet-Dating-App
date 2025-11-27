@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    Image,
     TouchableOpacity,
     Dimensions,
     Animated,
@@ -11,7 +10,8 @@ import {
     SafeAreaView,
     StatusBar,
     ActivityIndicator,
-    Modal,
+    ScrollView,
+    RefreshControl,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -21,7 +21,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getPetsForMatching, PetForMatching, getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../../api/pet";
+import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../../api/pet";
 import { sendLike } from "../../../api/match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppSelector } from "../../../app/hooks";
@@ -30,6 +30,12 @@ import { getVipStatus } from "../../../api/payment";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
 import signalRService from "../../../services/signalr.service";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { getItem, removeItem } from "../../../utils/storage";
+import OptimizedImage from "../../../components/OptimizedImage";
+import PetCardSkeleton from "../../../components/PetCardSkeleton";
+import ReactNativeHapticFeedback from "react-native-haptic-feedback";
 
 const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - 24; // Padding 12px each side
@@ -39,24 +45,25 @@ const SWIPE_THRESHOLD = width * 0.25;
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 interface PetProfile {
-  id: string;
-  name: string;
-  age: string;
-  breed: string;
-  gender: "male" | "female";
-  distance: string;
-  bio: string;
-  image: any; // First image for backward compatibility
-  images: any[]; // All images for carousel
-  personality: string[];
-  owner: string;
-  ownerId: number; // Add ownerId for API calls
-  matchPercent: number; // Match percentage (0-100)
-  ownerIsVip?: boolean; // VIP status of pet owner
+    id: string;
+    name: string;
+    age: string;
+    breed: string;
+    gender: "male" | "female";
+    distance: string;
+    bio: string;
+    image: any; // First image for backward compatibility
+    images: any[]; // All images for carousel
+    personality: string[];
+    owner: string;
+    ownerId: number; // Add ownerId for API calls
+    matchPercent: number; // Match percentage (0-100)
+    ownerIsVip?: boolean; // VIP status of pet owner
 }
 
 const HomeScreen = ({ navigation }: Props) => {
     const notificationBadge = useAppSelector(selectNotificationBadge);
+    const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [pets, setPets] = useState<PetProfile[]>([]);
     const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
@@ -65,16 +72,90 @@ const HomeScreen = ({ navigation }: Props) => {
     const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [activePetId, setActivePetId] = useState<number | null>(null); // User's active pet ID
-    const [vipCache, setVipCache] = useState<{ [userId: number]: boolean }>({});
     const [showMatchLimitModal, setShowMatchLimitModal] = useState(false);
     const [limitMessage, setLimitMessage] = useState("");
-    
+    const [refreshing, setRefreshing] = useState(false);
+
+    // Fade-in animation for loaded pets
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    // Scale animations for Like/Pass buttons
+    const likeButtonScale = useRef(new Animated.Value(1)).current;
+    const passButtonScale = useRef(new Animated.Value(1)).current;
+
+    // Fade-in animation for next card
+    const nextCardFadeAnim = useRef(new Animated.Value(1)).current;
+
+    // Fade-in animation for empty state
+    const emptyStateAnim = useRef(new Animated.Value(0)).current;
+
+    // Bounce animation for empty state icon
+    const bounceAnim = useRef(new Animated.Value(0)).current;
+
 
     // Use refs to access latest values in PanResponder callbacks
     const petsRef = useRef<PetProfile[]>([]);
     const currentUserIdRef = useRef<number | null>(null);
     const activePetIdRef = useRef<number | null>(null);
     const currentIndexRef = useRef(0);
+    const prevLoadingRef = useRef(true);
+
+    // Trigger fade-in animation when loading changes from true to false
+    useEffect(() => {
+        if (prevLoadingRef.current === true && loading === false) {
+            fadeAnim.setValue(0);
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: false, // Must match position.x driver for Animated.multiply
+            }).start();
+        }
+        prevLoadingRef.current = loading;
+    }, [loading, fadeAnim]);
+
+    // Trigger fade-in animation for next card when currentIndex changes
+    useEffect(() => {
+        if (currentIndex > 0 && currentIndex < pets.length) {
+            nextCardFadeAnim.setValue(0);
+            Animated.timing(nextCardFadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: false, // Must match position.x driver for consistency
+            }).start();
+        }
+    }, [currentIndex, pets.length, nextCardFadeAnim]);
+
+    // Trigger fade-in animation for empty state when no more pets
+    useEffect(() => {
+        if (currentIndex >= pets.length && pets.length > 0) {
+            emptyStateAnim.setValue(0);
+            Animated.timing(emptyStateAnim, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [currentIndex, pets.length, emptyStateAnim]);
+
+    // Bounce animation for empty state icon
+    useEffect(() => {
+        if (currentIndex >= pets.length && pets.length > 0) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(bounceAnim, {
+                        toValue: 1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(bounceAnim, {
+                        toValue: 0,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
+        }
+    }, [currentIndex, pets.length, bounceAnim]);
 
     // Update refs when state changes
     useEffect(() => {
@@ -87,16 +168,16 @@ const HomeScreen = ({ navigation }: Props) => {
 
     // Track previous pet ID to detect actual pet switches
     const prevActivePetIdRef = useRef<number | null>(null);
-    
+
     useEffect(() => {
         activePetIdRef.current = activePetId;
-        
+
         // Only refresh badges when pet ACTUALLY changes (not on initial mount)
         if (activePetId && currentUserId && prevActivePetIdRef.current !== null && prevActivePetIdRef.current !== activePetId) {
             console.log(`🔄 Pet switched from ${prevActivePetIdRef.current} to ${activePetId}, refreshing badges...`);
             refreshBadgesForActivePet(currentUserId);
         }
-        
+
         // Update previous pet ID
         prevActivePetIdRef.current = activePetId;
     }, [activePetId, currentUserId]);
@@ -113,7 +194,7 @@ const HomeScreen = ({ navigation }: Props) => {
         // Match success handler
         const handleMatchSuccess = (data: any) => {
             console.log('🎉 Match notification received:', data);
-            
+
             // Create a temporary PetProfile for the matched pet
             const matchedPetData: PetProfile = {
                 id: data.MatchId?.toString() || '0',
@@ -130,11 +211,11 @@ const HomeScreen = ({ navigation }: Props) => {
                 ownerId: data.OtherUserId || 0,
                 matchPercent: 100,
             };
-            
+
             // Show match modal
             setMatchedPet(matchedPetData);
             setShowMatchModal(true);
-            
+
             // Auto hide after 4 seconds
             setTimeout(() => {
                 setShowMatchModal(false);
@@ -142,14 +223,14 @@ const HomeScreen = ({ navigation }: Props) => {
             }, 4000);
         };
 
-        // Setup SignalR
+        // Setup SignalR (NewNotification listener is in AppNavigator globally)
         const setupSignalR = async () => {
             try {
                 await signalRService.connect(userId);
                 console.log('✅ SignalR connected in HomeScreen');
                 signalRService.on('MatchSuccess', handleMatchSuccess);
             } catch (error) {
-                console.error('❌ Failed to setup SignalR:', error);
+
             }
         };
 
@@ -180,15 +261,32 @@ const HomeScreen = ({ navigation }: Props) => {
         extrapolate: "clamp",
     });
 
+    // Card fade-out during swipe
+    const cardOpacity = position.x.interpolate({
+        inputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
+        outputRange: [0.3, 1, 0.3],
+        extrapolate: "clamp",
+    });
+
     const panResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gesture) => {
+                // Only capture horizontal swipes, let vertical gestures pass through for pull-to-refresh
+                const isHorizontalSwipe = Math.abs(gesture.dx) > Math.abs(gesture.dy);
+                return isHorizontalSwipe;
+            },
             onPanResponderMove: (_, gesture) => {
-                position.setValue({ x: gesture.dx, y: gesture.dy });
+                // Only update position for horizontal swipes
+                const isHorizontalSwipe = Math.abs(gesture.dx) > Math.abs(gesture.dy);
+                if (isHorizontalSwipe) {
+                    position.setValue({ x: gesture.dx, y: gesture.dy });
+                }
             },
             onPanResponderRelease: (_, gesture) => {
                 console.log("👆 Gesture released:", {
                     dx: gesture.dx,
+                    dy: gesture.dy,
                     threshold: SWIPE_THRESHOLD,
                     willSwipeRight: gesture.dx > SWIPE_THRESHOLD,
                     willSwipeLeft: gesture.dx < -SWIPE_THRESHOLD,
@@ -196,7 +294,18 @@ const HomeScreen = ({ navigation }: Props) => {
                     petsLength: petsRef.current.length,
                     hasPets: petsRef.current.length > 0
                 });
-                
+
+                // Only process horizontal swipes
+                const isHorizontalSwipe = Math.abs(gesture.dx) > Math.abs(gesture.dy);
+                if (!isHorizontalSwipe) {
+                    console.log("↕️ Vertical gesture detected, ignoring for swipe");
+                    Animated.spring(position, {
+                        toValue: { x: 0, y: 0 },
+                        useNativeDriver: false,
+                    }).start();
+                    return;
+                }
+
                 if (gesture.dx > SWIPE_THRESHOLD) {
                     console.log("➡️ Triggering RIGHT swipe");
                     forceSwipe("right");
@@ -219,7 +328,7 @@ const HomeScreen = ({ navigation }: Props) => {
         const latestPets = petsRef.current;
         const latestIndex = currentIndexRef.current;
         const latestUserId = currentUserIdRef.current;
-        
+
         console.log("💨 Force swipe called:", {
             direction,
             currentIndex: latestIndex,
@@ -228,7 +337,7 @@ const HomeScreen = ({ navigation }: Props) => {
             currentUserId: latestUserId,
             ownerId: latestPets[latestIndex]?.ownerId
         });
-        
+
         const x = direction === "right" ? width + 100 : -width - 100;
         Animated.timing(position, {
             toValue: { x, y: 0 },
@@ -241,12 +350,22 @@ const HomeScreen = ({ navigation }: Props) => {
     };
 
     const onSwipeComplete = async (direction: "left" | "right") => {
+        // Haptic feedback for swipe complete
+        try {
+            ReactNativeHapticFeedback.trigger("impactLight", {
+                enableVibrateFallback: true,
+                ignoreAndroidSystemSettings: false,
+            });
+        } catch (error) {
+            console.log('Haptic feedback not supported:', error);
+        }
+
         // Use refs to get latest values
         const latestPets = petsRef.current;
         const latestIndex = currentIndexRef.current;
         const latestUserId = currentUserIdRef.current;
         const currentPet = latestPets[latestIndex];
-        
+
         console.log("🔄 Swipe complete:", {
             direction,
             currentIndex: latestIndex,
@@ -255,7 +374,7 @@ const HomeScreen = ({ navigation }: Props) => {
             currentUserId: latestUserId,
             hasPet: !!currentPet
         });
-        
+
         // Safety check
         if (!currentPet || !currentPet.id) {
             console.log("⚠️ No valid pet at index:", latestIndex);
@@ -263,19 +382,19 @@ const HomeScreen = ({ navigation }: Props) => {
             setCurrentIndex(prev => prev + 1);
             return;
         }
-        
+
         if (!latestUserId) {
-            console.error("❌ No currentUserId - cannot send like");
+
             position.setValue({ x: 0, y: 0 });
             setCurrentIndex(prev => prev + 1);
             return;
         }
-        
+
         if (direction === "right") {
             // Send like via API
             try {
                 const latestActivePetId = activePetIdRef.current;
-                
+
                 console.log("❤️ Sending like for pet:", {
                     fromPetId: latestActivePetId,
                     toPetId: currentPet.id,
@@ -283,30 +402,30 @@ const HomeScreen = ({ navigation }: Props) => {
                     ownerId: currentPet.ownerId,
                     fromUserId: latestUserId
                 });
-                
+
                 if (!currentPet.ownerId) {
-                    console.error("❌ Pet has no ownerId - cannot send like");
+
                     position.setValue({ x: 0, y: 0 });
                     setCurrentIndex(prev => prev + 1);
                     return;
                 }
-                
+
                 if (!latestActivePetId) {
-                    console.error("❌ No active pet - cannot send like");
+
                     position.setValue({ x: 0, y: 0 });
                     setCurrentIndex(prev => prev + 1);
                     return;
                 }
-                
+
                 const response = await sendLike({
                     fromUserId: latestUserId,
                     toUserId: currentPet.ownerId,
                     fromPetId: latestActivePetId,
-                    toPetId: parseInt(currentPet.id)
+                    toPetId: Number(currentPet.id) // ✅ Use Number() instead of parseInt() to handle edge cases
                 });
-                
+
                 console.log("✅ Like sent successfully:", response);
-                
+
                 // Check if it's a match
                 if (response.isMatch) {
                     setMatchedPet(currentPet);
@@ -323,31 +442,31 @@ const HomeScreen = ({ navigation }: Props) => {
                     const errorData = error.response?.data;
                     setLimitMessage(errorData?.message || "Bạn đã hết lượt gửi match hôm nay!");
                     setShowMatchLimitModal(true);
-                    
+
                     // Reset card position
                     position.setValue({ x: 0, y: 0 });
                     return; // Don't advance to next card
                 } else {
                     // Only log non-limit errors
-                    console.error("❌ Error sending like:", error);
+
                 }
             }
         } else if (direction === "left") {
             // Just pass - no need to save to database
             console.log("👎 Passed pet:", currentPet.id);
         }
-        
+
         position.setValue({ x: 0, y: 0 });
         setCurrentIndex(prev => prev + 1);
     };
 
 
-    // Load pets from API - Luôn dùng recommendation API (với optional filter)
+    // 🚀 OPTIMIZED: Load pets with lazy loading and parallel API calls
     const loadPets = async () => {
         try {
             setLoading(true);
-            console.log('🔄 Loading pets with smart recommendations...');
-            
+            console.log('🔄 Loading pets with optimizations...');
+
             // Get current user ID from storage
             const userIdStr = await AsyncStorage.getItem('userId');
             if (!userIdStr) {
@@ -357,40 +476,44 @@ const HomeScreen = ({ navigation }: Props) => {
             }
 
             const userId = parseInt(userIdStr);
-            
+
             if (!userId || isNaN(userId)) {
                 setLoading(false);
                 return;
             }
 
             setCurrentUserId(userId);
-            
+
+            // 🚀 OPTIMIZATION 1: Parallel API calls instead of sequential
+            const [userPets, recommendedPets] = await Promise.all([
+                getPetsByUserId(userId),
+                getRecommendedPets(userId)
+            ]);
+
             // Get user's active pet ID
-            const userPets = await getPetsByUserId(userId);
             const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
             if (activePet) {
                 const petId = activePet.PetId || activePet.petId;
-                setActivePetId(petId ?? null); // Convert undefined to null
+                setActivePetId(petId ?? null);
                 console.log('🐾 User active pet:', petId);
             } else {
                 console.log('⚠️ No active pet found for user');
             }
-            
-            // Luôn dùng recommendation API
-            // Nếu chưa có filter → trả về tất cả pets (matchPercent = 0)
-            // Nếu có filter → sắp xếp theo matchPercent
-            const recommendedPets = await getRecommendedPets(userId);
+
+            // 🚀 OPTIMIZATION 2: Lazy loading - Only process first 10 pets initially
+            const INITIAL_LOAD_COUNT = 10;
+            const petsToLoad = recommendedPets.slice(0, INITIAL_LOAD_COUNT);
 
             // Convert recommended pets to PetProfile format
-            const formattedPets: PetProfile[] = recommendedPets
+            const formattedPets: PetProfile[] = petsToLoad
                 .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
                 .map((pet: RecommendedPet) => {
                     const photos = pet.photos && pet.photos.length > 0
                         ? pet.photos.map((url: string) => ({ uri: url }))
                         : [require("../../../assets/cat_avatar.png")];
-                    
+
                     const matchPercent = pet.matchPercent ?? 0;
-                    
+
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
@@ -408,13 +531,17 @@ const HomeScreen = ({ navigation }: Props) => {
                     };
                 });
 
-            // Check VIP status for all unique owners
-            const uniqueOwnerIds = Array.from(new Set(formattedPets.map(p => p.ownerId)));
+            // 🚀 OPTIMIZATION 3: Only check VIP for first 5 pets (visible ones)
+            const VIP_CHECK_COUNT = 5;
+            const uniqueOwnerIds = Array.from(new Set(
+                formattedPets.slice(0, VIP_CHECK_COUNT).map(p => p.ownerId)
+            ));
             const vipStatuses: { [userId: number]: boolean } = {};
-            
+
+            // Parallel VIP checks
             await Promise.all(
                 uniqueOwnerIds.map(async (ownerId) => {
-                    try {                
+                    try {
                         const status = await getVipStatus(ownerId);
                         vipStatuses[ownerId] = status.isVip;
                     } catch (error: any) {
@@ -422,9 +549,6 @@ const HomeScreen = ({ navigation }: Props) => {
                     }
                 })
             );
-
-            // Update VIP cache
-            setVipCache(prev => ({ ...prev, ...vipStatuses }));
 
             // Add VIP status to pets
             const petsWithVip = formattedPets.map(pet => ({
@@ -435,11 +559,54 @@ const HomeScreen = ({ navigation }: Props) => {
             setPets(petsWithVip);
             setCurrentIndex(0);
             setCurrentPhotoIndices({});
+
+            // 🚀 OPTIMIZATION 4: Load remaining pets in background
+            if (recommendedPets.length > INITIAL_LOAD_COUNT) {
+                loadMorePetsInBackground(recommendedPets.slice(INITIAL_LOAD_COUNT), userId);
+            }
         } catch (error) {
-            console.error('❌ Error loading pets:', error);
+
             setPets([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // 🚀 OPTIMIZATION 5: Background loading for remaining pets
+    const loadMorePetsInBackground = async (remainingPets: RecommendedPet[], userId: number) => {
+        try {
+            console.log(`🔄 Loading ${remainingPets.length} more pets in background...`);
+
+            const formattedPets: PetProfile[] = remainingPets
+                .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
+                .map((pet: RecommendedPet) => {
+                    const photos = pet.photos && pet.photos.length > 0
+                        ? pet.photos.map((url: string) => ({ uri: url }))
+                        : [require("../../../assets/cat_avatar.png")];
+
+                    return {
+                        id: pet.petId.toString(),
+                        name: pet.name,
+                        age: pet.age ? `${pet.age} years` : 'N/A',
+                        breed: pet.breed || 'Unknown',
+                        gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
+                        distance: pet.distanceKm ? `${pet.distanceKm} km` : (pet.owner?.address ? `${pet.owner.address.city || pet.owner.address.district || ''}` : 'N/A'),
+                        bio: pet.description || 'No description',
+                        image: photos[0],
+                        images: photos,
+                        personality: [],
+                        owner: pet.owner?.fullName || 'Unknown',
+                        ownerId: pet.userId,
+                        matchPercent: pet.matchPercent ?? 0,
+                        ownerIsVip: false, // Will be updated later if needed
+                    };
+                });
+
+            // Append to existing pets
+            setPets(prev => [...prev, ...formattedPets]);
+            console.log(`✅ Loaded ${formattedPets.length} more pets in background`);
+        } catch (error) {
+
         }
     };
 
@@ -448,43 +615,131 @@ const HomeScreen = ({ navigation }: Props) => {
         useCallback(() => {
             loadPets();
             // Badges are refreshed automatically when activePetId changes (useEffect above)
-        }, [])
+
+            // Check if should show login success alert
+            const checkLoginSuccess = async () => {
+                const showSuccess = await getItem('showLoginSuccess');
+                if (showSuccess === 'true') {
+                    await removeItem('showLoginSuccess');
+                    // Show success alert without blocking navigation
+                    setTimeout(() => {
+                        showAlert({
+                            type: 'success',
+                            title: 'Chào mừng! 🎉',
+                            message: 'Đăng nhập thành công',
+                        });
+                    }, 500); // Small delay to let screen render first
+                }
+            };
+            checkLoginSuccess();
+        }, [showAlert])
     );
 
-    // Calculate distance from address (placeholder logic)
-    const calculateDistance = (address: any): string => {
-        if (address && (address.City || address.city)) {
-            return `${address.City || address.city}`;
+    // 🚀 OPTIMIZATION 6: Memoize handlers to prevent re-renders
+    const handleLike = useCallback(() => {
+        // Haptic feedback for Like button
+        try {
+            ReactNativeHapticFeedback.trigger("impactMedium", {
+                enableVibrateFallback: true,
+                ignoreAndroidSystemSettings: false,
+            });
+        } catch (error) {
+            console.log('Haptic feedback not supported:', error);
         }
-        if (address && (address.District || address.district)) {
-            return `${address.District || address.district}`;
-        }
-        return 'Location unknown';
-    };
 
-    const handleLike = () => forceSwipe("right");
-    const handleNope = () => forceSwipe("left");
-    
-    const handleViewPetDetail = (petId: string) => {
+        // Scale animation for Like button - run in parallel with swipe
+        Animated.sequence([
+            Animated.timing(likeButtonScale, {
+                toValue: 0.9,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(likeButtonScale, {
+                toValue: 1,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        // Trigger swipe animation
+        forceSwipe("right");
+    }, [likeButtonScale]);
+
+    const handleNope = useCallback(() => {
+        // Haptic feedback for Pass button
+        try {
+            ReactNativeHapticFeedback.trigger("impactLight", {
+                enableVibrateFallback: true,
+                ignoreAndroidSystemSettings: false,
+            });
+        } catch (error) {
+            console.log('Haptic feedback not supported:', error);
+        }
+
+        // Scale animation for Pass button - run in parallel with swipe
+        Animated.sequence([
+            Animated.timing(passButtonScale, {
+                toValue: 0.9,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(passButtonScale, {
+                toValue: 1,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        // Trigger swipe animation
+        forceSwipe("left");
+    }, [passButtonScale]);
+
+    const handleViewPetDetail = useCallback((petId: string) => {
         console.log('📱 Opening pet detail:', petId);
         navigation.navigate("PetProfile", { petId });
-    };
+    }, [navigation]);
 
-    const renderCard = (pet: PetProfile, index: number) => {
+    // Pull-to-refresh handler
+    const onRefresh = useCallback(async () => {
+        try {
+            setRefreshing(true);
+            console.log('🔄 Pull-to-refresh triggered');
+            await loadPets();
+        } catch (error) {
+
+            showAlert({
+                type: 'error',
+                title: 'Lỗi',
+                message: 'Không thể tải lại danh sách pets. Vui lòng thử lại.',
+            });
+        } finally {
+            setRefreshing(false);
+        }
+    }, [showAlert]);
+
+    // 🚀 OPTIMIZATION 7: Memoize renderCard to prevent unnecessary re-renders
+    const renderCard = useCallback((pet: PetProfile, index: number) => {
         if (index < currentIndex) return null;
         if (!pet || !pet.id) return null; // Safety check
-        
+
         const isCurrentCard = index === currentIndex;
+        const isNextCard = index === currentIndex + 1;
         const cardStyle = isCurrentCard
             ? {
                 ...styles.card,
+                opacity: Animated.multiply(fadeAnim, cardOpacity),
                 transform: [
                     { translateX: position.x },
                     { translateY: position.y },
                     { rotate },
                 ],
             }
-            : styles.card;
+            : isNextCard
+                ? {
+                    ...styles.card,
+                    opacity: nextCardFadeAnim,
+                }
+                : styles.card;
 
         return (
             <Animated.View
@@ -495,11 +750,14 @@ const HomeScreen = ({ navigation }: Props) => {
                 <View style={styles.cardContent}>
                     <View style={styles.imageContainer}>
                         {/* Current Photo */}
-                        <Image 
-                            source={pet.images[currentPhotoIndices[pet.id] || 0]} 
-                            style={styles.petImage} 
+                        <OptimizedImage
+                            source={pet.images[currentPhotoIndices[pet.id] || 0]}
+                            style={styles.petImage}
+                            resizeMode="cover"
+                            showLoader={true}
+                            imageSize="full"
                         />
-                        
+
                         {/* Photo Navigation Tap Areas */}
                         {pet.images.length > 1 && (
                             <>
@@ -510,10 +768,10 @@ const HomeScreen = ({ navigation }: Props) => {
                                     onPress={() => {
                                         const currentIdx = currentPhotoIndices[pet.id] || 0;
                                         const newIdx = currentIdx > 0 ? currentIdx - 1 : pet.images.length - 1;
-                                        setCurrentPhotoIndices(prev => ({...prev, [pet.id]: newIdx}));
+                                        setCurrentPhotoIndices(prev => ({ ...prev, [pet.id]: newIdx }));
                                     }}
                                 />
-                                
+
                                 {/* Right tap area - Next photo */}
                                 <TouchableOpacity
                                     style={styles.photoTapAreaRight}
@@ -521,12 +779,12 @@ const HomeScreen = ({ navigation }: Props) => {
                                     onPress={() => {
                                         const currentIdx = currentPhotoIndices[pet.id] || 0;
                                         const newIdx = (currentIdx + 1) % pet.images.length;
-                                        setCurrentPhotoIndices(prev => ({...prev, [pet.id]: newIdx}));
+                                        setCurrentPhotoIndices(prev => ({ ...prev, [pet.id]: newIdx }));
                                     }}
                                 />
                             </>
                         )}
-                        
+
                         {/* Photo Pagination Dots */}
                         {pet.images.length > 1 && (
                             <View style={styles.paginationDots}>
@@ -541,10 +799,10 @@ const HomeScreen = ({ navigation }: Props) => {
                                 ))}
                             </View>
                         )}
-                        
+
                         {/* Info Button Overlay - Only button is clickable */}
                         <View style={styles.infoButtonOverlay}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={styles.infoButton}
                                 activeOpacity={0.7}
                                 onPress={() => handleViewPetDetail(pet.id)}
@@ -562,7 +820,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             </TouchableOpacity>
                         </View>
                     </View>
-                    
+
                     {/* Swipe Indicators */}
                     {isCurrentCard && (
                         <>
@@ -647,29 +905,33 @@ const HomeScreen = ({ navigation }: Props) => {
                             {/* Action Buttons on Card */}
                             {isCurrentCard && (
                                 <View style={styles.cardActions}>
-                                    <TouchableOpacity 
-                                        onPress={handleNope}
-                                        activeOpacity={0.8}
-                                    >
-                                        <LinearGradient
-                                            colors={["#FF6B6B", "#FF8E8E"]}
-                                            style={styles.cardActionBtnNope}
+                                    <Animated.View style={{ transform: [{ scale: passButtonScale }] }}>
+                                        <TouchableOpacity
+                                            onPress={handleNope}
+                                            activeOpacity={0.8}
                                         >
-                                            <Icon name="close" size={32} color={colors.white} />
-                                        </LinearGradient>
-                                    </TouchableOpacity>
-                                    
-                                    <TouchableOpacity 
-                                        onPress={handleLike}
-                                        activeOpacity={0.8}
-                                    >
-                                        <LinearGradient
-                                            colors={gradients.home}
-                                            style={styles.cardActionBtnLike}
+                                            <LinearGradient
+                                                colors={["#FF6B6B", "#FF8E8E"]}
+                                                style={styles.cardActionBtnNope}
+                                            >
+                                                <Icon name="close" size={32} color={colors.white} />
+                                            </LinearGradient>
+                                        </TouchableOpacity>
+                                    </Animated.View>
+
+                                    <Animated.View style={{ transform: [{ scale: likeButtonScale }] }}>
+                                        <TouchableOpacity
+                                            onPress={handleLike}
+                                            activeOpacity={0.8}
                                         >
-                                            <Icon name="heart" size={32} color={colors.white} />
-                                        </LinearGradient>
-                                    </TouchableOpacity>
+                                            <LinearGradient
+                                                colors={gradients.home}
+                                                style={styles.cardActionBtnLike}
+                                            >
+                                                <Icon name="heart" size={32} color={colors.white} />
+                                            </LinearGradient>
+                                        </TouchableOpacity>
+                                    </Animated.View>
                                 </View>
                             )}
                         </View>
@@ -677,56 +939,122 @@ const HomeScreen = ({ navigation }: Props) => {
                 </View>
             </Animated.View>
         );
-    };
+    }, [currentIndex, currentPhotoIndices, position.x, position.y, rotate, panResponder.panHandlers, handleViewPetDetail, handleLike, handleNope, fadeAnim, likeButtonScale, passButtonScale, cardOpacity, nextCardFadeAnim]);
 
-    // Show loading state
+    // Show loading state with skeleton
     if (loading) {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-                <SafeAreaView style={{ flex: 0 }} />
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.homeStart} />
-                    <Text style={styles.loadingText}>Loading pets...</Text>
+
+                {/* Skeleton Cards */}
+                <View style={styles.cardsContainer}>
+                    <PetCardSkeleton count={5} />
                 </View>
+
+                {/* Tinder-style Header - Overlay */}
+                <LinearGradient
+                    colors={["rgba(250,251,252,0.98)", "rgba(250,251,252,0)"]}
+                    style={styles.headerGradient}
+                >
+                    <SafeAreaView style={{ flex: 0 }} />
+                    <View style={styles.header}>
+                        {/* Logo */}
+                        <View style={styles.logoContainer}>
+                            <LinearGradient
+                                colors={gradients.home}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.logoGradient}
+                            >
+                                <Icon name="paw" size={24} color={colors.white} />
+                            </LinearGradient>
+                            <Text style={styles.logoText}>Pawnder</Text>
+                        </View>
+
+                        {/* Right Actions */}
+                        <View style={styles.headerRight}>
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => (navigation as any).navigate("FilterScreen")}
+                            >
+                                <Icon name="options-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("Notification")}
+                            >
+                                <Icon name="notifications-outline" size={26} color={colors.textDark} />
+                                {notificationBadge > 0 && (
+                                    <View style={styles.notificationBadge}>
+                                        <Text style={styles.notificationBadgeText}>
+                                            {notificationBadge > 99 ? '99+' : notificationBadge}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </LinearGradient>
+
                 <BottomNav active="Home" />
             </View>
         );
     }
 
     if (currentIndex >= pets.length) {
+        const translateY = bounceAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, -10],
+        });
+
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-                
+
                 {/* No More Cards Content */}
-                <View style={styles.noMoreCards}>
-                    <LinearGradient
-                        colors={gradients.home}
-                        style={styles.noMoreIconGradient}
-                    >
-                        <Icon name="paw" size={60} color={colors.white} />
-                    </LinearGradient>
+                <Animated.View style={[styles.noMoreCards, { opacity: emptyStateAnim }]}>
+                    <Animated.View style={{ transform: [{ translateY }] }}>
+                        <LinearGradient
+                            colors={gradients.home}
+                            style={styles.noMoreIconGradient}
+                        >
+                            <Icon name="paw" size={60} color={colors.white} />
+                        </LinearGradient>
+                    </Animated.View>
                     <Text style={styles.noMoreTitle}>No More Pets!</Text>
                     <Text style={styles.noMoreText}>
                         Check back later for more adorable matches
                     </Text>
-                    <TouchableOpacity
-                        style={styles.resetButton}
-                        onPress={() => {
-                            setCurrentIndex(0);
-                            loadPets(); // Reload pets from API
-                        }}
-                    >
-                        <LinearGradient
-                            colors={gradients.home}
-                            style={styles.resetGradient}
+                    <Text style={styles.noMoreSubtitle}>
+                        Or adjust your filters to see more pets
+                    </Text>
+                    <View style={styles.emptyStateButtons}>
+                        <TouchableOpacity
+                            style={styles.resetButton}
+                            onPress={() => {
+                                setCurrentIndex(0);
+                                loadPets(); // Reload pets from API
+                            }}
                         >
-                            <Icon name="refresh" size={24} color={colors.white} />
-                            <Text style={styles.resetText}>Reload Pets</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
+                            <LinearGradient
+                                colors={gradients.home}
+                                style={styles.resetGradient}
+                            >
+                                <Icon name="refresh" size={24} color={colors.white} />
+                                <Text style={styles.resetText}>Reload Pets</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.adjustFiltersButton}
+                            onPress={() => (navigation as any).navigate("FilterScreen")}
+                        >
+                            <Icon name="options-outline" size={24} color={colors.primary} />
+                            <Text style={styles.adjustFiltersText}>Adjust Filters</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
 
                 {/* Tinder-style Header - Overlay with glow */}
                 <LinearGradient
@@ -735,6 +1063,84 @@ const HomeScreen = ({ navigation }: Props) => {
                 >
                     <SafeAreaView style={{ flex: 0 }} />
                     <View style={styles.header}>
+                        {/* Logo */}
+                        <View style={styles.logoContainer}>
+                            <LinearGradient
+                                colors={gradients.home}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.logoGradient}
+                            >
+                                <Icon name="paw" size={24} color={colors.white} />
+                            </LinearGradient>
+                            <Text style={styles.logoText}>Pawnder</Text>
+                        </View>
+
+                        {/* Right Actions */}
+                        <View style={styles.headerRight}>
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => (navigation as any).navigate("FilterScreen")}
+                            >
+                                <Icon name="options-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("Notification")}
+                            >
+                                <Icon name="notifications-outline" size={26} color={colors.textDark} />
+                                {notificationBadge > 0 && (
+                                    <View style={styles.notificationBadge}>
+                                        <Text style={styles.notificationBadgeText}>
+                                            {notificationBadge > 99 ? '99+' : notificationBadge}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </LinearGradient>
+
+                <BottomNav active="Home" />
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+
+            {/* Cards - Render first so header overlays on top */}
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                scrollEnabled={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={[colors.primary, colors.homeStart]}
+                        tintColor={colors.primary}
+                        progressViewOffset={100}
+                    />
+                }
+            >
+                <View style={styles.cardsContainer}>
+                    {pets
+                        .map((pet, index) => renderCard(pet, index))
+                        .filter(card => card !== null)
+                        .reverse()}
+                </View>
+            </ScrollView>
+
+            {/* Tinder-style Header - Overlay with glow */}
+            <LinearGradient
+                colors={["rgba(250,251,252,0.98)", "rgba(250,251,252,0)"]}
+                style={styles.headerGradient}
+            >
+                <SafeAreaView style={{ flex: 0 }} />
+                <View style={styles.header}>
                     {/* Logo */}
                     <View style={styles.logoContainer}>
                         <LinearGradient
@@ -750,14 +1156,14 @@ const HomeScreen = ({ navigation }: Props) => {
 
                     {/* Right Actions */}
                     <View style={styles.headerRight}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.iconButton}
                             onPress={() => (navigation as any).navigate("FilterScreen")}
                         >
                             <Icon name="options-outline" size={26} color={colors.textDark} />
                         </TouchableOpacity>
-                        
-                        <TouchableOpacity 
+
+                        <TouchableOpacity
                             style={styles.iconButton}
                             onPress={() => navigation.navigate("Notification")}
                         >
@@ -771,65 +1177,6 @@ const HomeScreen = ({ navigation }: Props) => {
                             )}
                         </TouchableOpacity>
                     </View>
-                    </View>
-                </LinearGradient>
-
-                <BottomNav active="Home" />
-            </View>
-        );
-    }
-
-    return (
-        <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-            
-            {/* Cards - Render first so header overlays on top */}
-            <View style={styles.cardsContainer}>
-                {pets
-                    .map((pet, index) => renderCard(pet, index))
-                    .filter(card => card !== null)
-                    .reverse()}
-            </View>
-
-            {/* Tinder-style Header - Overlay with glow */}
-            <LinearGradient
-                colors={["rgba(250,251,252,0.98)", "rgba(250,251,252,0)"]}
-                style={styles.headerGradient}
-            >
-                <SafeAreaView style={{ flex: 0 }} />
-                <View style={styles.header}>
-                {/* Logo */}
-                <View style={styles.logoContainer}>
-                    <LinearGradient
-                        colors={gradients.home}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.logoGradient}
-                    >
-                        <Icon name="paw" size={24} color={colors.white} />
-                    </LinearGradient>
-                    <Text style={styles.logoText}>Pawnder</Text>
-                </View>
-
-                {/* Right Actions */}
-                <View style={styles.headerRight}>
-                    <TouchableOpacity 
-                        style={styles.iconButton}
-                        onPress={() => (navigation as any).navigate("FilterScreen")}
-                    >
-                        <Icon name="options-outline" size={26} color={colors.textDark} />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={styles.iconButton}
-                        onPress={() => navigation.navigate("Notification")}
-                    >
-                        <Icon name="notifications-outline" size={26} color={colors.textDark} />
-                        <View style={styles.notificationBadge}>
-                            <Text style={styles.notificationBadgeText}>2</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
                 </View>
             </LinearGradient>
 
@@ -876,6 +1223,18 @@ const HomeScreen = ({ navigation }: Props) => {
                 actionType="match"
             />
 
+            {/* Custom Alert for Login Success */}
+            {alertConfig && (
+                <CustomAlert
+                    visible={visible}
+                    type={alertConfig.type}
+                    title={alertConfig.title}
+                    message={alertConfig.message}
+                    confirmText={alertConfig.confirmText}
+                    onClose={hideAlert}
+                />
+            )}
+
             {/* Bottom Navigation */}
             <BottomNav active="Home" />
         </View>
@@ -883,9 +1242,12 @@ const HomeScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-    container: { 
+    container: {
         flex: 1,
         backgroundColor: "#FAFBFC", // Brighter background để hiệu ứng nổi bật hơn
+    },
+    scrollContent: {
+        flex: 1,
     },
 
     // Tinder-style Header - Overlay
@@ -1056,7 +1418,7 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 5,
     },
-    
+
     // Photo Navigation
     photoTapAreaLeft: {
         position: "absolute",
@@ -1141,16 +1503,16 @@ const styles = StyleSheet.create({
     },
     petName: {
         fontSize: 28,
-        fontWeight: "bold", 
+        fontWeight: "bold",
         color: colors.white,
         textShadowColor: "rgba(0, 0, 0, 0.8)",
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 8,
     },
-    male: { 
+    male: {
         color: "#64B5F6",
     },
-    female: { 
+    female: {
         color: "#FF9BC0",
     },
     petMeta: {
@@ -1175,7 +1537,7 @@ const styles = StyleSheet.create({
         textShadowRadius: 6,
     },
     bio: {
-        fontSize: 15, 
+        fontSize: 15,
         color: colors.white,
         lineHeight: 22,
         textShadowColor: "rgba(0, 0, 0, 0.6)",
@@ -1289,8 +1651,19 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginTop: 12,
     },
-    resetButton: {
+    noMoreSubtitle: {
+        fontSize: 14,
+        color: colors.textLight,
+        textAlign: "center",
+        marginTop: 8,
+    },
+    emptyStateButtons: {
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
         marginTop: 30,
+    },
+    resetButton: {
         borderRadius: radius.lg,
         overflow: "hidden",
     },
@@ -1305,6 +1678,22 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: colors.white,
+    },
+    adjustFiltersButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 32,
+        paddingVertical: 16,
+        gap: 8,
+        borderRadius: radius.lg,
+        borderWidth: 2,
+        borderColor: colors.primary,
+        backgroundColor: "transparent",
+    },
+    adjustFiltersText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: colors.primary,
     },
 
     // Match Modal

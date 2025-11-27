@@ -72,7 +72,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       console.log('Creating pet with data:', petData);
       const response = await createPet(petData);
       console.log('Create pet response:', response);
-      
+
       const petId = response.PetId || response.petId;
 
       if (!petId) {
@@ -84,14 +84,14 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'success',
         title: 'Success!',
-        message: `${petName}'s profile created. Let's add more details!`,
+        message: `${petName}'s profile created. Let's add some photos!`,
         confirmText: 'Continue',
         onClose: () => {
-          navigation.navigate("AddPetCharacteristics", { petId, isFromProfile });
+          navigation.navigate("AddPetPhotos", { petId, isFromProfile });
         },
       });
     } catch (error: any) {
-      console.error('Error creating pet:', error);
+
       showAlert({
         type: 'error',
         title: 'Error',
@@ -127,7 +127,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          
+
           {/* Step Indicator - Always show in Add Pet flow */}
           <View style={styles.stepIndicatorContainer}>
             <View style={styles.stepBarsContainer}>
@@ -137,7 +137,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
             </View>
             <Text style={styles.stepText}>Step 1 of 3</Text>
           </View>
-          
+
           <Text style={styles.title}>Pet Profile</Text>
           <Text style={styles.subtitle}>
             Tell us about your furry friend
