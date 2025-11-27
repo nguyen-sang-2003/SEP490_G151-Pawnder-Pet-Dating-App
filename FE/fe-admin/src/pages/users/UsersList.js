@@ -16,7 +16,7 @@ const UsersList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 5;
   
   // Users data state
   const [users, setUsers] = useState([]);

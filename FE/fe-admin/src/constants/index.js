@@ -81,6 +81,9 @@ export const API_ENDPOINTS = {
     GET_MESSAGES: (chatExpertId) => `/api/ChatExpertContent/${chatExpertId}`, // GET /api/ChatExpertContent/{chatExpertId}
     SEND_MESSAGE: (chatExpertId, fromId) => `/api/ChatExpertContent/${chatExpertId}/${fromId}`, // POST /api/ChatExpertContent/{chatExpertId}/{fromId}
   },
+  PAYMENTS: {
+    HISTORY_LIST: '/api/payment-history/all', // GET /api/payment-history/all
+  },
   PET_PHOTOS: {
     LIST_BY_PET: (petId) => `/api/petphoto/${petId}`, // GET /api/petphoto/{petId} (Backend route là "api/petphoto" không có dấu gạch ngang)
     UPLOAD: '/api/petphoto', // POST /api/petphoto (FormData: petId, files[])
