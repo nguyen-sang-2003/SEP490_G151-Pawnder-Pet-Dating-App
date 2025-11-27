@@ -203,7 +203,7 @@ namespace BE.Services
                 .Where(c => c.IsDeleted == false
                            && c.Status == "Accepted"
                            && c.FromPet != null && c.ToPet != null
-                           && (userPetIdSet.Contains(c.FromPetId ?? -1) || userPetIdSet.contains(c.ToPetId ?? -1)))
+                           && (userPetIdSet.Contains(c.FromPetId ?? -1) || userPetIdSet.Contains(c.ToPetId ?? -1)))
                 .CountAsync(ct);
 
             // Business logic: Count likes received (Pending status where user's pets are recipient)
