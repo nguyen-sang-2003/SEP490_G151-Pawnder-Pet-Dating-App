@@ -3,6 +3,7 @@ using BE.Models;
 using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Net.Http;
@@ -16,21 +17,37 @@ namespace BE.Services
         private readonly PawnderDatabaseContext _context;
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
+        private readonly IMemoryCache _cache;
+        
+        // Rate limiting: Tối đa 1 request/giây cho mỗi user để tránh spam LocationIQ API
+        private const int MAX_REQUESTS_PER_SECOND = 1;
+        private static readonly TimeSpan RATE_LIMIT_WINDOW = TimeSpan.FromSeconds(1);
 
         public AddressService(
             IAddressRepository addressRepository,
             PawnderDatabaseContext context,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IMemoryCache cache)
         {
             _addressRepository = addressRepository;
             _context = context;
             _httpClient = httpClientFactory.CreateClient();
             _configuration = configuration;
+            _cache = cache;
         }
 
         public async Task<object> CreateAddressForUserAsync(int userId, LocationDto locationDto, CancellationToken ct = default)
         {
+            // Validation: Kiểm tra coordinates hợp lệ
+            ValidateCoordinates(locationDto.Latitude, locationDto.Longitude);
+            
+            // Rate limiting: Kiểm tra số lượng requests trong 1 giây
+            if (!CheckRateLimit(userId))
+            {
+                throw new InvalidOperationException($"Bạn đã vượt quá giới hạn {MAX_REQUESTS_PER_SECOND} request/giây. Vui lòng thử lại sau.");
+            }
+
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId, ct);
             if (user == null)
                 throw new KeyNotFoundException("Không tìm thấy người dùng");
@@ -87,9 +104,19 @@ namespace BE.Services
 
         public async Task<object> UpdateAddressAsync(int addressId, LocationDto locationDto, CancellationToken ct = default)
         {
+            // Validation: Kiểm tra coordinates hợp lệ
+            ValidateCoordinates(locationDto.Latitude, locationDto.Longitude);
+            
             var address = await _addressRepository.GetAddressByIdAsync(addressId, ct);
             if (address == null)
                 throw new KeyNotFoundException("Không tìm thấy địa chỉ");
+
+            // Rate limiting: Lấy userId từ address để check rate limit
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.AddressId == addressId, ct);
+            if (user != null && !CheckRateLimit(user.UserId))
+            {
+                throw new InvalidOperationException($"Bạn đã vượt quá giới hạn {MAX_REQUESTS_PER_SECOND} request/giây. Vui lòng thử lại sau.");
+            }
 
             address.Latitude = locationDto.Latitude;
             address.Longitude = locationDto.Longitude;
@@ -254,6 +281,55 @@ namespace BE.Services
                 }
             }
             return string.IsNullOrEmpty(cleaned) ? null : cleaned;
+        }
+
+        // Validation: Kiểm tra coordinates hợp lệ
+        private void ValidateCoordinates(decimal latitude, decimal longitude)
+        {
+            // Latitude: -90 đến 90
+            if (latitude < -90 || latitude > 90)
+                throw new ArgumentException($"Latitude phải nằm trong khoảng -90 đến 90. Giá trị hiện tại: {latitude}");
+
+            // Longitude: -180 đến 180
+            if (longitude < -180 || longitude > 180)
+                throw new ArgumentException($"Longitude phải nằm trong khoảng -180 đến 180. Giá trị hiện tại: {longitude}");
+        }
+
+        // Rate limiting: Kiểm tra và ghi nhận request để tránh spam
+        private bool CheckRateLimit(int userId)
+        {
+            var cacheKey = $"geocode_rate_limit_{userId}";
+            var now = DateTime.UtcNow;
+
+            if (_cache.TryGetValue(cacheKey, out List<DateTime>? requestTimes))
+            {
+                // Xóa các requests cũ hơn 1 giây
+                requestTimes.RemoveAll(time => now - time > RATE_LIMIT_WINDOW);
+
+                // Kiểm tra số lượng requests trong 1 giây
+                if (requestTimes.Count >= MAX_REQUESTS_PER_SECOND)
+                {
+                    return false; // Vượt quá giới hạn
+                }
+
+                // Thêm request hiện tại
+                requestTimes.Add(now);
+            }
+            else
+            {
+                // Tạo mới danh sách requests
+                requestTimes = new List<DateTime> { now };
+            }
+
+            // Lưu vào cache với expiration time
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = RATE_LIMIT_WINDOW,
+                SlidingExpiration = RATE_LIMIT_WINDOW
+            };
+            _cache.Set(cacheKey, requestTimes, cacheOptions);
+
+            return true; // Cho phép request
         }
     }
 }

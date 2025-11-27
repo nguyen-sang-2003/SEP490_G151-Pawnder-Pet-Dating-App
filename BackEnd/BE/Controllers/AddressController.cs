@@ -20,7 +20,7 @@ namespace BE.Controllers
 		}
 
 		[HttpPost("{userId}")]
-		// [Authorize(Roles = "User")]
+		[Authorize(Roles = "User")]
 		public async Task<IActionResult> CreateAddressForUser(int userId, [FromBody] LocationDto locationDto, CancellationToken ct = default)
 		{
 			try
