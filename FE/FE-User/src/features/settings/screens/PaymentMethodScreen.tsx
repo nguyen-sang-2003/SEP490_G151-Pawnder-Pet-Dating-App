@@ -17,105 +17,8 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PaymentMethod">;
 
-interface PaymentMethod {
-  id: string;
-  type: "card" | "paypal" | "applepay" | "googlepay";
-  name: string;
-  details: string;
-  isDefault: boolean;
-  icon: string;
-}
-
-const MOCK_METHODS: PaymentMethod[] = [
-  {
-    id: "1",
-    type: "card",
-    name: "Visa",
-    details: "•••• •••• •••• 4242",
-    isDefault: true,
-    icon: "card-outline",
-  },
-  {
-    id: "2",
-    type: "paypal",
-    name: "PayPal",
-    details: "user@example.com",
-    isDefault: false,
-    icon: "logo-paypal",
-  },
-];
-
 const PaymentMethodScreen = ({ navigation }: Props) => {
-  const [paymentMethods, setPaymentMethods] =
-    useState<PaymentMethod[]>(MOCK_METHODS);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-
-  const handleSetDefault = (methodId: string) => {
-    setPaymentMethods((prev) =>
-      prev.map((method) => ({
-        ...method,
-        isDefault: method.id === methodId,
-      }))
-    );
-    showAlert({ type: 'success', title: "Thành công", message: "Đã cập nhật phương thức thanh toán mặc định" });
-  };
-
-  const handleRemoveMethod = (methodId: string, methodName: string) => {
-    showAlert({
-      type: 'warning',
-      title: "Xóa phương thức thanh toán",
-      message: `Bạn có chắc muốn xóa ${methodName}?`,
-      showCancel: true,
-      confirmText: "Xóa",
-      onConfirm: () => {
-        setPaymentMethods((prev) => prev.filter((m) => m.id !== methodId));
-        showAlert({ type: 'success', title: "Đã xóa", message: `${methodName} đã bị xóa` });
-      },
-    });
-  };
-
-  const handleAddMethod = () => {
-    showAlert({
-      type: 'info',
-      title: "Thêm phương thức thanh toán",
-      message: "Tính năng đang phát triển",
-    });
-  };
-
-  const renderPaymentMethod = (method: PaymentMethod) => (
-    <View key={method.id} style={styles.methodCard}>
-      <View style={styles.methodLeft}>
-        <View style={styles.methodIcon}>
-          <Icon name={method.icon} size={24} color={colors.primary} />
-        </View>
-        <View style={styles.methodInfo}>
-          <Text style={styles.methodName}>{method.name}</Text>
-          <Text style={styles.methodDetails}>{method.details}</Text>
-          {method.isDefault && (
-            <View style={styles.defaultBadge}>
-              <Text style={styles.defaultText}>Default</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.methodActions}>
-        {!method.isDefault && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleSetDefault(method.id)}
-          >
-            <Text style={styles.actionButtonText}>Set Default</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={() => handleRemoveMethod(method.id, method.name)}
-        >
-          <Icon name="trash-outline" size={20} color={colors.error} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   return (
     <LinearGradient
@@ -144,55 +47,111 @@ const PaymentMethodScreen = ({ navigation }: Props) => {
         {/* Info Banner */}
         <View style={styles.infoBanner}>
           <Icon
-            name="shield-checkmark-outline"
-            size={20}
-            color={colors.success}
+            name="information-circle-outline"
+            size={24}
+            color={colors.primary}
           />
           <Text style={styles.infoText}>
-            Your payment information is encrypted and secure
+            Hiện tại Pawnder chỉ hỗ trợ thanh toán qua chuyển khoản ngân hàng bằng mã QR
           </Text>
         </View>
 
-        {/* Payment Methods */}
+        {/* Current Payment Method */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Saved Methods</Text>
-          {paymentMethods.map(renderPaymentMethod)}
+          <Text style={styles.sectionTitle}>Phương thức thanh toán</Text>
+          
+          <View style={styles.methodCard}>
+            <View style={styles.methodLeft}>
+              <View style={styles.methodIcon}>
+                <Icon name="qr-code-outline" size={32} color={colors.primary} />
+              </View>
+              <View style={styles.methodInfo}>
+                <Text style={styles.methodName}>Chuyển khoản QR</Text>
+                <Text style={styles.methodDetails}>Quét mã QR để thanh toán qua ngân hàng</Text>
+                <View style={styles.defaultBadge}>
+                  <Text style={styles.defaultText}>Phương thức mặc định</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.checkmarkContainer}>
+              <Icon name="checkmark-circle" size={32} color={colors.success} />
+            </View>
+          </View>
         </View>
 
-        {/* Add New Method */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddMethod}
-        >
-          <View style={styles.addButtonContent}>
-            <Icon name="add-circle-outline" size={24} color={colors.primary} />
-            <Text style={styles.addButtonText}>Add New Payment Method</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Supported Methods */}
+        {/* How it works */}
         <View style={styles.supportedSection}>
-          <Text style={styles.supportedTitle}>Supported Payment Methods</Text>
+          <Text style={styles.supportedTitle}>Cách thức hoạt động</Text>
+          
+          <View style={styles.stepContainer}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>1</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Chọn gói Premium</Text>
+                <Text style={styles.stepDescription}>
+                  Chọn gói phù hợp với nhu cầu của bạn
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Quét mã QR</Text>
+                <Text style={styles.stepDescription}>
+                  Mở ứng dụng ngân hàng và quét mã QR để thanh toán
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Kích hoạt tự động</Text>
+                <Text style={styles.stepDescription}>
+                  Tài khoản Premium sẽ được kích hoạt ngay sau khi thanh toán thành công
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Supported Banks */}
+        <View style={styles.supportedSection}>
+          <Text style={styles.supportedTitle}>Ngân hàng hỗ trợ</Text>
+          <Text style={styles.supportedDescription}>
+            Hỗ trợ tất cả ngân hàng tại Việt Nam có tích hợp VietQR
+          </Text>
           <View style={styles.supportedMethods}>
             <View style={styles.supportedMethod}>
-              <Icon name="card-outline" size={32} color={colors.textMedium} />
-              <Text style={styles.supportedText}>Credit Card</Text>
+              <Icon name="business-outline" size={32} color={colors.textMedium} />
+              <Text style={styles.supportedText}>Vietcombank</Text>
             </View>
             <View style={styles.supportedMethod}>
-              <Icon name="card-outline" size={32} color={colors.textMedium} />
-              <Text style={styles.supportedText}>Debit Card</Text>
+              <Icon name="business-outline" size={32} color={colors.textMedium} />
+              <Text style={styles.supportedText}>Techcombank</Text>
             </View>
             <View style={styles.supportedMethod}>
-              <Icon name="logo-paypal" size={32} color={colors.textMedium} />
-              <Text style={styles.supportedText}>PayPal</Text>
+              <Icon name="business-outline" size={32} color={colors.textMedium} />
+              <Text style={styles.supportedText}>VietinBank</Text>
             </View>
             <View style={styles.supportedMethod}>
-              <Icon name="logo-apple" size={32} color={colors.textMedium} />
-              <Text style={styles.supportedText}>Apple Pay</Text>
+              <Icon name="business-outline" size={32} color={colors.textMedium} />
+              <Text style={styles.supportedText}>BIDV</Text>
             </View>
             <View style={styles.supportedMethod}>
-              <Icon name="logo-google" size={32} color={colors.textMedium} />
-              <Text style={styles.supportedText}>Google Pay</Text>
+              <Icon name="business-outline" size={32} color={colors.textMedium} />
+              <Text style={styles.supportedText}>MB Bank</Text>
+            </View>
+            <View style={styles.supportedMethod}>
+              <Icon name="ellipsis-horizontal" size={32} color={colors.textMedium} />
+              <Text style={styles.supportedText}>Và nhiều hơn</Text>
             </View>
           </View>
         </View>
@@ -344,25 +303,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.primary,
   },
-  addButton: {
-    backgroundColor: colors.whiteWarm,
-    borderRadius: radius.lg,
-    padding: 18,
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: `${colors.primary}30`,
-    borderStyle: "dashed",
-  },
-  addButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.primary,
+  checkmarkContainer: {
+    marginLeft: 12,
   },
   supportedSection: {
     backgroundColor: colors.cardBackgroundLight,
@@ -374,6 +316,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textDark,
     marginBottom: 16,
+  },
+  supportedDescription: {
+    fontSize: 14,
+    color: colors.textMedium,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   supportedMethods: {
     flexDirection: "row",
@@ -389,6 +337,41 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     marginTop: 6,
     textAlign: "center",
+  },
+  stepContainer: {
+    gap: 20,
+  },
+  stepItem: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  stepNumber: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${colors.primary}20`,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stepNumberText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  stepContent: {
+    flex: 1,
+    paddingTop: 2,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textDark,
+    marginBottom: 4,
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: colors.textMedium,
+    lineHeight: 20,
   },
 });
 

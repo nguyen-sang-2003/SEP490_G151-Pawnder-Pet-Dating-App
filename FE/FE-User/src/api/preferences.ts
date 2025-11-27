@@ -33,9 +33,9 @@ export const getUserPreferences = async (userId: number): Promise<UserPreference
 
     const response = await client.get(`/user-preference/${userId}`);
 
-    
+
     const prefs = response.data.data || response.data || [];
-    
+
     return prefs.map((pref: any) => ({
       AttributeId: pref.attributeId || pref.AttributeId,
       AttributeName: pref.attributeName || pref.AttributeName,
@@ -49,7 +49,7 @@ export const getUserPreferences = async (userId: number): Promise<UserPreference
       UpdatedAt: pref.updatedAt || pref.UpdatedAt || null,
     }));
   } catch (error: any) {
-    console.error('❌ Error fetching user preferences:', error);
+
     throw error;
   }
 };
@@ -70,7 +70,7 @@ export const saveUserPreferencesBatch = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error saving preferences:', error);
+
     throw error;
   }
 };
@@ -85,7 +85,7 @@ export const deleteUserPreferences = async (userId: number): Promise<void> => {
     const response = await client.delete(`/user-preference/${userId}`);
 
   } catch (error: any) {
-    console.error('❌ Error deleting preferences:', error);
+
     throw error;
   }
 };

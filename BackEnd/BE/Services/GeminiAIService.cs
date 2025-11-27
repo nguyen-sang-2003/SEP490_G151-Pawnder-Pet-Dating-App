@@ -87,7 +87,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
             // Gọi Gemini API
             //var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash-exp");
-            var model = _googleAI.GenerativeModel(model: "gemini-2.5-flash");
+            var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash");
             // Xây dựng prompt
             var promptBuilder = new System.Text.StringBuilder();
 
@@ -99,7 +99,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             // Lý do: History càng dài → tokens càng nhiều → Gemini càng chậm
             var recentHistory = history
                 .Where(h => !string.IsNullOrEmpty(h.Question) && !string.IsNullOrEmpty(h.Answer))
-                .TakeLast(3)
+                .TakeLast(2)
                 .ToList();
 
             if (recentHistory.Any())
@@ -116,7 +116,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             promptBuilder.AppendLine($"User: {question}");
             promptBuilder.AppendLine("Assistant:");
 
-            // Gọi Gemini với timeout 45 giây (đủ lớn nhưng không quá lâu)
+            // Gọi Gemini với timeout 60 giây (match với frontend timeout 50s + 10s buffer)
             string answer;
             int inputTokens = 0;
             int outputTokens = 0;
@@ -124,11 +124,11 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                Console.WriteLine($"🤖 [Chat {chatAiId}] Calling Gemini API... (history: {recentHistory.Count} pairs)");
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+                Console.WriteLine($"🤖 [Chat {chatAiId}] Calling Gemini API... (history: {recentHistory.Count} pairs, question length: {question.Length})");
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 var response = await model.GenerateContent(promptBuilder.ToString(), cancellationToken: cts.Token);
-                answer = response.Text;
-                
+                answer = response.Text ?? throw new Exception("Gemini API returned null response");
+                //
                 // Lấy thông tin token usage từ response
                 if (response.UsageMetadata != null)
                 {
@@ -143,8 +143,8 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             catch (OperationCanceledException)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"⏱️ [Chat {chatAiId}] Gemini timeout after 45s (history: {recentHistory.Count} pairs)");
-                throw new Exception("AI đang quá tải. Vui lòng thử lại sau.");
+                Console.WriteLine($"⏱️ [Chat {chatAiId}] Gemini timeout after 60s (history: {recentHistory.Count} pairs)");
+                throw new Exception("AI đang quá tải, mất quá nhiều thời gian để trả lời. Vui lòng thử lại sau hoặc đặt câu hỏi ngắn gọn hơn.");
             }
             catch (Exception ex)
             {

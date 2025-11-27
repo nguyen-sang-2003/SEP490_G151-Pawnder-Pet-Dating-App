@@ -1,4 +1,4 @@
-import client from './client';
+import client, { cachedGet } from './client';
 
 /**
  * Chat API endpoints
@@ -37,14 +37,14 @@ export interface SendMessageRequest {
 export const getChats = async (userId: number, petId?: number): Promise<ChatUser[]> => {
   try {
 
-    const url = petId 
+    const url = petId
       ? `/api/ChatUser/chat/${userId}?petId=${petId}`
       : `/api/ChatUser/chat/${userId}`;
     const response = await client.get<ChatUser[]>(url);
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error getting chats:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -62,7 +62,7 @@ export const deleteChat = async (matchId: number): Promise<void> => {
     const response = await client.delete(`/api/ChatUser/chat/${matchId}`);
 
   } catch (error: any) {
-    console.error('❌ Error deleting chat:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -75,25 +75,31 @@ export const deleteChat = async (matchId: number): Promise<void> => {
 /**
  * Get all messages in a chat
  * GET /api/ChatUserContent/chat-user-content/{matchId}
+ * Optimized with 10s cache to reduce rapid re-fetches
  */
 export const getChatMessages = async (matchId: number): Promise<ChatMessage[]> => {
   try {
-
-    const response = await client.get<ChatMessage[]>(
-      `/api/ChatUserContent/chat-user-content/${matchId}`
+    // Short cache (10s) to reduce rapid calls when switching screens
+    const messages = await cachedGet<ChatMessage[]>(
+      `/api/ChatUserContent/chat-user-content/${matchId}`,
+      {
+        cacheDuration: 10 * 1000, // 10 seconds
+        cacheKey: `chat-messages-${matchId}`,
+        timeout: 30000,
+        retryAttempts: 2,
+      }
     );
 
-    return response.data;
+    return messages;
   } catch (error: any) {
     // Return empty array if no messages found (404) - this is normal for new matches
     if (error.response?.status === 404) {
-
       return [];
     }
-    
+
     // Only log error for non-404 cases
-    console.error('❌ Error getting messages:', error);
-    
+
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -114,7 +120,7 @@ export const sendMessage = async (
 ): Promise<void> => {
   try {
 
-    
+
     // Backend expects raw string, not JSON
     const response = await client.post(
       `/api/ChatUserContent/chat-user-content/${matchId}/${fromUserId}`,
@@ -125,10 +131,10 @@ export const sendMessage = async (
         },
       }
     );
-    
+
 
   } catch (error: any) {
-    console.error('❌ Error sending message:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

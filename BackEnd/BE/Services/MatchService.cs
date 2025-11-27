@@ -35,37 +35,22 @@ namespace BE.Services
         {
             // Business logic: Get blocked users (both directions)
             var blockedByMe = await _context.Blocks
+                .AsNoTracking()
                 .Where(b => b.FromUserId == userId)
                 .Select(b => b.ToUserId)
                 .ToListAsync(ct);
 
             var blockedMe = await _context.Blocks
+                .AsNoTracking()
                 .Where(b => b.ToUserId == userId)
                 .Select(b => b.FromUserId)
                 .ToListAsync(ct);
 
-            var allBlockedUserIds = blockedByMe.Union(blockedMe).ToList();
+            var allBlockedUserIds = blockedByMe.Union(blockedMe).ToHashSet();
 
-            // Business logic: Build query for match requests (both pending and accepted) excluding blocked users
-            // Use ChatUser.FromUserId and ChatUser.ToUserId directly for filtering (more reliable than navigation properties)
-            // 🚀 OPTIMIZED: Reduced nested includes for better performance
-            var query = _context.ChatUsers
-                .Include(c => c.FromPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Address)
-                .Include(c => c.FromPet)
-                    .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.FromPet)
-                    .ThenInclude(p => p.PetCharacteristics)
-                        .ThenInclude(pc => pc.Attribute)
-                .Include(c => c.ToPet)
-                    .ThenInclude(p => p.User)
-                        .ThenInclude(u => u!.Address)
-                .Include(c => c.ToPet)
-                    .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
-                .Include(c => c.ToPet)
-                    .ThenInclude(p => p.PetCharacteristics)
-                        .ThenInclude(pc => pc.Attribute)
+            // Business logic: Build base query with minimal includes
+            var baseQuery = _context.ChatUsers
+                .AsNoTracking()
                 .Where(c => c.IsDeleted == false &&
                            c.FromUserId != null && c.ToUserId != null &&
                            (
@@ -76,50 +61,86 @@ namespace BE.Services
                            !allBlockedUserIds.Contains(c.ToUserId.Value));
 
             // Business logic: Filter by petId if provided
-            // For Pending likes: only show likes received by this pet (ToPetId)
-            // For Accepted matches: show matches involving this pet (either direction)
             if (petId.HasValue)
             {
-                query = query.Where(c => 
+                baseQuery = baseQuery.Where(c => 
                     (c.Status == "Pending" && c.ToPetId == petId.Value) ||
                     (c.Status == "Accepted" && (c.FromPetId == petId.Value || c.ToPetId == petId.Value))
                 );
             }
 
-            var allMatchRequests = await query.ToListAsync(ct);
+            // 🚀 OPTIMIZED: Use projection to select only needed fields in one query
+            var matchRequests = await baseQuery
+                .Select(c => new
+                {
+                    c.MatchId,
+                    c.FromUserId,
+                    c.ToUserId,
+                    c.FromPetId,
+                    c.ToPetId,
+                    c.Status,
+                    c.CreatedAt
+                })
+                .ToListAsync(ct);
 
-            var result = allMatchRequests.Select(c =>
+            if (!matchRequests.Any())
             {
-                // Business logic: Determine if this is a match (Accepted) or pending like
+                return new List<object>();
+            }
+
+            // Business logic: Get unique pet IDs that we need to load
+            var petIds = matchRequests
+                .SelectMany(m => new[] { m.FromPetId, m.ToPetId })
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+
+            // 🚀 OPTIMIZED: Load all pets in ONE query with their related data
+            var pets = await _context.Pets
+                .AsNoTracking()
+                .Include(p => p.User)
+                    .ThenInclude(u => u!.Address)
+                .Include(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc!.Attribute)
+                .Where(p => petIds.Contains(p.PetId))
+                .ToListAsync(ct);
+
+            // Business logic: Create lookup dictionary for O(1) access
+            var petLookup = pets.ToDictionary(p => p.PetId);
+
+            // Business logic: Map to result
+            var result = matchRequests.Select(c =>
+            {
                 bool isMatch = c.Status == "Accepted";
 
-                // Business logic: Get the OTHER user and pet (from match, not active pet)
-                // 🚀 OPTIMIZED: Get pet directly from FromPet/ToPet instead of User.Pets
-                var fromUserId = c.FromUserId ?? c.FromPet?.UserId;
-                var toUserId = c.ToUserId ?? c.ToPet?.UserId;
-                var otherUser = toUserId == userId ? c.FromPet?.User : c.ToPet?.User;
-                var otherUserPet = toUserId == userId ? c.FromPet : c.ToPet;
+                // Determine which pet to show (the other user's pet)
+                var otherPetId = c.ToUserId == userId ? c.FromPetId : c.ToPetId;
+                
+                if (!otherPetId.HasValue || !petLookup.TryGetValue(otherPetId.Value, out var otherUserPet))
+                {
+                    return null; // Skip if pet not found
+                }
+
+                var otherUser = otherUserPet.User;
 
                 // Business logic: Get Age from both Pet.Age (old) and PetCharacteristic (new)
-                // Priority: PetCharacteristic > Pet.Age
-                int? age = otherUserPet?.Age;
-                if (otherUserPet != null)
+                int? age = otherUserPet.Age;
+                var ageChar = otherUserPet.PetCharacteristics?
+                    .FirstOrDefault(pc => pc.Attribute != null &&
+                                         (pc.Attribute.Name.ToLower() == "tuổi" ||
+                                          pc.Attribute.Name.ToLower() == "age"));
+                if (ageChar != null && ageChar.Value.HasValue)
                 {
-                    var ageChar = otherUserPet.PetCharacteristics
-                        .FirstOrDefault(pc => pc.Attribute != null &&
-                                             (pc.Attribute.Name.ToLower() == "tuổi" ||
-                                              pc.Attribute.Name.ToLower() == "age"));
-                    if (ageChar != null && ageChar.Value.HasValue)
-                    {
-                        age = (int)Math.Round((double)ageChar.Value.Value);
-                    }
-                }
+                    age = (int)Math.Round((double)ageChar.Value.Value);
+                 }
 
                 return new
                 {
                     matchId = c.MatchId,
-                    fromUserId = fromUserId,
-                    toUserId = toUserId,
+                    fromUserId = c.FromUserId,
+                    toUserId = c.ToUserId,
                     status = c.Status,
                     createdAt = c.CreatedAt,
                     isMatch = isMatch,
@@ -137,7 +158,7 @@ namespace BE.Services
                             longitude = otherUser.Address.Longitude
                         } : null
                     } : null,
-                    pet = otherUserPet != null ? new
+                    pet = new
                     {
                         petId = otherUserPet.PetId,
                         name = otherUserPet.Name,
@@ -145,16 +166,19 @@ namespace BE.Services
                         gender = otherUserPet.Gender,
                         age = age,
                         description = otherUserPet.Description
-                    } : null,
-                    petPhotos = otherUserPet?.PetPhotos?
+                    },
+                    petPhotos = otherUserPet.PetPhotos?
                         .Where(photo => photo.IsDeleted == false)
                         .OrderBy(photo => photo.SortOrder)
                         .Select(photo => photo.ImageUrl)
                         .ToList() ?? new List<string>()
                 };
-            }).OrderByDescending(x => x.createdAt).ToList();
+            })
+            .Where(x => x != null) // Filter out null results
+            .OrderByDescending(x => x!.createdAt)
+            .ToList();
 
-            return result;
+            return result!;
         }
 
         public async Task<object> GetStatsAsync(int userId, CancellationToken ct = default)
@@ -310,8 +334,8 @@ namespace BE.Services
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
-                    await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName, request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
-                    await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName, request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName ?? "Người dùng", request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName ?? "Người dùng", request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
                 }
 
                 var fromUserId = reciprocalLike.FromPet?.UserId;
@@ -462,8 +486,8 @@ namespace BE.Services
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromPet.UserId.Value, user2.FullName, chatUser.ToPet.UserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToPet.UserId.Value, user1.FullName, chatUser.FromPet.UserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromPet.UserId.Value, user2.FullName ?? "Người dùng", chatUser.ToPet.UserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToPet.UserId.Value, user1.FullName ?? "Người dùng", chatUser.FromPet.UserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
                 }
 
                 return new

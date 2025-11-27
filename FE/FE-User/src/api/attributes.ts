@@ -36,11 +36,11 @@ export const getAttributes = async (): Promise<Attribute[]> => {
   const response = await client.get('/api/attribute', {
     params: { page: 1, pageSize: 100, includeDeleted: false }
   });
-  
+
 
   const attrs = response.data.data || [];
 
-  
+
   // Normalize to PascalCase
   return attrs.map((attr: any) => ({
     AttributeId: attr.attributeId || attr.AttributeId,
@@ -55,18 +55,18 @@ export const getAttributes = async (): Promise<Attribute[]> => {
  * Get attributes for filter with options
  * Route: GET /api/attribute/for-filter
  */
-export const getAttributesForFilter = async (): Promise<{ 
-  attributes: AttributeForFilter[]; 
-  suggestion: FilterSuggestion 
+export const getAttributesForFilter = async (): Promise<{
+  attributes: AttributeForFilter[];
+  suggestion: FilterSuggestion
 }> => {
   try {
 
     const response = await client.get('/api/attribute/for-filter');
 
-    
+
     const attrs = response.data.data || [];
     const suggestion = response.data.suggestion || { topAttributes: [], totalPercent: 0, message: null };
-    
+
     return {
       attributes: attrs.map((attr: any) => ({
         AttributeId: attr.attributeId || attr.AttributeId,
@@ -86,7 +86,7 @@ export const getAttributesForFilter = async (): Promise<{
       }
     };
   } catch (error: any) {
-    console.error('❌ Error fetching attributes for filter:', error);
+
     throw error;
   }
 };
@@ -98,9 +98,9 @@ export const getAttributesForFilter = async (): Promise<{
 export const getAttributeOptions = async (attributeId: number): Promise<AttributeOption[]> => {
   const response = await client.get(`/api/attributeoption/${attributeId}`);
 
-  
+
   const options = Array.isArray(response.data) ? response.data : [];
-  
+
   // Normalize to PascalCase
   return options.map((opt: any) => ({
     OptionId: opt.optionId || opt.OptionId,

@@ -45,7 +45,7 @@ namespace BE.Services
 
         public async Task<object> CreateChatAsync(int userId, string? title, CancellationToken ct = default)
         {
-            var chat = await _geminiService.CreateChatSessionAsync(userId, title);
+            var chat = await _geminiService.CreateChatSessionAsync(userId, title ?? "New Chat");
 
             return new
             {
@@ -132,7 +132,7 @@ namespace BE.Services
             // 2. VIP users → 50,000 tokens/ngày (5x nhiều hơn)
             // 3. Hết quota → Upsell nâng cấp VIP
 
-            const int FREE_TOKENS_PER_DAY = 10000;
+            const int FREE_TOKENS_PER_DAY = 100000;
             const int VIP_TOKENS_PER_DAY = 50000;
 
             try
@@ -153,18 +153,16 @@ namespace BE.Services
                     if (isVip)
                     {
                         errorMessage = $"⭐ VIP: Bạn đã dùng hết lượt chat ngày hôm nay!\n" +
-                            $"Đã dùng: {tokensUsedToday:N0}/{dailyQuota:N0} tokens\n" +
                             $"Vui lòng chờ reset vào 00:00 ngày mai.";
                     }
                     else
                     {
-                        errorMessage = $"🎁 Bạn đã dùng {tokensUsedToday:N0}/{FREE_TOKENS_PER_DAY:N0} tokens free hôm nay!\n" +
-                            $"⚠️ Câu hỏi này cần ~{estimatedTokens:N0} tokens, còn lại {tokensRemaining:N0} tokens.\n\n" +
+                        errorMessage = $"🎁 Bạn đã dùng lượt chat miễn phí hôm nay!\n" +
                             $"⭐ Nâng cấp VIP - 99,000đ/tháng:\n" +
-                            $"• 50,000 tokens/ngày (25x nhiều hơn)\n" +
-                            $"• Xem ai like pet trước\n" +
-                            $"• Priority matching\n" +
-                            $"• Không quảng cáo";
+                            $"• 25x nhiều hơn\n" +
+                            $"• Trả lời nhanh hơn\n" +
+                            $"• Hỗ trợ ưu tiên\n" ;
+                            
                     }
                     
                     throw new QuotaExceededException(

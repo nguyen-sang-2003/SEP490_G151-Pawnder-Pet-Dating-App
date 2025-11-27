@@ -18,7 +18,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
-import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser } from "../../../api";
+import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser, getPetsByUserId } from "../../../api";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getItem } from "../../../utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -44,6 +44,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [isMyPet, setIsMyPet] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [sendingMatchRequest, setSendingMatchRequest] = useState(false);
+  const [activePetId, setActivePetId] = useState<number | null>(null);
   const [ownerAvatar, setOwnerAvatar] = useState<any>(require("../../../assets/cat_avatar_signin.png"));
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
@@ -61,6 +62,19 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       // Get current user ID
       const userIdStr = await getItem('userId');
       const currentUserId = userIdStr ? parseInt(userIdStr, 10) : null;
+
+      // Load active pet if user is logged in
+      if (currentUserId) {
+        try {
+          const userPets = await getPetsByUserId(currentUserId);
+          const activePet = userPets.find((p: any) => p.IsActive === true || p.isActive === true);
+          if (activePet) {
+            setActivePetId((activePet.PetId || activePet.petId) ?? null);
+          }
+        } catch (e) {
+          console.log('Failed to load active pet', e);
+        }
+      }
 
       // Load pet data
       const pet = await getPetById(petId);
@@ -98,7 +112,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       // Load characteristics
       try {
         const chars = await getPetCharacteristics(petId);
-        
+
         // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
         const filteredChars = chars.filter((char: any) => {
           const name = char.name?.toLowerCase() || '';
@@ -107,7 +121,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           }
           return true;
         });
-        
+
         setCharacteristics(filteredChars);
       } catch (error) {
         console.log('⚠️ No characteristics found');
@@ -115,7 +129,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       }
 
     } catch (error: any) {
-      console.error('❌ Error loading pet data:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin pet' });
     } finally {
       setLoading(false);
@@ -141,11 +155,11 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const city = addressData?.City || addressData?.city;
   const district = addressData?.District || addressData?.district;
   const ward = addressData?.Ward || addressData?.ward;
-  
-  const location = addressData 
-    ? (isMyPet 
-        ? [ward, district, city].filter(Boolean).join(', ') || 'Unknown location'
-        : city || 'Unknown location')
+
+  const location = addressData
+    ? (isMyPet
+      ? [ward, district, city].filter(Boolean).join(', ') || 'Unknown location'
+      : city || 'Unknown location')
     : null;
 
   const fullAddress = addressData?.FullAddress || addressData?.fullAddress;
@@ -161,7 +175,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     }));
   } else {
     const avatarUrl = petData?.UrlImageAvatar || petData?.urlImageAvatar;
-    photos = avatarUrl 
+    photos = avatarUrl
       ? [{ uri: avatarUrl }]
       : [require("../../../assets/cat_avatar.png")];
   }
@@ -211,13 +225,13 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   };
 
   const handleNextPhoto = () => {
-    setActivePhotoIndex((prev) => 
+    setActivePhotoIndex((prev) =>
       prev === (pet.photos?.length || 1) - 1 ? 0 : prev + 1
     );
   };
 
   const handlePrevPhoto = () => {
-    setActivePhotoIndex((prev) => 
+    setActivePhotoIndex((prev) =>
       prev === 0 ? (pet.photos?.length || 1) - 1 : prev - 1
     );
   };
@@ -251,13 +265,13 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               onClose: () => navigation.navigate('Home'),
             });
           } catch (error: any) {
-            console.error('❌ Block error:', error);
+
             showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể chặn người dùng' });
           }
         },
       });
     } catch (error) {
-      console.error('❌ Error:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: 'Đã xảy ra lỗi' });
     }
   };
@@ -267,28 +281,35 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     try {
       setSendingMatchRequest(true);
       console.log('💘 Sending match request...');
-      
+
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
         showAlert({ type: 'error', title: 'Lỗi', message: 'Vui lòng đăng nhập trước' });
         return;
       }
-      
+
       const currentUserId = parseInt(userIdStr);
       const ownerUserId = petData?.Owner?.UserId || petData?.Owner?.userId || ownerData?.UserId || ownerData?.userId;
-      
+
       if (!ownerUserId) {
         showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin chủ pet' });
         return;
       }
-      
+
+      if (!activePetId) {
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Bạn cần có một pet đang hoạt động để gửi like' });
+        return;
+      }
+
       const response = await sendLike({
         fromUserId: currentUserId,
-        toUserId: ownerUserId
+        toUserId: ownerUserId,
+        fromPetId: activePetId,
+        toPetId: petId
       });
-      
+
       console.log('✅ Match request sent:', response);
-      
+
       if (response.isMatch) {
         showAlert({
           type: 'success',
@@ -306,7 +327,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         });
       }
     } catch (error: any) {
-      console.error('❌ Error sending match request:', error);
+
       const errorMsg = error.response?.data?.message || error.message || 'Failed to send match request';
       showAlert({ type: 'error', title: 'Lỗi', message: errorMsg });
     } finally {
@@ -328,7 +349,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -339,44 +360,44 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           {/* Tap Zones for Photo Navigation */}
           {pet.photos && pet.photos.length > 1 && (
             <>
-              <Pressable 
+              <Pressable
                 style={styles.tapZoneLeft}
                 onPress={handlePrevPhoto}
               />
-              <Pressable 
+              <Pressable
                 style={styles.tapZoneRight}
                 onPress={handleNextPhoto}
               />
             </>
           )}
-          
+
           {/* Hero Image with Wrapper */}
           <View style={styles.heroImageWrapper}>
-            <Image 
-              source={pet.photos?.[activePhotoIndex] || pet.avatar} 
+            <Image
+              source={pet.photos?.[activePhotoIndex] || pet.avatar}
               style={styles.heroImage}
               resizeMode="cover"
             />
-            
+
             {/* Dark Gradient Overlay */}
             <LinearGradient
               colors={["transparent", "rgba(0,0,0,0.8)"]}
               style={styles.heroGradient}
             />
-            
+
             {/* Header Buttons Overlay */}
             <View style={styles.headerOverlay}>
               <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
                 <Icon name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-              
+
               {isMyPet && (
                 <TouchableOpacity onPress={handleEditPet} style={styles.editHeaderBtn}>
                   <Icon name="pencil" size={22} color="#fff" />
                 </TouchableOpacity>
               )}
             </View>
-            
+
             {/* Photo Indicators */}
             {pet.photos && pet.photos.length > 1 && (
               <View style={styles.photoDotsContainer}>
@@ -391,34 +412,34 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 ))}
               </View>
             )}
-            
+
             {/* Pet Info on Image */}
             <View style={styles.heroInfo}>
-            <View style={styles.heroNameRow}>
-              <Text style={styles.heroName}>
-                {pet.name}
-                <Text style={pet.gender === "male" ? styles.maleSymbol : styles.femaleSymbol}>
-                  {" "}{pet.gender === "male" ? "♂" : "♀"}
+              <View style={styles.heroNameRow}>
+                <Text style={styles.heroName}>
+                  {pet.name}
+                  <Text style={pet.gender === "male" ? styles.maleSymbol : styles.femaleSymbol}>
+                    {" "}{pet.gender === "male" ? "♂" : "♀"}
+                  </Text>
                 </Text>
-              </Text>
-            </View>
-            <View style={styles.heroMetaRow}>
-              <Icon name="paw" size={16} color="#fff" />
-              <Text style={styles.heroMeta}>{pet.breed} • {pet.age}</Text>
-            </View>
-            {pet.location && (
-              <View style={styles.heroLocationRow}>
-                <Icon name="location" size={16} color="#fff" />
-                <Text style={styles.heroLocation}>{pet.location}</Text>
               </View>
-            )}
+              <View style={styles.heroMetaRow}>
+                <Icon name="paw" size={16} color="#fff" />
+                <Text style={styles.heroMeta}>{pet.breed} • {pet.age}</Text>
+              </View>
+              {pet.location && (
+                <View style={styles.heroLocationRow}>
+                  <Icon name="location" size={16} color="#fff" />
+                  <Text style={styles.heroLocation}>{pet.location}</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
 
         {/* Content Container - Modern Cards */}
         <View style={styles.contentContainer}>
-          
+
           {/* Quick Stats Cards */}
           <View style={styles.quickStatsRow}>
             <View style={styles.quickStatCard}>
@@ -428,7 +449,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               <Text style={styles.quickStatValue}>{pet.breed}</Text>
               <Text style={styles.quickStatLabel}>Breed</Text>
             </View>
-            
+
             <View style={styles.quickStatCard}>
               <View style={styles.quickStatIconBg}>
                 <Icon name="calendar-outline" size={20} color={colors.primary} />
@@ -436,13 +457,13 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               <Text style={styles.quickStatValue}>{pet.age}</Text>
               <Text style={styles.quickStatLabel}>Age</Text>
             </View>
-            
+
             <View style={styles.quickStatCard}>
               <View style={styles.quickStatIconBg}>
-                <Icon 
-                  name={pet.gender === "male" ? "male" : "female"} 
-                  size={20} 
-                  color={pet.gender === "male" ? colors.male : colors.female} 
+                <Icon
+                  name={pet.gender === "male" ? "male" : "female"}
+                  size={20}
+                  color={pet.gender === "male" ? colors.male : colors.female}
                 />
               </View>
               <Text style={styles.quickStatValue}>{pet.gender}</Text>
@@ -474,14 +495,14 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               {characteristics.map((char, index) => (
                 <View key={index} style={styles.charCard}>
                   <View style={styles.charIconCircle}>
-                    <Icon 
+                    <Icon
                       name={
-                        char.typeValue === 'string' ? 'paw' : 
-                        char.typeValue === 'float' || char.typeValue === 'number' ? 'fitness' : 
-                        'information-circle'
-                      } 
-                      size={18} 
-                      color={colors.white} 
+                        char.typeValue === 'string' ? 'paw' :
+                          char.typeValue === 'float' || char.typeValue === 'number' ? 'fitness' :
+                            'information-circle'
+                      }
+                      size={18}
+                      color={colors.white}
                     />
                   </View>
                   <Text style={styles.charName}>{char.name || 'Unknown'}</Text>
@@ -511,7 +532,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             <View style={styles.ownerInfoContainer}>
               <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>
               <Text style={styles.ownerStatusModern}>{pet.owner.status}</Text>
-              
+
               {/* Email - Only show for my pet */}
               {isMyPet && pet.owner.email && (
                 <View style={styles.ownerDetailRowModern}>
@@ -528,9 +549,9 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 </View>
               )}
             </View>
-            
+
             {pet.owner.userId && !isMyPet && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.viewProfileBtn}
                 onPress={() => {
                   console.log('View owner profile:', pet.owner.userId);
@@ -582,7 +603,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
             {/* Safety Actions Row */}
             <View style={styles.safetyRow}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.safetyButton, styles.safetyButtonFull]}
                 onPress={handleBlock}
                 activeOpacity={0.7}
@@ -595,7 +616,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             </View>
           </View>
         )}
-        
+
         {/* Bottom Spacing */}
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -668,7 +689,7 @@ const styles = StyleSheet.create({
     width: "35%",
     zIndex: 5,
   },
-  
+
   // Header Overlay
   headerOverlay: {
     position: "absolute",
@@ -699,7 +720,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...shadows.medium,
   },
-  
+
   // Photo Dots
   photoDotsContainer: {
     position: "absolute",
@@ -719,7 +740,7 @@ const styles = StyleSheet.create({
   photoDotActive: {
     backgroundColor: "#fff",
   },
-  
+
   // Hero Info
   heroInfo: {
     position: "absolute",
@@ -780,7 +801,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 20,
   },
-  
+
   // Quick Stats Row
   quickStatsRow: {
     flexDirection: "row",
@@ -816,7 +837,7 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     fontWeight: "500",
   },
-  
+
   // Section Titles
   sectionTitleModern: {
     fontSize: 22,
@@ -841,7 +862,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: colors.white,
   },
-  
+
   // About Section
   aboutSection: {
     marginBottom: 24,
@@ -857,7 +878,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: colors.textDark,
   },
-  
+
   // Characteristics Grid
   characteristicsGrid: {
     flexDirection: "row",
@@ -906,7 +927,7 @@ const styles = StyleSheet.create({
     color: colors.textLabel,
     fontStyle: "italic",
   },
-  
+
   // Owner Card Modern
   ownerCardModern: {
     flexDirection: "row",
@@ -978,7 +999,7 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 20,
   },
-  
+
   // Actions Container
   actionsContainer: {
     paddingHorizontal: 16,
@@ -1004,7 +1025,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     letterSpacing: 0.5,
   },
-  
+
   // Safety Row
   safetyRow: {
     flexDirection: "row",

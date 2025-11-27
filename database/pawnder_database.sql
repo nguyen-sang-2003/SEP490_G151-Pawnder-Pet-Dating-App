@@ -134,7 +134,7 @@ CREATE TABLE "Pet" (
 -- ===========================
 CREATE TABLE "PetPhoto" (
     "PhotoId"   SERIAL PRIMARY KEY,
-    "PetId"     INT NOT NULL REFERENCES "Pet"("PetId"),
+    "PetId"     INT NOT NULL REFERENCES "Pet"("PetId") ON DELETE CASCADE,
     "ImageUrl"       TEXT NOT NULL,        -- đổi từ ImageUrl -> Url (khớp EF & code)
     "PublicId"  TEXT,                 -- để xóa Cloudinary
     "IsPrimary" BOOLEAN DEFAULT FALSE,
@@ -143,6 +143,14 @@ CREATE TABLE "PetPhoto" (
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes for PetPhoto
+CREATE INDEX "IX_PetPhoto_PetId" ON "PetPhoto"("PetId");
+
+-- Unique index: Mỗi pet chỉ có 1 ảnh primary (chưa bị xóa)
+CREATE UNIQUE INDEX "UX_PetPhoto_OnePrimaryPerPet" 
+ON "PetPhoto"("PetId", "IsPrimary") 
+WHERE "IsDeleted" = FALSE AND "IsPrimary" = TRUE;
 
 -- ===========================
 -- TABLE: PetCharacteristic
@@ -203,6 +211,8 @@ CREATE TABLE "ChatUser" (
     "MatchId" SERIAL PRIMARY KEY,
     "FromPetId" INT REFERENCES "Pet"("PetId"),
     "ToPetId" INT REFERENCES "Pet"("PetId"),
+    "FromUserId" INT REFERENCES "User"("UserId"),
+    "ToUserId" INT REFERENCES "User"("UserId"),
     "Status" VARCHAR(50),
     "IsDeleted" BOOLEAN DEFAULT FALSE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -215,6 +225,7 @@ CREATE TABLE "ChatUser" (
 CREATE TABLE "ChatUserContent" (
     "ContentId" SERIAL PRIMARY KEY,
     "MatchId" INT REFERENCES "ChatUser"("MatchId"),
+    "FromUserId" INT REFERENCES "User"("UserId"),
     "FromPetId" INT REFERENCES "Pet"("PetId"),
     "Message" TEXT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -269,7 +280,8 @@ CREATE TABLE "Notification" (
     "Title" VARCHAR(200),
     "Message" TEXT,
     "Type" VARCHAR(50),
-    "IsRead" BOOLEAN DEFAULT FALSE, 
+    "IsRead" BOOLEAN DEFAULT FALSE,
+    "ReferenceId" INT,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );

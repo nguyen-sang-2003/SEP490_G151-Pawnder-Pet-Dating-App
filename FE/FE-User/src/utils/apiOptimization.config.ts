@@ -8,15 +8,17 @@ export const API_OPTIMIZATION_CONFIG = {
   cache: {
     enabled: true,
     defaultDuration: 5 * 60 * 1000, // 5 minutes
-    maxSize: 100, // Max cache entries
+    shortDuration: 30 * 1000, // 30 seconds for frequently changing data
+    longDuration: 15 * 60 * 1000, // 15 minutes for static data
+    maxSize: 150, // Max cache entries (increased)
   },
 
   // Retry settings
   retry: {
     enabled: true,
-    attempts: 3,
-    baseDelay: 1000, // 1 second
-    maxDelay: 10000, // 10 seconds
+    attempts: 2, // Reduced from 3 to 2 for faster failure detection
+    baseDelay: 2000, // 2 seconds (increased for Azure cold start)
+    maxDelay: 15000, // 15 seconds (increased for production)
     retryableStatuses: [408, 429, 500, 502, 503, 504],
   },
 

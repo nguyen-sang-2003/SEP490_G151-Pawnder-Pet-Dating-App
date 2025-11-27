@@ -69,7 +69,7 @@ export const storeAuthToken = async (token: string): Promise<void> => {
       service: 'pawnder.auth',
     });
   } catch (error) {
-    console.error('Error storing auth token:', error);
+
     throw error;
   }
 };
@@ -87,7 +87,7 @@ export const getAuthToken = async (): Promise<string | null> => {
     }
     return null;
   } catch (error) {
-    console.error('Error getting auth token:', error);
+
     return null;
   }
 };
@@ -101,7 +101,7 @@ export const removeAuthToken = async (): Promise<void> => {
       service: 'pawnder.auth',
     });
   } catch (error) {
-    console.error('Error removing auth token:', error);
+
   }
 };
 
@@ -114,7 +114,7 @@ export const storeUserId = async (userId: number): Promise<void> => {
       service: 'pawnder.userId',
     });
   } catch (error) {
-    console.error('Error storing user ID:', error);
+
   }
 };
 
@@ -131,7 +131,7 @@ export const getUserId = async (): Promise<number | null> => {
     }
     return null;
   } catch (error) {
-    console.error('Error getting user ID:', error);
+
     return null;
   }
 };
@@ -143,7 +143,7 @@ export const removeUserId = async (): Promise<void> => {
   try {
     await Keychain.resetGenericPassword({ service: 'pawnder.userId' });
   } catch (error) {
-    console.error('Error removing user ID:', error);
+
   }
 };
 
@@ -157,26 +157,27 @@ export const login = async (
   try {
 
 
-    
+
     const response = await apiClient.post<LoginResponse>('/api/login', {
       Email: email,
       Password: password,
+      Platform: 'user', // FE-User is for mobile app (User role only)
     });
-    
+
     // Store both access token and refresh token (handle both PascalCase and camelCase)
     const accessToken = response.data.AccessToken || response.data.accessToken;
     const refreshToken = response.data.RefreshToken || response.data.refreshToken;
-    
+
     if (accessToken && refreshToken) {
       await storeTokens(accessToken, refreshToken);
     }
-    
+
     // Store userId for badge notifications
     const userId = response.data.userId || response.data.UserId;
     if (userId) {
       await storeUserId(userId);
     }
-    
+
     return response.data;
   } catch (error: any) {
     // Handle different error types
@@ -184,10 +185,10 @@ export const login = async (
       // Server responded with error status
       const status = error.response.status;
       const data = error.response.data;
-      
+
       // Extract error message from response
       let errorMessage = 'Đăng nhập thất bại';
-      
+
       if (typeof data === 'string') {
         errorMessage = data;
       } else if (data?.message) {
@@ -195,10 +196,11 @@ export const login = async (
       } else if (data?.Message) {
         errorMessage = data.Message;
       }
-      
+
       // Specific error messages based on status code
       if (status === 401) {
-        throw new Error('Email hoặc mật khẩu không đúng');
+        // Prioritize backend error message for custom role validation messages
+        throw new Error(errorMessage || 'Email hoặc mật khẩu không đúng');
       } else if (status === 404) {
         throw new Error('Tài khoản không tồn tại');
       } else if (status === 400) {
@@ -230,7 +232,7 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
       UserStatusId: data.UserStatusId || 2, // Default status: 2 = Active (Tài khoản thường)
       ProviderLogin: data.ProviderLogin || 'local',
     });
-    
+
 
     return response.data;
   } catch (error: any) {
@@ -246,20 +248,22 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
 
 /**
  * Logout user
+ * Calls server logout endpoint to invalidate tokens, then clears local storage
  */
 export const logout = async (): Promise<void> => {
   try {
-    await apiClient.post('/logout');
-    // Clear both tokens
-    await removeAuthToken();
-    await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
-    await removeUserId();
+    // Call API logout to invalidate tokens on server
+    await apiClient.post('/api/logout');
+    console.log('✅ Server logout successful');
   } catch (error) {
-    // Even if API call fails, remove local tokens and userId
+    // Log warning but don't throw - we still want to clear local tokens
+    console.warn('⚠️ Server logout failed, clearing local tokens anyway:', error);
+  } finally {
+    // Always clear local tokens (even if API call fails)
     await removeAuthToken();
     await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
     await removeUserId();
-    throw error;
+    console.log('✅ Local tokens cleared');
   }
 };
 

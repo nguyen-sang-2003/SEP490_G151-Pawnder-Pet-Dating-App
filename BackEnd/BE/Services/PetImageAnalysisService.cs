@@ -119,16 +119,27 @@ namespace BE.Services
                 promptBuilder.AppendLine();
             }
 
-            promptBuilder.AppendLine("Trả về JSON theo format:");
+            promptBuilder.AppendLine("QUAN TRỌNG: Trả về JSON array theo CHÍNH XÁC format này:");
             promptBuilder.AppendLine("[");
             promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"tên thuộc tính\",");
-            promptBuilder.AppendLine("    \"optionName\": \"tên option (nếu có)\",");
-            promptBuilder.AppendLine("    \"value\": số_giá_trị (nếu là số)");
+            promptBuilder.AppendLine("    \"attributeName\": \"Giống\",");
+            promptBuilder.AppendLine("    \"optionName\": \"Mèo Ba Tư\"");
+            promptBuilder.AppendLine("  },");
+            promptBuilder.AppendLine("  {");
+            promptBuilder.AppendLine("    \"attributeName\": \"Màu lông\",");
+            promptBuilder.AppendLine("    \"optionName\": \"Trắng\"");
+            promptBuilder.AppendLine("  },");
+            promptBuilder.AppendLine("  {");
+            promptBuilder.AppendLine("    \"attributeName\": \"Cân nặng\",");
+            promptBuilder.AppendLine("    \"value\": 5");
             promptBuilder.AppendLine("  }");
             promptBuilder.AppendLine("]");
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine("Chỉ trả về JSON, không thêm text khác.");
+            promptBuilder.AppendLine("LƯU Ý:");
+            promptBuilder.AppendLine("- CHỈ trả về JSON array, KHÔNG thêm markdown, text giải thích.");
+            promptBuilder.AppendLine("- attributeName phải KHỚP CHÍNH XÁC với danh sách trên.");
+            promptBuilder.AppendLine("- optionName phải KHỚP với một trong các tùy chọn đã liệt kê.");
+            promptBuilder.AppendLine("- Nếu không chắc chắn, hãy đưa ra dự đoán tốt nhất dựa trên ảnh.");
 
             return promptBuilder.ToString();
         }
@@ -137,13 +148,14 @@ namespace BE.Services
         {
             try
             {
-                var apiKey = _configuration["GeminiAPI:ApiKey"];
+                var apiKey = _configuration["GeminiAI:ApiKey"];
                 if (string.IsNullOrEmpty(apiKey))
                 {
                     throw new Exception("Chưa cấu hình Gemini API Key");
                 }
 
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+                // Sử dụng gemini-1.5-flash vì stable và hỗ trợ vision tốt
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
 
                 var mimeType = contentType;
                 if (string.IsNullOrEmpty(mimeType) || !mimeType.StartsWith("image/"))
@@ -173,10 +185,10 @@ namespace BE.Services
                     },
                     generationConfig = new
                     {
-                        temperature = 0.4,
+                        temperature = 0.1,  // Thấp hơn để JSON output nhất quán
                         topK = 32,
                         topP = 1,
-                        maxOutputTokens = 4096
+                        maxOutputTokens = 2048  // Giảm để nhanh hơn
                     }
                 };
 
@@ -188,17 +200,44 @@ namespace BE.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    throw new Exception($"Gemini API error: {responseContent}");
+                    Console.WriteLine($"❌ Gemini Vision API Error: Status={response.StatusCode}, Content={responseContent}");
+                    
+                    // Check for specific errors
+                    if (responseContent.Contains("location") || responseContent.Contains("FAILED_PRECONDITION"))
+                    {
+                        throw new Exception("⚠️ Gemini API không khả dụng từ khu vực này. Vui lòng kiểm tra region Azure hoặc API key.");
+                    }
+                    else if (responseContent.Contains("API key"))
+                    {
+                        throw new Exception("❌ API key không hợp lệ hoặc chưa được cấu hình.");
+                    }
+                    else if (responseContent.Contains("quota") || responseContent.Contains("429"))
+                    {
+                        throw new Exception("⏱️ Đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.");
+                    }
+                    
+                    throw new Exception($"Gemini API error ({response.StatusCode}): {responseContent}");
                 }
 
                 // Parse response
+                Console.WriteLine($"✅ Gemini Vision API Success. Response length: {responseContent.Length}");
+                
                 var geminiResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
-                var text = geminiResponse
-                    .GetProperty("candidates")[0]
+                
+                // Check if response has candidates
+                if (!geminiResponse.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
+                {
+                    Console.WriteLine($"❌ No candidates in response: {responseContent}");
+                    throw new Exception("AI không thể phân tích ảnh này. Vui lòng thử ảnh khác.");
+                }
+                
+                var text = candidates[0]
                     .GetProperty("content")
                     .GetProperty("parts")[0]
                     .GetProperty("text")
                     .GetString();
+                
+                Console.WriteLine($"🤖 AI Response: {text?.Substring(0, Math.Min(200, text?.Length ?? 0))}...");
 
                 // Extract JSON from response
                 var jsonStart = text?.IndexOf('[') ?? -1;

@@ -26,7 +26,7 @@ const ShareProfileScreen = ({ navigation }: Props) => {
   const handleShare = async (platform: string) => {
     try {
       const message = `Check out ${catName}'s profile on Pawnder! 🐱\n${profileUrl}`;
-      
+
       const result = await Share.share({
         message: message,
         url: profileUrl,
@@ -37,7 +37,7 @@ const ShareProfileScreen = ({ navigation }: Props) => {
         console.log("Shared to:", platform);
       }
     } catch (error) {
-      console.error(error);
+
     }
   };
 

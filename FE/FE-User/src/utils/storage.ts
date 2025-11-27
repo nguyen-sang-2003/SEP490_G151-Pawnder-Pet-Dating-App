@@ -8,7 +8,7 @@ export const setItem = async (key: string, value: string): Promise<void> => {
   try {
     await AsyncStorage.setItem(key, value);
   } catch (error) {
-    console.error(`Error storing ${key}:`, error);
+
     throw error;
   }
 };
@@ -20,7 +20,7 @@ export const getItem = async (key: string): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(key);
   } catch (error) {
-    console.error(`Error getting ${key}:`, error);
+
     return null;
   }
 };
@@ -32,7 +32,7 @@ export const removeItem = async (key: string): Promise<void> => {
   try {
     await AsyncStorage.removeItem(key);
   } catch (error) {
-    console.error(`Error removing ${key}:`, error);
+
     throw error;
   }
 };
@@ -44,7 +44,7 @@ export const clearAll = async (): Promise<void> => {
   try {
     await AsyncStorage.clear();
   } catch (error) {
-    console.error('Error clearing storage:', error);
+
     throw error;
   }
 };
@@ -60,7 +60,7 @@ export const storeCredentials = async (
     await Keychain.setGenericPassword(username, password);
     return true;
   } catch (error) {
-    console.error('Error storing credentials:', error);
+
     return false;
   }
 };
@@ -82,7 +82,7 @@ export const getCredentials = async (): Promise<{
     }
     return null;
   } catch (error) {
-    console.error('Error getting credentials:', error);
+
     return null;
   }
 };
@@ -95,7 +95,7 @@ export const removeCredentials = async (): Promise<boolean> => {
     await Keychain.resetGenericPassword();
     return true;
   } catch (error) {
-    console.error('Error removing credentials:', error);
+
     return false;
   }
 };

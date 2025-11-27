@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -12,55 +14,71 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { getPaymentHistoryByUserId } from "../../../api/payment";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PaymentHistory">;
 
 interface PaymentRecord {
-  historyId: string;
+  historyId: number;
   statusService: string;
-  amount: string;
+  amount: number;
   startDate: string;
   endDate: string;
-  paymentMethod: string;
   status: "success" | "pending" | "failed";
   createdAt: string;
 }
 
-const MOCK_PAYMENTS: PaymentRecord[] = [
-  {
-    historyId: "1",
-    statusService: "Premium Monthly",
-    amount: "$9.99",
-    startDate: "Jan 1, 2025",
-    endDate: "Feb 1, 2025",
-    paymentMethod: "Visa •••• 4242",
-    status: "success",
-    createdAt: "Jan 1, 2025",
-  },
-  {
-    historyId: "2",
-    statusService: "Premium Monthly",
-    amount: "$9.99",
-    startDate: "Dec 1, 2024",
-    endDate: "Jan 1, 2025",
-    paymentMethod: "Visa •••• 4242",
-    status: "success",
-    createdAt: "Dec 1, 2024",
-  },
-  {
-    historyId: "3",
-    statusService: "Premium Monthly",
-    amount: "$9.99",
-    startDate: "Nov 1, 2024",
-    endDate: "Dec 1, 2024",
-    paymentMethod: "Visa •••• 4242",
-    status: "success",
-    createdAt: "Nov 1, 2024",
-  },
-];
-
 const PaymentHistoryScreen = ({ navigation }: Props) => {
-  const [payments] = useState<PaymentRecord[]>(MOCK_PAYMENTS);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPaymentHistory = async (isRefreshing = false) => {
+    try {
+      if (!isRefreshing) setLoading(true);
+      setError(null);
+
+      // Get userId from AsyncStorage
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) {
+        setError("Không tìm thấy thông tin người dùng");
+        return;
+      }
+
+      const userId = parseInt(userIdStr);
+      const data = await getPaymentHistoryByUserId(userId);
+
+      // Map API response to PaymentRecord format
+      const mappedPayments: PaymentRecord[] = data.map((item: any) => ({
+        historyId: item.historyId,
+        statusService: item.statusService === "active" ? "Premium Active" : "Premium Expired",
+        amount: item.amount || 0,
+        startDate: item.startDate,
+        endDate: item.endDate,
+        status: item.statusService === "active" ? "success" : "pending",
+        createdAt: item.createdAt,
+      }));
+
+      setPayments(mappedPayments);
+    } catch (err: any) {
+
+      setError(err.message || "Không thể tải lịch sử thanh toán");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPaymentHistory();
+  }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadPaymentHistory(true);
+  };
 
   const getStatusColor = (status: PaymentRecord["status"]) => {
     switch (status) {
@@ -88,6 +106,26 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
+  };
+
   const renderPaymentItem = ({ item }: { item: PaymentRecord }) => (
     <TouchableOpacity style={styles.paymentCard} activeOpacity={0.7}>
       {/* Status Icon */}
@@ -108,17 +146,17 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       <View style={styles.paymentInfo}>
         <Text style={styles.serviceName}>{item.statusService}</Text>
         <Text style={styles.dateRange}>
-          {item.startDate} - {item.endDate}
+          {formatDate(item.startDate)} - {formatDate(item.endDate)}
         </Text>
         <Text style={styles.paymentMethod}>
-          <Icon name="card-outline" size={12} color={colors.textMedium} />{" "}
-          {item.paymentMethod}
+          <Icon name="qr-code-outline" size={12} color={colors.textMedium} />{" "}
+          Chuyển khoản QR
         </Text>
       </View>
 
       {/* Amount & Status */}
       <View style={styles.paymentRight}>
-        <Text style={styles.amount}>{item.amount}</Text>
+        <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
         <View style={styles.statusBadge}>
           <Text
             style={[
@@ -126,7 +164,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
               { color: getStatusColor(item.status) },
             ]}
           >
-            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+            {item.status === "success" ? "Thành công" : item.status === "pending" ? "Chờ xử lý" : "Thất bại"}
           </Text>
         </View>
       </View>
@@ -176,40 +214,75 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Summary Card */}
-      {payments.length > 0 && (
-        <View style={styles.summaryCard}>
-          <LinearGradient
-            colors={gradients.primary}
-            style={styles.summaryGradient}
-          >
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total Spent</Text>
-              <Text style={styles.summaryValue}>
-                ${(payments.length * 9.99).toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Transactions</Text>
-              <Text style={styles.summaryValue}>{payments.length}</Text>
-            </View>
-          </LinearGradient>
+      {/* Loading State */}
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Đang tải lịch sử thanh toán...</Text>
         </View>
       )}
 
-      {/* List */}
-      <FlatList
-        data={payments}
-        keyExtractor={(item) => item.historyId}
-        renderItem={renderPaymentItem}
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={[
-          styles.listContent,
-          payments.length === 0 && styles.listContentEmpty,
-        ]}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Error State */}
+      {error && !loading && (
+        <View style={styles.errorContainer}>
+          <Icon name="alert-circle-outline" size={48} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => loadPaymentHistory()}
+          >
+            <Text style={styles.retryButtonText}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Content */}
+      {!loading && !error && (
+        <>
+          {/* Summary Card */}
+          {payments.length > 0 && (
+            <View style={styles.summaryCard}>
+              <LinearGradient
+                colors={gradients.primary}
+                style={styles.summaryGradient}
+              >
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Tổng chi tiêu</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatCurrency(payments.reduce((sum, p) => sum + p.amount, 0))}
+                  </Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Giao dịch</Text>
+                  <Text style={styles.summaryValue}>{payments.length}</Text>
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+
+          {/* List */}
+          <FlatList
+            data={payments}
+            keyExtractor={(item) => item.historyId.toString()}
+            renderItem={renderPaymentItem}
+            ListEmptyComponent={renderEmptyState}
+            contentContainerStyle={[
+              styles.listContent,
+              payments.length === 0 && styles.listContentEmpty,
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
+          />
+        </>
+      )}
     </LinearGradient>
   );
 };
@@ -376,6 +449,41 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   premiumText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textMedium,
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.textMedium,
+    marginTop: 16,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+  },
+  retryButtonText: {
     fontSize: 16,
     fontWeight: "600",
     color: colors.white,

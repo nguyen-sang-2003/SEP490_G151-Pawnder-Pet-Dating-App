@@ -82,7 +82,7 @@ namespace BE.Services
                 .Include(p => p.PetCharacteristics)
                     .ThenInclude(pc => pc.Option)
                 .Include(p => p.User)
-                    .ThenInclude(u => u.Address)
+                    .ThenInclude(u => u!.Address)
                 .Include(p => p.PetPhotos.Where(photo => photo.IsDeleted == false))
                 .Where(p => p.UserId != null
                          && p.UserId != userId

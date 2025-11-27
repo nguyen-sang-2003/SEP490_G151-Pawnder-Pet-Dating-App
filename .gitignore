@@ -1,46 +1,19 @@
-# Node modules - ignore for all frontend projects
-**/node_modules/
-node_modules/
-
-# Frontend specific
-FE/FE-User/node_modules/
-FE/fe-admin/node_modules/
-
-# Environment files
-**/.env
-**/.env.local
-**/.env.*.local
-
 # Build outputs
-**/build/
-**/dist/
-**/.next/
-**/out/
+publish-output/
+**/bin/
+**/obj/
+**/publish/
 
-# Logs
-**/logs/
-**/*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Azure
+.azure/
 
-# OS files
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Testing
-**/coverage/
-**/.nyc_output/
-
-# Temporary files
-**/.tmp/
-**/.cache/
-**/.turbo/
-**/.metro-health-check*

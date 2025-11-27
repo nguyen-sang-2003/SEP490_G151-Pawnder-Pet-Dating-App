@@ -3,7 +3,12 @@ import { API_ENDPOINTS } from '../../constants';
 
 class AuthService {
   async login(credentials) {
-    const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    // Add platform field for role validation
+    const loginData = {
+      ...credentials,
+      Platform: 'admin', // FE Admin is for web (Admin/Expert roles only)
+    };
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGIN, loginData);
     return response;
   }
 

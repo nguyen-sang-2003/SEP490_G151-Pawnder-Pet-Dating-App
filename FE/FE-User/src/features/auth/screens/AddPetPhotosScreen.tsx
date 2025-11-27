@@ -45,7 +45,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       showAlert({ type: 'warning', title: "Photo Limit", message: `Maximum ${maxPhotos} photos allowed` });
       return;
     }
-    
+
     try {
       const result = await launchImageLibrary({
         mediaType: 'photo',
@@ -59,7 +59,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       }
 
       if (result.errorCode) {
-        console.error('ImagePicker Error: ', result.errorMessage);
+
         showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
         return;
       }
@@ -71,11 +71,11 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           fileName: asset.fileName,
           type: asset.type,
         }));
-        
+
         setPhotos([...photos, ...newPhotos]);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+
       showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
     }
   };
@@ -116,21 +116,21 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       try {
         console.log('🤖 Starting AI analysis...');
         const analysisResponse = await analyzePetImage(photos[0]);
-        
+
         if (analysisResponse.success && analysisResponse.attributes) {
           aiResults = analysisResponse.attributes;
           console.log('✅ AI analysis successful:', aiResults);
-          
+
           showAlert({
             type: 'success',
             title: 'AI Analysis Complete! 🤖',
             message: `Found ${aiResults.length} characteristics. You can review and edit them next.`,
             confirmText: 'Continue',
             onClose: () => {
-              navigation.navigate("AddPetCharacteristics", { 
-                petId, 
+              navigation.navigate("AddPetCharacteristics", {
+                petId,
                 isFromProfile,
-                aiResults 
+                aiResults
               });
             },
           });
@@ -139,7 +139,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         }
       } catch (aiError: any) {
         console.warn('⚠️ AI analysis failed, continuing without AI:', aiError);
-        
+
         // AI failed, but still allow user to continue manually
         showAlert({
           type: 'info',
@@ -147,16 +147,16 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           message: 'AI analysis unavailable. You can add characteristics manually.',
           confirmText: 'Continue',
           onClose: () => {
-            navigation.navigate("AddPetCharacteristics", { 
-              petId, 
+            navigation.navigate("AddPetCharacteristics", {
+              petId,
               isFromProfile,
-              aiResults: undefined 
+              aiResults: undefined
             });
           },
         });
       }
     } catch (error: any) {
-      console.error('Error uploading photos:', error);
+
       showAlert({
         type: 'error',
         title: 'Error',
@@ -187,7 +187,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -197,7 +197,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          
+
           {/* Step Indicator */}
           <View style={styles.stepIndicatorContainer}>
             <View style={styles.stepBarsContainer}>
@@ -207,7 +207,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             </View>
             <Text style={styles.stepText}>Step 2 of 3</Text>
           </View>
-          
+
           <Text style={styles.title}>
             {isFromProfile ? 'Pet Photos' : 'Add Photos'}
           </Text>
@@ -231,7 +231,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                 </TouchableOpacity>
               </View>
             ))}
-            
+
             {/* Add Photo Button */}
             {photos.length < maxPhotos && (
               <TouchableOpacity
@@ -253,10 +253,10 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               styles.counterBadge,
               photos.length >= 3 && styles.counterBadgeComplete
             ]}>
-              <Icon 
-                name={photos.length >= 3 ? "checkmark-circle" : "images"} 
-                size={18} 
-                color={photos.length >= 3 ? colors.success : colors.textMedium} 
+              <Icon
+                name={photos.length >= 3 ? "checkmark-circle" : "images"}
+                size={18}
+                color={photos.length >= 3 ? colors.success : colors.textMedium}
               />
               <Text style={[
                 styles.counterText,

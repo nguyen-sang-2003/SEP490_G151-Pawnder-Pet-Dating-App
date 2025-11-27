@@ -198,16 +198,18 @@ namespace BE.Services
                     
                     Console.WriteLine($"✅ [ExpertConfirmation] Notification created successfully! NotificationId={createdNotification?.NotificationId}");
 
-                    // Send real-time notification via SignalR
+                    // Send real-time notification via SignalR with metadata (expertId, chatId)
                     try
                     {
-                        Console.WriteLine($"[ExpertConfirmation] Sending real-time notification to UserId={expertConfirmation.UserId}");
-                        await ChatHub.SendNotification(
+                        Console.WriteLine($"[ExpertConfirmation] Sending real-time notification to UserId={expertConfirmation.UserId} with ExpertId={expertConfirmation.ExpertId}, ChatAiId={expertConfirmation.ChatAiid}");
+                        await ChatHub.SendNotificationWithMetadata(
                             _hubContext, 
                             expertConfirmation.UserId, 
                             notificationDto.Title, 
                             notificationDto.Message, 
-                            "expert_confirmation"
+                            "expert_confirmation",
+                            expertId: expertConfirmation.ExpertId,
+                            chatId: expertConfirmation.ChatAiid
                         );
                         Console.WriteLine($"✅ [ExpertConfirmation] Real-time notification sent successfully!");
                     }

@@ -13,15 +13,18 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSelector } from "react-redux";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
-import { colors, gradients, radius, shadows } from "../../../theme";
-import { getUserExpertChats, ExpertChat } from "../../../api/expert-confirmation";
+import { colors, radius, shadows } from "../../../theme";
+import { getUserExpertChats, ExpertChatListItem } from "../../../api/expert-chat";
+import { selectUnreadExpertChats } from "../../badge/badgeSlice";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChatList">;
 
 const ExpertChatListScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(false);
-  const [expertChats, setExpertChats] = useState<ExpertChat[]>([]);
+  const [expertChats, setExpertChats] = useState<ExpertChatListItem[]>([]);
+  const unreadExpertChats = useSelector(selectUnreadExpertChats);
 
   useFocusEffect(
     useCallback(() => {
@@ -32,24 +35,24 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
   const loadExpertChats = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user ID
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
         console.log('❌ No userId found');
         return;
       }
-      
+
       const userId = parseInt(userIdStr);
       console.log('📞 Loading expert chats for user:', userId);
-      
+
       // Call API to get expert chats
       const chats = await getUserExpertChats(userId);
       console.log('✅ Got expert chats:', chats);
-      
+
       setExpertChats(chats);
     } catch (error: any) {
-      console.error("❌ Error loading expert chats:", error);
+
     } finally {
       setLoading(false);
     }
@@ -60,37 +63,39 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
     if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
       dateStr = dateStr + 'Z';
     }
-    
+
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffDays > 0) {
       return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày trước`;
     }
-    
+
     if (diffHours > 0) {
       return `${diffHours} giờ trước`;
     }
-    
+
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins > 0) {
       return `${diffMins} phút trước`;
     }
-    
+
     return 'Vừa xong';
   };
 
-  const renderExpertChat = ({ item }: { item: ExpertChat }) => {
+  const renderExpertChat = ({ item }: { item: ExpertChatListItem }) => {
     const formattedTime = formatTime(item.time);
-    
+    const isUnread = unreadExpertChats.includes(item.chatExpertId);
+
     return (
       <TouchableOpacity
-        style={styles.chatItem}
+        style={[styles.chatItem, isUnread && styles.chatItemUnread]}
         onPress={() =>
           navigation.navigate("ExpertChat", {
+            chatExpertId: item.chatExpertId,
             expertId: item.expertId,
             expertName: item.expertName,
           })
@@ -116,33 +121,29 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
         {/* Content */}
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
-            <Text style={styles.expertName} numberOfLines={1}>
-              {item.expertName}
-            </Text>
+            <View style={styles.nameContainer}>
+              <Text style={[styles.expertName, isUnread && styles.expertNameUnread]} numberOfLines={1}>
+                {item.expertName}
+              </Text>
+            </View>
             <Text style={styles.time}>{formattedTime}</Text>
           </View>
           <Text style={styles.specialty} numberOfLines={1}>
             {item.specialty}
           </Text>
-          <Text
-            style={[
-              styles.lastMessage,
-              item.unread > 0 && styles.unreadMessage,
-            ]}
-            numberOfLines={1}
-          >
-            {item.lastMessage}
-          </Text>
-        </View>
-
-        {/* Unread Badge */}
-        {item.unread > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadText}>
-              {item.unread > 99 ? "99+" : item.unread}
+          <View style={styles.messageRow}>
+            <Text
+              style={[
+                styles.lastMessage,
+                isUnread && styles.lastMessageUnread,
+              ]}
+              numberOfLines={1}
+            >
+              {item.lastMessage}
             </Text>
+            {isUnread && <View style={styles.unreadDot} />}
           </View>
-        )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -370,12 +371,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  expertName: {
+  nameContainer: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  expertName: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "600",
     color: colors.textDark,
-    marginRight: 8,
   },
   time: {
     fontSize: 12,
@@ -388,29 +392,45 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 4,
   },
+  messageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   lastMessage: {
+    flex: 1,
     fontSize: 14,
     color: colors.textMedium,
     lineHeight: 20,
   },
-  unreadMessage: {
-    fontWeight: "600",
-    color: colors.textDark,
-  },
-  unreadBadge: {
+  unreadDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: "#4CAF50",
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 8,
     marginLeft: 8,
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  unreadText: {
-    fontSize: 12,
+  chatItemUnread: {
+    backgroundColor: colors.white,
+    borderWidth: 3, // Viền to hơn
+    borderColor: "#4CAF50", // Xanh đậm
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  expertNameUnread: {
     fontWeight: "700",
-    color: colors.white,
+  },
+  lastMessageUnread: {
+    fontWeight: "800", // Rất bold
+    color: colors.textDark,
   },
 
   // Loading

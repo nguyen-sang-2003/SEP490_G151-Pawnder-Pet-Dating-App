@@ -18,10 +18,10 @@ namespace BE.Services
 		public async Task GetTransactionsAsync()
 		{
 			var sepaySection = _config.GetSection("Sepay");
-			string apiUrl = sepaySection["ApiUrl"];
-			string apiKey = sepaySection["ApiKey"];
-			string accountNumber = sepaySection["AccountNumber"];
-			int limit = int.Parse(sepaySection["Limit"]);
+			string apiUrl = sepaySection["ApiUrl"] ?? throw new ArgumentNullException("Sepay:ApiUrl is required");
+			string apiKey = sepaySection["ApiKey"] ?? throw new ArgumentNullException("Sepay:ApiKey is required");
+			string accountNumber = sepaySection["AccountNumber"] ?? throw new ArgumentNullException("Sepay:AccountNumber is required");
+			int limit = int.Parse(sepaySection["Limit"] ?? "20");
 
 			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 			_client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -42,7 +42,7 @@ namespace BE.Services
 				throw new ArgumentException("Transaction ID không được để trống.", nameof(transactionId));
 
 			var sepaySection = _config.GetSection("Sepay");
-			string apiKey = sepaySection["ApiKey"];
+			string apiKey = sepaySection["ApiKey"] ?? throw new ArgumentNullException("Sepay:ApiKey is required");
 			string detailUrl = $"https://my.sepay.vn/userapi/transactions/details/{transactionId}";
 
 			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);

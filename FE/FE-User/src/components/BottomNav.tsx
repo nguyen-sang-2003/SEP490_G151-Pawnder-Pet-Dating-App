@@ -8,7 +8,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { colors, gradients, shadows } from "../theme";
 import { useAppSelector } from "../app/hooks";
-import { selectChatBadge, selectFavoriteBadge, selectNotificationBadge } from "../features/badge/badgeSlice";
+import { selectTotalChatBadge, selectFavoriteBadge, selectNotificationBadge } from "../features/badge/badgeSlice";
 
 // Đồng bộ Tab với RootStackParamList
 export type Tab = keyof Pick<
@@ -25,7 +25,7 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   
   // Get badge counts from Redux
-  const chatBadge = useAppSelector(selectChatBadge);
+  const chatBadge = useAppSelector(selectTotalChatBadge); // Total badge (user chats + expert chats)
   const favoriteBadge = useAppSelector(selectFavoriteBadge);
   const notificationBadge = useAppSelector(selectNotificationBadge);
   

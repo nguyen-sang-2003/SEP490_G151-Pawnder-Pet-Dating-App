@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import userService from '../../services/api/userService';
-import petService from '../../services/api/petService';
-import petPhotoService from '../../services/api/petPhotoService';
+import userService from '../../../services/api/userService';
+import petService from '../../../services/api/petService';
+import petPhotoService from '../../../services/api/petPhotoService';
 import './PetsList.css';
 
 const PetsList = () => {

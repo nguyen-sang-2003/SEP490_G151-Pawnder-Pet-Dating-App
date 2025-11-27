@@ -8,8 +8,9 @@ export const API_CONFIG = {
   ANDROID_EMULATOR: 'http://10.0.2.2:5297',
   IOS_SIMULATOR: 'http://localhost:5297',
   
-  // Production URL (update with your actual production URL)
-  PRODUCTION: 'https://api.pawnder.com',
+  // Production URL - Azure Backend
+  PRODUCTION: 'https://pawnder-backend-2025-westus-ashef7agegbtb9hv.westus-01.azurewebsites.net',
+  
   
   // For testing on real device, use your computer's IP
   // Find your IP:
@@ -18,7 +19,8 @@ export const API_CONFIG = {
   LOCAL_NETWORK: 'http://192.168.1.100:5297', // Update with your IP
   
   // Timeout settings
-  TIMEOUT: 10000, // 10 seconds
+  TIMEOUT: 30000, // 30 seconds (increased for Azure cold start)
+  TIMEOUT_LONG: 60000, // 60 seconds for heavy operations (AI, image upload)
 };
 
 /**
@@ -30,10 +32,11 @@ export type Environment = 'android' | 'ios' | 'local_network' | 'production';
  * Current environment - Change this to switch between different environments
  * 
  * IMPORTANT: 
+ * - Use 'production' to connect to Azure backend (no need to run dotnet locally)
  * - Use 'android' if BE runs on SAME machine as emulator (localhost)
  * - Use 'local_network' if BE runs on DIFFERENT machine (use IP address)
  */
-const CURRENT_ENVIRONMENT: Environment = 'android'; // Use 'android' for same machine, 'local_network' for different machines
+const CURRENT_ENVIRONMENT: Environment = 'android'; // Changed back to 'android' to use local backend
 
 /**
  * Get the appropriate base URL based on platform and environment

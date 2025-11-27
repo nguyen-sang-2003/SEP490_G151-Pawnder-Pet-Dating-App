@@ -23,10 +23,10 @@ type Props = NativeStackScreenProps<RootStackParamList, "AddPetCharacteristics">
 
 const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   const { petId, isFromProfile, aiResults } = route.params;
-  
+
   console.log('AddPetCharacteristicsScreen - petId:', petId, 'isFromProfile:', isFromProfile);
   console.log('🤖 AI Results received:', aiResults);
-  
+
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [attributeOptions, setAttributeOptions] = useState<Record<number, AttributeOption[]>>({});
   const [selectedOptions, setSelectedOptions] = useState<Record<number, number>>({});
@@ -35,13 +35,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-  
+
   // Track which characteristics already exist (for UPDATE vs CREATE decision)
   const [existingCharacteristicIds, setExistingCharacteristicIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!petId) {
-      console.error('ERROR: petId is undefined!');
+
       showAlert({
         type: 'error',
         title: 'Error',
@@ -58,18 +58,18 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       setLoading(true);
       const attrs = await getAttributes();
       console.log('Loaded attributes:', attrs);
-      
+
       // Filter out invalid attributes and distance-related attributes (those are user preferences, not pet characteristics)
       const validAttrs = attrs.filter(attr => {
         if (attr.AttributeId == null) return false;
-        
+
         // Filter out distance/range attributes - these are user preferences, not pet characteristics
         const name = attr.Name?.toLowerCase() || '';
         if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
           console.log('🚫 Filtering out distance attribute:', attr.Name);
           return false;
         }
-        
+
         return true;
       });
       setAttributes(validAttrs);
@@ -78,7 +78,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       const optionsMap: Record<number, AttributeOption[]> = {};
       for (const attr of validAttrs) {
         if (!attr.AttributeId) continue;
-        
+
         const options = await getAttributeOptions(attr.AttributeId);
         optionsMap[attr.AttributeId] = options;
       }
@@ -95,12 +95,12 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         try {
           const existingChars = await getPetCharacteristics(petId);
           console.log('📝 Loaded existing characteristics:', existingChars);
-          
+
           existingChars.forEach((char: any) => {
             if (char.attributeId) {
               tempExistingIds.add(char.attributeId);
             }
-            
+
             if (char.optionValue && char.attributeId) {
               // Find the option by name
               const options = optionsMap[char.attributeId];
@@ -113,45 +113,45 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
               tempNumericValues[char.attributeId] = char.value.toString();
             }
           });
-          
+
           console.log('📋 Existing characteristic IDs:', Array.from(tempExistingIds));
         } catch (error) {
           console.log('⚠️ No existing characteristics or error loading:', error);
         }
       }
-      
+
       // Pre-fill from AI results (if available)
       if (aiResults && aiResults.length > 0) {
         console.log('🤖 Pre-filling from AI results...');
-        
+
         aiResults.forEach((aiAttr: AIAttributeResult) => {
           if (!aiAttr.attributeId) return;
-          
+
           // Mark as AI-filled
           tempAiFilledIds.add(aiAttr.attributeId);
-          
+
           // Fill option-based attributes
           if (aiAttr.optionId && aiAttr.optionName) {
             tempSelectedOptions[aiAttr.attributeId] = aiAttr.optionId;
             console.log(`✅ AI filled option: ${aiAttr.attributeName} = ${aiAttr.optionName}`);
           }
-          
+
           // Fill numeric attributes
           if (aiAttr.value != null) {
             tempNumericValues[aiAttr.attributeId] = aiAttr.value.toString();
             console.log(`✅ AI filled value: ${aiAttr.attributeName} = ${aiAttr.value}`);
           }
         });
-        
+
         console.log(`🎯 AI filled ${tempAiFilledIds.size} attributes`);
       }
-      
+
       setExistingCharacteristicIds(tempExistingIds);
       setSelectedOptions(tempSelectedOptions);
       setNumericValues(tempNumericValues);
       setAiFilledAttributes(tempAiFilledIds);
     } catch (error: any) {
-      console.error('Error loading attributes:', error);
+
       showAlert({
         type: 'error',
         title: 'Error',
@@ -173,7 +173,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         const attrId = parseInt(attributeId, 10);
         const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
         const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
-        
+
         console.log(`${shouldUpdate ? 'Updating' : 'Creating'} option: attributeId=${attributeId}, optionId=${optionId}`);
         savePromises.push(
           apiFunction(petId, attrId, { OptionId: optionId })
@@ -188,7 +188,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             const attrId = parseInt(attributeId, 10);
             const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
             const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
-            
+
             console.log(`${shouldUpdate ? 'Updating' : 'Creating'} numeric: attributeId=${attributeId}, value=${numValue}`);
             savePromises.push(
               apiFunction(petId, attrId, { Value: numValue })
@@ -207,16 +207,16 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         try {
           const userIdStr = await getItem('userId');
           console.log('Retrieved userId from storage:', userIdStr);
-          
+
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
             console.log('Parsed userId:', userId);
-            
+
             if (isNaN(userId) || userId <= 0) {
-              console.error('Invalid userId:', userId);
+
               throw new Error('Invalid userId');
             }
-            
+
             await completeUserProfile(userId);
             console.log('✅ User profile marked as complete');
           } else {
@@ -241,17 +241,16 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         },
       });
     } catch (error: any) {
-      console.error('Error saving characteristics:', error);
-      console.error('Error response:', error.response?.data);
-      
+
+
       let errorMessage = 'Failed to save characteristics. Please try again.';
-      
+
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       showAlert({
         type: 'error',
         title: 'Error',
@@ -301,7 +300,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          
+
           {/* Step Indicator - Always show in Add Pet flow */}
           <View style={styles.stepIndicatorContainer}>
             <View style={styles.stepBarsContainer}>
@@ -311,7 +310,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             </View>
             <Text style={styles.stepText}>Step 3 of 3</Text>
           </View>
-          
+
           <Text style={styles.title}>
             {isFromProfile ? 'Edit Characteristics' : 'Pet Characteristics'}
           </Text>
@@ -340,10 +339,10 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           {/* Dynamic Attributes */}
           {attributes.map((attr) => {
             if (!attr.AttributeId) return null;
-            
+
             // Check if this is a numeric input (float/number type)
             const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
-            
+
             return (
               <View key={`attr-${attr.AttributeId}`} style={styles.inputGroup}>
                 <View style={styles.labelContainer}>
@@ -358,7 +357,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                     </View>
                   )}
                 </View>
-                
+
                 {isNumeric ? (
                   // Numeric Input
                   <View style={styles.inputContainer}>
@@ -384,7 +383,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                     {attributeOptions[attr.AttributeId]?.map((option) => {
                       if (!option.OptionId) return null;
                       const isSelected = selectedOptions[attr.AttributeId!] === option.OptionId;
-                      
+
                       return (
                         <TouchableOpacity
                           key={`option-${option.OptionId}`}
@@ -543,7 +542,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40,
   },
-  
+
   // AI Banner
   aiBanner: {
     flexDirection: "row",
@@ -578,7 +577,7 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 20,
   },
-  
+
   inputGroup: {
     marginBottom: 32,
   },
@@ -614,7 +613,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     position: 'relative',
   },
-  
+
   // Option Chips
   optionsContainer: {
     flexDirection: "row",
@@ -673,7 +672,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMedium,
   },
-  
+
   // Info Card
   infoCard: {
     flexDirection: "row",

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 
 namespace BE.Services
@@ -95,6 +95,45 @@ namespace BE.Services
             
             // Notify other user that this user left
             await Clients.OthersInGroup(groupName).SendAsync("UserLeftChat", userId, matchId);
+        }
+
+        /// <summary>
+        /// Join an expert chat room
+        /// </summary>
+        public async Task JoinExpertChat(int chatExpertId, int userId)
+        {
+            var groupName = $"ExpertChat_{chatExpertId}";
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            Console.WriteLine($"[ChatHub] User {userId} joined expert chat group {groupName}");
+        }
+
+        /// <summary>
+        /// Leave an expert chat room
+        /// </summary>
+        public async Task LeaveExpertChat(int chatExpertId, int userId)
+        {
+            var groupName = $"ExpertChat_{chatExpertId}";
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+            Console.WriteLine($"[ChatHub] User {userId} left expert chat group {groupName}");
+        }
+
+        /// <summary>
+        /// Send a message to an expert chat room
+        /// </summary>
+        public async Task SendExpertMessage(int chatExpertId, int fromId, string message)
+        {
+            var groupName = $"ExpertChat_{chatExpertId}";
+            
+            Console.WriteLine($"[ChatHub] Sending expert message from user {fromId} to chat {chatExpertId}");
+            
+            // Send to all users in the expert chat group (including sender for confirmation)
+            await Clients.Group(groupName).SendAsync("ReceiveExpertMessage", new
+            {
+                ChatExpertId = chatExpertId,
+                FromId = fromId,
+                Message = message,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
         /// <summary>
@@ -204,6 +243,29 @@ namespace BE.Services
         }
 
         /// <summary>
+        /// Send notification to a specific user about new expert message badge (STATIC for use in services)
+        /// </summary>
+        public static async Task SendNewExpertMessageBadge(IHubContext<ChatHub> hubContext, int toUserId, int chatExpertId)
+        {
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                foreach (var connectionId in connections)
+                {
+                    await hubContext.Clients.Client(connectionId).SendAsync("NewExpertMessageBadge", new
+                    {
+                        ChatExpertId = chatExpertId,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
+                Console.WriteLine($"✅ [ChatHub] Sent NewExpertMessageBadge to user {toUserId} for chat {chatExpertId}");
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ [ChatHub] User {toUserId} is offline, badge will be shown on next app open");
+            }
+        }
+
+        /// <summary>
         /// Send notification about new match (STATIC for use in controllers)
         /// </summary>
         public static async Task SendMatchNotification(IHubContext<ChatHub> hubContext, int toUserId, string otherUserName, int otherUserId, int matchId, string? petName, string? petPhotoUrl)
@@ -263,6 +325,83 @@ namespace BE.Services
             {
                 Console.WriteLine($"❌ [ChatHub] User {toUserId} is NOT connected (offline). Notification saved to DB only.");
                 Console.WriteLine($"   Available users in connections: [{connectedUsers}]");
+            }
+        }
+
+        /// <summary>
+        /// Send notification with additional metadata (expertId, chatId) - for expert confirmations
+        /// </summary>
+        public static async Task SendNotificationWithMetadata(
+            IHubContext<ChatHub> hubContext, 
+            int toUserId, 
+            string title, 
+            string message, 
+            string type,
+            int? expertId = null,
+            int? chatId = null)
+        {
+            var connectedUsers = string.Join(", ", UserConnections.Keys);
+            Console.WriteLine($"[ChatHub] Currently connected users: [{connectedUsers}]");
+            Console.WriteLine($"[ChatHub] Sending notification with metadata to user {toUserId}");
+            
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                var payload = new
+                {
+                    Title = title,
+                    Message = message,
+                    Type = type,
+                    ExpertId = expertId,
+                    ChatId = chatId,
+                    Timestamp = DateTime.UtcNow
+                };
+                
+                Console.WriteLine($"✅ [ChatHub] User {toUserId} is ONLINE with {connections.Count} connection(s)");
+                Console.WriteLine($"[ChatHub] Sending notification: {title} (ExpertId={expertId}, ChatId={chatId})");
+                
+                foreach (var connectionId in connections)
+                {
+                    Console.WriteLine($"   → Sending to connection: {connectionId}");
+                    await hubContext.Clients.Client(connectionId).SendAsync("NewNotification", payload);
+                }
+                
+                Console.WriteLine($"✅ [ChatHub] Notification with metadata sent successfully!");
+            }
+            else
+            {
+                Console.WriteLine($"❌ [ChatHub] User {toUserId} is NOT connected (offline). Notification saved to DB only.");
+                Console.WriteLine($"   Available users in connections: [{connectedUsers}]");
+            }
+        }
+
+        /// <summary>
+        /// Send expert chat message via SignalR (STATIC for use in services)
+        /// </summary>
+        public static async Task SendExpertMessage(IHubContext<ChatHub> hubContext, int chatExpertId, int fromId, string message, int? toUserId = null)
+        {
+            var groupName = $"ExpertChat_{chatExpertId}";
+            
+            var payload = new
+            {
+                ChatExpertId = chatExpertId,
+                FromId = fromId,
+                Message = message,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            Console.WriteLine($"[ChatHub] Sending expert message to group {groupName} from user {fromId}");
+            
+            // Send to group (people in ExpertChat screen)
+            await hubContext.Clients.Group(groupName).SendAsync("ReceiveExpertMessage", payload);
+            
+            // Also send directly to recipient if they're not in the group (for badge/notification)
+            if (toUserId.HasValue && UserConnections.TryGetValue(toUserId.Value, out var connections))
+            {
+                foreach (var connectionId in connections)
+                {
+                    await hubContext.Clients.Client(connectionId).SendAsync("ReceiveExpertMessage", payload);
+                }
+                Console.WriteLine($"[ChatHub] Also sent expert message directly to user {toUserId.Value}");
             }
         }
     }

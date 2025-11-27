@@ -15,9 +15,9 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { 
-  getAttributesForFilter, 
-  AttributeForFilter 
+import {
+  getAttributesForFilter,
+  AttributeForFilter
 } from "../../../api/attributes";
 import { saveUserPreferencesBatch } from "../../../api/preferences";
 import { getItem } from "../../../utils/storage";
@@ -36,7 +36,7 @@ interface ActiveFilter {
 
 const OnboardingPreferencesScreen = ({ navigation }: Props) => {
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,13 +54,13 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       const userIdStr = await getItem('userId');
       if (!userIdStr) {
         showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
         return;
       }
-      
+
       const uid = parseInt(userIdStr, 10);
       setUserId(uid);
 
@@ -68,7 +68,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       setAttributes(attrs);
       console.log('📋 Loaded attributes:', attrs);
     } catch (error: any) {
-      console.error('❌ Error loading data:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải dữ liệu' });
     } finally {
       setLoading(false);
@@ -142,22 +142,22 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
         .filter(([attributeIdStr, filter]) => {
           const attrId = parseInt(attributeIdStr);
           const attr = attributes.find(a => a.AttributeId === attrId);
-          
+
           if (filter.optionId !== undefined) return true;
           if (filter.minValue === undefined && filter.maxValue === undefined) return false;
-          
+
           if (attr?.Name?.toLowerCase() === "khoảng cách") {
             return filter.maxValue !== undefined && filter.maxValue < maxDistanceLimit;
           }
-          
+
           const maxLimit = attr?.Name?.toLowerCase().includes("cao") ? 100 : 50;
           const min = filter.minValue || 0;
           const max = filter.maxValue || maxLimit;
-          
+
           if (min === 0 && max === maxLimit) {
             return false;
           }
-          
+
           return true;
         })
         .map(([attributeId, filter]) => ({
@@ -176,7 +176,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       showAlert({
         type: 'success',
         title: 'Hoàn tất! 🎉',
-        message: preferences.length > 0 
+        message: preferences.length > 0
           ? `Đã lưu ${preferences.length} sở thích. Sẵn sàng tìm bạn đồng hành!`
           : 'Bạn có thể cập nhật sở thích sau. Sẵn sàng khám phá!',
         onClose: () => {
@@ -184,11 +184,11 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
         },
       });
     } catch (error: any) {
-      console.error("❌ Error saving preferences:", error);
-      showAlert({ 
-        type: 'error', 
-        title: 'Lỗi', 
-        message: error.response?.data?.message || 'Không thể lưu sở thích' 
+
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.response?.data?.message || 'Không thể lưu sở thích'
       });
     } finally {
       setSaving(false);
@@ -300,9 +300,9 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
   const renderAppearanceStep = () => {
     const appearanceAttrs = attributes.filter(
-      a => a.TypeValue?.toLowerCase() === 'string' && 
-      a.Name?.toLowerCase() !== 'giới tính' &&
-      a.Name?.toLowerCase() !== 'loại'
+      a => a.TypeValue?.toLowerCase() === 'string' &&
+        a.Name?.toLowerCase() !== 'giới tính' &&
+        a.Name?.toLowerCase() !== 'loại'
     );
 
     return (

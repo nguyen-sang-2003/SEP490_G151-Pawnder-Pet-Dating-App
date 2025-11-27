@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { AppDispatch, store } from '../app/store';
-import { 
-  setBadgeCounts, 
+import {
+  setBadgeCounts,
   addUnreadChat,
+  addUnreadExpertChat,
   incrementFavoriteBadge,
   incrementNotificationBadge,
   showMatchModal,
@@ -25,13 +26,21 @@ export const useBadgeNotifications = (userId: number | null) => {
       return;
     }
 
+    // Flag to prevent state updates after unmount
+    let isMounted = true;
+
     // ✅ Fetch initial badge counts WITH active pet filtering
     const initializeBadges = async () => {
       try {
+        if (!isMounted) return;
         await refreshBadgesForActivePet(userId);
-        console.log('✅ Initial badges loaded for active pet');
+        if (isMounted) {
+          console.log('✅ Initial badges loaded for active pet');
+        }
       } catch (error) {
-        console.error('❌ Error fetching badge counts:', error);
+        if (isMounted) {
+          console.error('❌ Failed to initialize badges:', error);
+        }
       }
     };
 
@@ -43,18 +52,18 @@ export const useBadgeNotifications = (userId: number | null) => {
       const matchId = data.matchId || data.MatchId;
       const fromPetId = data.fromPetId || data.FromPetId;
       const toPetId = data.toPetId || data.ToPetId;
-      
+
       if (!matchId) {
         console.log('❌ [NewMessageBadge] No matchId, ignoring');
         return;
       }
-      
+
       // ✅ FIX STALE CLOSURE: Read activePetId from store EACH TIME
       const currentState = store.getState();
       const activePetId = selectActivePetId(currentState);
-      
+
       console.log(`🐾 [NewMessageBadge] Active pet: ${activePetId}, from: ${fromPetId}, to: ${toPetId}`);
-      
+
       // ONLY show badge if the RECIPIENT is the active pet
       if (activePetId && toPetId === activePetId) {
         console.log(`📬 [NewMessageBadge] Message TO active pet ${activePetId}, showing badge`);
@@ -75,16 +84,17 @@ export const useBadgeNotifications = (userId: number | null) => {
     };
 
     const handleMatchSuccess = (data: any) => {
+      console.log('🎉 [MatchSuccess] Received:', data);
       const matchId = data.matchId || data.MatchId || 0;
       const otherUserId = data.otherUserId || data.OtherUserId || 0;
       const otherUserName = data.otherUserName || data.OtherUserName || 'Someone';
       const petName = data.petName || data.PetName;
       const petPhotoUrl = data.petPhotoUrl || data.PetPhotoUrl;
-      
-      // Don't increment notification badge for matches
-      // Notification badge is only for admin and expert notifications
-      // dispatch(incrementNotificationBadge());
-      
+
+      // Increment favorite badge when match happens
+      console.log('📬 [MatchSuccess] Incrementing favorite badge for new match');
+      dispatch(incrementFavoriteBadge());
+
       dispatch(showMatchModal({
         otherUserName,
         otherUserId,
@@ -94,14 +104,33 @@ export const useBadgeNotifications = (userId: number | null) => {
       }));
     };
 
+    const handleNewExpertMessageBadge = (data: any) => {
+      console.log('🔔 [NewExpertMessageBadge] Received:', data);
+      const chatExpertId = data.chatExpertId || data.ChatExpertId;
+
+      if (!chatExpertId) {
+        console.log('❌ [NewExpertMessageBadge] No chatExpertId, ignoring');
+        return;
+      }
+
+      console.log(`📬 [NewExpertMessageBadge] New message from expert in chat ${chatExpertId}`);
+      dispatch(addUnreadExpertChat(chatExpertId));
+    };
+
     signalRService.on('NewMessageBadge', handleNewMessageBadge);
     signalRService.on('NewLikeBadge', handleNewLikeBadge);
     signalRService.on('MatchSuccess', handleMatchSuccess);
+    signalRService.on('NewExpertMessageBadge', handleNewExpertMessageBadge);
 
     return () => {
+      // Set unmount flag to prevent state updates
+      isMounted = false;
+      
+      // Clean up SignalR listeners
       signalRService.off('NewMessageBadge', handleNewMessageBadge);
       signalRService.off('NewLikeBadge', handleNewLikeBadge);
       signalRService.off('MatchSuccess', handleMatchSuccess);
+      signalRService.off('NewExpertMessageBadge', handleNewExpertMessageBadge);
     };
   }, [userId, dispatch]);
 };

@@ -3,6 +3,7 @@ using BE.Models;
 using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 
 namespace BE.Services
 {
@@ -10,11 +11,16 @@ namespace BE.Services
     {
         private readonly INotificationRepository _notificationRepository;
         private readonly PawnderDatabaseContext _context;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public NotificationService(INotificationRepository notificationRepository, PawnderDatabaseContext context)
+        public NotificationService(
+            INotificationRepository notificationRepository, 
+            PawnderDatabaseContext context,
+            IHubContext<ChatHub> hubContext)
         {
             _notificationRepository = notificationRepository;
             _context = context;
+            _hubContext = hubContext;
         }
 
         public async Task<IEnumerable<NotificationDto>> GetAllNotificationsAsync(CancellationToken ct = default)
@@ -66,6 +72,26 @@ namespace BE.Services
             };
 
             await _notificationRepository.AddAsync(notification, ct);
+            
+            // 🔔 Send realtime notification via SignalR
+            try
+            {
+                Console.WriteLine($"🔔 [NotificationService] Sending realtime notification to user {notification.UserId}");
+                await ChatHub.SendNotification(
+                    _hubContext,
+                    notification.UserId.Value,
+                    notification.Title,
+                    notification.Message,
+                    notification.Type ?? "system"
+                );
+                Console.WriteLine($"✅ [NotificationService] Realtime notification sent successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ [NotificationService] Failed to send realtime notification: {ex.Message}");
+                // Don't throw - notification is already saved to DB
+            }
+            
             return notification;
         }
 

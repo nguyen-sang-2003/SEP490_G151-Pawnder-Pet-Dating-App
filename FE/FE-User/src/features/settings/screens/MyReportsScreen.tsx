@@ -35,10 +35,10 @@ const MyReportsScreen = ({ navigation }: Props) => {
   const loadReports = async () => {
     try {
       setLoading(true);
-      
+
       const userIdStr = await AsyncStorage.getItem("userId");
       if (!userIdStr) {
-        console.error("❌ No userId found");
+
         return;
       }
 
@@ -47,7 +47,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
       setReports(data);
       console.log("✅ Loaded reports:", data.length);
     } catch (error: any) {
-      console.error("❌ Error loading reports:", error);
+
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
     const utcString = dateString.endsWith('Z') ? dateString : dateString + 'Z';
     const date = new Date(utcString);
     const now = new Date();
-    
+
     const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
@@ -118,7 +118,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
     if (diffDays === 1) return "Hôm qua";
     if (diffDays < 7) return `${diffDays} ngày trước`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
-    
+
     // Older - show full date time
     return date.toLocaleString("vi-VN", {
       day: "2-digit",
@@ -139,7 +139,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
       hasReportedUser: !!item.reportedUser,
       reportedUserName: item.reportedUser?.fullName,
     });
-    
+
     return (
       <View style={styles.reportCard}>
         {/* Header with Status */}
@@ -237,7 +237,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
   const renderEmpty = () => {
     let emptyMessage = "Bạn chưa gửi báo cáo nào.\nLịch sử báo cáo của bạn sẽ hiển thị ở đây.";
     let emptyTitle = "Chưa có báo cáo nào";
-    
+
     if (selectedFilter === 'resolved') {
       emptyTitle = "Chưa có báo cáo được xử lý";
       emptyMessage = "Các báo cáo đã được xử lý sẽ xuất hiện ở đây";
@@ -245,7 +245,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
       emptyTitle = "Chưa có báo cáo đang chờ";
       emptyMessage = "Các báo cáo đang chờ xử lý sẽ xuất hiện ở đây";
     }
-    
+
     return (
       <View style={styles.emptyContainer}>
         <Icon name="document-text-outline" size={80} color={colors.textLabel} />
@@ -359,11 +359,11 @@ const MyReportsScreen = ({ navigation }: Props) => {
         {reports.length > 0 && (
           <View style={styles.filterInfo}>
             <Text style={styles.filterInfoText}>
-              {selectedFilter === 'all' 
+              {selectedFilter === 'all'
                 ? `Hiển thị tất cả ${filteredReports.length} báo cáo`
                 : selectedFilter === 'resolved'
-                ? `${filteredReports.length} báo cáo đã được xử lý`
-                : `${filteredReports.length} báo cáo đang chờ xử lý`}
+                  ? `${filteredReports.length} báo cáo đã được xử lý`
+                  : `${filteredReports.length} báo cáo đang chờ xử lý`}
             </Text>
           </View>
         )}

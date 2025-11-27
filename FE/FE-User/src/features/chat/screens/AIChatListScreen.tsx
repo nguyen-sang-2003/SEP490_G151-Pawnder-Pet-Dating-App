@@ -61,7 +61,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
       console.log('📞 Loading AI chat sessions for user:', userId);
 
       const sessions = await getChatAISessions(userId);
-      
+
       // Convert API data to ChatSession format
       const formattedSessions: ChatSession[] = sessions.map((session: ChatAISession) => ({
         id: session.chatAiid.toString(),
@@ -88,17 +88,17 @@ const AIChatListScreen = ({ navigation }: Props) => {
 
     try {
       const newChat = await createChatAISession(currentUserId, { title: 'New Chat' });
-      
+
       // Navigate to chat screen immediately
       navigation.navigate("AIChat", { chatId: newChat.chatId.toString() });
-      
+
       // Reload list when we come back
       loadChatSessions();
     } catch (error: any) {
       // Show user-friendly alert (401 already handled by interceptor)
       if (error.response?.status !== 401) {
         Alert.alert(
-          'Không thể tạo chat', 
+          'Không thể tạo chat',
           error.message || 'Vui lòng thử lại sau',
           [{ text: 'OK' }]
         );
@@ -130,7 +130,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
       setSelectedChat(null);
       setNewTitle("");
     } catch (error: any) {
-      console.error('❌ Error renaming chat:', error);
+
       Alert.alert('Lỗi', error.message || 'Không thể đổi tên cuộc trò chuyện');
     }
   };
@@ -149,7 +149,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
               await deleteChatAISession(parseInt(chatId));
               setChatSessions(prev => prev.filter(chat => chat.id !== chatId));
             } catch (error: any) {
-              console.error('❌ Error deleting chat:', error);
+
               Alert.alert('Lỗi', error.message || 'Không thể xóa cuộc trò chuyện');
             }
           },
@@ -293,7 +293,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
             <Icon name="information-circle" size={18} color={colors.white} />
           </LinearGradient>
           <Text style={styles.infoBannerText}>
-            Get instant pet care advice from AI. Ask an expert for confirmation! 
+            Get instant pet care advice from AI. Ask an expert for confirmation!
           </Text>
         </View>
 
@@ -357,7 +357,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
                 <Icon name="create-outline" size={24} color={colors.aiPrimary} />
                 <Text style={styles.modalTitle}>Đổi tên cuộc trò chuyện</Text>
               </View>
-              
+
               <TextInput
                 style={styles.modalInput}
                 value={newTitle}
@@ -367,7 +367,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
                 autoFocus
                 maxLength={50}
               />
-              
+
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.modalButton}
@@ -375,7 +375,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
                 >
                   <Text style={styles.modalCancelText}>Hủy</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.modalButton}
                   onPress={handleSaveRename}

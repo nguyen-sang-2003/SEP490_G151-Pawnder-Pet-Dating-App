@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import chatExpertService from '../../services/api/chatExpertService';
-import userService from '../../services/api/userService';
 import { API_BASE_URL } from '../../constants';
 import './ExpertChat.css';
 
@@ -12,7 +11,7 @@ import './ExpertChat.css';
 // - Đặt USE_MOCK_DATA = true để hiển thị dữ liệu mẫu (không cần backend)
 // - Đặt USE_MOCK_DATA = false để dùng API thật từ backend
 // ============================================
-const USE_MOCK_DATA = true; // Đổi thành false để dùng API thật
+const USE_MOCK_DATA = false; // Đổi thành false để dùng API thật
 
 const MOCK_CHATS = [
   {
@@ -158,14 +157,24 @@ const ExpertChat = () => {
 
   // Initialize SignalR connection
   useEffect(() => {
-    if (!user?.UserId) return;
+    // User object has 'id' field (from AuthContext)
+    const userId = user?.id;
+    if (!userId) {
+      console.warn('⚠️ No userId available for SignalR');
+      return;
+    }
 
     const token = localStorage.getItem('access_token');
-    if (!token) return;
+    if (!token) {
+      console.warn('⚠️ No access token for SignalR');
+      return;
+    }
+
+    let newConnection = null;
 
     // Import SignalR dynamically
     import('@microsoft/signalr').then(({ HubConnectionBuilder, LogLevel }) => {
-      const newConnection = new HubConnectionBuilder()
+      newConnection = new HubConnectionBuilder()
         .withUrl(`${API_BASE_URL}/chatHub`, {
           accessTokenFactory: () => token,
         })
@@ -173,7 +182,7 @@ const ExpertChat = () => {
         .withAutomaticReconnect()
         .build();
 
-      // Register user
+      // Register handlers BEFORE starting connection
       newConnection.onclose(() => {
         console.log('SignalR connection closed');
       });
@@ -184,18 +193,56 @@ const ExpertChat = () => {
 
       newConnection.onreconnected(() => {
         console.log('SignalR reconnected');
-        if (user?.UserId) {
-          newConnection.invoke('RegisterUser', user.UserId);
+        if (userId) {
+          newConnection.invoke('RegisterUser', userId).catch(err => {
+            console.error('Failed to register user on reconnect:', err);
+          });
         }
       });
 
-      // Listen for new messages
-      newConnection.on('ReceiveMessage', (messageData) => {
-        console.log('📨 Received message:', messageData);
-        if (messageData.chatExpertId === selectedChat?.chatExpertId) {
-          setMessages((prev) => [...prev, messageData]);
-          scrollToBottom();
-        }
+      // Listen for new expert messages
+      newConnection.on('ReceiveExpertMessage', (messageData) => {
+        console.log('📨 [SignalR] Received expert message:', messageData);
+        console.log('📨 [SignalR] Message data type:', typeof messageData);
+        console.log('📨 [SignalR] Message data keys:', Object.keys(messageData));
+        
+        const chatExpertId = messageData.ChatExpertId || messageData.chatExpertId;
+        const fromId = messageData.FromId || messageData.fromId;
+        const message = messageData.Message || messageData.message;
+        const createdAt = messageData.CreatedAt || messageData.createdAt;
+        
+        console.log('📨 [SignalR] Parsed:', { chatExpertId, fromId, message, createdAt });
+        
+        // Add message to state
+        setMessages((prev) => {
+          console.log('📨 [SignalR] Current messages count:', prev.length);
+          
+          // Check if message already exists (avoid duplicates)
+          // Use more strict comparison with contentId if available
+          const exists = prev.some(m => {
+            const sameContent = m.fromId === fromId && m.message === message;
+            const sameTime = Math.abs(new Date(m.createdAt).getTime() - new Date(createdAt).getTime()) < 2000;
+            return sameContent && sameTime;
+          });
+          
+          if (exists) {
+            console.log('⚠️ [SignalR] Message already exists, skipping');
+            return prev;
+          }
+          
+          const newMessage = {
+            contentId: Date.now(),
+            chatExpertId: chatExpertId,
+            fromId: fromId,
+            message: message,
+            createdAt: createdAt
+          };
+          
+          console.log('✅ [SignalR] Adding new message:', newMessage);
+          return [...prev, newMessage];
+        });
+        
+        setTimeout(() => scrollToBottom(), 100);
       });
 
       // Start connection
@@ -203,26 +250,29 @@ const ExpertChat = () => {
         .start()
         .then(() => {
           console.log('✅ SignalR connected');
-          if (user?.UserId) {
-            newConnection.invoke('RegisterUser', user.UserId);
+          if (userId) {
+            return newConnection.invoke('RegisterUser', userId);
           }
+        })
+        .then(() => {
+          console.log('✅ User registered with SignalR');
           setConnection(newConnection);
         })
         .catch((err) => {
           console.error('❌ SignalR connection error:', err);
         });
-
-      return () => {
-        newConnection.stop();
-      };
     });
 
+    // Cleanup
     return () => {
-      if (connection) {
-        connection.stop();
+      if (newConnection) {
+        console.log('🔌 Disconnecting SignalR...');
+        newConnection.stop().catch(err => {
+          console.error('Error stopping SignalR:', err);
+        });
       }
     };
-  }, [user?.UserId]);
+  }, [user?.id]);
 
   // Load chats
   useEffect(() => {
@@ -247,17 +297,24 @@ const ExpertChat = () => {
           return;
         }
 
-        // Sử dụng API thật - cần user.UserId
-        if (!user?.UserId) {
+        // Sử dụng API thật - user.id from AuthContext
+        const userId = user?.id;
+        if (!userId) {
           console.warn('⚠️ No user ID available for API call');
+          console.warn('⚠️ User object:', user);
           setLoading(false);
           return;
         }
 
         // Sử dụng API thật
-        console.log('📡 Loading chats for expert:', user.UserId);
-        const response = await chatExpertService.getChatsByExpertId(user.UserId);
-        console.log('📥 API Response:', response);
+        console.log('� ALoading chats for expert:', userId);
+        console.log('👤 Current user object:', user);
+        console.log('🔑 Access token:', localStorage.getItem('access_token') ? 'exists' : 'missing');
+        
+        const response = await chatExpertService.getChatsByExpertId(userId);
+        console.log('📥 API Response (full):', JSON.stringify(response, null, 2));
+        console.log('📥 API Response type:', typeof response);
+        console.log('📥 API Response is array:', Array.isArray(response));
         
         const chatsData = Array.isArray(response) ? response : response?.data || [];
         console.log('💬 Chats data:', chatsData);
@@ -269,33 +326,22 @@ const ExpertChat = () => {
           return;
         }
         
-        // Fetch user info for each chat
-        // Backend trả về camelCase: chatExpertId, userId, userName, userEmail
-        const chatsWithUserInfo = await Promise.all(
-          chatsData.map(async (chat) => {
-            const chatExpertId = chat.chatExpertId || chat.ChatExpertId;
-            const userId = chat.userId || chat.UserId;
-            
-            // Backend đã trả về userName và userEmail, nhưng có thể fetch thêm để có avatar
-            let userInfo = null;
-            try {
-              userInfo = await userService.getUserById(userId);
-            } catch (err) {
-              console.warn(`Failed to fetch user info for ${userId}`, err);
-            }
-            
-            return {
-              chatExpertId: chatExpertId,
-              expertId: chat.expertId || chat.ExpertId,
-              userId: userId,
-              userName: chat.userName || userInfo?.FullName || userInfo?.fullName || `User #${userId}`,
-              userEmail: chat.userEmail || userInfo?.Email || userInfo?.email || '',
-              userAvatar: userInfo?.Avatar || userInfo?.avatar || null,
-              createdAt: chat.createdAt || chat.CreatedAt,
-              updatedAt: chat.updatedAt || chat.UpdatedAt,
-            };
-          })
-        );
+        // Backend đã trả về userName và userEmail, không cần fetch thêm
+        const chatsWithUserInfo = chatsData.map((chat) => {
+          const chatExpertId = chat.chatExpertId || chat.ChatExpertId;
+          const userId = chat.userId || chat.UserId;
+          
+          return {
+            chatExpertId: chatExpertId,
+            expertId: chat.expertId || chat.ExpertId,
+            userId: userId,
+            userName: chat.userName || chat.UserName || `User #${userId}`,
+            userEmail: chat.userEmail || chat.UserEmail || '',
+            userAvatar: null, // Backend không trả avatar, có thể thêm sau
+            createdAt: chat.createdAt || chat.CreatedAt,
+            updatedAt: chat.updatedAt || chat.UpdatedAt,
+          };
+        });
 
         console.log('✅ Chats with user info:', chatsWithUserInfo);
         setChats(chatsWithUserInfo);
@@ -319,7 +365,7 @@ const ExpertChat = () => {
 
     loadChats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   // Load messages when chat is selected
   useEffect(() => {
@@ -338,28 +384,50 @@ const ExpertChat = () => {
         }
 
         // Sử dụng API thật
+        console.log('📡 Loading messages for chatExpertId:', selectedChat.chatExpertId);
         const response = await chatExpertService.getMessages(selectedChat.chatExpertId);
+        console.log('📥 Messages response:', response);
         const messagesData = Array.isArray(response) ? response : response?.data || [];
+        console.log('💬 Messages data:', messagesData);
         setMessages(messagesData);
         setTimeout(() => scrollToBottom(), 100);
-
-        // Join chat group for SignalR
-        if (connection) {
-          const groupName = `chat-expert-${selectedChat.chatExpertId}`;
-          try {
-            await connection.invoke('JoinChatGroup', groupName);
-            console.log('✅ Joined chat group:', groupName);
-          } catch (err) {
-            console.warn('⚠️ Failed to join chat group (method may not exist in backend):', err);
-          }
-        }
       } catch (err) {
-        console.error('Failed to load messages:', err);
+        console.error('❌ Failed to load messages:', err);
+        console.error('Error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+        });
       }
     };
 
     loadMessages();
-  }, [selectedChat?.chatExpertId, connection]);
+  }, [selectedChat?.chatExpertId, user]);
+
+  // Join SignalR group when connection is ready and chat is selected
+  useEffect(() => {
+    if (!selectedChat?.chatExpertId || !connection || !user?.id) return;
+
+    const joinGroup = async () => {
+      try {
+        await connection.invoke('JoinExpertChat', selectedChat.chatExpertId, user.id);
+        console.log('✅ Joined expert chat group:', selectedChat.chatExpertId);
+      } catch (err) {
+        console.warn('⚠️ Failed to join expert chat group:', err);
+      }
+    };
+
+    joinGroup();
+
+    // Leave group on cleanup
+    return () => {
+      if (connection && user?.id) {
+        connection.invoke('LeaveExpertChat', selectedChat.chatExpertId, user.id).catch(err => {
+          console.warn('⚠️ Failed to leave expert chat group:', err);
+        });
+      }
+    };
+  }, [selectedChat?.chatExpertId, connection, user?.id]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -375,6 +443,14 @@ const ExpertChat = () => {
     if (!newMessage.trim() || !selectedChat || sending) return;
 
     const messageText = newMessage.trim();
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('❌ No userId available');
+      alert('Không thể gửi tin nhắn. Vui lòng đăng nhập lại.');
+      return;
+    }
+
     setNewMessage('');
     setSending(true);
 
@@ -387,9 +463,9 @@ const ExpertChat = () => {
         const newMsg = {
           contentId: Date.now(),
           chatExpertId: selectedChat.chatExpertId,
-          fromId: user.UserId,
+          fromId: userId,
           message: messageText,
-          expertId: user.UserId,
+          expertId: userId,
           userId: selectedChat.userId,
           chatAIId: null,
           createdAt: new Date().toISOString(),
@@ -402,30 +478,35 @@ const ExpertChat = () => {
       }
 
       // Sử dụng API thật
+      console.log('📤 Sending message:', {
+        chatExpertId: selectedChat.chatExpertId,
+        fromId: userId,
+        message: messageText,
+        expertId: userId,
+        userId: selectedChat.userId,
+      });
+      
       const result = await chatExpertService.sendMessage(
         selectedChat.chatExpertId,
-        user.UserId,
+        userId,
         messageText,
-        user.UserId, // expertId
+        userId, // expertId
         selectedChat.userId, // userId
         null // chatAiId
       );
 
-      // Add message to local state immediately
-      const newMsg = {
-        contentId: result?.contentId || Date.now(),
-        chatExpertId: selectedChat.chatExpertId,
-        fromId: user.UserId,
-        message: messageText,
-        expertId: user.UserId,
-        userId: selectedChat.userId,
-        createdAt: new Date().toISOString(),
-      };
+      console.log('✅ Message sent, result:', result);
 
-      setMessages((prev) => [...prev, newMsg]);
+      // Don't add to state here - let SignalR handle it to avoid duplicates
+      // SignalR will broadcast the message back to all clients including sender
       scrollToBottom();
     } catch (err) {
-      console.error('Failed to send message:', err);
+      console.error('❌ Failed to send message:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
       alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
       setNewMessage(messageText); // Restore message
     } finally {
@@ -435,23 +516,47 @@ const ExpertChat = () => {
 
   const formatTime = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    // Backend trả về UTC, cần convert sang múi giờ Việt Nam (UTC+7)
+    let date = new Date(dateString);
+    
+    // Nếu dateString không có timezone info, coi như UTC
+    if (!dateString.includes('Z') && !dateString.includes('+')) {
+      date = new Date(dateString + 'Z');
+    }
+    
+    return date.toLocaleTimeString('vi-VN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh'
+    });
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    
+    // Backend trả về UTC, cần convert sang múi giờ Việt Nam (UTC+7)
+    let date = new Date(dateString);
+    
+    // Nếu dateString không có timezone info, coi như UTC
+    if (!dateString.includes('Z') && !dateString.includes('+')) {
+      date = new Date(dateString + 'Z');
+    }
+    
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (date.toDateString() === today.toDateString()) {
+    // So sánh theo ngày ở múi giờ Việt Nam
+    const dateVN = date.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const todayVN = today.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const yesterdayVN = yesterday.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+    if (dateVN === todayVN) {
       return 'Hôm nay';
-    } else if (date.toDateString() === yesterday.toDateString()) {
+    } else if (dateVN === yesterdayVN) {
       return 'Hôm qua';
     } else {
-      return date.toLocaleDateString('vi-VN');
+      return date.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
     }
   };
 
@@ -542,11 +647,10 @@ const ExpertChat = () => {
 
               <div className="chat-messages" ref={chatContainerRef}>
                 {messages.map((msg, index) => {
-                  // Xác định tin nhắn của expert: từ expertId hoặc fromId khớp với expertId của chat
-                  const isExpert = 
-                    msg.expertId === user?.UserId || 
-                    msg.fromId === user?.UserId ||
-                    (selectedChat && (msg.expertId === selectedChat.expertId || msg.fromId === selectedChat.expertId));
+                  // Xác định tin nhắn của expert: so sánh fromId với userId hiện tại
+                  const currentUserId = user?.id;
+                  const isExpert = msg.fromId === currentUserId;
+                  
                   const showDate =
                     index === 0 ||
                     formatDate(messages[index - 1].createdAt) !== formatDate(msg.createdAt);

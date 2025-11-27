@@ -1,4 +1,4 @@
-import client from './client';
+import client, { cachedGet } from './client';
 
 export interface LikeRequest {
   fromUserId: number;
@@ -79,7 +79,7 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error fetching stats:', error);
+
     throw error;
   }
 };
@@ -87,18 +87,30 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
 /**
  * Get badge counts for user (unread messages + pending likes)
  * GET /api/match/badge-counts/{userId}?petId={petId}
+ * 
+ * Optimized with:
+ * - 30s cache for frequent polling
+ * - Longer timeout for Azure cold start
+ * - Request deduplication
  */
 export const getBadgeCounts = async (userId: number, petId?: number): Promise<BadgeCounts> => {
   try {
-
-    const url = petId 
+    const url = petId
       ? `/api/match/badge-counts/${userId}?petId=${petId}`
       : `/api/match/badge-counts/${userId}`;
-    const response = await client.get(url);
+    
+    // Use cachedGet with short cache duration (30s) for badges
+    // This prevents multiple simultaneous calls while still keeping data fresh
+    const data = await cachedGet<BadgeCounts>(url, {
+      cacheDuration: 30 * 1000, // 30 seconds cache
+      cacheKey: `badge-counts-${userId}-${petId || 'all'}`,
+      timeout: 30000, // 30s timeout for Azure
+      retryAttempts: 2, // Reduced retries
+    });
 
-    return response.data;
+    return data;
   } catch (error: any) {
-    console.error('❌ Error fetching badge counts:', error);
+    console.error('❌ getBadgeCounts error:', error);
     throw error;
   }
 };
@@ -116,8 +128,7 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
   } catch (error: any) {
     // Don't log 429 limit errors (handled by UI modal)
     if (error.response?.status !== 429) {
-      console.error('❌ Error sending like:', error);
-      console.error('Error response:', error.response?.data);
+
     }
     throw error;
   }
@@ -130,15 +141,14 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
 export const getLikesReceived = async (userId: number, petId?: number): Promise<LikeReceivedItem[]> => {
   try {
 
-    const url = petId 
+    const url = petId
       ? `/api/match/likes-received/${userId}?petId=${petId}`
       : `/api/match/likes-received/${userId}`;
     const response = await client.get(url);
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error fetching likes received:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -154,8 +164,7 @@ export const respondToLike = async (request: RespondToLikeRequest): Promise<any>
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error responding to like:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };

@@ -30,12 +30,20 @@ namespace BE.Services
 
         public async Task<IEnumerable<object>> GetChatsByExpertIdAsync(int expertId, CancellationToken ct = default)
         {
+            Console.WriteLine($"🔍 [ChatExpertService] Getting chats for expertId: {expertId}");
+            
             // Validate expert exists
             var expertExists = await _context.Users.AnyAsync(u => u.UserId == expertId, ct);
+            Console.WriteLine($"👤 [ChatExpertService] Expert exists: {expertExists}");
+            
             if (!expertExists)
                 throw new KeyNotFoundException("Không tìm thấy chuyên gia.");
 
-            return await _chatExpertRepository.GetChatsByExpertIdAsync(expertId, ct);
+            var chats = await _chatExpertRepository.GetChatsByExpertIdAsync(expertId, ct);
+            var chatsList = chats.ToList();
+            Console.WriteLine($"💬 [ChatExpertService] Found {chatsList.Count} chats");
+            
+            return chatsList;
         }
 
         public async Task<object> CreateChatAsync(int expertId, int userId, CancellationToken ct = default)

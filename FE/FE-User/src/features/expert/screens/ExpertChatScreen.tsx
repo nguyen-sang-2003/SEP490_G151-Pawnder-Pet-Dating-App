@@ -9,13 +9,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDispatch } from "react-redux";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, radius, shadows } from "../../../theme";
+import { getExpertChatMessages, sendExpertChatMessage, ExpertChatMessage } from "../../../api/expert-chat";
+import signalRService from "../../../services/signalr.service";
+import { markExpertChatAsRead } from "../../badge/badgeSlice";
+import { AppDispatch } from "../../../app/store";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChat">;
 
@@ -28,26 +36,193 @@ interface Message {
 }
 
 const ExpertChatScreen = ({ navigation, route }: Props) => {
-  const { expertId, expertName } = route.params || {};
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "Xin chào! Tôi là chuyên gia thú y. Tôi đã xem câu hỏi của bạn về triệu chứng của mèo. Bạn có thể mô tả thêm chi tiết không?",
-      isExpert: true,
-      timestamp: new Date(Date.now() - 3600000),
-      status: "sent",
-    },
-  ]);
+  const { chatExpertId, expertId, expertName } = route.params || {};
+  const dispatch = useDispatch<AppDispatch>();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
-  const handleSend = () => {
-    if (inputText.trim() === "") return;
+  // Mark chat as read when entering screen
+  useEffect(() => {
+    if (chatExpertId) {
+      dispatch(markExpertChatAsRead(chatExpertId));
+    }
+  }, [chatExpertId, dispatch]);
 
+  // Load messages
+  const loadMessages = useCallback(async () => {
+    if (!chatExpertId) {
+
+      Alert.alert('Lỗi', 'Không tìm thấy cuộc trò chuyện');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Get current userId first
+      const userIdStr = await AsyncStorage.getItem('userId');
+      const userId = userIdStr ? parseInt(userIdStr) : null;
+      setCurrentUserId(userId);
+
+      if (!userId) {
+
+        Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+        setLoading(false);
+        return;
+      }
+
+      console.log(`🔄 Loading messages for chatExpertId: ${chatExpertId}`);
+      const data = await getExpertChatMessages(chatExpertId);
+
+      // Transform API messages to UI messages
+      const transformedMessages: Message[] = data.map((msg: ExpertChatMessage) => {
+        // Backend trả về UTC, cần thêm 'Z' nếu chưa có
+        let dateStr = msg.createdAt;
+        if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+          dateStr = dateStr + 'Z';
+        }
+
+        return {
+          id: msg.contentId.toString(),
+          text: msg.message,
+          isExpert: msg.fromId !== userId, // If fromId is not current user, it's from expert
+          timestamp: new Date(dateStr),
+          status: "sent" as const,
+        };
+      });
+
+      setMessages(transformedMessages);
+      console.log('✅ Loaded', transformedMessages.length, 'messages');
+    } catch (error: any) {
+
+      Alert.alert('Lỗi', error.message || 'Không thể tải tin nhắn');
+    } finally {
+      setLoading(false);
+    }
+  }, [chatExpertId]);
+
+  // Setup SignalR for real-time messages
+  useEffect(() => {
+    if (!chatExpertId) return;
+
+    const setupSignalR = async () => {
+      try {
+        // Get userId
+        const userIdStr = await AsyncStorage.getItem('userId');
+        const userId = userIdStr ? parseInt(userIdStr) : null;
+
+        if (!userId) {
+          console.warn('⚠️ No userId for SignalR setup');
+          return;
+        }
+
+        // Ensure connected
+        if (!signalRService.isConnected()) {
+          await signalRService.connect(userId);
+        }
+
+        // Join expert chat group
+        await signalRService.joinExpertChat(chatExpertId, userId);
+        console.log(`✅ Joined expert chat group: ${chatExpertId}`);
+
+        // Listen for new messages
+        const handleNewMessage = (data: any) => {
+          console.log('💬 [ExpertChat] New message received via SignalR:', data);
+          console.log('💬 [ExpertChat] Current userId:', userId);
+          console.log('💬 [ExpertChat] Current chatExpertId:', chatExpertId);
+          console.log('💬 [ExpertChat] Message fromId:', data.FromId);
+          console.log('💬 [ExpertChat] Message chatExpertId:', data.ChatExpertId);
+
+          // Check if message is for this chat
+          const messageChatId = data.ChatExpertId || data.chatExpertId;
+          if (messageChatId !== chatExpertId) {
+            console.log('⚠️ Message is for different chat, ignoring');
+            return;
+          }
+
+          // Check if message is from current user (skip to avoid duplicate with optimistic update)
+          const messageFromId = data.FromId || data.fromId;
+          if (messageFromId === userId) {
+            console.log('⚠️ Message is from current user, skipping (already added optimistically)');
+            return;
+          }
+
+          // Add message from expert
+          let dateStr = data.CreatedAt || data.createdAt;
+          if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+            dateStr = dateStr + 'Z';
+          }
+
+          const newMessage: Message = {
+            id: `signalr_${Date.now()}`,
+            text: data.Message || data.message,
+            isExpert: true, // Message from expert
+            timestamp: new Date(dateStr),
+            status: "sent" as const,
+          };
+
+          console.log('✅ [ExpertChat] Adding expert message:', newMessage);
+
+          setMessages((prev) => {
+            // Check if message already exists (avoid duplicates)
+            const exists = prev.some(m =>
+              m.text === newMessage.text &&
+              Math.abs(m.timestamp.getTime() - newMessage.timestamp.getTime()) < 2000
+            );
+            if (exists) {
+              console.log('⚠️ Message already exists, skipping');
+              return prev;
+            }
+            console.log('✅ Adding message to state');
+            return [...prev, newMessage];
+          });
+
+          // Scroll to bottom
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        };
+
+        signalRService.on('ReceiveExpertMessage', handleNewMessage);
+
+        // Cleanup on unmount
+        return () => {
+          signalRService.off('ReceiveExpertMessage', handleNewMessage);
+          signalRService.leaveExpertChat(chatExpertId, userId).catch(err => {
+
+          });
+        };
+      } catch (error) {
+
+      }
+    };
+
+    setupSignalR();
+  }, [chatExpertId]);
+
+  // Load messages on mount
+  useFocusEffect(
+    useCallback(() => {
+      loadMessages();
+    }, [loadMessages])
+  );
+
+  const handleSend = async () => {
+    if (inputText.trim() === "" || !chatExpertId || !currentUserId || !expertId) {
+      console.warn('⚠️ Cannot send message: missing required data');
+      return;
+    }
+
+    const messageText = inputText.trim();
+    const tempId = Date.now().toString();
+
+    // Add optimistic message
     const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
+      id: tempId,
+      text: messageText,
       isExpert: false,
       timestamp: new Date(),
       status: "sending",
@@ -61,21 +236,62 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
 
-    // TODO: Send message to API
-    // Simulate sending
-    setTimeout(() => {
+    try {
+      setSending(true);
+      console.log(`🔄 Sending message to chatExpertId ${chatExpertId}:`, messageText);
+
+      // Send to API
+      const sentMessage = await sendExpertChatMessage(chatExpertId, currentUserId, {
+        message: messageText,
+        expertId: expertId,
+        userId: currentUserId,
+        chatAiid: null, // Optional
+      });
+
+      // Update message with actual data from server
+      let dateStr = sentMessage.createdAt;
+      if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+        dateStr = dateStr + 'Z';
+      }
+
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === newMessage.id ? { ...msg, status: "sent" } : msg
+          msg.id === tempId
+            ? {
+              ...msg,
+              id: sentMessage.contentId.toString(),
+              timestamp: new Date(dateStr),
+              status: "sent" as const,
+            }
+            : msg
         )
       );
-    }, 1000);
+
+      console.log('✅ Message sent successfully');
+    } catch (error: any) {
+
+
+      // Mark message as failed
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId ? { ...msg, status: "failed" as const } : msg
+        )
+      );
+
+      Alert.alert('Lỗi', error.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const formatTime = (date: Date) => {
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+    // Date object đã được convert từ UTC sang local time của device
+    // Chỉ cần format lại
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -134,15 +350,36 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
                   item.status === "sending"
                     ? "time-outline"
                     : item.status === "sent"
-                    ? "checkmark-done"
-                    : "alert-circle-outline"
+                      ? "checkmark-done"
+                      : "alert-circle-outline"
                 }
                 size={14}
-                color={item.isExpert ? "#81C784" : "#B39DDB"}
+                color={item.isExpert ? "#81C784" : "rgba(255, 255, 255, 0.7)"}
               />
             )}
           </View>
         </View>
+      </View>
+    );
+  };
+
+  const renderEmpty = () => {
+    if (loading) {
+      return (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+          <Text style={styles.emptyText}>Đang tải tin nhắn...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.centerContainer}>
+        <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
+        <Text style={styles.emptyTitle}>Bắt đầu cuộc trò chuyện</Text>
+        <Text style={styles.emptyText}>
+          Hãy gửi tin nhắn đầu tiên cho chuyên gia
+        </Text>
       </View>
     );
   };
@@ -182,7 +419,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
               </Text>
               <View style={styles.expertStatusBadge}>
                 <Icon name="shield-checkmark" size={12} color="#E8F5E9" />
-                <Text style={styles.expertStatusText}>Đang hoạt động</Text>
+                <Text style={styles.expertStatusText}>Chuyên gia xác nhận</Text>
               </View>
             </View>
           </View>
@@ -199,7 +436,8 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessage}
-        contentContainerStyle={styles.messagesList}
+        contentContainerStyle={messages.length === 0 ? styles.emptyList : styles.messagesList}
+        ListEmptyComponent={renderEmpty}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() =>
           flatListRef.current?.scrollToEnd({ animated: true })
@@ -221,18 +459,19 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
               onChangeText={setInputText}
               multiline
               maxLength={1000}
+              editable={!sending}
             />
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                inputText.trim() === "" && styles.sendButtonDisabled,
+                (inputText.trim() === "" || sending) && styles.sendButtonDisabled,
               ]}
               onPress={handleSend}
-              disabled={inputText.trim() === ""}
+              disabled={inputText.trim() === "" || sending}
             >
               <LinearGradient
                 colors={
-                  inputText.trim() === ""
+                  inputText.trim() === "" || sending
                     ? ["#BDBDBD", "#9E9E9E"]
                     : ["#4CAF50", "#66BB6A"]
                 }
@@ -240,7 +479,11 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Icon name="send" size={20} color={colors.white} />
+                {sending ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Icon name="send" size={20} color={colors.white} />
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -338,6 +581,29 @@ const styles = StyleSheet.create({
   messagesList: {
     padding: 16,
     paddingBottom: 8,
+  },
+  emptyList: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.textDark,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textLabel,
+    textAlign: "center",
   },
   messageContainer: {
     flexDirection: "row",
@@ -456,4 +722,3 @@ const styles = StyleSheet.create({
 });
 
 export default ExpertChatScreen;
-

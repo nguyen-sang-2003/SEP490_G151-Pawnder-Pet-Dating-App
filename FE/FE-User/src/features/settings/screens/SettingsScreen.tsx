@@ -14,8 +14,8 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { removeAuthToken } from "../../../api/auth";
-import { removeItem, getItem } from "../../../utils/storage";
+import { logout } from "../../../api/auth";
+import { getItem } from "../../../utils/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getVipStatus, VipStatusResponse } from "../../../api/payment";
@@ -53,12 +53,12 @@ const SettingsScreen = ({ navigation }: Props) => {
         setVipStatus(status);
       }
     } catch (error) {
-      console.error('Error loading VIP status:', error);
+
     } finally {
       setLoadingVip(false);
     }
   };
-  
+
   const accountSettings: SettingsItem[] = [
     {
       icon: "person-outline",
@@ -146,16 +146,23 @@ const SettingsScreen = ({ navigation }: Props) => {
 
   const handleLogout = async () => {
     try {
-      await removeAuthToken();
-      await removeItem('userId');
+      // Call logout API (will invalidate tokens on server and clear local storage)
+      await logout();
       console.log('🔓 Logged out successfully');
+
+      // Navigate to Welcome screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Welcome' }],
       });
     } catch (error) {
-      console.error('❌ Logout error:', error);
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể đăng xuất' });
+
+
+      // Even if there's an error, navigate to Welcome since tokens are cleared locally
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
     }
   };
 

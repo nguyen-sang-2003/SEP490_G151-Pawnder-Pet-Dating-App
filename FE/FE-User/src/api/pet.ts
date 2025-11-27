@@ -114,7 +114,7 @@ export const updatePetCharacteristic = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error updating characteristic:', error);
+
     throw error;
   }
 };
@@ -149,7 +149,7 @@ export const uploadPetPhotosMultipart = async (petId: number, photos: any[]) => 
   try {
     const formData = new FormData();
     formData.append('petId', petId.toString());
-    
+
     photos.forEach((photo, index) => {
       formData.append('files', {
         uri: photo.uri,
@@ -159,18 +159,17 @@ export const uploadPetPhotosMultipart = async (petId: number, photos: any[]) => 
     });
 
 
-    
+
     const response = await client.post('/api/petphoto', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    
+
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error uploading photos:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -186,7 +185,7 @@ export const getPetPhotos = async (petId: number) => {
       cacheDuration: CACHE_DURATION.LONG, // 10 minutes - photos don't change often
     });
   } catch (error: any) {
-    console.error('❌ Error fetching pet photos:', error);
+
     throw error;
   }
 };
@@ -204,8 +203,7 @@ export const getPetsByUserId = async (userId: number, useCache: boolean = true):
       params: { userId },
     });
   } catch (error: any) {
-    console.error('❌ Error fetching pets:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -221,8 +219,7 @@ export const getPetById = async (petId: number): Promise<PetResponse> => {
       cacheDuration: CACHE_DURATION.MEDIUM,
     });
   } catch (error: any) {
-    console.error('❌ Error fetching pet:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -241,8 +238,7 @@ export const updatePet = async (
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error updating pet:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -267,8 +263,7 @@ export const getPetCharacteristics = async (petId: number): Promise<PetCharacter
       cacheDuration: CACHE_DURATION.MEDIUM,
     });
   } catch (error: any) {
-    console.error('❌ Error fetching pet characteristics:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -284,8 +279,7 @@ export const setActivePet = async (petId: number): Promise<any> => {
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error setting active pet:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -323,8 +317,7 @@ export const getPetsForMatching = async (userId: number): Promise<PetForMatching
       cacheDuration: CACHE_DURATION.SHORT, // 2 minutes - matching data should be fresh
     });
   } catch (error: any) {
-    console.error('❌ Error fetching matching pets:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -365,8 +358,7 @@ export const getRecommendedPets = async (userId: number): Promise<RecommendedPet
     });
     return data.data || data || [];
   } catch (error: any) {
-    console.error('❌ Error fetching recommended pets:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -379,7 +371,7 @@ export const deletePet = async (petId: number): Promise<void> => {
   try {
     await client.delete(`/api/pet/${petId}`);
   } catch (error: any) {
-    console.error('❌ Error deleting pet:', error);
+
     throw error;
   }
 };
@@ -394,7 +386,7 @@ export const deletePetPhoto = async (photoId: number): Promise<void> => {
     const response = await client.delete(`/api/petphoto/${photoId}`);
 
   } catch (error: any) {
-    console.error('❌ Error deleting photo:', error);
+
     throw error;
   }
 };
@@ -409,7 +401,7 @@ export const reorderPetPhotos = async (photos: { photoId: number; sortOrder: num
     const response = await client.put('/api/petphoto/reorder', photos);
 
   } catch (error: any) {
-    console.error('❌ Error reordering photos:', error);
+
     throw error;
   }
 };
@@ -446,19 +438,18 @@ export const analyzePetImage = async (photo: any): Promise<AnalyzePetImageRespon
     } as any);
 
     console.log('🤖 Analyzing pet image with AI...');
-    
+
     const response = await client.post('/api/PetImageAnalysis/analyze', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       timeout: 30000, // 30 seconds for AI processing
     });
-    
+
     console.log('✅ AI analysis completed:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error analyzing image with AI:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
