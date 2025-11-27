@@ -301,7 +301,7 @@ namespace BE.Services
             var cacheKey = $"geocode_rate_limit_{userId}";
             var now = DateTime.UtcNow;
 
-            if (_cache.TryGetValue(cacheKey, out List<DateTime>? requestTimes))
+            if (_cache.TryGetValue(cacheKey, out List<DateTime>? requestTimes) && requestTimes != null)
             {
                 // Xóa các requests cũ hơn 1 giây
                 requestTimes.RemoveAll(time => now - time > RATE_LIMIT_WINDOW);

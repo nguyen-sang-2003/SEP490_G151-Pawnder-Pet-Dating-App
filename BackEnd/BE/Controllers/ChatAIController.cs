@@ -188,6 +188,11 @@ namespace BE.Controllers
                 var userId = GetCurrentUserId();
                 Console.WriteLine($"📨 [API] Received AI message request - ChatId: {chatAiId}, UserId: {userId}, Question length: {request.Question?.Length ?? 0}");
 
+                if (string.IsNullOrWhiteSpace(request.Question))
+                {
+                    return BadRequest(new { success = false, message = "Câu hỏi không được để trống" });
+                }
+
                 var data = await _chatAIService.SendMessageAsync(chatAiId, userId, request.Question, ct);
                 
                 stopwatch.Stop();

@@ -68,6 +68,10 @@ var hostname = builderConn.Host;
 try
 {
     // Resolve hostname và lấy IPv4 address đầu tiên
+    if (string.IsNullOrEmpty(hostname))
+    {
+        throw new InvalidOperationException("Database hostname is not configured.");
+    }
     var hostEntry = Dns.GetHostEntry(hostname);
     var ipv4Address = hostEntry.AddressList
         .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);

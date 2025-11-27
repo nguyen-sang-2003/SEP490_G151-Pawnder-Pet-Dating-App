@@ -51,21 +51,21 @@ namespace BE.Services
             // 🚀 OPTIMIZED: Reduced nested includes for better performance
             var query = _context.ChatUsers
                 .Include(c => c.FromPet)
-                    .ThenInclude(p => p.User)
+                    .ThenInclude(p => p!.User)
                         .ThenInclude(u => u!.Address)
                 .Include(c => c.FromPet)
-                    .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                    .ThenInclude(p => p!.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(c => c.FromPet)
-                    .ThenInclude(p => p.PetCharacteristics)
-                        .ThenInclude(pc => pc.Attribute)
+                    .ThenInclude(p => p!.PetCharacteristics)
+                        .ThenInclude(pc => pc!.Attribute)
                 .Include(c => c.ToPet)
-                    .ThenInclude(p => p.User)
+                    .ThenInclude(p => p!.User)
                         .ThenInclude(u => u!.Address)
                 .Include(c => c.ToPet)
-                    .ThenInclude(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
+                    .ThenInclude(p => p!.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(c => c.ToPet)
-                    .ThenInclude(p => p.PetCharacteristics)
-                        .ThenInclude(pc => pc.Attribute)
+                    .ThenInclude(p => p!.PetCharacteristics)
+                        .ThenInclude(pc => pc!.Attribute)
                 .Where(c => c.IsDeleted == false &&
                            c.FromUserId != null && c.ToUserId != null &&
                            (
@@ -310,8 +310,8 @@ namespace BE.Services
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
-                    await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName, request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
-                    await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName, request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, request.FromUserId, user2.FullName ?? "Người dùng", request.ToUserId, reciprocalLike.MatchId, pet2?.Name, pet2Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, request.ToUserId, user1.FullName ?? "Người dùng", request.FromUserId, reciprocalLike.MatchId, pet1?.Name, pet1Photo);
                 }
 
                 var fromUserId = reciprocalLike.FromPet?.UserId;
@@ -462,8 +462,8 @@ namespace BE.Services
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromPet.UserId.Value, user2.FullName, chatUser.ToPet.UserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
-                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToPet.UserId.Value, user1.FullName, chatUser.FromPet.UserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.FromPet.UserId.Value, user2.FullName ?? "Người dùng", chatUser.ToPet.UserId.Value, chatUser.MatchId, pet2?.Name, pet2Photo);
+                    await ChatHub.SendMatchNotification(_hubContext, chatUser.ToPet.UserId.Value, user1.FullName ?? "Người dùng", chatUser.FromPet.UserId.Value, chatUser.MatchId, pet1?.Name, pet1Photo);
                 }
 
                 return new
