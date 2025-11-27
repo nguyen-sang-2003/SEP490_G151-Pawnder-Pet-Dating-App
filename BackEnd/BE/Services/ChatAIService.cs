@@ -132,7 +132,7 @@ namespace BE.Services
             // 2. VIP users → 50,000 tokens/ngày (5x nhiều hơn)
             // 3. Hết quota → Upsell nâng cấp VIP
 
-            const int FREE_TOKENS_PER_DAY = 10000;
+            const int FREE_TOKENS_PER_DAY = 100000;
             const int VIP_TOKENS_PER_DAY = 50000;
 
             try
