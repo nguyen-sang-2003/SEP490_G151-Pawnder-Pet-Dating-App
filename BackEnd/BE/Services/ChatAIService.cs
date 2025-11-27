@@ -161,8 +161,8 @@ namespace BE.Services
                             $"⭐ Nâng cấp VIP - 99,000đ/tháng:\n" +
                             $"• 25x nhiều hơn\n" +
                             $"• Trả lời nhanh hơn\n" +
-                            $"• Hỗ trợ ưu tiên\n" +
-                            ;
+                            $"• Hỗ trợ ưu tiên\n" ;
+                            
                     }
                     
                     throw new QuotaExceededException(
