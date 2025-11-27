@@ -3,6 +3,7 @@ using BE.Models;
 using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
@@ -14,15 +15,18 @@ namespace BE.Services
         private readonly IAddressRepository _addressRepository;
         private readonly PawnderDatabaseContext _context;
         private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
 
         public AddressService(
             IAddressRepository addressRepository,
             PawnderDatabaseContext context,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            IConfiguration configuration)
         {
             _addressRepository = addressRepository;
             _context = context;
             _httpClient = httpClientFactory.CreateClient();
+            _configuration = configuration;
         }
 
         public async Task<object> CreateAddressForUserAsync(int userId, LocationDto locationDto, CancellationToken ct = default)
@@ -97,9 +101,9 @@ namespace BE.Services
                 ? fullAddress
                 : $"Địa chỉ sai, Lat:{locationDto.Latitude}, Lon:{locationDto.Longitude}";
 
-            if (!string.IsNullOrEmpty(city)) address.City = city;
-            if (!string.IsNullOrEmpty(district)) address.District = district;
-            if (!string.IsNullOrEmpty(ward)) address.Ward = ward;
+            address.City = city;
+            address.District = district;
+            address.Ward = ward;
 
             address.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             await _addressRepository.UpdateAsync(address, ct);
@@ -180,12 +184,12 @@ namespace BE.Services
         {
             string latStr = latitude.ToString(CultureInfo.InvariantCulture);
             string lonStr = longitude.ToString(CultureInfo.InvariantCulture);
-            string url = $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={latStr}&lon={lonStr}";
+            string key = _configuration["LocationIQ:ApiKey"] ?? throw new InvalidOperationException("LocationIQ API key không được cấu hình");
+            string url = $"https://us1.locationiq.com/v1/reverse?key={key}&lat={latStr}&lon={lonStr}&format=json";
 
             try
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.UserAgent.ParseAdd("PawnderApp/1.0 (contact@example.com)");
 
                 var response = await _httpClient.SendAsync(request, ct);
                 if (response.IsSuccessStatusCode)
@@ -201,14 +205,27 @@ namespace BE.Services
                     if (osmResult?.address != null)
                     {
                         var addr = osmResult.address;
-                        string? rawCity = addr.city ?? addr.town ?? addr.province ?? addr.state;
-                        city = CleanVietnameseAddress(rawCity, new[] { "Thành phố", "Tỉnh" });
+                        
+                        // City (Thành phố): Cấp thành phố/tỉnh - cấp hành chính lớn nhất
+                        // Theo LocationIQ: city, state, town, region, country
+                        // Ưu tiên: city > state > town > region > country
+                        // Tất cả các trường này đều optional, chỉ lấy giá trị đầu tiên có sẵn
+                        string? rawCity = addr.city ?? addr.state ?? addr.town ?? addr.region ?? addr.country;
+                        city = string.IsNullOrEmpty(rawCity) ? null : CleanVietnameseAddress(rawCity, new[] { "Thành phố", "Tỉnh" });
 
+                        // District (Quận): Cấp quận/huyện - cấp hành chính trung gian
+                        // Theo LocationIQ: city_district, state_district, county
+                        // Ưu tiên: city_district > state_district > county
+                        // Tất cả các trường này đều optional, chỉ lấy giá trị đầu tiên có sẵn
                         string? rawDistrict = addr.city_district ?? addr.state_district ?? addr.county;
-                        district = CleanVietnameseAddress(rawDistrict, new[] { "Quận", "Huyện" });
+                        district = string.IsNullOrEmpty(rawDistrict) ? null : CleanVietnameseAddress(rawDistrict, new[] { "Quận", "Huyện" });
 
-                        string? rawWard = addr.suburb ?? addr.quarter ?? addr.neighbourhood;
-                        ward = CleanVietnameseAddress(rawWard, new[] { "Phường", "Xã", "Thị trấn" });
+                        // Ward (Phường): Cấp phường/xã - cấp hành chính nhỏ nhất
+                        // Theo LocationIQ: suburb, village, neighbourhood, hamlet
+                        // Ưu tiên: suburb > village > neighbourhood > hamlet
+                        // Tất cả các trường này đều optional, chỉ lấy giá trị đầu tiên có sẵn
+                        string? rawWard = addr.suburb ?? addr.village ?? addr.neighbourhood ?? addr.hamlet;
+                        ward = string.IsNullOrEmpty(rawWard) ? null : CleanVietnameseAddress(rawWard, new[] { "Phường", "Xã", "Thị trấn" });
                     }
 
                     return (fullAddress, city, district, ward);
