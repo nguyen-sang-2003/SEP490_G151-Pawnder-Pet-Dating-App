@@ -19,26 +19,26 @@ export const decodeJWT = (token: string): JWTPayload | null => {
     // JWT format: header.payload.signature
     const parts = token.split('.');
     if (parts.length !== 3) {
-      console.error('[JWT] Invalid JWT format - expected 3 parts, got:', parts.length);
+
       return null;
     }
 
     // Decode the payload (second part)
     const payload = parts[1];
-    
+
     // Add padding if needed for base64 decoding
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     const paddedBase64 = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-    
+
     // Decode base64
     const jsonPayload = atob(paddedBase64);
-    
+
     // Parse JSON
     const decoded = JSON.parse(jsonPayload);
     console.log('[JWT] Token payload:', decoded);
     return decoded;
   } catch (error) {
-    console.error('[JWT] Error decoding JWT:', error);
+
     return null;
   }
 };
@@ -57,14 +57,14 @@ export const isTokenExpired = (token: string): boolean => {
   const expirationTime = payload.exp * 1000;
   const currentTime = Date.now();
   const isExpired = currentTime >= expirationTime;
-  
+
   if (isExpired) {
     console.log('[JWT] Token is expired');
   } else {
     const timeLeft = Math.floor((expirationTime - currentTime) / 1000 / 60); // minutes
     console.log(`[JWT] Token is valid for ${timeLeft} more minutes`);
   }
-  
+
   return isExpired;
 };
 
@@ -86,25 +86,25 @@ export const getUserIdFromToken = (token: string): number | null => {
 
   // Try different possible claim names (.NET Identity uses different claim types)
   const userIdStr = payload.nameid || // ClaimTypes.NameIdentifier
-                    payload.sub ||    // Standard JWT subject
-                    payload.userId || 
-                    payload.UserId ||
-                    payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']; // Full .NET claim URI
-  
+    payload.sub ||    // Standard JWT subject
+    payload.userId ||
+    payload.UserId ||
+    payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']; // Full .NET claim URI
+
   console.log('[JWT] Searching for userId in claims. Found:', userIdStr);
   console.log('[JWT] Available claims:', Object.keys(payload));
-  
+
   if (userIdStr) {
     const userId = parseInt(userIdStr, 10);
     if (isNaN(userId)) {
-      console.error('[JWT] UserId is not a valid number:', userIdStr);
+
       return null;
     }
     console.log('[JWT] Successfully extracted userId:', userId);
     return userId;
   }
 
-  console.error('[JWT] UserId not found in any expected claim');
+
   return null;
 };
 

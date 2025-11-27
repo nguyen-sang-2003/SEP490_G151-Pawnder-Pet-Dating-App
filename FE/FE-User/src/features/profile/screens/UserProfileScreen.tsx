@@ -60,14 +60,14 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Get userId from storage
       const userIdStr = await getItem('userId');
       if (!userIdStr) {
         showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.' });
         return;
       }
-      
+
       const userId = parseInt(userIdStr, 10);
       console.log('📱 Loading profile for userId:', userId);
 
@@ -76,7 +76,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
         getUserById(userId),
         getPetsByUserId(userId)
       ]);
-      
+
       setUserData(user);
       setPets(petsData);
       console.log('👤 User data loaded:', user);
@@ -102,7 +102,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
       // Address data
       const addressId = user.AddressId || user.addressId;
       console.log('🔍 User addressId:', addressId);
-      
+
       if (addressId) {
         getAddressById(addressId)
           .then(address => {
@@ -110,16 +110,16 @@ const UserProfileScreen = ({ navigation }: Props) => {
             setAddressData(address);
           })
           .catch((error: any) => {
-            console.error('⚠️ No address found for user:', error);
+
             setAddressData(null);
           });
       } else {
         console.log('⚠️ User has no addressId');
         setAddressData(null);
       }
-      
+
     } catch (error: any) {
-      console.error('❌ Error loading profile:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin profile' });
     } finally {
       setLoading(false);
@@ -139,7 +139,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
       // Reset photo index and characteristics collapse state when pet changes
       setActivePhotoIndex(0);
       setShowAllCharacteristics(false);
-      
+
       if (!activePet) {
         setCharacteristics([]);
         setPetPhotos([]);
@@ -155,7 +155,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
           getPetCharacteristics(petId),
           getPetPhotos(petId)
         ]);
-        
+
         // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
         const filteredChars = chars.filter((char: any) => {
           const name = char.name?.toLowerCase() || '';
@@ -164,16 +164,16 @@ const UserProfileScreen = ({ navigation }: Props) => {
           }
           return true;
         });
-        
+
         setCharacteristics(filteredChars);
-        
+
         // Sort photos by sortOrder (first photo = primary/avatar)
         const sortedPhotos = photos.sort((a: any, b: any) => {
           const aSort = a.SortOrder ?? a.sortOrder ?? 0;
           const bSort = b.SortOrder ?? b.sortOrder ?? 0;
           return aSort - bSort;
         });
-        
+
         setPetPhotos(sortedPhotos || []);
         console.log('📸 Pet photos loaded:', sortedPhotos.length, 'photos');
       } catch (error: any) {
@@ -192,7 +192,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
       const name = (char.name || char.attributeName || '').toLowerCase();
       return name.includes('tuổi') || name.includes('age');
     });
-    
+
     if (ageChar) {
       const value = ageChar.value || ageChar.optionValue;
       if (value) {
@@ -204,7 +204,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
         return value.toString().includes('year') ? value.toString() : `${value} years`;
       }
     }
-    
+
     return 'Unknown';
   };
 
@@ -220,11 +220,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
     } else {
       // Fallback to UrlImageAvatar or default
       const avatarUrl = activePet.UrlImageAvatar || activePet.urlImageAvatar;
-      photos = avatarUrl 
+      photos = avatarUrl
         ? [{ uri: avatarUrl }]
         : [require("../../../assets/cat_avatar.png")];
     }
-    
+
     return {
       id: (activePet.PetId || activePet.petId || 0).toString(),
       name: activePet.Name || activePet.name || 'Unknown',
@@ -265,7 +265,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
     fullAddress: fullAddress,
     isPremium: isVip, // Use actual VIP status
     email: userData?.Email || userData?.email || "",
-    memberSince: userData?.CreatedAt 
+    memberSince: userData?.CreatedAt
       ? new Date(userData.CreatedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
       : (userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : "Unknown"),
   };
@@ -279,13 +279,13 @@ const UserProfileScreen = ({ navigation }: Props) => {
       id: (pet.PetId || pet.petId || 0).toString(),
       name: pet.Name || pet.name || 'Unknown',
       breed: pet.Breed || pet.breed || 'Unknown',
-      age: isThisActive 
+      age: isThisActive
         ? getAgeFromCharacteristics(characteristics) // Get from characteristics if active
-        : pet.Age 
-          ? `${pet.Age} years` 
+        : pet.Age
+          ? `${pet.Age} years`
           : (pet.age ? `${pet.age} years` : 'Tap to view'), // Fallback message
       gender: (pet.Gender || pet.gender || 'male').toLowerCase() as "male" | "female",
-      image: pet.UrlImageAvatar || pet.urlImageAvatar 
+      image: pet.UrlImageAvatar || pet.urlImageAvatar
         ? { uri: pet.UrlImageAvatar || pet.urlImageAvatar }
         : require("../../../assets/cat_avatar.png"),
       isActive: isThisActive,
@@ -304,11 +304,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const handleDeletePet = async (petIdStr: string) => {
     const petId = parseInt(petIdStr, 10);
     const pet = pets.find(p => (p.PetId || p.petId) === petId);
-    
+
     if (!pet) return;
-    
+
     const petName = pet.Name || pet.name || 'This pet';
-    
+
     // Confirmation alert
     showAlert({
       type: 'warning',
@@ -319,7 +319,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
       onConfirm: async () => {
         try {
           await deletePet(petId);
-          
+
           showAlert({
             type: 'success',
             title: 'Deleted! 👋',
@@ -331,7 +331,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
             }
           });
         } catch (error: any) {
-          console.error('❌ Error deleting pet:', error);
+
           showAlert({
             type: 'error',
             title: 'Error',
@@ -346,9 +346,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const handleSetActivePet = async (petIdStr: string) => {
     const petId = parseInt(petIdStr, 10);
     const pet = pets.find(p => (p.PetId || p.petId) === petId);
-    
+
     if (!pet) return;
-    
+
     // Nếu đã active rồi thì không làm gì
     if (pet.IsActive === true || pet.isActive === true) {
       showAlert({
@@ -359,9 +359,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
       });
       return;
     }
-    
+
     const petName = pet.Name || pet.name || 'This pet';
-    
+
     showAlert({
       type: 'info',
       title: '🐾 Đặt pet hoạt động',
@@ -372,28 +372,28 @@ const UserProfileScreen = ({ navigation }: Props) => {
         try {
           // Call API để update DB
           await setActivePetAPI(petId);
-          
+
           // Reload pets data
           const userIdStr = await getItem('userId');
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
-            
+
             // ✅ CLEAR ALL CACHE khi đổi pet
             console.log('🗑️ Clearing all cache after switching pet...');
             invalidateCache.all();
-            
+
             const petsData = await getPetsByUserId(userId);
             setPets(petsData);
-            
+
             // Set new active pet
             const newActivePet = petsData.find(p => (p.PetId || p.petId) === petId);
             setActivePet(newActivePet || null);
-            
+
             // Refresh badges for the new active pet
             console.log('🔄 Refreshing badges after setting active pet...');
             await refreshBadgesForActivePet(userId);
           }
-              
+
           // Show success message
           showAlert({
             type: 'success',
@@ -401,7 +401,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
             message: `${petName} giờ là pet hoạt động của bạn!`,
           });
         } catch (error: any) {
-          console.error('Error setting active pet:', error);
+
           showAlert({
             type: 'error',
             title: 'Lỗi 😿',
@@ -418,13 +418,13 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
 
   const handleNextPhoto = () => {
-    setActivePhotoIndex((prev) => 
+    setActivePhotoIndex((prev) =>
       prev === myCat.photos.length - 1 ? 0 : prev + 1
     );
   };
 
   const handlePrevPhoto = () => {
-    setActivePhotoIndex((prev) => 
+    setActivePhotoIndex((prev) =>
       prev === 0 ? myCat.photos.length - 1 : prev - 1
     );
   };
@@ -443,7 +443,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       <SafeAreaView style={{ backgroundColor: colors.whiteWarm }} />
-      
+
       {/* Top Header with Settings */}
       <View style={styles.topHeader}>
         <View style={styles.headerLeft}>
@@ -475,22 +475,22 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {/* CAT Photo Carousel - MAIN FOCUS */}
         <View style={styles.photoSection}>
           {/* Tap zones for navigation */}
-          <Pressable 
-            style={styles.tapZoneLeft} 
+          <Pressable
+            style={styles.tapZoneLeft}
             onPress={handlePrevPhoto}
           />
-          <Pressable 
-            style={styles.tapZoneRight} 
+          <Pressable
+            style={styles.tapZoneRight}
             onPress={handleNextPhoto}
           />
-          
+
           <View style={styles.photoWrapper}>
             <Image
               source={myCat.photos[activePhotoIndex]}
               style={styles.mainPhoto}
             />
           </View>
-          
+
           {/* Gradient Overlay */}
           <LinearGradient
             colors={["transparent", "rgba(0,0,0,0.7)"]}
@@ -569,14 +569,14 @@ const UserProfileScreen = ({ navigation }: Props) => {
               {(showAllCharacteristics ? characteristics : characteristics.slice(0, 6)).map((char, index) => (
                 <View key={index} style={styles.characteristicCard}>
                   <View style={styles.characteristicHeader}>
-                    <Icon 
+                    <Icon
                       name={
-                        char.typeValue === 'string' ? 'paw' : 
-                        char.typeValue === 'float' || char.typeValue === 'number' ? 'fitness' : 
-                        'information-circle'
-                      } 
-                      size={18} 
-                      color={colors.primary} 
+                        char.typeValue === 'string' ? 'paw' :
+                          char.typeValue === 'float' || char.typeValue === 'number' ? 'fitness' :
+                            'information-circle'
+                      }
+                      size={18}
+                      color={colors.primary}
                     />
                     <Text style={styles.characteristicName}>{char.name || 'Unknown'}</Text>
                   </View>
@@ -594,7 +594,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 </View>
               ))}
             </View>
-            
+
             {/* Show More/Less Button */}
             {characteristics.length > 6 && (
               <TouchableOpacity
@@ -604,10 +604,10 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 <Text style={styles.showMoreText}>
                   {showAllCharacteristics ? 'Show Less' : `Show ${characteristics.length - 6} More`}
                 </Text>
-                <Icon 
-                  name={showAllCharacteristics ? 'chevron-up' : 'chevron-down'} 
-                  size={18} 
-                  color={colors.primary} 
+                <Icon
+                  name={showAllCharacteristics ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.primary}
                 />
               </TouchableOpacity>
             )}
@@ -623,7 +623,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 Tap to set active pet for matching
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addPetButton}
               onPress={() => navigation.navigate("AddPet")}
             >
@@ -636,9 +636,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-          
-          <ScrollView 
-            horizontal 
+
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.petsScrollContent}
           >
@@ -653,7 +653,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                   onLongPress={() => handleSetActivePet(pet.id)}
                 >
                   <Image source={pet.image} style={styles.petImage} />
-                  
+
                   {/* Active Badge */}
                   {pet.isActive && (
                     <View style={styles.activeBadge}>
@@ -677,7 +677,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     <Text style={styles.petBreed}>{pet.breed}</Text>
                     <Text style={styles.petAge}>{pet.age}</Text>
                   </View>
-                  
+
                   {/* Edit Button */}
                   <TouchableOpacity
                     style={styles.editPetBtn}
@@ -688,7 +688,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                   >
                     <Icon name="pencil" size={16} color={colors.primary} />
                   </TouchableOpacity>
-                  
+
                   {/* Delete Button */}
                   <TouchableOpacity
                     style={styles.deletePetBtn}
@@ -720,7 +720,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Owner Information</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.editOwnerButton}
               onPress={handleEditProfile}
             >

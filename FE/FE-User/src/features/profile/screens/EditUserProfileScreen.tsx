@@ -27,7 +27,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<number | undefined>(undefined);
   const [addressId, setAddressId] = useState<number | undefined>(undefined);
-  
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState("Male");
@@ -42,31 +42,31 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
     const loadUserData = async () => {
       try {
         setLoading(true);
-        
+
         // Get userId from route params or storage
         let uid = route.params?.userId;
         if (!uid) {
           const userIdStr = await getItem('userId');
           uid = userIdStr ? parseInt(userIdStr, 10) : undefined;
         }
-        
+
         if (!uid) {
           showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy người dùng', onClose: () => navigation.goBack() });
           return;
         }
-        
+
         setUserId(uid);
         console.log('📱 Loading user data for userId:', uid);
-        
+
         // Fetch user data
         const userData = await getUserById(uid);
         console.log('✅ User data loaded:', userData);
-        
+
         // Fill form
         setName(userData.FullName || userData.fullName || '');
         setEmail(userData.Email || userData.email || '');
         setGender(userData.Gender || userData.gender || 'Male');
-        
+
         // Load address data
         const addrId = userData.AddressId || userData.addressId;
         if (addrId) {
@@ -81,15 +81,15 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             console.log('⚠️ No address found');
           }
         }
-        
+
       } catch (error: any) {
-        console.error('❌ Error loading user data:', error);
+
         showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin người dùng' });
       } finally {
         setLoading(false);
       }
     };
-    
+
     loadUserData();
   }, [route.params?.userId]);
 
@@ -107,7 +107,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
     try {
       setSaving(true);
       console.log('💾 Saving user data...');
-      
+
       // Update user info only (address is managed via GPS)
       await updateUser(userId, {
         RoleId: 2,
@@ -115,11 +115,11 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         Gender: gender,
         NewPassword: undefined,
       });
-      
+
       console.log('✅ User updated successfully');
       showAlert({ type: 'success', title: 'Thành công', message: 'Đã cập nhật thông tin!', onClose: () => navigation.goBack() });
     } catch (error: any) {
-      console.error('❌ Error saving user data:', error);
+
       showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể lưu thông tin' });
     } finally {
       setSaving(false);
@@ -136,14 +136,14 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       console.log('⚠️ GPS request already in progress, skipping...');
       return;
     }
-    
+
     try {
       setGettingLocation(true);
-      
+
       // Get GPS coordinates
       console.log('📍 [START] Requesting location permission...');
       const coordinates = await requestLocationAndGetCoordinates();
-      
+
       if (!coordinates) {
         showAlert({
           type: 'warning',
@@ -152,12 +152,12 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         });
         return;
       }
-      
+
       // Update address with GPS coordinates
       if (userId) {
         console.log('📍 [API CALL] Updating address with coordinates:', coordinates);
         console.log('📍 Current addressId:', addressId);
-        
+
         // If user already has addressId, use PUT (update), else use POST (create)
         if (addressId) {
           console.log('📍 Calling updateAddress (PUT)...');
@@ -166,13 +166,13 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           console.log('📍 Calling createAddressForUser (POST)...');
           await createAddressForUser(userId, coordinates.latitude, coordinates.longitude);
         }
-        
+
         console.log('📍 [RELOAD] Fetching updated user data...');
         // Reload address data
         const user = await getUserById(userId);
         const addrId = user.AddressId || user.addressId;
         console.log('📍 User reloaded, AddressId:', addrId);
-        
+
         if (addrId) {
           const address = await getAddressById(addrId);
           setAddressId(addrId);
@@ -181,7 +181,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           setWard(address?.Ward || address?.ward || '');
           console.log('✅ Address data loaded:', address);
         }
-        
+
         showAlert({
           type: 'success',
           title: 'Thành công! 📍',
@@ -189,7 +189,6 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         });
       }
     } catch (error: any) {
-      console.error('❌ GPS error:', error);
       showAlert({
         type: 'error',
         title: 'Lỗi',
@@ -320,38 +319,38 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
           {/* Location - GPS Only */}
           <Text style={styles.sectionTitle}>Location (GPS)</Text>
-          
+
           <View style={styles.gpsInfoBox}>
-                <Icon name="information-circle" size={20} color={colors.primary} />
-                <Text style={styles.gpsInfoText}>
-                  Nhấn nút bên dưới để tự động lấy vị trí từ GPS của bạn
-                </Text>
-              </View>
-              
-              <TouchableOpacity
-                style={styles.gpsButton}
-                onPress={handleGetGPSLocation}
-                disabled={gettingLocation}
-              >
-                <LinearGradient
-                  colors={gettingLocation ? ["#CCC", "#DDD"] : ["#FF6EA7", "#FF9BC0"]}
-                  style={styles.gpsButtonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  {gettingLocation ? (
-                    <>
-                      <ActivityIndicator size="small" color="#fff" />
-                      <Text style={styles.gpsButtonText}>Đang lấy vị trí...</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="navigate" size={20} color="#fff" />
-                      <Text style={styles.gpsButtonText}>Lấy vị trí GPS</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+            <Icon name="information-circle" size={20} color={colors.primary} />
+            <Text style={styles.gpsInfoText}>
+              Nhấn nút bên dưới để tự động lấy vị trí từ GPS của bạn
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.gpsButton}
+            onPress={handleGetGPSLocation}
+            disabled={gettingLocation}
+          >
+            <LinearGradient
+              colors={gettingLocation ? ["#CCC", "#DDD"] : ["#FF6EA7", "#FF9BC0"]}
+              style={styles.gpsButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              {gettingLocation ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text style={styles.gpsButtonText}>Đang lấy vị trí...</Text>
+                </>
+              ) : (
+                <>
+                  <Icon name="navigate" size={20} color="#fff" />
+                  <Text style={styles.gpsButtonText}>Lấy vị trí GPS</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
 
           {/* Show current location */}
           {(city || district || ward) && (

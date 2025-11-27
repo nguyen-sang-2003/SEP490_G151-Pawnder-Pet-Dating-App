@@ -43,8 +43,7 @@ export const createOrGetExpertChat = async (
     console.log('✅ Expert chat created/retrieved:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Create expert chat error:', error);
-    console.error('❌ Error response:', error.response?.data);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -73,7 +72,7 @@ export const getUserExpertChats = async (userId: number): Promise<ExpertChatList
     console.log(`🔄 Getting expert chats for user: ${userId}`);
     const response = await apiClient.get(`/api/ChatExpert/user/${userId}`);
     console.log('✅ Expert chats retrieved (raw):', response.data);
-    
+
     // Transform backend response to match interface
     const chats = (response.data || []).map((chat: any) => ({
       id: chat.id || chat.chatExpertId?.toString() || '',
@@ -86,11 +85,11 @@ export const getUserExpertChats = async (userId: number): Promise<ExpertChatList
       unread: chat.unread || 0,
       isOnline: chat.isOnline || false,
     }));
-    
+
     console.log('✅ Transformed chats:', chats);
     return chats;
   } catch (error: any) {
-    console.error('❌ Get expert chats error:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -109,7 +108,7 @@ export const getExpertChatMessages = async (chatExpertId: number): Promise<Exper
     console.log('✅ Expert chat messages loaded:', response.data.length, 'messages');
     return response.data || [];
   } catch (error: any) {
-    console.error('❌ Get expert chat messages error:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -135,8 +134,7 @@ export const sendExpertChatMessage = async (
     console.log('✅ Message sent successfully:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Send expert message error:', error);
-    console.error('❌ Error response:', error.response?.data);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

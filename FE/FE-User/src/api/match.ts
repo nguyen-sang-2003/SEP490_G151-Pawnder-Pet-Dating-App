@@ -79,7 +79,7 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error fetching stats:', error);
+
     throw error;
   }
 };
@@ -91,14 +91,14 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
 export const getBadgeCounts = async (userId: number, petId?: number): Promise<BadgeCounts> => {
   try {
 
-    const url = petId 
+    const url = petId
       ? `/api/match/badge-counts/${userId}?petId=${petId}`
       : `/api/match/badge-counts/${userId}`;
     const response = await client.get(url);
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error fetching badge counts:', error);
+
     throw error;
   }
 };
@@ -116,8 +116,7 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
   } catch (error: any) {
     // Don't log 429 limit errors (handled by UI modal)
     if (error.response?.status !== 429) {
-      console.error('❌ Error sending like:', error);
-      console.error('Error response:', error.response?.data);
+
     }
     throw error;
   }
@@ -130,15 +129,14 @@ export const sendLike = async (request: LikeRequest): Promise<LikeResponse> => {
 export const getLikesReceived = async (userId: number, petId?: number): Promise<LikeReceivedItem[]> => {
   try {
 
-    const url = petId 
+    const url = petId
       ? `/api/match/likes-received/${userId}?petId=${petId}`
       : `/api/match/likes-received/${userId}`;
     const response = await client.get(url);
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error fetching likes received:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };
@@ -154,8 +152,7 @@ export const respondToLike = async (request: RespondToLikeRequest): Promise<any>
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error responding to like:', error);
-    console.error('Error response:', error.response?.data);
+
     throw error;
   }
 };

@@ -152,7 +152,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
                 await login(userData.Email, userData.Password);
                 console.log('✅ Auto-login successful - tokens stored in Keychain');
               } catch (loginError: any) {
-                console.error('⚠️ Auto-login failed:', loginError);
+
                 // Don't block the flow - user can login manually later
                 // But this means subsequent API calls might fail due to missing tokens
               }
@@ -172,7 +172,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               });
             } catch (error: any) {
               setLoading(false);
-              console.error('Registration error:', error);
+
 
               let errorTitle = 'Tạo tài khoản thất bại';
               let errorMessage = error.message || 'Có lỗi xảy ra. Vui lòng thử lại.';
@@ -203,7 +203,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
         },
       });
     } catch (error: any) {
-      console.error('OTP Verification error:', error);
+
 
       showAlert({
         type: 'error',
@@ -248,7 +248,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
         onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
       });
     } catch (error: any) {
-      console.error('Location setup error:', error);
+
 
       // Show error but allow user to continue
       showAlert({

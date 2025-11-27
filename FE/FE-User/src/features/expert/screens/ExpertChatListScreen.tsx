@@ -35,24 +35,24 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
   const loadExpertChats = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user ID
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
         console.log('❌ No userId found');
         return;
       }
-      
+
       const userId = parseInt(userIdStr);
       console.log('📞 Loading expert chats for user:', userId);
-      
+
       // Call API to get expert chats
       const chats = await getUserExpertChats(userId);
       console.log('✅ Got expert chats:', chats);
-      
+
       setExpertChats(chats);
     } catch (error: any) {
-      console.error("❌ Error loading expert chats:", error);
+
     } finally {
       setLoading(false);
     }
@@ -63,33 +63,33 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
     if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
       dateStr = dateStr + 'Z';
     }
-    
+
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffDays > 0) {
       return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày trước`;
     }
-    
+
     if (diffHours > 0) {
       return `${diffHours} giờ trước`;
     }
-    
+
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins > 0) {
       return `${diffMins} phút trước`;
     }
-    
+
     return 'Vừa xong';
   };
 
   const renderExpertChat = ({ item }: { item: ExpertChatListItem }) => {
     const formattedTime = formatTime(item.time);
     const isUnread = unreadExpertChats.includes(item.chatExpertId);
-    
+
     return (
       <TouchableOpacity
         style={[styles.chatItem, isUnread && styles.chatItemUnread]}

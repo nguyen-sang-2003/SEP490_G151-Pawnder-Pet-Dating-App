@@ -55,7 +55,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
   // Load messages
   const loadMessages = useCallback(async () => {
     if (!chatExpertId) {
-      console.error('❌ No chatExpertId provided');
+
       Alert.alert('Lỗi', 'Không tìm thấy cuộc trò chuyện');
       setLoading(false);
       return;
@@ -68,7 +68,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       setCurrentUserId(userId);
 
       if (!userId) {
-        console.error('❌ No userId found');
+
         Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
         setLoading(false);
         return;
@@ -84,7 +84,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
           dateStr = dateStr + 'Z';
         }
-        
+
         return {
           id: msg.contentId.toString(),
           text: msg.message,
@@ -97,7 +97,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       setMessages(transformedMessages);
       console.log('✅ Loaded', transformedMessages.length, 'messages');
     } catch (error: any) {
-      console.error('❌ Error loading messages:', error);
+
       Alert.alert('Lỗi', error.message || 'Không thể tải tin nhắn');
     } finally {
       setLoading(false);
@@ -113,7 +113,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         // Get userId
         const userIdStr = await AsyncStorage.getItem('userId');
         const userId = userIdStr ? parseInt(userIdStr) : null;
-        
+
         if (!userId) {
           console.warn('⚠️ No userId for SignalR setup');
           return;
@@ -135,27 +135,27 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
           console.log('💬 [ExpertChat] Current chatExpertId:', chatExpertId);
           console.log('💬 [ExpertChat] Message fromId:', data.FromId);
           console.log('💬 [ExpertChat] Message chatExpertId:', data.ChatExpertId);
-          
+
           // Check if message is for this chat
           const messageChatId = data.ChatExpertId || data.chatExpertId;
           if (messageChatId !== chatExpertId) {
             console.log('⚠️ Message is for different chat, ignoring');
             return;
           }
-          
+
           // Check if message is from current user (skip to avoid duplicate with optimistic update)
           const messageFromId = data.FromId || data.fromId;
           if (messageFromId === userId) {
             console.log('⚠️ Message is from current user, skipping (already added optimistically)');
             return;
           }
-          
+
           // Add message from expert
           let dateStr = data.CreatedAt || data.createdAt;
           if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
             dateStr = dateStr + 'Z';
           }
-          
+
           const newMessage: Message = {
             id: `signalr_${Date.now()}`,
             text: data.Message || data.message,
@@ -168,8 +168,8 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
 
           setMessages((prev) => {
             // Check if message already exists (avoid duplicates)
-            const exists = prev.some(m => 
-              m.text === newMessage.text && 
+            const exists = prev.some(m =>
+              m.text === newMessage.text &&
               Math.abs(m.timestamp.getTime() - newMessage.timestamp.getTime()) < 2000
             );
             if (exists) {
@@ -192,11 +192,11 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         return () => {
           signalRService.off('ReceiveExpertMessage', handleNewMessage);
           signalRService.leaveExpertChat(chatExpertId, userId).catch(err => {
-            console.error('❌ Failed to leave expert chat:', err);
+
           });
         };
       } catch (error) {
-        console.error('❌ Error setting up SignalR for expert chat:', error);
+
       }
     };
 
@@ -253,24 +253,24 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
         dateStr = dateStr + 'Z';
       }
-      
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempId
             ? {
-                ...msg,
-                id: sentMessage.contentId.toString(),
-                timestamp: new Date(dateStr),
-                status: "sent" as const,
-              }
+              ...msg,
+              id: sentMessage.contentId.toString(),
+              timestamp: new Date(dateStr),
+              status: "sent" as const,
+            }
             : msg
         )
       );
 
       console.log('✅ Message sent successfully');
     } catch (error: any) {
-      console.error('❌ Error sending message:', error);
-      
+
+
       // Mark message as failed
       setMessages((prev) =>
         prev.map((msg) =>
@@ -287,8 +287,8 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
   const formatTime = (date: Date) => {
     // Date object đã được convert từ UTC sang local time của device
     // Chỉ cần format lại
-    return date.toLocaleTimeString('vi-VN', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
       minute: '2-digit',
       hour12: false
     });
@@ -350,8 +350,8 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
                   item.status === "sending"
                     ? "time-outline"
                     : item.status === "sent"
-                    ? "checkmark-done"
-                    : "alert-circle-outline"
+                      ? "checkmark-done"
+                      : "alert-circle-outline"
                 }
                 size={14}
                 color={item.isExpert ? "#81C784" : "rgba(255, 255, 255, 0.7)"}

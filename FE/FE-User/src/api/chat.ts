@@ -37,14 +37,14 @@ export interface SendMessageRequest {
 export const getChats = async (userId: number, petId?: number): Promise<ChatUser[]> => {
   try {
 
-    const url = petId 
+    const url = petId
       ? `/api/ChatUser/chat/${userId}?petId=${petId}`
       : `/api/ChatUser/chat/${userId}`;
     const response = await client.get<ChatUser[]>(url);
 
     return response.data;
   } catch (error: any) {
-    console.error('❌ Error getting chats:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -62,7 +62,7 @@ export const deleteChat = async (matchId: number): Promise<void> => {
     const response = await client.delete(`/api/ChatUser/chat/${matchId}`);
 
   } catch (error: any) {
-    console.error('❌ Error deleting chat:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -90,10 +90,10 @@ export const getChatMessages = async (matchId: number): Promise<ChatMessage[]> =
 
       return [];
     }
-    
+
     // Only log error for non-404 cases
-    console.error('❌ Error getting messages:', error);
-    
+
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }
@@ -114,7 +114,7 @@ export const sendMessage = async (
 ): Promise<void> => {
   try {
 
-    
+
     // Backend expects raw string, not JSON
     const response = await client.post(
       `/api/ChatUserContent/chat-user-content/${matchId}/${fromUserId}`,
@@ -125,10 +125,10 @@ export const sendMessage = async (
         },
       }
     );
-    
+
 
   } catch (error: any) {
-    console.error('❌ Error sending message:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

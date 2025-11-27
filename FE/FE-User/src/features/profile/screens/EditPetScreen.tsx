@@ -39,7 +39,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("Male");
   const [description, setDescription] = useState("");
-  
+
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
   const [ward, setWard] = useState("");
@@ -54,7 +54,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     const loadPetData = async () => {
       try {
         setLoading(true);
-        
+
         if (!petId) {
           showAlert({
             type: 'error',
@@ -64,32 +64,32 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           });
           return;
         }
-        
+
         console.log('📱 Loading pet data for petId:', petId);
-        
+
         // Fetch pet data
         const petData = await getPetById(petId);
         console.log('✅ Pet data loaded:', petData);
-        
+
         // Fill form
         setName(petData.Name || petData.name || '');
         setBreed(petData.Breed || petData.breed || '');
         setAge(petData.Age?.toString() || petData.age?.toString() || '');
         setGender(petData.Gender || petData.gender || 'Male');
         setDescription(petData.Description || petData.description || '');
-        
+
         // Load owner's address - giống EditUserProfile
         const userId = petData.UserId || petData.userId;
         console.log('👤 Pet UserId:', userId);
-        
+
         if (userId) {
           try {
             const userData = await getUserById(userId);
             console.log('✅ User data loaded:', userData);
-            
+
             const addressId = userData.AddressId || userData.addressId;
             console.log('🔍 User addressId:', addressId);
-            
+
             if (addressId) {
               const address = await getAddressById(addressId);
               console.log('📍 Address loaded:', address);
@@ -111,9 +111,9 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           console.log('⚠️ No photos found for pet');
           setPhotos([]);
         }
-        
+
       } catch (error: any) {
-        console.error('❌ Error loading pet data:', error);
+
         showAlert({
           type: 'error',
           title: 'Lỗi',
@@ -123,7 +123,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         setLoading(false);
       }
     };
-    
+
     loadPetData();
   }, [petId]);
 
@@ -136,7 +136,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       });
       return;
     }
-    
+
     if (!name.trim()) {
       showAlert({
         type: 'warning',
@@ -149,7 +149,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     try {
       setSaving(true);
       console.log('💾 Saving pet data...');
-      
+
       await updatePet(petId, {
         Name: name.trim(),
         Breed: breed.trim() || undefined,
@@ -158,7 +158,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         Description: description.trim() || undefined,
         IsActive: true,
       });
-      
+
       console.log('✅ Pet updated successfully');
       showAlert({
         type: 'success',
@@ -167,7 +167,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         onClose: () => navigation.goBack(),
       });
     } catch (error: any) {
-      console.error('❌ Error saving pet data:', error);
+
       showAlert({
         type: 'error',
         title: 'Lỗi',
@@ -205,7 +205,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       }
 
       if (result.errorCode) {
-        console.error('ImagePicker Error: ', result.errorMessage);
+
         showAlert({
           type: 'error',
           title: 'Lỗi',
@@ -216,7 +216,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
       if (result.assets && result.assets.length > 0) {
         setUploading(true);
-        
+
         // Prepare photos for upload
         const newPhotos = result.assets.map((asset: Asset) => ({
           uri: asset.uri || '',
@@ -231,7 +231,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         // Reload photos
         const photosData = await getPetPhotos(petId);
         setPhotos(photosData || []);
-        
+
         showAlert({
           type: 'success',
           title: 'Thành công',
@@ -239,7 +239,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         });
       }
     } catch (error: any) {
-      console.error('Error uploading photos:', error);
+
       showAlert({
         type: 'error',
         title: 'Lỗi',
@@ -261,7 +261,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     const newPhotos = [...photos];
     const [movedItem] = newPhotos.splice(fromIndex, 1);
     newPhotos.splice(toIndex, 0, movedItem);
-    
+
     // Update sortOrder for all photos
     const reorderData = newPhotos.map((photo, index) => ({
       photoId: photo.PhotoId || photo.photoId,
@@ -271,17 +271,17 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     try {
       // Optimistically update UI
       setPhotos(newPhotos);
-      
+
       // Call API
       await reorderPetPhotos(reorderData);
-      
+
       console.log('✅ Photos reordered successfully');
     } catch (error: any) {
-      console.error('❌ Error reordering photos:', error);
-      
+
+
       // Revert on error
       setPhotos(photos);
-      
+
       showAlert({
         type: 'error',
         title: 'Lỗi',
@@ -312,21 +312,21 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       onConfirm: async () => {
         try {
           console.log('🗑️ Deleting photo:', photoId);
-          
+
           // Delete the photo
           await deletePetPhoto(photoId);
-          
+
           // Reload photos (backend will auto-reorder by SortOrder)
           const photosData = await getPetPhotos(petId);
           setPhotos(photosData || []);
-          
+
           showAlert({
             type: 'success',
             title: 'Thành công',
             message: 'Đã xóa ảnh!',
           });
         } catch (error: any) {
-          console.error('Error deleting photo:', error);
+
           showAlert({
             type: 'error',
             title: 'Lỗi',
@@ -403,7 +403,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Pet Photos ({photos.length}/{maxPhotos})</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleAddPhoto}
               disabled={uploading || photos.length >= maxPhotos}
               style={[styles.addPhotoBtn, (uploading || photos.length >= maxPhotos) && styles.addPhotoBtnDisabled]}
@@ -415,11 +415,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               )}
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.photosGrid}>
             {photos.map((photo: any, index: number) => (
-              <View 
-                key={photo.PhotoId || photo.photoId || index} 
+              <View
+                key={photo.PhotoId || photo.photoId || index}
                 style={styles.photoItem}
               >
                 <View style={styles.photoImageContainer}>
@@ -429,14 +429,14 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                     resizeMode="cover"
                   />
                 </View>
-                
+
                 {/* Primary star badge - bottom left (first photo only) */}
                 {index === 0 && (
                   <View style={styles.primaryBadge}>
                     <Icon name="star" size={18} color="#FFD700" />
                   </View>
                 )}
-                
+
                 {/* Reorder arrows - top center */}
                 <View style={styles.reorderButtons}>
                   <TouchableOpacity
@@ -456,7 +456,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                     <Icon name="chevron-forward" size={14} color={index === photos.length - 1 ? "#666" : "#FFF"} />
                   </TouchableOpacity>
                 </View>
-                
+
                 {/* Delete button - bottom right */}
                 <TouchableOpacity
                   style={styles.deletePhotoBtn}
@@ -467,7 +467,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                 </TouchableOpacity>
               </View>
             ))}
-            
+
             {/* Empty slots */}
             {Array.from({ length: maxPhotos - photos.length }).map((_, index) => (
               <View key={`empty-${index}`} style={[styles.photoItem, styles.emptyPhotoSlot]}>
@@ -584,7 +584,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           {/* Owner's Location (Read-only) */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Owner's Location</Text>
-            
+
             <View style={styles.readOnlyField}>
               <Icon name="location-outline" size={16} color="#666" />
               <Text style={styles.readOnlyText}>
@@ -924,7 +924,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0.5,
   },
-  
+
   // Read-only field
   readOnlyField: {
     flexDirection: "row",
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#666",
   },
-  
+
   // Note
   noteCard: {
     flexDirection: "row",

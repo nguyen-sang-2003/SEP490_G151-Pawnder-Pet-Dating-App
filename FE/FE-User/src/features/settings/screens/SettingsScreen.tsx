@@ -53,12 +53,12 @@ const SettingsScreen = ({ navigation }: Props) => {
         setVipStatus(status);
       }
     } catch (error) {
-      console.error('Error loading VIP status:', error);
+
     } finally {
       setLoadingVip(false);
     }
   };
-  
+
   const accountSettings: SettingsItem[] = [
     {
       icon: "person-outline",
@@ -149,15 +149,15 @@ const SettingsScreen = ({ navigation }: Props) => {
       // Call logout API (will invalidate tokens on server and clear local storage)
       await logout();
       console.log('🔓 Logged out successfully');
-      
+
       // Navigate to Welcome screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Welcome' }],
       });
     } catch (error) {
-      console.error('❌ Logout error:', error);
-      
+
+
       // Even if there's an error, navigate to Welcome since tokens are cleared locally
       navigation.reset({
         index: 0,

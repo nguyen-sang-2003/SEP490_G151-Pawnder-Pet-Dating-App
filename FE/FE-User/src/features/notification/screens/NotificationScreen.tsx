@@ -57,7 +57,7 @@ const NotificationScreen = ({ navigation }: Props) => {
     try {
       setLoading(true);
       console.log('🔄 Loading notifications...');
-      
+
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
         console.log('❌ No userId found');
@@ -70,7 +70,7 @@ const NotificationScreen = ({ navigation }: Props) => {
 
       console.log('🔄 Loading notifications for user:', userId);
       const data = await getNotifications(userId);
-      
+
       // Merge expertId from AsyncStorage for expert_confirmation notifications
       for (const notification of data) {
         if (notification.type === 'expert_confirmation') {
@@ -84,22 +84,22 @@ const NotificationScreen = ({ navigation }: Props) => {
               console.log(`✅ Loaded expertId ${mapping.expertId} for notification ${notification.notificationId}`);
             }
           } catch (err) {
-            console.error('❌ Failed to load notification-expert mapping:', err);
+
           }
         }
       }
-      
+
       // Sort by createdAt descending (newest first)
       const sortedData = data.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-      
+
       setNotifications(sortedData);
       console.log('✅ Loaded', sortedData.length, 'notifications');
     } catch (error) {
-      console.error('❌ Error loading notifications:', error);
+
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -120,22 +120,22 @@ const NotificationScreen = ({ navigation }: Props) => {
       try {
         const userIdStr = await AsyncStorage.getItem('userId');
         if (!userIdStr) return;
-        
+
         const userId = parseInt(userIdStr);
-        
+
         // Connect if not already connected
         if (!signalRService.isConnected()) {
           await signalRService.connect(userId);
         }
-        
+
         // Listen for new notifications
         const handleNewNotification = (data: any) => {
           console.log('🔔 New notification received via SignalR:', data);
-          
+
           // Reload notifications first to get NotificationId from DB
           loadNotifications().then(async () => {
             console.log('✅ Notifications reloaded from API after realtime notification');
-            
+
             // After reload, if we have expertId in SignalR data, store it with the newest notification
             if (data.ExpertId && data.Type === 'expert_confirmation') {
               try {
@@ -148,7 +148,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                     const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                     return dateB - dateA;
                   })[0];
-                
+
                 if (newestExpertNotif) {
                   // Store mapping: notificationId -> expertId
                   const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
@@ -161,33 +161,33 @@ const NotificationScreen = ({ navigation }: Props) => {
                   console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
                 }
               } catch (err) {
-                console.error('❌ Failed to store notification-expert mapping:', err);
+
               }
             }
           }).catch(err => {
-            console.error('❌ Failed to reload notifications:', err);
+
           });
-          
+
           // Refresh badge count if userId is available
           if (userId) {
             refreshBadgesForActivePet(userId).catch(err => {
-              console.error('❌ Failed to refresh badges:', err);
+
             });
           }
         };
-        
+
         signalRService.on('NewNotification', handleNewNotification);
         console.log('✅ SignalR listener setup for notifications');
-        
+
         // Cleanup
         return () => {
           signalRService.off('NewNotification', handleNewNotification);
         };
       } catch (error) {
-        console.error('❌ Error setting up SignalR for notifications:', error);
+
       }
     };
-    
+
     setupSignalR();
   }, []);
 
@@ -200,17 +200,17 @@ const NotificationScreen = ({ navigation }: Props) => {
   // Mark all as read
   const handleMarkAllAsRead = async () => {
     if (!currentUserId) return;
-    
+
     try {
       await markAllNotificationsAsRead(currentUserId);
       // Update local state
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       console.log('✅ Marked all notifications as read');
-      
+
       // Refresh badge count after marking all as read
       await refreshBadgesForActivePet(currentUserId);
     } catch (error) {
-      console.error('❌ Error marking all as read:', error);
+
     }
   };
 
@@ -243,22 +243,22 @@ const NotificationScreen = ({ navigation }: Props) => {
     // Show modal with notification details
     setSelectedNotification(item);
     setModalVisible(true);
-    
+
     // Mark as read
     if (!item.isRead) {
       try {
         await markNotificationAsRead(item.notificationId);
         // Update local state
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(n => n.notificationId === item.notificationId ? { ...n, isRead: true } : n)
         );
-        
+
         // Refresh badge count after marking as read
         if (currentUserId) {
           await refreshBadgesForActivePet(currentUserId);
         }
       } catch (error) {
-        console.error('❌ Error marking notification as read:', error);
+
       }
     }
   };
@@ -282,30 +282,30 @@ const NotificationScreen = ({ navigation }: Props) => {
     try {
       setCreatingChat(true);
       let expertId = selectedNotification.expertId;
-      
+
       // Fallback: If expertId not in AsyncStorage (old notification), try to find from ExpertConfirmation
       if (!expertId) {
         console.log('⚠️ ExpertId not found in AsyncStorage for notification:', selectedNotification.notificationId);
         console.log('🔄 Attempting fallback: Loading from ExpertConfirmation API...');
-        
+
         try {
           const confirmations = await getUserExpertConfirmations(currentUserId);
           console.log('✅ Loaded expert confirmations:', confirmations);
-          
+
           if (confirmations.length === 0) {
             throw new Error('Không tìm thấy yêu cầu xác nhận nào.');
           }
-          
+
           // Find confirmation with matching timestamp (within 5 seconds of notification)
           const notificationTime = selectedNotification.createdAt ? new Date(selectedNotification.createdAt).getTime() : 0;
-          
+
           let matchingConfirmation = confirmations.find(c => {
             if (c.status?.toLowerCase() !== 'confirmed') return false;
             const confirmTime = c.updatedAt ? new Date(c.updatedAt).getTime() : 0;
             const timeDiff = Math.abs(confirmTime - notificationTime);
             return timeDiff < 5000; // Within 5 seconds
           });
-          
+
           // If no exact match, use the most recent confirmed expert
           if (!matchingConfirmation) {
             console.log('⚠️ No exact timestamp match, using most recent confirmed expert');
@@ -317,11 +317,11 @@ const NotificationScreen = ({ navigation }: Props) => {
                 return dateB - dateA;
               })[0];
           }
-          
+
           if (matchingConfirmation) {
             expertId = matchingConfirmation.expertId;
             console.log('✅ Found expertId from ExpertConfirmation:', expertId);
-            
+
             // Store for future use
             const mappingKey = `notification_expert_${selectedNotification.notificationId}`;
             const mappingData = {
@@ -333,17 +333,17 @@ const NotificationScreen = ({ navigation }: Props) => {
             console.log('💾 Stored expert mapping for future use');
           }
         } catch (err) {
-          console.error('❌ Failed to load expert from ExpertConfirmation:', err);
+
         }
       }
-      
+
       if (!expertId) {
         showAlert({
           type: 'error',
           title: 'Lỗi',
           message: 'Không tìm thấy thông tin chuyên gia. Vui lòng thử lại sau hoặc liên hệ admin.'
         });
-        console.error('❌ ExpertId not found for notification:', selectedNotification.notificationId);
+
         return;
       }
 
@@ -363,7 +363,7 @@ const NotificationScreen = ({ navigation }: Props) => {
         expertName: selectedNotification.title?.replace('đã xác nhận thông tin', '').replace('Chuyên gia', '').trim() || "Chuyên gia"
       });
     } catch (error: any) {
-      console.error('❌ Error creating chat with expert:', error);
+
       showAlert({
         type: 'error',
         title: 'Lỗi',
@@ -392,8 +392,8 @@ const NotificationScreen = ({ navigation }: Props) => {
         activeOpacity={0.7}
       >
         <View style={styles.iconContainer}>
-          <LinearGradient 
-            colors={bgColors} 
+          <LinearGradient
+            colors={bgColors}
             style={styles.iconGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -445,7 +445,7 @@ const NotificationScreen = ({ navigation }: Props) => {
   }, [notifications, filterType]);
 
   // 🚀 OPTIMIZATION: Memoize unreadCount calculation
-  const unreadCount = useMemo(() => 
+  const unreadCount = useMemo(() =>
     notifications.filter((n) => !n.isRead).length,
     [notifications]
   );
@@ -500,22 +500,22 @@ const NotificationScreen = ({ navigation }: Props) => {
             )}
           </View>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.markAllButton}
           onPress={handleMarkAllAsRead}
           disabled={unreadCount === 0}
         >
-          <Icon 
-            name="checkmark-done" 
-            size={22} 
-            color={unreadCount > 0 ? colors.primary : colors.textLabel} 
+          <Icon
+            name="checkmark-done"
+            size={22}
+            color={unreadCount > 0 ? colors.primary : colors.textLabel}
           />
         </TouchableOpacity>
       </View>
 
       {/* Filter Tabs - Horizontal ScrollView */}
-      <ScrollView 
-        horizontal 
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterScrollContent}
         style={styles.filterScroll}
@@ -529,10 +529,10 @@ const NotificationScreen = ({ navigation }: Props) => {
               onPress={() => setFilterType(tab.id)}
               activeOpacity={0.7}
             >
-              <Icon 
-                name={tab.icon} 
-                size={18} 
-                color={isActive ? colors.white : colors.textMedium} 
+              <Icon
+                name={tab.icon}
+                size={18}
+                color={isActive ? colors.white : colors.textMedium}
               />
               <Text style={isActive ? styles.filterTextActive : styles.filterText}>
                 {tab.label}
@@ -587,15 +587,15 @@ const NotificationScreen = ({ navigation }: Props) => {
             />
           </LinearGradient>
           <Text style={styles.emptyText}>
-            {filterType === "all" 
-              ? "No notifications yet" 
+            {filterType === "all"
+              ? "No notifications yet"
               : filterType === "unread"
                 ? "All caught up!"
                 : `No ${filterType} notifications`
             }
           </Text>
           <Text style={styles.emptySubtext}>
-            {filterType === "all" 
+            {filterType === "all"
               ? "You'll see system and expert notifications here"
               : filterType === "unread"
                 ? "You have no unread notifications"
@@ -614,35 +614,35 @@ const NotificationScreen = ({ navigation }: Props) => {
         animationType="fade"
         onRequestClose={closeModal}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={closeModal}
         >
-          <TouchableOpacity 
-            style={styles.modalContent} 
+          <TouchableOpacity
+            style={styles.modalContent}
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <LinearGradient
-                colors={selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert" 
-                  ? ["#FF6EA7", "#FF9BC0"] 
+                colors={selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert"
+                  ? ["#FF6EA7", "#FF9BC0"]
                   : ["#FFB8D6", "#FF8FB7"]}
                 style={styles.modalIconGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Icon 
-                  name={selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert" 
-                    ? "medical" 
-                    : "sparkles"} 
-                  size={32} 
-                  color={colors.white} 
+                <Icon
+                  name={selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert"
+                    ? "medical"
+                    : "sparkles"}
+                  size={32}
+                  color={colors.white}
                 />
               </LinearGradient>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={closeModal}
               >
@@ -651,7 +651,7 @@ const NotificationScreen = ({ navigation }: Props) => {
             </View>
 
             {/* Modal Body */}
-            <ScrollView 
+            <ScrollView
               style={styles.modalBody}
               showsVerticalScrollIndicator={false}
             >
@@ -740,7 +740,7 @@ const NotificationScreen = ({ navigation }: Props) => {
             <View style={styles.modalActions}>
               {(selectedNotification?.type === "expert_confirmation" || selectedNotification?.type === "expert") ? (
                 <>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.modalButton}
                     onPress={handleChatWithExpert}
                     disabled={creatingChat}
@@ -761,7 +761,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                       )}
                     </LinearGradient>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.modalSecondaryButton}
                     onPress={closeModal}
                   >
@@ -769,7 +769,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                   </TouchableOpacity>
                 </>
               ) : (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalButton}
                   onPress={closeModal}
                 >
@@ -1152,7 +1152,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 16,
   },
-  
+
   // Expert Reply Sections
   questionSection: {
     marginBottom: 20,

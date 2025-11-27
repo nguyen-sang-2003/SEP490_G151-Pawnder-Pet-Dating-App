@@ -45,20 +45,20 @@ const SWIPE_THRESHOLD = width * 0.25;
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 interface PetProfile {
-  id: string;
-  name: string;
-  age: string;
-  breed: string;
-  gender: "male" | "female";
-  distance: string;
-  bio: string;
-  image: any; // First image for backward compatibility
-  images: any[]; // All images for carousel
-  personality: string[];
-  owner: string;
-  ownerId: number; // Add ownerId for API calls
-  matchPercent: number; // Match percentage (0-100)
-  ownerIsVip?: boolean; // VIP status of pet owner
+    id: string;
+    name: string;
+    age: string;
+    breed: string;
+    gender: "male" | "female";
+    distance: string;
+    bio: string;
+    image: any; // First image for backward compatibility
+    images: any[]; // All images for carousel
+    personality: string[];
+    owner: string;
+    ownerId: number; // Add ownerId for API calls
+    matchPercent: number; // Match percentage (0-100)
+    ownerIsVip?: boolean; // VIP status of pet owner
 }
 
 const HomeScreen = ({ navigation }: Props) => {
@@ -75,23 +75,23 @@ const HomeScreen = ({ navigation }: Props) => {
     const [showMatchLimitModal, setShowMatchLimitModal] = useState(false);
     const [limitMessage, setLimitMessage] = useState("");
     const [refreshing, setRefreshing] = useState(false);
-    
+
     // Fade-in animation for loaded pets
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    
+
     // Scale animations for Like/Pass buttons
     const likeButtonScale = useRef(new Animated.Value(1)).current;
     const passButtonScale = useRef(new Animated.Value(1)).current;
-    
+
     // Fade-in animation for next card
     const nextCardFadeAnim = useRef(new Animated.Value(1)).current;
-    
+
     // Fade-in animation for empty state
     const emptyStateAnim = useRef(new Animated.Value(0)).current;
-    
+
     // Bounce animation for empty state icon
     const bounceAnim = useRef(new Animated.Value(0)).current;
-    
+
 
     // Use refs to access latest values in PanResponder callbacks
     const petsRef = useRef<PetProfile[]>([]);
@@ -112,7 +112,7 @@ const HomeScreen = ({ navigation }: Props) => {
         }
         prevLoadingRef.current = loading;
     }, [loading, fadeAnim]);
-    
+
     // Trigger fade-in animation for next card when currentIndex changes
     useEffect(() => {
         if (currentIndex > 0 && currentIndex < pets.length) {
@@ -124,7 +124,7 @@ const HomeScreen = ({ navigation }: Props) => {
             }).start();
         }
     }, [currentIndex, pets.length, nextCardFadeAnim]);
-    
+
     // Trigger fade-in animation for empty state when no more pets
     useEffect(() => {
         if (currentIndex >= pets.length && pets.length > 0) {
@@ -136,7 +136,7 @@ const HomeScreen = ({ navigation }: Props) => {
             }).start();
         }
     }, [currentIndex, pets.length, emptyStateAnim]);
-    
+
     // Bounce animation for empty state icon
     useEffect(() => {
         if (currentIndex >= pets.length && pets.length > 0) {
@@ -168,16 +168,16 @@ const HomeScreen = ({ navigation }: Props) => {
 
     // Track previous pet ID to detect actual pet switches
     const prevActivePetIdRef = useRef<number | null>(null);
-    
+
     useEffect(() => {
         activePetIdRef.current = activePetId;
-        
+
         // Only refresh badges when pet ACTUALLY changes (not on initial mount)
         if (activePetId && currentUserId && prevActivePetIdRef.current !== null && prevActivePetIdRef.current !== activePetId) {
             console.log(`🔄 Pet switched from ${prevActivePetIdRef.current} to ${activePetId}, refreshing badges...`);
             refreshBadgesForActivePet(currentUserId);
         }
-        
+
         // Update previous pet ID
         prevActivePetIdRef.current = activePetId;
     }, [activePetId, currentUserId]);
@@ -194,7 +194,7 @@ const HomeScreen = ({ navigation }: Props) => {
         // Match success handler
         const handleMatchSuccess = (data: any) => {
             console.log('🎉 Match notification received:', data);
-            
+
             // Create a temporary PetProfile for the matched pet
             const matchedPetData: PetProfile = {
                 id: data.MatchId?.toString() || '0',
@@ -211,11 +211,11 @@ const HomeScreen = ({ navigation }: Props) => {
                 ownerId: data.OtherUserId || 0,
                 matchPercent: 100,
             };
-            
+
             // Show match modal
             setMatchedPet(matchedPetData);
             setShowMatchModal(true);
-            
+
             // Auto hide after 4 seconds
             setTimeout(() => {
                 setShowMatchModal(false);
@@ -230,7 +230,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 console.log('✅ SignalR connected in HomeScreen');
                 signalRService.on('MatchSuccess', handleMatchSuccess);
             } catch (error) {
-                console.error('❌ Failed to setup SignalR:', error);
+
             }
         };
 
@@ -260,7 +260,7 @@ const HomeScreen = ({ navigation }: Props) => {
         outputRange: [1, 0],
         extrapolate: "clamp",
     });
-    
+
     // Card fade-out during swipe
     const cardOpacity = position.x.interpolate({
         inputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
@@ -294,7 +294,7 @@ const HomeScreen = ({ navigation }: Props) => {
                     petsLength: petsRef.current.length,
                     hasPets: petsRef.current.length > 0
                 });
-                
+
                 // Only process horizontal swipes
                 const isHorizontalSwipe = Math.abs(gesture.dx) > Math.abs(gesture.dy);
                 if (!isHorizontalSwipe) {
@@ -305,7 +305,7 @@ const HomeScreen = ({ navigation }: Props) => {
                     }).start();
                     return;
                 }
-                
+
                 if (gesture.dx > SWIPE_THRESHOLD) {
                     console.log("➡️ Triggering RIGHT swipe");
                     forceSwipe("right");
@@ -328,7 +328,7 @@ const HomeScreen = ({ navigation }: Props) => {
         const latestPets = petsRef.current;
         const latestIndex = currentIndexRef.current;
         const latestUserId = currentUserIdRef.current;
-        
+
         console.log("💨 Force swipe called:", {
             direction,
             currentIndex: latestIndex,
@@ -337,7 +337,7 @@ const HomeScreen = ({ navigation }: Props) => {
             currentUserId: latestUserId,
             ownerId: latestPets[latestIndex]?.ownerId
         });
-        
+
         const x = direction === "right" ? width + 100 : -width - 100;
         Animated.timing(position, {
             toValue: { x, y: 0 },
@@ -359,13 +359,13 @@ const HomeScreen = ({ navigation }: Props) => {
         } catch (error) {
             console.log('Haptic feedback not supported:', error);
         }
-        
+
         // Use refs to get latest values
         const latestPets = petsRef.current;
         const latestIndex = currentIndexRef.current;
         const latestUserId = currentUserIdRef.current;
         const currentPet = latestPets[latestIndex];
-        
+
         console.log("🔄 Swipe complete:", {
             direction,
             currentIndex: latestIndex,
@@ -374,7 +374,7 @@ const HomeScreen = ({ navigation }: Props) => {
             currentUserId: latestUserId,
             hasPet: !!currentPet
         });
-        
+
         // Safety check
         if (!currentPet || !currentPet.id) {
             console.log("⚠️ No valid pet at index:", latestIndex);
@@ -382,19 +382,19 @@ const HomeScreen = ({ navigation }: Props) => {
             setCurrentIndex(prev => prev + 1);
             return;
         }
-        
+
         if (!latestUserId) {
-            console.error("❌ No currentUserId - cannot send like");
+
             position.setValue({ x: 0, y: 0 });
             setCurrentIndex(prev => prev + 1);
             return;
         }
-        
+
         if (direction === "right") {
             // Send like via API
             try {
                 const latestActivePetId = activePetIdRef.current;
-                
+
                 console.log("❤️ Sending like for pet:", {
                     fromPetId: latestActivePetId,
                     toPetId: currentPet.id,
@@ -402,30 +402,30 @@ const HomeScreen = ({ navigation }: Props) => {
                     ownerId: currentPet.ownerId,
                     fromUserId: latestUserId
                 });
-                
+
                 if (!currentPet.ownerId) {
-                    console.error("❌ Pet has no ownerId - cannot send like");
+
                     position.setValue({ x: 0, y: 0 });
                     setCurrentIndex(prev => prev + 1);
                     return;
                 }
-                
+
                 if (!latestActivePetId) {
-                    console.error("❌ No active pet - cannot send like");
+
                     position.setValue({ x: 0, y: 0 });
                     setCurrentIndex(prev => prev + 1);
                     return;
                 }
-                
+
                 const response = await sendLike({
                     fromUserId: latestUserId,
                     toUserId: currentPet.ownerId,
                     fromPetId: latestActivePetId,
                     toPetId: parseInt(currentPet.id)
                 });
-                
+
                 console.log("✅ Like sent successfully:", response);
-                
+
                 // Check if it's a match
                 if (response.isMatch) {
                     setMatchedPet(currentPet);
@@ -442,20 +442,20 @@ const HomeScreen = ({ navigation }: Props) => {
                     const errorData = error.response?.data;
                     setLimitMessage(errorData?.message || "Bạn đã hết lượt gửi match hôm nay!");
                     setShowMatchLimitModal(true);
-                    
+
                     // Reset card position
                     position.setValue({ x: 0, y: 0 });
                     return; // Don't advance to next card
                 } else {
                     // Only log non-limit errors
-                    console.error("❌ Error sending like:", error);
+
                 }
             }
         } else if (direction === "left") {
             // Just pass - no need to save to database
             console.log("👎 Passed pet:", currentPet.id);
         }
-        
+
         position.setValue({ x: 0, y: 0 });
         setCurrentIndex(prev => prev + 1);
     };
@@ -466,7 +466,7 @@ const HomeScreen = ({ navigation }: Props) => {
         try {
             setLoading(true);
             console.log('🔄 Loading pets with optimizations...');
-            
+
             // Get current user ID from storage
             const userIdStr = await AsyncStorage.getItem('userId');
             if (!userIdStr) {
@@ -476,20 +476,20 @@ const HomeScreen = ({ navigation }: Props) => {
             }
 
             const userId = parseInt(userIdStr);
-            
+
             if (!userId || isNaN(userId)) {
                 setLoading(false);
                 return;
             }
 
             setCurrentUserId(userId);
-            
+
             // 🚀 OPTIMIZATION 1: Parallel API calls instead of sequential
             const [userPets, recommendedPets] = await Promise.all([
                 getPetsByUserId(userId),
                 getRecommendedPets(userId)
             ]);
-            
+
             // Get user's active pet ID
             const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
             if (activePet) {
@@ -503,7 +503,7 @@ const HomeScreen = ({ navigation }: Props) => {
             // 🚀 OPTIMIZATION 2: Lazy loading - Only process first 10 pets initially
             const INITIAL_LOAD_COUNT = 10;
             const petsToLoad = recommendedPets.slice(0, INITIAL_LOAD_COUNT);
-            
+
             // Convert recommended pets to PetProfile format
             const formattedPets: PetProfile[] = petsToLoad
                 .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
@@ -511,9 +511,9 @@ const HomeScreen = ({ navigation }: Props) => {
                     const photos = pet.photos && pet.photos.length > 0
                         ? pet.photos.map((url: string) => ({ uri: url }))
                         : [require("../../../assets/cat_avatar.png")];
-                    
+
                     const matchPercent = pet.matchPercent ?? 0;
-                    
+
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
@@ -537,11 +537,11 @@ const HomeScreen = ({ navigation }: Props) => {
                 formattedPets.slice(0, VIP_CHECK_COUNT).map(p => p.ownerId)
             ));
             const vipStatuses: { [userId: number]: boolean } = {};
-            
+
             // Parallel VIP checks
             await Promise.all(
                 uniqueOwnerIds.map(async (ownerId) => {
-                    try {                
+                    try {
                         const status = await getVipStatus(ownerId);
                         vipStatuses[ownerId] = status.isVip;
                     } catch (error: any) {
@@ -559,31 +559,31 @@ const HomeScreen = ({ navigation }: Props) => {
             setPets(petsWithVip);
             setCurrentIndex(0);
             setCurrentPhotoIndices({});
-            
+
             // 🚀 OPTIMIZATION 4: Load remaining pets in background
             if (recommendedPets.length > INITIAL_LOAD_COUNT) {
                 loadMorePetsInBackground(recommendedPets.slice(INITIAL_LOAD_COUNT), userId);
             }
         } catch (error) {
-            console.error('❌ Error loading pets:', error);
+
             setPets([]);
         } finally {
             setLoading(false);
         }
     };
-    
+
     // 🚀 OPTIMIZATION 5: Background loading for remaining pets
     const loadMorePetsInBackground = async (remainingPets: RecommendedPet[], userId: number) => {
         try {
             console.log(`🔄 Loading ${remainingPets.length} more pets in background...`);
-            
+
             const formattedPets: PetProfile[] = remainingPets
                 .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
                 .map((pet: RecommendedPet) => {
                     const photos = pet.photos && pet.photos.length > 0
                         ? pet.photos.map((url: string) => ({ uri: url }))
                         : [require("../../../assets/cat_avatar.png")];
-                    
+
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
@@ -601,12 +601,12 @@ const HomeScreen = ({ navigation }: Props) => {
                         ownerIsVip: false, // Will be updated later if needed
                     };
                 });
-            
+
             // Append to existing pets
             setPets(prev => [...prev, ...formattedPets]);
             console.log(`✅ Loaded ${formattedPets.length} more pets in background`);
         } catch (error) {
-            console.error('❌ Error loading more pets:', error);
+
         }
     };
 
@@ -615,7 +615,7 @@ const HomeScreen = ({ navigation }: Props) => {
         useCallback(() => {
             loadPets();
             // Badges are refreshed automatically when activePetId changes (useEffect above)
-            
+
             // Check if should show login success alert
             const checkLoginSuccess = async () => {
                 const showSuccess = await getItem('showLoginSuccess');
@@ -646,7 +646,7 @@ const HomeScreen = ({ navigation }: Props) => {
         } catch (error) {
             console.log('Haptic feedback not supported:', error);
         }
-        
+
         // Scale animation for Like button - run in parallel with swipe
         Animated.sequence([
             Animated.timing(likeButtonScale, {
@@ -660,11 +660,11 @@ const HomeScreen = ({ navigation }: Props) => {
                 useNativeDriver: true,
             }),
         ]).start();
-        
+
         // Trigger swipe animation
         forceSwipe("right");
     }, [likeButtonScale]);
-    
+
     const handleNope = useCallback(() => {
         // Haptic feedback for Pass button
         try {
@@ -675,7 +675,7 @@ const HomeScreen = ({ navigation }: Props) => {
         } catch (error) {
             console.log('Haptic feedback not supported:', error);
         }
-        
+
         // Scale animation for Pass button - run in parallel with swipe
         Animated.sequence([
             Animated.timing(passButtonScale, {
@@ -689,11 +689,11 @@ const HomeScreen = ({ navigation }: Props) => {
                 useNativeDriver: true,
             }),
         ]).start();
-        
+
         // Trigger swipe animation
         forceSwipe("left");
     }, [passButtonScale]);
-    
+
     const handleViewPetDetail = useCallback((petId: string) => {
         console.log('📱 Opening pet detail:', petId);
         navigation.navigate("PetProfile", { petId });
@@ -706,7 +706,7 @@ const HomeScreen = ({ navigation }: Props) => {
             console.log('🔄 Pull-to-refresh triggered');
             await loadPets();
         } catch (error) {
-            console.error('❌ Error refreshing pets:', error);
+
             showAlert({
                 type: 'error',
                 title: 'Lỗi',
@@ -721,7 +721,7 @@ const HomeScreen = ({ navigation }: Props) => {
     const renderCard = useCallback((pet: PetProfile, index: number) => {
         if (index < currentIndex) return null;
         if (!pet || !pet.id) return null; // Safety check
-        
+
         const isCurrentCard = index === currentIndex;
         const isNextCard = index === currentIndex + 1;
         const cardStyle = isCurrentCard
@@ -735,11 +735,11 @@ const HomeScreen = ({ navigation }: Props) => {
                 ],
             }
             : isNextCard
-            ? {
-                ...styles.card,
-                opacity: nextCardFadeAnim,
-            }
-            : styles.card;
+                ? {
+                    ...styles.card,
+                    opacity: nextCardFadeAnim,
+                }
+                : styles.card;
 
         return (
             <Animated.View
@@ -750,14 +750,14 @@ const HomeScreen = ({ navigation }: Props) => {
                 <View style={styles.cardContent}>
                     <View style={styles.imageContainer}>
                         {/* Current Photo */}
-                        <OptimizedImage 
-                            source={pet.images[currentPhotoIndices[pet.id] || 0]} 
+                        <OptimizedImage
+                            source={pet.images[currentPhotoIndices[pet.id] || 0]}
                             style={styles.petImage}
                             resizeMode="cover"
                             showLoader={true}
                             imageSize="full"
                         />
-                        
+
                         {/* Photo Navigation Tap Areas */}
                         {pet.images.length > 1 && (
                             <>
@@ -768,10 +768,10 @@ const HomeScreen = ({ navigation }: Props) => {
                                     onPress={() => {
                                         const currentIdx = currentPhotoIndices[pet.id] || 0;
                                         const newIdx = currentIdx > 0 ? currentIdx - 1 : pet.images.length - 1;
-                                        setCurrentPhotoIndices(prev => ({...prev, [pet.id]: newIdx}));
+                                        setCurrentPhotoIndices(prev => ({ ...prev, [pet.id]: newIdx }));
                                     }}
                                 />
-                                
+
                                 {/* Right tap area - Next photo */}
                                 <TouchableOpacity
                                     style={styles.photoTapAreaRight}
@@ -779,12 +779,12 @@ const HomeScreen = ({ navigation }: Props) => {
                                     onPress={() => {
                                         const currentIdx = currentPhotoIndices[pet.id] || 0;
                                         const newIdx = (currentIdx + 1) % pet.images.length;
-                                        setCurrentPhotoIndices(prev => ({...prev, [pet.id]: newIdx}));
+                                        setCurrentPhotoIndices(prev => ({ ...prev, [pet.id]: newIdx }));
                                     }}
                                 />
                             </>
                         )}
-                        
+
                         {/* Photo Pagination Dots */}
                         {pet.images.length > 1 && (
                             <View style={styles.paginationDots}>
@@ -799,10 +799,10 @@ const HomeScreen = ({ navigation }: Props) => {
                                 ))}
                             </View>
                         )}
-                        
+
                         {/* Info Button Overlay - Only button is clickable */}
                         <View style={styles.infoButtonOverlay}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={styles.infoButton}
                                 activeOpacity={0.7}
                                 onPress={() => handleViewPetDetail(pet.id)}
@@ -820,7 +820,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             </TouchableOpacity>
                         </View>
                     </View>
-                    
+
                     {/* Swipe Indicators */}
                     {isCurrentCard && (
                         <>
@@ -906,7 +906,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             {isCurrentCard && (
                                 <View style={styles.cardActions}>
                                     <Animated.View style={{ transform: [{ scale: passButtonScale }] }}>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             onPress={handleNope}
                                             activeOpacity={0.8}
                                         >
@@ -918,9 +918,9 @@ const HomeScreen = ({ navigation }: Props) => {
                                             </LinearGradient>
                                         </TouchableOpacity>
                                     </Animated.View>
-                                    
+
                                     <Animated.View style={{ transform: [{ scale: likeButtonScale }] }}>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             onPress={handleLike}
                                             activeOpacity={0.8}
                                         >
@@ -946,7 +946,7 @@ const HomeScreen = ({ navigation }: Props) => {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-                
+
                 {/* Skeleton Cards */}
                 <View style={styles.cardsContainer}>
                     <PetCardSkeleton count={5} />
@@ -974,14 +974,14 @@ const HomeScreen = ({ navigation }: Props) => {
 
                         {/* Right Actions */}
                         <View style={styles.headerRight}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={styles.iconButton}
                                 onPress={() => (navigation as any).navigate("FilterScreen")}
                             >
                                 <Icon name="options-outline" size={26} color={colors.textDark} />
                             </TouchableOpacity>
-                            
-                            <TouchableOpacity 
+
+                            <TouchableOpacity
                                 style={styles.iconButton}
                                 onPress={() => navigation.navigate("Notification")}
                             >
@@ -1008,11 +1008,11 @@ const HomeScreen = ({ navigation }: Props) => {
             inputRange: [0, 1],
             outputRange: [0, -10],
         });
-        
+
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-                
+
                 {/* No More Cards Content */}
                 <Animated.View style={[styles.noMoreCards, { opacity: emptyStateAnim }]}>
                     <Animated.View style={{ transform: [{ translateY }] }}>
@@ -1063,42 +1063,42 @@ const HomeScreen = ({ navigation }: Props) => {
                 >
                     <SafeAreaView style={{ flex: 0 }} />
                     <View style={styles.header}>
-                    {/* Logo */}
-                    <View style={styles.logoContainer}>
-                        <LinearGradient
-                            colors={gradients.home}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.logoGradient}
-                        >
-                            <Icon name="paw" size={24} color={colors.white} />
-                        </LinearGradient>
-                        <Text style={styles.logoText}>Pawnder</Text>
-                    </View>
+                        {/* Logo */}
+                        <View style={styles.logoContainer}>
+                            <LinearGradient
+                                colors={gradients.home}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.logoGradient}
+                            >
+                                <Icon name="paw" size={24} color={colors.white} />
+                            </LinearGradient>
+                            <Text style={styles.logoText}>Pawnder</Text>
+                        </View>
 
-                    {/* Right Actions */}
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity 
-                            style={styles.iconButton}
-                            onPress={() => (navigation as any).navigate("FilterScreen")}
-                        >
-                            <Icon name="options-outline" size={26} color={colors.textDark} />
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={styles.iconButton}
-                            onPress={() => navigation.navigate("Notification")}
-                        >
-                            <Icon name="notifications-outline" size={26} color={colors.textDark} />
-                            {notificationBadge > 0 && (
-                                <View style={styles.notificationBadge}>
-                                    <Text style={styles.notificationBadgeText}>
-                                        {notificationBadge > 99 ? '99+' : notificationBadge}
-                                    </Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                        {/* Right Actions */}
+                        <View style={styles.headerRight}>
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => (navigation as any).navigate("FilterScreen")}
+                            >
+                                <Icon name="options-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("Notification")}
+                            >
+                                <Icon name="notifications-outline" size={26} color={colors.textDark} />
+                                {notificationBadge > 0 && (
+                                    <View style={styles.notificationBadge}>
+                                        <Text style={styles.notificationBadgeText}>
+                                            {notificationBadge > 99 ? '99+' : notificationBadge}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </LinearGradient>
 
@@ -1110,7 +1110,7 @@ const HomeScreen = ({ navigation }: Props) => {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-            
+
             {/* Cards - Render first so header overlays on top */}
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
@@ -1141,42 +1141,42 @@ const HomeScreen = ({ navigation }: Props) => {
             >
                 <SafeAreaView style={{ flex: 0 }} />
                 <View style={styles.header}>
-                {/* Logo */}
-                <View style={styles.logoContainer}>
-                    <LinearGradient
-                        colors={gradients.home}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.logoGradient}
-                    >
-                        <Icon name="paw" size={24} color={colors.white} />
-                    </LinearGradient>
-                    <Text style={styles.logoText}>Pawnder</Text>
-                </View>
+                    {/* Logo */}
+                    <View style={styles.logoContainer}>
+                        <LinearGradient
+                            colors={gradients.home}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.logoGradient}
+                        >
+                            <Icon name="paw" size={24} color={colors.white} />
+                        </LinearGradient>
+                        <Text style={styles.logoText}>Pawnder</Text>
+                    </View>
 
-                {/* Right Actions */}
-                <View style={styles.headerRight}>
-                    <TouchableOpacity 
-                        style={styles.iconButton}
-                        onPress={() => (navigation as any).navigate("FilterScreen")}
-                    >
-                        <Icon name="options-outline" size={26} color={colors.textDark} />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={styles.iconButton}
-                        onPress={() => navigation.navigate("Notification")}
-                    >
-                        <Icon name="notifications-outline" size={26} color={colors.textDark} />
-                        {notificationBadge > 0 && (
-                            <View style={styles.notificationBadge}>
-                                <Text style={styles.notificationBadgeText}>
-                                    {notificationBadge > 99 ? '99+' : notificationBadge}
-                                </Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
-                </View>
+                    {/* Right Actions */}
+                    <View style={styles.headerRight}>
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => (navigation as any).navigate("FilterScreen")}
+                        >
+                            <Icon name="options-outline" size={26} color={colors.textDark} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => navigation.navigate("Notification")}
+                        >
+                            <Icon name="notifications-outline" size={26} color={colors.textDark} />
+                            {notificationBadge > 0 && (
+                                <View style={styles.notificationBadge}>
+                                    <Text style={styles.notificationBadgeText}>
+                                        {notificationBadge > 99 ? '99+' : notificationBadge}
+                                    </Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </LinearGradient>
 
@@ -1242,7 +1242,7 @@ const HomeScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-    container: { 
+    container: {
         flex: 1,
         backgroundColor: "#FAFBFC", // Brighter background để hiệu ứng nổi bật hơn
     },
@@ -1418,7 +1418,7 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 5,
     },
-    
+
     // Photo Navigation
     photoTapAreaLeft: {
         position: "absolute",
@@ -1503,16 +1503,16 @@ const styles = StyleSheet.create({
     },
     petName: {
         fontSize: 28,
-        fontWeight: "bold", 
+        fontWeight: "bold",
         color: colors.white,
         textShadowColor: "rgba(0, 0, 0, 0.8)",
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 8,
     },
-    male: { 
+    male: {
         color: "#64B5F6",
     },
-    female: { 
+    female: {
         color: "#FF9BC0",
     },
     petMeta: {
@@ -1537,7 +1537,7 @@ const styles = StyleSheet.create({
         textShadowRadius: 6,
     },
     bio: {
-        fontSize: 15, 
+        fontSize: 15,
         color: colors.white,
         lineHeight: 22,
         textShadowColor: "rgba(0, 0, 0, 0.6)",

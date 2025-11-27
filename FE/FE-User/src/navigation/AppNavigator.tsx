@@ -5,11 +5,11 @@ import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { navigationRef } from "../services/navigation.service";
 import { getAuthToken } from "../api/auth";
-import { 
-  defaultScreenOptions, 
-  modalScreenOptions, 
+import {
+  defaultScreenOptions,
+  modalScreenOptions,
   detailScreenOptions,
-  navigationTheme 
+  navigationTheme
 } from "./navigationConfig";
 import signalRService from "../services/signalr.service";
 import { refreshBadgesForActivePet } from "../utils/badgeRefresh";
@@ -64,7 +64,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
   SignUp: undefined;
-  OTPVerification: { 
+  OTPVerification: {
     email: string;
     userData?: {
       FullName: string;
@@ -76,8 +76,8 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { email: string };
   AddPetBasicInfo: { isFromProfile?: boolean };
-  AddPetCharacteristics: { 
-    petId: number; 
+  AddPetCharacteristics: {
+    petId: number;
     isFromProfile?: boolean;
     aiResults?: Array<{
       attributeName: string;
@@ -92,7 +92,7 @@ export type RootStackParamList = {
   Home: undefined;
   FilterScreen: undefined;
   Chat: { matchId?: number }; // Optional matchId để navigate từ Favorite
-  ChatDetail: { 
+  ChatDetail: {
     matchId: number;
     otherUserId: number;
     userName: string;
@@ -160,7 +160,7 @@ const AppNavigator = () => {
 
   useEffect(() => {
     checkAuth();
-    
+
     // Listen for logout flag changes
     const checkLogoutInterval = setInterval(async () => {
       const shouldLogout = await AsyncStorage.getItem('shouldLogout');
@@ -187,7 +187,7 @@ const AppNavigator = () => {
 
     const setupGlobalNotificationListener = async () => {
       if (isSetup) return;
-      
+
       try {
         const userIdStr = await AsyncStorage.getItem('userId');
         if (!userIdStr || !isAuthenticated) return;
@@ -204,12 +204,12 @@ const AppNavigator = () => {
         // Listen for new notifications globally
         const handleNewNotification = (data: any) => {
           console.log('🔔 [AppNavigator] New notification received via SignalR:', data);
-          
+
           // Refresh badge count immediately
           refreshBadgesForActivePet(userId).then(() => {
             console.log('✅ [AppNavigator] Badge refreshed after notification');
           }).catch(err => {
-            console.error('❌ [AppNavigator] Failed to refresh badges:', err);
+
           });
         };
 
@@ -223,7 +223,7 @@ const AppNavigator = () => {
           console.log('🧹 [AppNavigator] Cleaned up global notification listener');
         };
       } catch (error) {
-        console.error('❌ [AppNavigator] Error setting up notification listener:', error);
+
       }
     };
 
@@ -261,7 +261,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
-        
+
         {/* Lazy-loaded auth screens */}
         <Stack.Screen name="SignUp" component={LazyScreen(SignUpScreen)} />
         <Stack.Screen name="OTPVerification" component={LazyScreen(OTPVerificationScreen)} />
@@ -271,52 +271,52 @@ const AppNavigator = () => {
         <Stack.Screen name="AddPetCharacteristics" component={LazyScreen(AddPetCharacteristicsScreen)} />
         <Stack.Screen name="AddPetPhotos" component={LazyScreen(AddPetPhotosScreen)} />
         <Stack.Screen name="OnboardingPreferences" component={LazyScreen(OnboardingPreferencesScreen)} />
-        
+
         {/* Lazy-loaded main screens */}
-        <Stack.Screen 
-          name="FilterScreen" 
+        <Stack.Screen
+          name="FilterScreen"
           component={LazyScreen(FilterScreen)}
           options={modalScreenOptions}
         />
         <Stack.Screen name="Chat" component={LazyScreen(ChatScreen)} />
-        <Stack.Screen 
-          name="ChatDetail" 
+        <Stack.Screen
+          name="ChatDetail"
           component={LazyScreen(ChatDetailScreen)}
           options={detailScreenOptions}
         />
         <Stack.Screen name="AIChatList" component={LazyScreen(AIChatListScreen)} />
-        <Stack.Screen 
-          name="AIChat" 
+        <Stack.Screen
+          name="AIChat"
           component={LazyScreen(AIChatScreen)}
           options={detailScreenOptions}
         />
         <Stack.Screen name="ExpertChatList" component={LazyScreen(ExpertChatListScreen)} />
-        <Stack.Screen 
-          name="ExpertChat" 
+        <Stack.Screen
+          name="ExpertChat"
           component={LazyScreen(ExpertChatScreen)}
           options={detailScreenOptions}
         />
         <Stack.Screen name="Notification" component={LazyScreen(NotificationScreen)} />
         <Stack.Screen name="Favorite" component={LazyScreen(FavoriteScreen)} />
         <Stack.Screen name="Profile" component={LazyScreen(UserProfileScreen)} />
-        <Stack.Screen 
-          name="PetProfile" 
+        <Stack.Screen
+          name="PetProfile"
           component={LazyScreen(PetProfileScreen)}
           options={detailScreenOptions}
         />
         <Stack.Screen name="EditProfile" component={LazyScreen(EditUserProfileScreen)} />
         <Stack.Screen name="EditPet" component={LazyScreen(EditPetScreen)} />
         <Stack.Screen name="AddPet" component={AddPetScreen} />
-        
+
         {/* Lazy-loaded settings screens */}
         <Stack.Screen name="HelpAndSupport" component={LazyScreen(HelpAndSupportScreen)} />
-        <Stack.Screen 
-          name="ResourceDetail" 
+        <Stack.Screen
+          name="ResourceDetail"
           component={LazyScreen(ResourceDetailScreen)}
           options={detailScreenOptions}
         />
-        <Stack.Screen 
-          name="Premium" 
+        <Stack.Screen
+          name="Premium"
           component={LazyScreen(PremiumScreen)}
           options={modalScreenOptions}
         />
@@ -330,8 +330,8 @@ const AppNavigator = () => {
         <Stack.Screen name="BlockedUsers" component={LazyScreen(BlockedUsersScreen)} />
         <Stack.Screen name="PaymentHistory" component={LazyScreen(PaymentHistoryScreen)} />
         <Stack.Screen name="PaymentMethod" component={LazyScreen(PaymentMethodScreen)} />
-        <Stack.Screen 
-          name="QRPayment" 
+        <Stack.Screen
+          name="QRPayment"
           component={LazyScreen(QRPaymentScreen)}
           options={modalScreenOptions}
         />

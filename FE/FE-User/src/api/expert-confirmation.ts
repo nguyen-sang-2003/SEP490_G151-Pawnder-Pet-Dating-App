@@ -42,7 +42,7 @@ export const getUserExpertConfirmations = async (
     );
     return response.data;
   } catch (error: any) {
-    console.error('❌ Get expert confirmations error:', error);
+
     if (error.response?.data?.Message) {
       throw new Error(error.response.data.Message);
     }
@@ -68,7 +68,7 @@ export const createExpertConfirmation = async (
   } catch (error: any) {
     // Don't log 429 limit errors (handled by UI modal)
     if (error.response?.status !== 429) {
-      console.error('❌ Create expert confirmation error:', error);
+
     }
     // Pass through the original error for UI handling
     throw error;
@@ -93,7 +93,7 @@ export const updateExpertConfirmation = async (
     );
     return response.data;
   } catch (error: any) {
-    console.error('❌ Update expert confirmation error:', error);
+
     if (error.response?.data?.Message) {
       throw new Error(error.response.data.Message);
     }
@@ -126,7 +126,7 @@ export const getUserExpertChatsList = async (
     const response = await apiClient.get(`/expert-chats/${userId}`);
     return response.data.data || [];
   } catch (error: any) {
-    console.error('❌ Get expert chats error:', error);
+
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

@@ -9,7 +9,8 @@ export const API_CONFIG = {
   IOS_SIMULATOR: 'http://localhost:5297',
   
   // Production URL - Azure Backend
-  PRODUCTION: 'https://pawnder-backend-2024-bwajcqa2axg9fjcf.eastasia-01.azurewebsites.net',
+  PRODUCTION: 'https://pawnder-backend-2025-westus-ashef7agegbtb9hv.westus-01.azurewebsites.net',
+  
   
   // For testing on real device, use your computer's IP
   // Find your IP:
