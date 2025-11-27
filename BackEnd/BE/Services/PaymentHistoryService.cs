@@ -28,6 +28,30 @@ namespace BE.Services
 
         public async Task<byte[]> GenerateQrAsync(decimal amount, string addInfo, CancellationToken ct = default)
         {
+            // Parse userId from addInfo
+            int userId = 0;
+            var parts = addInfo.Split('_');
+            if (parts.Length >= 4 && parts[0] == "userId" && parts[2] == "months")
+            {
+                int.TryParse(parts[1], out userId);
+            }
+            else
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(addInfo, @"userId(\d+)months(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    int.TryParse(match.Groups[1].Value, out userId);
+                }
+            }
+
+            // Check if user has active VIP
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var hasActiveVip = await _context.PaymentHistories.AnyAsync(p => p.UserId == userId && p.StatusService == "active" && p.EndDate >= today, ct);
+            if (hasActiveVip)
+            {
+                throw new InvalidOperationException("Bạn đã có gói đăng ký VIP đang hoạt động. Vui lòng đợi đến khi gói đăng ký hết hạn trước khi gia hạn.");
+            }
+
             var apiKey = _configuration["VietQr:ApiKey"];
             var clientId = _configuration["VietQr:ClientId"];
             var accountNo = _configuration["VietQr:AccountInfo:AccountNo"];
