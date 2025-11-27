@@ -36,7 +36,7 @@ export type Environment = 'android' | 'ios' | 'local_network' | 'production';
  * - Use 'android' if BE runs on SAME machine as emulator (localhost)
  * - Use 'local_network' if BE runs on DIFFERENT machine (use IP address)
  */
-const CURRENT_ENVIRONMENT: Environment = 'production'; // Changed to 'production' to use Azure backend
+const CURRENT_ENVIRONMENT: Environment = 'android'; // Changed back to 'android' to use local backend
 
 /**
  * Get the appropriate base URL based on platform and environment

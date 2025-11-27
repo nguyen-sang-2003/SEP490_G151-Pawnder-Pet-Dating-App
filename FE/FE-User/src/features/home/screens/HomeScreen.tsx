@@ -421,7 +421,7 @@ const HomeScreen = ({ navigation }: Props) => {
                     fromUserId: latestUserId,
                     toUserId: currentPet.ownerId,
                     fromPetId: latestActivePetId,
-                    toPetId: parseInt(currentPet.id)
+                    toPetId: Number(currentPet.id) // ✅ Use Number() instead of parseInt() to handle edge cases
                 });
 
                 console.log("✅ Like sent successfully:", response);
