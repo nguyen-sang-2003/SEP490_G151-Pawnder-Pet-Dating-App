@@ -87,7 +87,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
             // Gọi Gemini API
             //var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash-exp");
-            var model = _googleAI.GenerativeModel(model: "gemini-1.5-flash");
+            var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash");
             // Xây dựng prompt
             var promptBuilder = new System.Text.StringBuilder();
 
@@ -99,7 +99,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             // Lý do: History càng dài → tokens càng nhiều → Gemini càng chậm
             var recentHistory = history
                 .Where(h => !string.IsNullOrEmpty(h.Question) && !string.IsNullOrEmpty(h.Answer))
-                .TakeLast(3)
+                .TakeLast(2)
                 .ToList();
 
             if (recentHistory.Any())
