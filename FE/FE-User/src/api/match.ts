@@ -1,4 +1,4 @@
-import client from './client';
+import client, { cachedGet } from './client';
 
 export interface LikeRequest {
   fromUserId: number;
@@ -87,18 +87,30 @@ export const getMatchStats = async (userId: number): Promise<MatchStats> => {
 /**
  * Get badge counts for user (unread messages + pending likes)
  * GET /api/match/badge-counts/{userId}?petId={petId}
+ * 
+ * Optimized with:
+ * - 30s cache for frequent polling
+ * - Longer timeout for Azure cold start
+ * - Request deduplication
  */
 export const getBadgeCounts = async (userId: number, petId?: number): Promise<BadgeCounts> => {
   try {
-
     const url = petId
       ? `/api/match/badge-counts/${userId}?petId=${petId}`
       : `/api/match/badge-counts/${userId}`;
-    const response = await client.get(url);
+    
+    // Use cachedGet with short cache duration (30s) for badges
+    // This prevents multiple simultaneous calls while still keeping data fresh
+    const data = await cachedGet<BadgeCounts>(url, {
+      cacheDuration: 30 * 1000, // 30 seconds cache
+      cacheKey: `badge-counts-${userId}-${petId || 'all'}`,
+      timeout: 30000, // 30s timeout for Azure
+      retryAttempts: 2, // Reduced retries
+    });
 
-    return response.data;
+    return data;
   } catch (error: any) {
-
+    console.error('❌ getBadgeCounts error:', error);
     throw error;
   }
 };

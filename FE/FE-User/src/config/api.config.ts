@@ -19,7 +19,8 @@ export const API_CONFIG = {
   LOCAL_NETWORK: 'http://192.168.1.100:5297', // Update with your IP
   
   // Timeout settings
-  TIMEOUT: 10000, // 10 seconds
+  TIMEOUT: 30000, // 30 seconds (increased for Azure cold start)
+  TIMEOUT_LONG: 60000, // 60 seconds for heavy operations (AI, image upload)
 };
 
 /**

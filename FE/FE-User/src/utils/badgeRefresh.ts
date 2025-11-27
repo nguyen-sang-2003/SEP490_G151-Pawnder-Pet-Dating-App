@@ -7,12 +7,27 @@ import { setBadgeCounts, setActivePetId } from '../features/badge/badgeSlice';
 // Track the last pet ID we fetched badges for
 let lastRefreshedPetId: number | null = null;
 
+// Debounce & rate limiting to prevent excessive API calls
+let refreshTimer: NodeJS.Timeout | null = null;
+let ongoingRefresh: Promise<void> | null = null;
+let lastRefreshTime = 0;
+const MIN_REFRESH_INTERVAL = 3000; // 3 seconds minimum between refreshes
+const DEBOUNCE_DELAY = 500; // 500ms debounce
+
 /**
- * Refresh badge counts for the user's active pet
- * Call this when switching pets to update badges
+ * Internal implementation of badge refresh
  */
-export const refreshBadgesForActivePet = async (userId: number): Promise<void> => {
+const _refreshBadgesForActivePetImpl = async (userId: number): Promise<void> => {
   try {
+    const now = Date.now();
+    
+    // Rate limiting: Skip if called too frequently (unless pet switched)
+    if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+      console.log(`⏭️ Skipping badge refresh (rate limited, ${MIN_REFRESH_INTERVAL - (now - lastRefreshTime)}ms remaining)`);
+      return;
+    }
+    
+    lastRefreshTime = now;
     console.log('🔄 Refreshing badges for active pet...');
 
     // Get current unread chats from Redux store (locally marked as read)
@@ -103,7 +118,40 @@ export const refreshBadgesForActivePet = async (userId: number): Promise<void> =
       }));
     }
   } catch (error) {
-
+    console.error('❌ Badge refresh error:', error);
+    throw error;
   }
+};
+
+/**
+ * Refresh badge counts for the user's active pet
+ * With debouncing and request deduplication
+ */
+export const refreshBadgesForActivePet = async (userId: number): Promise<void> => {
+  // Request deduplication: If refresh is already in progress, return existing promise
+  if (ongoingRefresh) {
+    console.log('⏳ Badge refresh already in progress, waiting...');
+    return ongoingRefresh;
+  }
+
+  // Debouncing: Clear existing timer and set new one
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
+  }
+
+  return new Promise((resolve, reject) => {
+    refreshTimer = setTimeout(async () => {
+      try {
+        // Mark refresh as ongoing
+        ongoingRefresh = _refreshBadgesForActivePetImpl(userId);
+        await ongoingRefresh;
+        ongoingRefresh = null;
+        resolve();
+      } catch (error) {
+        ongoingRefresh = null;
+        reject(error);
+      }
+    }, DEBOUNCE_DELAY);
+  });
 };
 

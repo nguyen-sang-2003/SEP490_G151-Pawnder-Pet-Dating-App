@@ -26,13 +26,21 @@ export const useBadgeNotifications = (userId: number | null) => {
       return;
     }
 
+    // Flag to prevent state updates after unmount
+    let isMounted = true;
+
     // ✅ Fetch initial badge counts WITH active pet filtering
     const initializeBadges = async () => {
       try {
+        if (!isMounted) return;
         await refreshBadgesForActivePet(userId);
-        console.log('✅ Initial badges loaded for active pet');
+        if (isMounted) {
+          console.log('✅ Initial badges loaded for active pet');
+        }
       } catch (error) {
-
+        if (isMounted) {
+          console.error('❌ Failed to initialize badges:', error);
+        }
       }
     };
 
@@ -114,6 +122,10 @@ export const useBadgeNotifications = (userId: number | null) => {
     signalRService.on('NewExpertMessageBadge', handleNewExpertMessageBadge);
 
     return () => {
+      // Set unmount flag to prevent state updates
+      isMounted = false;
+      
+      // Clean up SignalR listeners
       signalRService.off('NewMessageBadge', handleNewMessageBadge);
       signalRService.off('NewLikeBadge', handleNewLikeBadge);
       signalRService.off('MatchSuccess', handleMatchSuccess);

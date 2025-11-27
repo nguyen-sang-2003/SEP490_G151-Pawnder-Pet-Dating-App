@@ -150,8 +150,22 @@ apiClient.interceptors.response.use(
 
     // Handle cancelled requests silently
     if (isCancel(error)) {
-      console.log('🚫 [ApiClient] Request cancelled:', originalRequest.url);
+      console.log('🚫 [ApiClient] Request cancelled:', originalRequest?.url);
       return Promise.reject(error);
+    }
+
+    // Handle network errors gracefully
+    if (!error.response && error.code) {
+      console.log(`📡 [ApiClient] Network error: ${error.code} - ${error.message}`);
+      // Don't retry network errors as aggressively (they're likely to fail again)
+      if (originalRequest) {
+        const retryAttempt = getRetryAttempt(originalRequest);
+        if (retryAttempt >= 1) {
+          // Already retried once, fail fast
+          console.log('⚠️ [ApiClient] Network error - failing fast after 1 retry');
+          return Promise.reject(error);
+        }
+      }
     }
 
     // Retry logic for retryable errors (before 401 handling)

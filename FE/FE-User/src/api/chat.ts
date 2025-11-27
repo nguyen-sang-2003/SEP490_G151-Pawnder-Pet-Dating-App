@@ -1,4 +1,4 @@
-import client from './client';
+import client, { cachedGet } from './client';
 
 /**
  * Chat API endpoints
@@ -75,19 +75,25 @@ export const deleteChat = async (matchId: number): Promise<void> => {
 /**
  * Get all messages in a chat
  * GET /api/ChatUserContent/chat-user-content/{matchId}
+ * Optimized with 10s cache to reduce rapid re-fetches
  */
 export const getChatMessages = async (matchId: number): Promise<ChatMessage[]> => {
   try {
-
-    const response = await client.get<ChatMessage[]>(
-      `/api/ChatUserContent/chat-user-content/${matchId}`
+    // Short cache (10s) to reduce rapid calls when switching screens
+    const messages = await cachedGet<ChatMessage[]>(
+      `/api/ChatUserContent/chat-user-content/${matchId}`,
+      {
+        cacheDuration: 10 * 1000, // 10 seconds
+        cacheKey: `chat-messages-${matchId}`,
+        timeout: 30000,
+        retryAttempts: 2,
+      }
     );
 
-    return response.data;
+    return messages;
   } catch (error: any) {
     // Return empty array if no messages found (404) - this is normal for new matches
     if (error.response?.status === 404) {
-
       return [];
     }
 

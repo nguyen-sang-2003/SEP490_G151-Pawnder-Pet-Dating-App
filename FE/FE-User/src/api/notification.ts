@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { cachedGet } from './client';
 
 export interface Notification {
   notificationId: number;
@@ -74,14 +74,20 @@ export const markAllNotificationsAsRead = async (userId: number): Promise<void> 
 
 /**
  * Get unread notification count
+ * Optimized with 30s cache and timeout handling
  */
 export const getUnreadNotificationCount = async (userId: number): Promise<number> => {
   try {
-    const response = await apiClient.get(`/api/notification/user/${userId}/unread-count`);
-    return response.data.count || 0;
+    const data = await cachedGet<{ count: number }>(`/api/notification/user/${userId}/unread-count`, {
+      cacheDuration: 30 * 1000, // 30 seconds cache
+      cacheKey: `notification-count-${userId}`,
+      timeout: 30000, // 30s timeout
+      retryAttempts: 2,
+    });
+    return data.count || 0;
   } catch (error) {
-
-    return 0;
+    console.error('❌ getUnreadNotificationCount error:', error);
+    return 0; // Fail gracefully
   }
 };
 
