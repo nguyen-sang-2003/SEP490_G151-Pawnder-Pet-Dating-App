@@ -14,47 +14,44 @@ namespace BE.Services
         {
             _context = context;
             _configuration = configuration;
-            
             var apiKey = _configuration["GeminiAI:ApiKey"];
-            
-            // Validate API key
-            if (string.IsNullOrWhiteSpace(apiKey))
-            {
-                Console.WriteLine("❌ GEMINI API KEY IS NULL OR EMPTY!");
-                Console.WriteLine($"   Checking configuration sections:");
-                Console.WriteLine($"   - GeminiAI:ApiKey = {apiKey ?? "NULL"}");
-                throw new InvalidOperationException("Gemini API Key is not configured in appsettings.json");
-            }
-            
-            Console.WriteLine($"✅ Gemini API Key loaded: {apiKey.Substring(0, Math.Min(10, apiKey.Length))}... (length: {apiKey.Length})");
-            
-            try
-            {
-                // Note: Gemini API có thể bị giới hạn theo region
-                // Nếu deploy trên Azure East Asia, có thể gặp lỗi "User location is not supported"
-                _googleAI = new GoogleAI(apiKey: apiKey);
-                Console.WriteLine("✅ GoogleAI client initialized successfully");
-                Console.WriteLine("⚠️ Note: Gemini API may not work from certain regions (e.g., Asia). Consider using Vertex AI or allowed regions.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Failed to initialize GoogleAI client: {ex.Message}");
-                throw;
-            }
+            _googleAI = new GoogleAI(apiKey: apiKey);
         }
 
-        // System Prompt tối ưu cho tốc độ (rút gọn từ 400+ từ → 100 từ)
+        // System Prompt cố định cho mèo
         private string GetCatCareSystemPrompt()
         {
-            return @"Bạn là Pawnder AI - trợ lý chăm sóc mèo chuyên nghiệp.
+            return @"Bạn là Pawnder AI - trợ lý AI chuyên về chăm sóc mèo của ứng dụng Pawnder.
 
-NHIỆM VỤ:
-- Tư vấn sức khỏe, dinh dưỡng, hành vi, vệ sinh mèo
-- Trả lời ngắn gọn (80-150 từ), tiếng Việt, giọng thân thiện
-- Dùng bullet points khi liệt kê
-- Vấn đề nghiêm trọng (nôn mửa, tiêu chảy kéo dài, khó thở, co giật) → đề nghị đến bác sĩ thú y ngay
+VAI TRÒ CỦA BẠN:
+- Chuyên gia tư vấn toàn diện về mèo: sức khỏe, dinh dưỡng, hành vi, huấn luyện, vệ sinh
+- Giúp người nuôi mèo hiểu rõ hơn về thú cưng của mình
+- Tạo môi trường thân thiện, dễ tiếp cận cho mọi câu hỏi về mèo
 
-CHỦ ĐỀ: Hành vi, dinh dưỡng, sức khỏe, vệ sinh, vui chơi, môi trường sống mèo.";
+NGUYÊN TẮC TRẢ LỜI:
+✓ Trả lời bằng tiếng Việt (trừ khi user hỏi bằng tiếng Anh)
+✓ Giọng điệu thân thiện, dễ hiểu, không quá học thuật
+✓ Độ dài: 80-150 từ , súc tích nhưng đầy đủ thông tin
+✓ Dùng bullet points khi liệt kê các bước hoặc gợi ý
+✓ Luôn tích cực và khích lệ người nuôi mèo
+✓ Nếu không chắc chắn, thừa nhận và gợi ý tham khảo thêm
+
+LƯU Ý QUAN TRỌNG VỀ SỨC KHỎE:
+- Khi đề cập vấn đề sức khỏe nghiêm trọng (nôn mửa liên tục, tiêu chảy, không ăn uống >24h, khó thở, co giật), LUÔN đề nghị đưa mèo đến bác sĩ thú y ngay
+- Không tự ý chẩn đoán bệnh - chỉ cung cấp thông tin tham khảo
+- Có thể hướng dẫn sơ cứu cơ bản, nhưng nhấn mạnh cần đến bác sĩ
+
+CÁC CHỦ ĐỀ BẠN GIỎI:
+🐱 Hành vi mèo: kêu meo, cào, cắn, đánh dấu lãnh thổ, ngôn ngữ cơ thể
+🍽️ Dinh dưỡng: thức ăn phù hợp, lượng ăn, cân nặng lý tưởng, nước uống
+🏥 Sức khỏe: triệu chứng bệnh phổ biến, chăm sóc phòng bệnh, vaccine, tẩy giun
+🚽 Vệ sinh: khay cát, tắm rửa, cắt móng, chải lông
+🎮 Vui chơi: đồ chơi, kích thích trí tuệ, tương tác với mèo
+🏠 Môi trường sống: chuồng, cây cào, không gian an toàn
+👶 Nuôi mèo con: chăm sóc mèo nhỏ, xã hội hóa, huấn luyện cơ bản
+👵 Mèo lớn tuổi: chăm sóc đặc biệt, vấn đề sức khỏe thường gặp
+
+Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
         }
 
         public async Task<ChatAi> CreateChatSessionAsync(int userId, string title)
@@ -88,22 +85,9 @@ CHỦ ĐỀ: Hành vi, dinh dưỡng, sức khỏe, vệ sinh, vui chơi, môi t
             // Lấy lịch sử chat
             var history = await GetChatHistoryAsync(chatAiId);
 
-            // Gọi Gemini API với model name (gemini-1.5-flash nhanh hơn 3x so với 2.5)
-            string modelName = "gemini-2.5-flash"; // Stable & Fast model
-            Console.WriteLine($"🤖 [Chat {chatAiId}] Using Gemini model: {modelName}");
-            
-            GenerativeModel model;
-            try
-            {
-                model = _googleAI.GenerativeModel(model: modelName);
-                Console.WriteLine($"✅ [Chat {chatAiId}] Model initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ [Chat {chatAiId}] Failed to initialize model '{modelName}': {ex.Message}");
-                throw new Exception($"Không thể khởi tạo AI model: {ex.Message}");
-            }
-            
+            // Gọi Gemini API
+            //var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash-exp");
+            var model = _googleAI.GenerativeModel(model: "gemini-2.5-flash");
             // Xây dựng prompt
             var promptBuilder = new System.Text.StringBuilder();
 
@@ -111,12 +95,11 @@ CHỦ ĐỀ: Hành vi, dinh dưỡng, sức khỏe, vệ sinh, vui chơi, môi t
             promptBuilder.AppendLine(GetCatCareSystemPrompt());
             promptBuilder.AppendLine("\n---\n");
 
-            // Thêm lịch sử (CHỈ 1 cặp Q&A gần nhất để tối ưu tốc độ)
+            // Thêm lịch sử (3 cặp Q&A gần nhất - giảm để Gemini xử lý nhanh hơn)
             // Lý do: History càng dài → tokens càng nhiều → Gemini càng chậm
-            // 1 cặp đủ để duy trì context mà vẫn nhanh
             var recentHistory = history
                 .Where(h => !string.IsNullOrEmpty(h.Question) && !string.IsNullOrEmpty(h.Answer))
-                .TakeLast(1)
+                .TakeLast(3)
                 .ToList();
 
             if (recentHistory.Any())
@@ -133,7 +116,7 @@ CHỦ ĐỀ: Hành vi, dinh dưỡng, sức khỏe, vệ sinh, vui chơi, môi t
             promptBuilder.AppendLine($"User: {question}");
             promptBuilder.AppendLine("Assistant:");
 
-            // Gọi Gemini với timeout 30 giây (đủ cho model nhanh)
+            // Gọi Gemini với timeout 60 giây (match với frontend timeout 50s + 10s buffer)
             string answer;
             int inputTokens = 0;
             int outputTokens = 0;
@@ -142,10 +125,10 @@ CHỦ ĐỀ: Hành vi, dinh dưỡng, sức khỏe, vệ sinh, vui chơi, môi t
             try
             {
                 Console.WriteLine($"🤖 [Chat {chatAiId}] Calling Gemini API... (history: {recentHistory.Count} pairs, question length: {question.Length})");
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 var response = await model.GenerateContent(promptBuilder.ToString(), cancellationToken: cts.Token);
                 answer = response.Text ?? throw new Exception("Gemini API returned null response");
-                
+                //
                 // Lấy thông tin token usage từ response
                 if (response.UsageMetadata != null)
                 {
@@ -160,48 +143,14 @@ CHỦ ĐỀ: Hành vi, dinh dưỡng, sức khỏe, vệ sinh, vui chơi, môi t
             catch (OperationCanceledException)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"⏱️ [Chat {chatAiId}] Gemini timeout after 30s (history: {recentHistory.Count} pairs)");
+                Console.WriteLine($"⏱️ [Chat {chatAiId}] Gemini timeout after 60s (history: {recentHistory.Count} pairs)");
                 throw new Exception("AI đang quá tải, mất quá nhiều thời gian để trả lời. Vui lòng thử lại sau hoặc đặt câu hỏi ngắn gọn hơn.");
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"❌ [Chat {chatAiId}] Gemini error after {stopwatch.ElapsedMilliseconds}ms");
-                Console.WriteLine($"   Exception Type: {ex.GetType().FullName}");
-                Console.WriteLine($"   Message: {ex.Message}");
-                
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"   InnerException Type: {ex.InnerException.GetType().FullName}");
-                    Console.WriteLine($"   InnerException Message: {ex.InnerException.Message}");
-                }
-                
-                Console.WriteLine($"   StackTrace: {ex.StackTrace}");
-                
-                // Return more specific error messages
-                if (ex.Message.Contains("API key"))
-                {
-                    throw new Exception("Gemini API key không hợp lệ. Vui lòng kiểm tra cấu hình.");
-                }
-                else if (ex.Message.Contains("location") || ex.Message.Contains("FAILED_PRECONDITION") || ex.Message.Contains("not supported"))
-                {
-                    throw new Exception("⚠️ Gemini API không khả dụng từ khu vực này (Azure East Asia). Vui lòng:\n" +
-                        "1. Tạo API key mới từ region được hỗ trợ (US, EU)\n" +
-                        "2. Hoặc deploy backend ở region khác (US East, West Europe)\n" +
-                        "3. Hoặc sử dụng Vertex AI thay thế");
-                }
-                else if (ex.Message.Contains("429") || ex.Message.Contains("quota"))
-                {
-                    throw new Exception("AI đã vượt quá giới hạn sử dụng. Vui lòng thử lại sau.");
-                }
-                else if (ex.Message.Contains("404") || ex.Message.Contains("not found"))
-                {
-                    throw new Exception("Không tìm thấy AI model. Vui lòng liên hệ quản trị viên.");
-                }
-                else
-                {
-                    throw new Exception($"Lỗi kết nối AI: {ex.Message}");
-                }
+                Console.WriteLine($"❌ [Chat {chatAiId}] Gemini error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                throw new Exception("Không thể kết nối với AI. Vui lòng thử lại sau.");
             }
 
             // Lưu Q&A
