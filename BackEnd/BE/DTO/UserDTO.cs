@@ -55,7 +55,6 @@
 
     public record UserUpdateRequest
     {
-        public int? RoleId { get; init; }
    
         public int? AddressId { get; init; }
 

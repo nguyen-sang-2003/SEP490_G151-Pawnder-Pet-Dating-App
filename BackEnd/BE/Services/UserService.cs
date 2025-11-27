@@ -106,9 +106,6 @@ namespace BE.Services
             if (user == null)
                 throw new KeyNotFoundException("Không tìm thấy người dùng");
 
-            // Business logic: Update user
-            user.RoleId = req.RoleId;
-
             if (req.AddressId.HasValue)
                 user.AddressId = req.AddressId;
 
