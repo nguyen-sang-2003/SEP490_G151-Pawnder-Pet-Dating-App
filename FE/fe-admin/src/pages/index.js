@@ -12,10 +12,9 @@ export { default as UserCreate } from './users/UserCreate';
 export { default as UserEdit } from './users/UserEdit';
 
 // Pet management
-export { default as PetsList } from './pets/PetsList';
-export { default as PetDetail } from './pets/PetDetail';
-export { default as PetCreate } from './pets/PetCreate';
-export { default as PetEdit } from './pets/PetEdit';
+export { default as PetsList } from './activities/pets/PetsList';
+export { default as PetDetail } from './activities/pets/PetDetail';
+// NOTE: PetCreate/PetEdit components now live under activities/pets if/when reintroduced
 
 // Reports
 export { default as ReportsList } from './reports/ReportsList';

@@ -8,9 +8,8 @@ import './PetsList.css';
 const PetsList = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterSpecies, setFilterSpecies] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 5;
   
   // Pets data state
   const [pets, setPets] = useState([]);
@@ -19,13 +18,6 @@ const PetsList = () => {
   const [totalPages, setTotalPages] = useState(0);
   
   // Pet stats (for summary cards)
-  const [petStats, setPetStats] = useState({
-    total: 0,
-    cats: 0,
-    vaccinated: 0,
-    neutered: 0
-  });
-  
   // Cache for users and pets to avoid refetching
   const usersCacheRef = useRef([]);
   const petsCacheRef = useRef([]);
@@ -40,7 +32,6 @@ const PetsList = () => {
         // Check cache first
         if (petsCacheRef.current.length > 0) {
           setPets(petsCacheRef.current);
-          updatePetStats(petsCacheRef.current);
           setLoading(false);
           return;
         }
@@ -130,9 +121,6 @@ const PetsList = () => {
         petsCacheRef.current = validPets;
         setPets(validPets);
         
-        // Update stats
-        updatePetStats(validPets);
-        
       } catch (err) {
         console.error('Error fetching pets:', err);
         setError('Không thể tải danh sách thú cưng. Vui lòng thử lại sau.');
@@ -145,21 +133,10 @@ const PetsList = () => {
   }, []); // Only run once on mount
 
 
-  // Update pet stats
-  const updatePetStats = (petsList) => {
-    const stats = {
-      total: petsList.length,
-      cats: petsList.filter(p => p.species === 'Cat').length,
-      vaccinated: petsList.filter(p => p.isVaccinated).length,
-      neutered: petsList.filter(p => p.isNeutered).length
-    };
-    setPetStats(stats);
-  };
-
   // Reset to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterSpecies]);
+  }, [searchTerm]);
 
   // Memoize filtered pets to avoid recalculating on every render
   const filteredPets = useMemo(() => {
@@ -170,11 +147,9 @@ const PetsList = () => {
         (pet.ownerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (pet.description || '').toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesSpecies = filterSpecies === 'all' || pet.species === filterSpecies;
-      
-      return matchesSearch && matchesSpecies;
+      return matchesSearch;
     });
-  }, [pets, searchTerm, filterSpecies]);
+  }, [pets, searchTerm]);
 
   // Update total pages when filtered pets change
   useEffect(() => {
@@ -199,29 +174,8 @@ const PetsList = () => {
     navigate(`/pets/${petId}`);
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
-  };
-
-
   const getSpeciesIcon = (species) => {
     return '🐱'; // Chỉ có mèo
-  };
-
-  const getVaccinationBadge = (isVaccinated) => {
-    return isVaccinated ? (
-      <span className="vaccinated-badge">✓ Đã tiêm phòng</span>
-    ) : (
-      <span className="unvaccinated-badge">✗ Chưa tiêm phòng</span>
-    );
-  };
-
-  const getNeuteredBadge = (isNeutered) => {
-    return isNeutered ? (
-      <span className="neutered-badge">✓ Đã triệt sản</span>
-    ) : (
-      <span className="not-neutered-badge">✗ Chưa triệt sản</span>
-    );
   };
 
   if (loading && pets.length === 0) {
@@ -273,35 +227,7 @@ const PetsList = () => {
           </div>
         </div>
 
-        <div className="filter-section">
-          <select
-            value={filterSpecies}
-            onChange={(e) => setFilterSpecies(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">Tất cả loài</option>
-            <option value="Cat">Mèo</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="pets-stats">
-        <div className="stat-card">
-          <span className="stat-number">{petStats.total}</span>
-          <span className="stat-label">Tổng thú cưng</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-number">{petStats.cats}</span>
-          <span className="stat-label">Mèo</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-number">{petStats.vaccinated}</span>
-          <span className="stat-label">Đã tiêm phòng</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-number">{petStats.neutered}</span>
-          <span className="stat-label">Đã triệt sản</span>
-        </div>
+        {/* Species filter removed per request */}
       </div>
 
       <div className="pets-table-container">
@@ -311,10 +237,7 @@ const PetsList = () => {
               <th>Ảnh</th>
               <th>Thông tin thú cưng</th>
               <th>Chủ sở hữu</th>
-              <th>Sức khỏe</th>
               <th>Thống kê</th>
-              <th>Ngày tạo</th>
-              <th>Cập nhật cuối</th>
               <th>Hành động</th>
             </tr>
           </thead>
@@ -355,16 +278,6 @@ const PetsList = () => {
                   </div>
                 </td>
                 <td>
-                  <div className="health-info">
-                    <div className="health-item">
-                      {getVaccinationBadge(pet.isVaccinated)}
-                    </div>
-                    <div className="health-item">
-                      {getNeuteredBadge(pet.isNeutered)}
-                    </div>
-                  </div>
-                </td>
-                <td>
                   <div className="pet-stats">
                     <div className="stat-item">
                       <span className="stat-label">Ghép đôi:</span>
@@ -379,26 +292,6 @@ const PetsList = () => {
                       <span className="stat-value">{pet.photos ? pet.photos.length : 0}</span>
                     </div>
                   </div>
-                </td>
-                <td>
-                  {pet.createdAt ? (
-                    <div className="date-info">
-                      <div>{formatDate(pet.createdAt)}</div>
-                      <div className="time-info">{new Date(pet.createdAt).toLocaleTimeString('vi-VN')}</div>
-                    </div>
-                  ) : (
-                    <span style={{ color: '#999' }}>N/A</span>
-                  )}
-                </td>
-                <td>
-                  {pet.updatedAt ? (
-                    <div className="date-info">
-                      <div>{formatDate(pet.updatedAt)}</div>
-                      <div className="time-info">{new Date(pet.updatedAt).toLocaleTimeString('vi-VN')}</div>
-                    </div>
-                  ) : (
-                    <span style={{ color: '#999' }}>N/A</span>
-                  )}
                 </td>
                 <td>
                   <div className="action-buttons">
@@ -421,7 +314,7 @@ const PetsList = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
                   Không tìm thấy thú cưng nào
                 </td>
               </tr>

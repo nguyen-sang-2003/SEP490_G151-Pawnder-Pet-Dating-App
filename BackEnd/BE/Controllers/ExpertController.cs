@@ -34,8 +34,8 @@ namespace BE.Controllers
 			}
 		}
 
-		// GET: /expert-confirmation/{userId}/{chatId}
-		[HttpGet("expert-confirmation/{userId:int}/{chatId:int}")]
+		// GET: /expert-confirmation/{expertId}/{userId}/{chatId}
+		[HttpGet("expert-confirmation/{expertId:int}/{userId:int}/{chatId:int}")]
 		[Authorize(Roles = "Admin,Expert")]
 		public async Task<ActionResult<ExpertConfirmationDTO>> GetExpertConfirmation(
 			int expertId, int userId, int chatId, CancellationToken ct = default)

@@ -18,6 +18,9 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getUserExpertConfirmations, ExpertConfirmation } from "../../../api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createOrGetExpertChat } from "../../../api/expert-chat";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertConfirmation">;
 
@@ -26,6 +29,8 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'answered' | 'pending'>('all');
+  const [creatingChat, setCreatingChat] = useState(false);
+  const { visible: alertVisible, alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   useFocusEffect(
     useCallback(() => {
@@ -58,6 +63,57 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
     setRefreshing(true);
     await loadRequests();
     setRefreshing(false);
+  };
+
+  const handleChatWithExpert = async (item: ExpertConfirmation) => {
+    if (creatingChat) return;
+
+    try {
+      setCreatingChat(true);
+      const userIdStr = await AsyncStorage.getItem("userId");
+      if (!userIdStr) {
+        showAlert({
+          type: 'error',
+          title: 'Lỗi',
+          message: 'Không tìm thấy thông tin người dùng'
+        });
+        return;
+      }
+
+      const userId = parseInt(userIdStr);
+      const expertId = item.expertId;
+
+      if (!expertId) {
+        showAlert({
+          type: 'error',
+          title: 'Lỗi',
+          message: 'Không tìm thấy thông tin chuyên gia'
+        });
+        return;
+      }
+
+      console.log(`🔄 Creating chat with expert: expertId=${expertId}, userId=${userId}`);
+
+      // Create or get existing chat
+      const chatResponse = await createOrGetExpertChat(expertId, userId);
+      console.log('✅ Chat created/retrieved:', chatResponse);
+
+      // Navigate to expert chat screen
+      navigation.navigate("ExpertChat", {
+        chatExpertId: chatResponse.chatExpertId,
+        expertId: chatResponse.expertId,
+        expertName: "Chuyên gia"
+      });
+    } catch (error: any) {
+      console.error('❌ Error creating expert chat:', error);
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: error.message || 'Không thể tạo chat với chuyên gia'
+      });
+    } finally {
+      setCreatingChat(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -185,18 +241,33 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       {(item.status.toLowerCase() === "answered" ||
         item.status.toLowerCase() === "approved" ||
         item.status.toLowerCase() === "confirmed") && item.message && (
-          <View style={styles.expertResponseSection}>
-            <View style={styles.expertResponseHeader}>
-              <Icon name="checkmark-circle" size={14} color="#4CAF50" />
-              <Text style={styles.expertResponseHeaderText}>Phản hồi của chuyên gia:</Text>
+          <>
+            <View style={styles.expertResponseSection}>
+              <View style={styles.expertResponseHeader}>
+                <Icon name="checkmark-circle" size={14} color="#4CAF50" />
+                <Text style={styles.expertResponseHeaderText}>Phản hồi của chuyên gia:</Text>
+              </View>
+              <Text style={styles.expertResponseText}>{item.message}</Text>
+              {item.updatedAt && (
+                <Text style={styles.expertResponseTime}>
+                  Trả lời lúc: {formatTime(item.updatedAt)}
+                </Text>
+              )}
             </View>
-            <Text style={styles.expertResponseText}>{item.message}</Text>
-            {item.updatedAt && (
-              <Text style={styles.expertResponseTime}>
-                Trả lời lúc: {formatTime(item.updatedAt)}
+
+            {/* Chat with Expert Button */}
+            <TouchableOpacity
+              style={styles.chatExpertButton}
+              onPress={() => handleChatWithExpert(item)}
+              activeOpacity={0.7}
+            >
+              <Icon name="chatbubbles" size={18} color="#4CAF50" />
+              <Text style={styles.chatExpertButtonText}>
+                Nhắn tin với chuyên gia
               </Text>
-            )}
-          </View>
+              <Icon name="arrow-forward" size={16} color="#4CAF50" />
+            </TouchableOpacity>
+          </>
         )}
 
       {/* Pending Status */}
@@ -359,6 +430,17 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
                 tintColor={colors.primary}
               />
             }
+          />
+        )}
+
+        {/* Custom Alert */}
+        {alertConfig && (
+          <CustomAlert
+            visible={alertVisible}
+            title={alertConfig.title}
+            message={alertConfig.message}
+            type={alertConfig.type}
+            onClose={hideAlert}
           />
         )}
       </LinearGradient>
@@ -608,11 +690,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: "rgba(76, 175, 80, 0.3)",
-    marginBottom: 12,
+    marginTop: 12,
   },
   chatExpertButtonText: {
-    flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
     color: "#4CAF50",
   },

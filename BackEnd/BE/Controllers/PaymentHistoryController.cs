@@ -19,6 +19,31 @@ namespace BE.Controllers
 			_paymentHistoryService = paymentHistoryService;
 		}
 
+		// GET /api/payment-history/all
+		[HttpGet("all")]
+		[Authorize(Roles = "Admin")]
+		public async Task<IActionResult> GetAllPaymentHistories(CancellationToken ct = default)
+		{
+			try
+			{
+				var histories = await _paymentHistoryService.GetAllPaymentHistoriesAsync(ct);
+				return Ok(new
+				{
+					success = true,
+					data = histories
+				});
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "Lỗi khi lấy danh sách payment history",
+					error = ex.Message
+				});
+			}
+		}
+
 		// POST /api/payment-history/generate
 		[HttpPost("generate")]
 		[Authorize(Roles = "User")]

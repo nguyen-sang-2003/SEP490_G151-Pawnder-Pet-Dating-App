@@ -154,6 +154,11 @@ namespace BE.Services
             return await _paymentHistoryRepository.GetPaymentHistoriesByUserIdAsync(userId, ct);
         }
 
+        public async Task<IEnumerable<object>> GetAllPaymentHistoriesAsync(CancellationToken ct = default)
+        {
+            return await _paymentHistoryRepository.GetAllPaymentHistoriesAsync(ct);
+        }
+
         public async Task<object> GetVipStatusAsync(int userId, CancellationToken ct = default)
         {
             var activeSubscription = await _paymentHistoryRepository.GetVipStatusAsync(userId, ct);

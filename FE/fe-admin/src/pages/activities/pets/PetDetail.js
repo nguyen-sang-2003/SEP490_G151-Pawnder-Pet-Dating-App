@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import petService from '../../services/api/petService';
-import petPhotoService from '../../services/api/petPhotoService';
-import userService from '../../services/api/userService';
+import petService from '../../../services/api/petService';
+import petPhotoService from '../../../services/api/petPhotoService';
+import userService from '../../../services/api/userService';
 import './PetDetail.css';
 
 const PetDetail = () => {
@@ -12,7 +12,6 @@ const PetDetail = () => {
   
   // Pet data state
   const [pet, setPet] = useState(null);
-  const [owner, setOwner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -134,7 +133,6 @@ const PetDetail = () => {
             mappedPet.ownerEmail = ownerFound.Email || ownerFound.email || 'unknown@email.com';
             mappedPet.ownerPhone = null; // Backend doesn't have phone
             
-            setOwner(ownerFound);
           } else {
             console.warn('Owner not found in first 50 users. PetDto_1 should include UserId.');
           }
@@ -169,10 +167,6 @@ const PetDetail = () => {
         prev === pet.photos.length - 1 ? 0 : prev + 1
       );
     }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
   const getSpeciesIcon = (species) => {
@@ -342,22 +336,6 @@ const PetDetail = () => {
             </div>
 
             <div className="info-card">
-              <h3>Sức khỏe</h3>
-              <div className="info-item">
-                <span className="label">Tiêm phòng:</span>
-                <span className={`value ${pet.isVaccinated ? 'vaccinated' : 'unvaccinated'}`}>
-                  {pet.isVaccinated ? '✓ Đã tiêm phòng' : '✗ Chưa tiêm phòng'}
-                </span>
-              </div>
-              <div className="info-item">
-                <span className="label">Triệt sản:</span>
-                <span className={`value ${pet.isNeutered ? 'neutered' : 'not-neutered'}`}>
-                  {pet.isNeutered ? '✓ Đã triệt sản' : '✗ Chưa triệt sản'}
-                </span>
-              </div>
-            </div>
-
-            <div className="info-card">
               <h3>Chủ sở hữu</h3>
               <div className="info-item">
                 <span className="label">Tên:</span>
@@ -397,31 +375,6 @@ const PetDetail = () => {
               </div>
             </div>
 
-            <div className="info-card">
-              <h3>Thời gian</h3>
-              {pet.createdAt ? (
-                <div className="info-item">
-                  <span className="label">Ngày tạo:</span>
-                  <span className="value">{formatDate(pet.createdAt)}</span>
-                </div>
-              ) : (
-                <div className="info-item">
-                  <span className="label">Ngày tạo:</span>
-                  <span className="value">N/A</span>
-                </div>
-              )}
-              {pet.updatedAt ? (
-                <div className="info-item">
-                  <span className="label">Cập nhật cuối:</span>
-                  <span className="value">{formatDate(pet.updatedAt)}</span>
-                </div>
-              ) : (
-                <div className="info-item">
-                  <span className="label">Cập nhật cuối:</span>
-                  <span className="value">N/A</span>
-                </div>
-              )}
-            </div>
           </div>
 
           <div className="description-card">

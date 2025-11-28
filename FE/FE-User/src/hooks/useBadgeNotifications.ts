@@ -117,10 +117,16 @@ export const useBadgeNotifications = (userId: number | null) => {
       dispatch(addUnreadExpertChat(chatExpertId));
     };
 
+    const handleNewNotification = (data: any) => {
+      console.log('🔔 [NewNotification] Received in badge hook:', data);
+      dispatch(incrementNotificationBadge());
+    };
+
     signalRService.on('NewMessageBadge', handleNewMessageBadge);
     signalRService.on('NewLikeBadge', handleNewLikeBadge);
     signalRService.on('MatchSuccess', handleMatchSuccess);
     signalRService.on('NewExpertMessageBadge', handleNewExpertMessageBadge);
+    signalRService.on('NewNotification', handleNewNotification);
 
     return () => {
       // Set unmount flag to prevent state updates
@@ -131,6 +137,7 @@ export const useBadgeNotifications = (userId: number | null) => {
       signalRService.off('NewLikeBadge', handleNewLikeBadge);
       signalRService.off('MatchSuccess', handleMatchSuccess);
       signalRService.off('NewExpertMessageBadge', handleNewExpertMessageBadge);
+      signalRService.off('NewNotification', handleNewNotification);
     };
   }, [userId, dispatch]);
 };
