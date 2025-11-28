@@ -12,6 +12,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -57,11 +59,13 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   } | null>(null);
 
   // Alert states
-  const [showConfirmAlert, setShowConfirmAlert] = useState(false);
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
+  const [userQuestion, setUserQuestion] = useState("");
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [submittingExpert, setSubmittingExpert] = useState(false);
 
   // Limit modal states
   const [showTokenLimitModal, setShowTokenLimitModal] = useState(false);
@@ -253,16 +257,20 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   };
 
   const handleAskExpert = (message: Message) => {
+    setUserQuestion(""); // Reset to empty - user must type their own question
     setSelectedMessage(message);
-    setShowConfirmAlert(true);
+    setShowQuestionModal(true);
   };
 
   const handleConfirmExpertRequest = async () => {
     if (!selectedMessage) return;
-
-    // Find user's question before this AI response
-    const messageIndex = messages.findIndex(m => m.id === selectedMessage.id);
-    const userQuestion = messageIndex > 0 ? messages[messageIndex - 1] : null;
+    
+    // Validate user question
+    if (!userQuestion.trim()) {
+      setErrorMessage('Vui lòng nhập câu hỏi của bạn');
+      setShowErrorAlert(true);
+      return;
+    }
 
     try {
       const userIdStr = await AsyncStorage.getItem('userId');
@@ -284,22 +292,28 @@ const AIChatScreen = ({ navigation, route }: Props) => {
 
       const chatAiId = parseInt(currentChatId);
 
+      setSubmittingExpert(true);
+      
       console.log('📤 Requesting expert confirmation:', {
         userId,
         chatAiId,
-        question: userQuestion?.text,
+        question: userQuestion.trim(),
         aiResponse: selectedMessage.text
       });
 
       // Create expert confirmation request (expert will be auto-assigned by backend)
       await createExpertConfirmation(userId, chatAiId, {
-        userQuestion: userQuestion?.text || '',
+        userQuestion: userQuestion.trim(),
         message: undefined  // Message will be filled by expert when they respond
       });
 
       // Mark this message as sent to expert
       setSentToExpertIds(prev => new Set(prev).add(selectedMessage.id));
 
+      // Close modal and reset
+      setShowQuestionModal(false);
+      setUserQuestion("");
+      
       // Show success
       setShowSuccessAlert(true);
 
@@ -320,6 +334,8 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
         setShowErrorAlert(true);
       }
+    } finally {
+      setSubmittingExpert(false);
     }
   };
 
@@ -581,18 +597,125 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Confirm Expert Request Alert */}
-      <CustomAlert
-        visible={showConfirmAlert}
-        type="info"
-        title="Yêu cầu chuyên gia xác nhận"
-        message={`Bạn muốn chuyên gia thú y xem xét lời khuyên này?\n\n"${selectedMessage?.text.substring(0, 80)}..."`}
-        showCancel={true}
-        cancelText="Hủy"
-        confirmText="Gửi yêu cầu"
-        onClose={() => setShowConfirmAlert(false)}
-        onConfirm={handleConfirmExpertRequest}
-      />
+      {/* Question Modal for Expert Confirmation */}
+      <Modal
+        visible={showQuestionModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowQuestionModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowQuestionModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <LinearGradient
+                colors={["#4CAF50", "#81C784"]}
+                style={styles.modalIconGradient}
+              >
+                <Icon name="shield-checkmark" size={32} color={colors.white} />
+              </LinearGradient>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowQuestionModal(false)}
+              >
+                <Icon name="close" size={24} color={colors.textDark} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Modal Body */}
+            <ScrollView
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.modalTitle}>Yêu cầu chuyên gia xác nhận</Text>
+              <Text style={styles.modalDescription}>
+                Nhập câu hỏi của bạn để chuyên gia thú y có thể hiểu rõ vấn đề và đưa ra lời khuyên chính xác nhất.
+              </Text>
+
+              {/* AI Response - Full Display */}
+              <View style={styles.aiResponseSection}>
+                <View style={styles.aiResponseHeader}>
+                  <Icon name="sparkles" size={18} color={colors.aiPrimary} />
+                  <Text style={styles.aiResponseHeaderText}>Câu trả lời của AI</Text>
+                </View>
+                <ScrollView style={styles.aiResponseScrollView} nestedScrollEnabled>
+                  <Text style={styles.aiResponseFullText}>
+                    {selectedMessage?.text}
+                  </Text>
+                </ScrollView>
+              </View>
+
+              {/* Question Input */}
+              <View style={styles.questionInputContainer}>
+                <Text style={styles.questionLabel}>
+                  Câu hỏi/thắc mắc của bạn về câu trả lời này <Text style={styles.required}>*</Text>
+                </Text>
+                <Text style={styles.questionHint}>
+                  Hãy mô tả chi tiết vấn đề hoặc thắc mắc của bạn để chuyên gia có thể tư vấn chính xác
+                </Text>
+                <TextInput
+                  style={styles.questionInput}
+                  placeholder="Ví dụ: Mèo của tôi bị chảy nước mắt và hắt hơi liên tục. Có phải mèo bị cảm không? Tôi cần làm gì?"
+                  placeholderTextColor={colors.textLabel}
+                  value={userQuestion}
+                  onChangeText={setUserQuestion}
+                  multiline
+                  numberOfLines={5}
+                  maxLength={500}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.characterCount}>
+                  {userQuestion.length}/500
+                </Text>
+              </View>
+
+              <View style={styles.infoBox}>
+                <Icon name="information-circle" size={20} color="#4CAF50" />
+                <Text style={styles.infoText}>
+                  Chuyên gia sẽ xem xét câu hỏi và câu trả lời của AI, sau đó gửi phản hồi cho bạn qua thông báo.
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowQuestionModal(false)}
+              >
+                <Text style={styles.modalCancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmButton, submittingExpert && styles.modalButtonDisabled]}
+                onPress={handleConfirmExpertRequest}
+                disabled={submittingExpert || !userQuestion.trim()}
+              >
+                <LinearGradient
+                  colors={userQuestion.trim() && !submittingExpert ? ["#4CAF50", "#81C784"] : ["#E0E0E0", "#BDBDBD"]}
+                  style={styles.modalConfirmGradient}
+                >
+                  {submittingExpert ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <>
+                      <Icon name="send" size={18} color={colors.white} />
+                      <Text style={styles.modalConfirmButtonText}>Gửi yêu cầu</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Success Alert */}
       <CustomAlert
@@ -962,6 +1085,184 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textMedium,
     fontWeight: '600',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    width: "100%",
+    maxHeight: "85%",
+    ...shadows.large,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 20,
+    paddingBottom: 16,
+  },
+  modalIconGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.cardBackgroundLight,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBody: {
+    paddingHorizontal: 20,
+    maxHeight: 500,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: colors.textDark,
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: colors.textMedium,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  aiResponseSection: {
+    backgroundColor: "#F8F8F8",
+    borderRadius: radius.md,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "rgba(156, 39, 176, 0.2)",
+    overflow: "hidden",
+  },
+  aiResponseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(156, 39, 176, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(156, 39, 176, 0.15)",
+  },
+  aiResponseHeaderText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.aiPrimary,
+  },
+  aiResponseScrollView: {
+    maxHeight: 150,
+    padding: 12,
+  },
+  aiResponseFullText: {
+    fontSize: 14,
+    color: colors.textDark,
+    lineHeight: 22,
+  },
+  questionInputContainer: {
+    marginBottom: 16,
+  },
+  questionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textDark,
+    marginBottom: 4,
+  },
+  questionHint: {
+    fontSize: 12,
+    color: colors.textMedium,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  required: {
+    color: colors.error,
+  },
+  questionInput: {
+    backgroundColor: colors.whiteWarm,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    borderRadius: radius.md,
+    padding: 12,
+    fontSize: 15,
+    color: colors.textDark,
+    minHeight: 100,
+    maxHeight: 150,
+  },
+  characterCount: {
+    fontSize: 12,
+    color: colors.textLabel,
+    textAlign: "right",
+    marginTop: 4,
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
+    padding: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "rgba(76, 175, 80, 0.2)",
+    marginBottom: 16,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#4CAF50",
+    lineHeight: 18,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    backgroundColor: colors.cardBackgroundLight,
+    alignItems: "center",
+  },
+  modalCancelButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textMedium,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  modalButtonDisabled: {
+    opacity: 0.6,
+  },
+  modalConfirmGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    gap: 8,
+  },
+  modalConfirmButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.white,
   },
 });
 

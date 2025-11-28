@@ -239,6 +239,7 @@ apiClient.interceptors.response.use(
         const refreshToken = await getStoredRefreshToken();
 
         if (!refreshToken) {
+          console.log('⚠️ No refresh token found in Keychain');
           throw new Error('No refresh token');
         }
 
@@ -263,24 +264,35 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
 
         return apiClient(originalRequest);
-      } catch (refreshError) {
-        console.log('❌ Refresh token failed, logging out...');
+      } catch (refreshError: any) {
+        console.log('❌ Refresh token failed:', refreshError?.message || refreshError);
 
         processQueue(refreshError, null);
         isRefreshing = false;
 
-        // Clear all tokens and user data
-        try {
-          await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
-          await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
-          await AsyncStorage.removeItem('userId');
-          await AsyncStorage.removeItem('userEmail');
-          await AsyncStorage.removeItem('userRole');
-          // Set logout flag to trigger navigation
-          await AsyncStorage.setItem('shouldLogout', 'true');
-          console.log('🔐 Cleared all tokens and set logout flag');
-        } catch (e) {
+        // Only logout if it's actually a token issue (not network error)
+        const shouldLogout = 
+          refreshError?.message === 'No refresh token' ||
+          refreshError?.response?.status === 401 ||
+          refreshError?.response?.status === 403;
 
+        if (shouldLogout) {
+          console.log('🚪 Logging out due to invalid/missing refresh token');
+          // Clear all tokens and user data
+          try {
+            await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
+            await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
+            await AsyncStorage.removeItem('userId');
+            await AsyncStorage.removeItem('userEmail');
+            await AsyncStorage.removeItem('userRole');
+            // Set logout flag to trigger navigation
+            await AsyncStorage.setItem('shouldLogout', 'true');
+            console.log('🔐 Cleared all tokens and set logout flag');
+          } catch (e) {
+
+          }
+        } else {
+          console.log('⚠️ Refresh failed due to network/server error, not logging out');
         }
 
         return Promise.reject(refreshError);

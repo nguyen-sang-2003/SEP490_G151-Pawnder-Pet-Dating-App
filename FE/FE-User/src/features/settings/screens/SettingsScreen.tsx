@@ -102,8 +102,8 @@ const SettingsScreen = ({ navigation }: Props) => {
     {
       icon: "notifications-outline",
       title: "Notifications",
-      subtitle: "Configure notification preferences",
-      onPress: () => showAlert({ type: 'info', title: "Coming Soon", message: "This feature is under development" }),
+      subtitle: "View your notifications",
+      onPress: () => navigation.navigate("Notification"),
     },
   ];
 

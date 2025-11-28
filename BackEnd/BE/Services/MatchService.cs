@@ -328,9 +328,6 @@ namespace BE.Services
                     .Select(pp => pp.ImageUrl)
                     .FirstOrDefault();
 
-                // Business logic: Create notification for both users
-                await CreateMatchNotification(request.FromUserId, request.ToUserId, reciprocalLike.MatchId, ct);
-
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
                 {
@@ -479,9 +476,6 @@ namespace BE.Services
                     .ThenBy(pp => pp.PhotoId)
                     .Select(pp => pp.ImageUrl)
                     .FirstOrDefault();
-
-                // Business logic: Create notification
-                await CreateMatchNotification(chatUser.FromPet.UserId.Value, chatUser.ToPet.UserId.Value, chatUser.MatchId, ct);
 
                 // Business logic: Send real-time match notifications to both users
                 if (user1 != null && user2 != null)
