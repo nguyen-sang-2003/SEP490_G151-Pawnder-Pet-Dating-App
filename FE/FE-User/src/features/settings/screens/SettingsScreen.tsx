@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -83,9 +83,9 @@ const SettingsScreen = ({ navigation }: Props) => {
   const appSettings: SettingsItem[] = [
     {
       icon: "shield-checkmark-outline",
-      title: "Privacy & Safety",
-      subtitle: "Control your privacy settings",
-      onPress: () => navigation.navigate("PrivacyAndSafety"),
+      title: "Expert Confirmation",
+      subtitle: "View AI responses confirmed by experts",
+      onPress: () => navigation.navigate("ExpertConfirmation"),
     },
     {
       icon: "ban-outline",

@@ -1,9 +1,4 @@
 export { default as HelpAndSupportScreen } from "./HelpAndSupportScreen";
-export { default as PrivacyAndSafetyScreen } from "./PrivacyAndSafetyScreen";
 export { default as ResourceDetailScreen } from "./ResourceDetailScreen";
-export { default as ShareProfileScreen } from "./ShareProfileScreen";
-export { default as UserPreferenceScreen } from "./UserPreferenceScreen";
-export { default as ExpertConfirmationScreen } from "./ExpertConfirmationScreen";
 export { default as SettingsScreen } from "./SettingsScreen";
-export { default as PaymentMethodScreen } from "./PaymentMethodScreen";
 export { default as ChangePasswordScreen } from "./ChangePasswordScreen";

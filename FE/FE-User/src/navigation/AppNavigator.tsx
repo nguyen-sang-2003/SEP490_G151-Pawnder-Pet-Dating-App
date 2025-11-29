@@ -46,16 +46,12 @@ const EditPetScreen = lazy(() => import("../features/profile/screens/EditPetScre
 const HelpAndSupportScreen = lazy(() => import("../features/settings/screens/HelpAndSupportScreen"));
 const ResourceDetailScreen = lazy(() => import("../features/settings/screens/ResourceDetailScreen"));
 const PremiumScreen = lazy(() => import("../features/payment/screens/PremiumScreen"));
-const PrivacyAndSafetyScreen = lazy(() => import("../features/settings/screens/PrivacyAndSafetyScreen"));
-const ShareProfileScreen = lazy(() => import("../features/settings/screens/ShareProfileScreen"));
-const UserPreferenceScreen = lazy(() => import("../features/settings/screens/UserPreferenceScreen"));
 const ReportScreen = lazy(() => import("../features/report/screens/ReportScreen"));
 const MyReportsScreen = lazy(() => import("../features/report/screens/MyReportsScreen"));
 const ExpertConfirmationScreen = lazy(() => import("../features/settings/screens/ExpertConfirmationScreen"));
 const SettingsScreen = lazy(() => import("../features/settings/screens/SettingsScreen"));
 const BlockedUsersScreen = lazy(() => import("../features/report/screens/BlockedUsersScreen"));
 const PaymentHistoryScreen = lazy(() => import("../features/payment/screens/PaymentHistoryScreen"));
-const PaymentMethodScreen = lazy(() => import("../features/settings/screens/PaymentMethodScreen"));
 const QRPaymentScreen = lazy(() => import("../features/payment/screens/QRPaymentScreen"));
 const ChangePasswordScreen = lazy(() => import("../features/settings/screens/ChangePasswordScreen"));
 
@@ -113,15 +109,11 @@ export type RootStackParamList = {
   HelpAndSupport: undefined;
   ResourceDetail: { type: string };
   Premium: undefined;
-  PrivacyAndSafety: undefined;
-  ShareProfile: undefined;
-  UserPreference: undefined;
   Report: { userId: string; userName: string };
   MyReports: undefined;
   ExpertConfirmation: undefined;
   BlockedUsers: undefined;
   PaymentHistory: undefined;
-  PaymentMethod: undefined;
   QRPayment: {
     planId: string;
     planName: string;
@@ -320,16 +312,12 @@ const AppNavigator = () => {
           component={LazyScreen(PremiumScreen)}
           options={modalScreenOptions}
         />
-        <Stack.Screen name="PrivacyAndSafety" component={LazyScreen(PrivacyAndSafetyScreen)} />
-        <Stack.Screen name="ShareProfile" component={LazyScreen(ShareProfileScreen)} />
-        <Stack.Screen name="UserPreference" component={LazyScreen(UserPreferenceScreen)} />
         <Stack.Screen name="Report" component={LazyScreen(ReportScreen)} />
         <Stack.Screen name="MyReports" component={LazyScreen(MyReportsScreen)} />
         <Stack.Screen name="ExpertConfirmation" component={LazyScreen(ExpertConfirmationScreen)} />
         <Stack.Screen name="Settings" component={LazyScreen(SettingsScreen)} />
         <Stack.Screen name="BlockedUsers" component={LazyScreen(BlockedUsersScreen)} />
         <Stack.Screen name="PaymentHistory" component={LazyScreen(PaymentHistoryScreen)} />
-        <Stack.Screen name="PaymentMethod" component={LazyScreen(PaymentMethodScreen)} />
         <Stack.Screen
           name="QRPayment"
           component={LazyScreen(QRPaymentScreen)}

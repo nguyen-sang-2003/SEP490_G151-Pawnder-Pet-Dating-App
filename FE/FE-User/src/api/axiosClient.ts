@@ -78,7 +78,7 @@ export const storeTokens = async (accessToken: string, refreshToken: string): Pr
       console.warn('⚠️ Invalid refresh token, skipping storage');
       return;
     }
-    
+
     // Store access token
     await Keychain.setGenericPassword('accessToken', accessToken, {
       service: 'pawnder.auth',
@@ -282,7 +282,7 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
 
         // Only logout if it's actually a token issue (not network error)
-        const shouldLogout = 
+        const shouldLogout =
           refreshError?.message === 'No refresh token' ||
           refreshError?.response?.status === 401 ||
           refreshError?.response?.status === 403;
