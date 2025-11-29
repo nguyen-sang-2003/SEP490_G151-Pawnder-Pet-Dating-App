@@ -17,12 +17,12 @@ const DEBOUNCE_DELAY = 500; // 500ms debounce
 /**
  * Internal implementation of badge refresh
  */
-const _refreshBadgesForActivePetImpl = async (userId: number): Promise<void> => {
+const _refreshBadgesForActivePetImpl = async (userId: number, skipRateLimit: boolean = false): Promise<void> => {
   try {
     const now = Date.now();
     
-    // Rate limiting: Skip if called too frequently (unless pet switched)
-    if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
+    // Rate limiting: Skip if called too frequently (unless pet switched or skipRateLimit)
+    if (!skipRateLimit && now - lastRefreshTime < MIN_REFRESH_INTERVAL) {
       console.log(`⏭️ Skipping badge refresh (rate limited, ${MIN_REFRESH_INTERVAL - (now - lastRefreshTime)}ms remaining)`);
       return;
     }
@@ -71,19 +71,24 @@ const _refreshBadgesForActivePetImpl = async (userId: number): Promise<void> => 
         // Pet switched: OVERWRITE completely with new pet's badges
         mergedUnreadChats = apiUnreadChats;
       } else {
-        // Same pet: Merge with local state
+        // Same pet: PRESERVE local read state
         // The server returns matchIds with unread messages based on "last message from other user"
         // But the user may have already opened and read those messages locally (Redux markChatAsRead)
-        // Strategy: Keep current local state + add NEW unread chats from API
-        // DON'T restore chats that user has already marked as read locally
-
-        // Find new unread chats from API that are not in current local list
-        const newUnreadChats = apiUnreadChats.filter(
-          (matchId: number) => !currentUnreadChats.includes(matchId)
-        );
-
-        // Merge: Keep current local unread chats + add new ones from API
-        mergedUnreadChats = [...currentUnreadChats, ...newUnreadChats];
+        
+        // IMPORTANT: Local state is the source of truth for "read" status
+        // - If user read a chat locally, it won't be in currentUnreadChats
+        // - API might still say it's unread (server doesn't know user read it)
+        // - We should NOT restore chats that user marked as read
+        
+        // Strategy: KEEP local state, DON'T add from API
+        // New messages will be added via SignalR (NewMessageBadge event)
+        mergedUnreadChats = [...currentUnreadChats];
+        
+        console.log('📊 [Badge Merge] Preserving local read state:', {
+          apiSays: apiUnreadChats,
+          localSays: currentUnreadChats,
+          result: mergedUnreadChats
+        });
       }
 
       // Update Redux store with merged data (including notification badge)
@@ -127,11 +132,25 @@ const _refreshBadgesForActivePetImpl = async (userId: number): Promise<void> => 
  * Refresh badge counts for the user's active pet
  * With debouncing and request deduplication
  */
-export const refreshBadgesForActivePet = async (userId: number): Promise<void> => {
+export const refreshBadgesForActivePet = async (userId: number, immediate: boolean = false): Promise<void> => {
   // Request deduplication: If refresh is already in progress, return existing promise
   if (ongoingRefresh) {
     console.log('⏳ Badge refresh already in progress, waiting...');
     return ongoingRefresh;
+  }
+
+  // ✅ Immediate mode: Skip debounce for initial load
+  if (immediate) {
+    console.log('⚡ Immediate badge refresh (skipping debounce)');
+    try {
+      ongoingRefresh = _refreshBadgesForActivePetImpl(userId, true);
+      await ongoingRefresh;
+      ongoingRefresh = null;
+    } catch (error) {
+      ongoingRefresh = null;
+      throw error;
+    }
+    return;
   }
 
   // Debouncing: Clear existing timer and set new one

@@ -130,48 +130,82 @@ const NotificationScreen = ({ navigation }: Props) => {
 
         // Listen for new notifications
         const handleNewNotification = (data: any) => {
-          console.log('🔔 New notification received via SignalR:', data);
+          console.log('🔔 [NotificationScreen] New notification received via SignalR:', data);
 
-          // Reload notifications first to get NotificationId from DB
-          loadNotifications().then(async () => {
-            console.log('✅ Notifications reloaded from API after realtime notification');
+          // ✅ Create notification object from SignalR data
+          const newNotification: Notification = {
+            notificationId: 0, // Temporary, will be replaced on next full reload
+            title: data.Title || data.title || 'New Notification',
+            message: data.Message || data.message || '',
+            type: data.Type || data.type || 'system',
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            expertId: data.ExpertId || data.expertId,
+            chatId: data.ChatId || data.chatId,
+          };
 
-            // After reload, if we have expertId in SignalR data, store it with the newest notification
-            if (data.ExpertId && data.Type === 'expert_confirmation') {
-              try {
-                const notifications = await getNotifications(userId);
-                // Find the newest expert_confirmation notification (just created)
-                const newestExpertNotif = notifications
-                  .filter(n => n.type === 'expert_confirmation')
-                  .sort((a, b) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                    return dateB - dateA;
-                  })[0];
-
-                if (newestExpertNotif) {
-                  // Store mapping: notificationId -> expertId
-                  const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
-                  const mappingData = {
-                    expertId: data.ExpertId,
-                    chatId: data.ChatId,
-                    timestamp: Date.now()
-                  };
-                  await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
-                  console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
-                }
-              } catch (err) {
-
-              }
+          // ✅ Add to list immediately (optimistic update)
+          setNotifications(prev => {
+            // Check if notification already exists (avoid duplicates)
+            const exists = prev.some(n => {
+              const createdAt = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+              return n.title === newNotification.title && 
+                n.message === newNotification.message &&
+                createdAt > Date.now() - 5000; // Within 5 seconds
+            });
+            
+            if (exists) {
+              console.log('⚠️ Notification already in list, skipping duplicate');
+              return prev;
             }
-          }).catch(err => {
 
+            console.log('✅ Adding new notification to list (optimistic update)');
+            return [newNotification, ...prev]; // Add to top
           });
 
-          // Refresh badge count if userId is available
+          // ⏳ Background: Reload to get real notificationId from DB
+          // This will replace the temporary notification with real data
+          setTimeout(() => {
+            loadNotifications().then(async () => {
+              console.log('✅ Notifications synced from API after realtime event');
+
+              // After reload, store expertId mapping if available
+              if (data.ExpertId && (data.Type === 'expert_confirmation' || data.Type === 'expert_reply')) {
+                try {
+                  const notifications = await getNotifications(userId);
+                  // Find the newest expert notification (just created)
+                  const newestExpertNotif = notifications
+                    .filter(n => n.type === 'expert_confirmation' || n.type === 'expert_reply')
+                    .sort((a, b) => {
+                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                      return dateB - dateA;
+                    })[0];
+
+                  if (newestExpertNotif) {
+                    // Store mapping: notificationId -> expertId
+                    const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
+                    const mappingData = {
+                      expertId: data.ExpertId,
+                      chatId: data.ChatId,
+                      timestamp: Date.now()
+                    };
+                    await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
+                    console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
+                  }
+                } catch (err) {
+                  console.error('Error storing expert mapping:', err);
+                }
+              }
+            }).catch(err => {
+              console.error('Error reloading notifications:', err);
+            });
+          }, 1000); // Delay 1s to let backend save notification first
+
+          // Refresh badge count (handled by useBadgeNotifications hook, but ensure it's synced)
           if (userId) {
             refreshBadgesForActivePet(userId).catch(err => {
-
+              console.error('Error refreshing badges:', err);
             });
           }
         };
@@ -184,7 +218,7 @@ const NotificationScreen = ({ navigation }: Props) => {
           signalRService.off('NewNotification', handleNewNotification);
         };
       } catch (error) {
-
+        console.error('Error setting up SignalR for notifications:', error);
       }
     };
 

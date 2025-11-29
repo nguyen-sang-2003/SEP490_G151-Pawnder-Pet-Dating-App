@@ -140,6 +140,12 @@ class SignalRService {
       this.notifyListeners('MessagesRead', data);
     });
 
+    // Match deleted/unmatched
+    this.connection.on('MatchDeleted', (data) => {
+      console.log('💔 [SignalR] Match deleted:', data);
+      this.notifyListeners('MatchDeleted', data);
+    });
+
     // Badge notifications
     this.connection.on('NewMessageBadge', (data) => {
 

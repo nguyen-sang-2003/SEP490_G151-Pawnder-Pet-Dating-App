@@ -17,6 +17,7 @@ interface BadgeState {
   notificationBadge: number;
   matchModal: MatchModalData;
   activePetId: number | null; // Currently active pet ID for filtering
+  activeViewingChatId: number | null; // Chat currently being viewed (don't add badge for this)
 }
 
 const initialState: BadgeState = {
@@ -25,6 +26,7 @@ const initialState: BadgeState = {
   favoriteBadge: 0,
   notificationBadge: 0,
   activePetId: null,
+  activeViewingChatId: null,
   matchModal: {
     visible: false,
     otherUserName: '',
@@ -124,6 +126,9 @@ const badgeSlice = createSlice({
     setActivePetId: (state, action: PayloadAction<number | null>) => {
       state.activePetId = action.payload;
     },
+    setActiveViewingChatId: (state, action: PayloadAction<number | null>) => {
+      state.activeViewingChatId = action.payload;
+    },
   },
 });
 
@@ -145,6 +150,7 @@ export const {
   showMatchModal,
   hideMatchModal,
   setActivePetId,
+  setActiveViewingChatId,
 } = badgeSlice.actions;
 
 // Selectors
@@ -157,6 +163,7 @@ export const selectFavoriteBadge = (state: RootState) => state.badge.favoriteBad
 export const selectNotificationBadge = (state: RootState) => state.badge.notificationBadge;
 export const selectMatchModal = (state: RootState) => state.badge.matchModal;
 export const selectActivePetId = (state: RootState) => state.badge.activePetId;
+export const selectActiveViewingChatId = (state: RootState) => state.badge.activeViewingChatId;
 
 export default badgeSlice.reducer;
 

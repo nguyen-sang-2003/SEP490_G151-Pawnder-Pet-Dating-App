@@ -70,7 +70,8 @@ namespace BE.Services
                 throw new InvalidOperationException("Người dùng không thuộc cuộc chat này.");
 
             // Business logic: Create message
-            var now = DateTime.Now;
+            // Use UTC time but remove Kind for PostgreSQL compatibility
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             var chatMessage = new ChatUserContent
             {
                 MatchId = matchId,

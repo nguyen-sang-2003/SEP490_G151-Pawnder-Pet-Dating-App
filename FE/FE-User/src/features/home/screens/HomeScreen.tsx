@@ -577,6 +577,23 @@ const HomeScreen = ({ navigation }: Props) => {
     useFocusEffect(
         useCallback(() => {
             loadPets();
+            
+            // ✅ FORCE badge refresh when entering HomeScreen
+            // This ensures badges are always up-to-date, especially after login/restart
+            const refreshBadges = async () => {
+                try {
+                    const userIdStr = await AsyncStorage.getItem('userId');
+                    if (userIdStr) {
+                        const userId = parseInt(userIdStr);
+                        console.log('🔄 [HomeScreen] Force refreshing badges on focus');
+                        await refreshBadgesForActivePet(userId, true); // immediate=true
+                    }
+                } catch (error) {
+                    console.error('❌ [HomeScreen] Failed to refresh badges:', error);
+                }
+            };
+            
+            refreshBadges();
             // Badges are refreshed automatically when activePetId changes (useEffect above)
 
             // Check if should show login success alert

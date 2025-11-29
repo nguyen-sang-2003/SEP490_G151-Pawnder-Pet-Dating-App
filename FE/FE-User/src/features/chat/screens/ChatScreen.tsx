@@ -83,8 +83,22 @@ const ChatScreen = ({ navigation }: Props) => {
       loadChats();
       refreshOnlineUsers();
 
-      // Don't refresh badges here - they are managed by useBadgeNotifications hook
-      // and ChatDetailScreen marks chats as read locally
+      // ✅ FORCE badge refresh to ensure all badges are up-to-date
+      const refreshBadges = async () => {
+        try {
+          const userIdStr = await AsyncStorage.getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr);
+            console.log('🔄 [ChatScreen] Force refreshing all badges on focus');
+            await refreshBadgesForActivePet(userId, true);
+          }
+        } catch (error) {
+          console.error('❌ [ChatScreen] Failed to refresh badges:', error);
+        }
+      };
+      
+      refreshBadges();
+      // ChatDetailScreen marks chats as read locally
     }, [])
   );
 
@@ -104,6 +118,7 @@ const ChatScreen = ({ navigation }: Props) => {
       signalRService.on('UserOnline', handleUserOnline);
       signalRService.on('UserOffline', handleUserOffline);
       signalRService.on('ReceiveMessage', handleNewMessage);
+      signalRService.on('MatchDeleted', handleMatchDeleted);
 
       // Get initial online users
       const online = await signalRService.getOnlineUsers();
@@ -128,11 +143,87 @@ const ChatScreen = ({ navigation }: Props) => {
   };
 
   const handleNewMessage = (data: any) => {
-    // 🚀 OPTIMIZATION: Invalidate cache and reload
+    console.log('💬 [ChatScreen] New message received via SignalR:', data);
+    
+    const matchId = data.MatchId || data.matchId;
+    const message = data.Message || data.message;
+    const fromUserId = data.FromUserId || data.fromUserId;
+    const createdAt = data.CreatedAt || data.createdAt || new Date().toISOString();
+    
+    if (!matchId) {
+      console.log('⚠️ No matchId in message data');
+      return;
+    }
+
+    // ✅ Optimistic update: Update chat item immediately
+    setChatData(prevChats => {
+      const chatIndex = prevChats.findIndex(chat => chat.matchId === matchId);
+      
+      if (chatIndex === -1) {
+        // Chat not in list (new match) - reload to get it
+        console.log('🆕 New chat detected, reloading...');
+        loadChats(true);
+        return prevChats;
+      }
+      
+      // ✅ Update existing chat
+      const updatedChats = [...prevChats];
+      const chat = updatedChats[chatIndex];
+      
+      // Format time
+      const formatTime = (dateString: string): string => {
+        let dateStr = dateString;
+        if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+          dateStr = dateStr + 'Z';
+        }
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Now';
+        if (diffMins < 60) return `${diffMins}m`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h`;
+        return `${Math.floor(diffHours / 24)}d`;
+      };
+      
+      // Update last message and timestamp
+      updatedChats[chatIndex] = {
+        ...chat,
+        lastMessage: message || 'New message',
+        time: formatTime(createdAt),
+        // Only increment unread if message is FROM other user
+        unread: fromUserId !== currentUserId ? (chat.unread || 0) + 1 : chat.unread,
+      };
+      
+      // ✅ Move to top of list (like Messenger)
+      const updatedChat = updatedChats.splice(chatIndex, 1)[0];
+      updatedChats.unshift(updatedChat);
+      
+      console.log('✅ Updated chat in list and moved to top');
+      return updatedChats;
+    });
+
+    // Invalidate cache for next reload
     if (currentUserId) {
       invalidateCache.chats(currentUserId);
     }
-    loadChats(true); // Force refresh
+  };
+
+  const handleMatchDeleted = (data: any) => {
+    console.log('💔 [ChatScreen] Match deleted:', data);
+    const matchId = data.matchId || data.MatchId;
+    
+    if (matchId) {
+      // ✅ Remove from UI immediately
+      setChatData(prevChats => prevChats.filter(chat => chat.matchId !== matchId));
+      console.log('✅ Removed matchId from ChatScreen:', matchId);
+      
+      // Also invalidate cache
+      if (currentUserId) {
+        invalidateCache.chats(currentUserId);
+      }
+    }
   };
 
   const refreshOnlineUsers = async () => {

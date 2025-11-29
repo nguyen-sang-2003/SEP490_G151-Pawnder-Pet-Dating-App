@@ -18,8 +18,44 @@ import { navigate, navigationRef } from "./src/services/navigation.service";
  */
 function AppWithBadges(): React.JSX.Element {
   const [userId, setUserId] = useState<number | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const dispatch = useDispatch<AppDispatch>();
   const matchModal = useSelector(selectMatchModal);
+
+  // ✅ STEP 1: Check token validity FIRST (before anything else)
+  useEffect(() => {
+    const checkTokenValidity = async () => {
+      try {
+        const token = await getAuthToken();
+        
+        if (token && isTokenExpired(token)) {
+          console.log('🔒 Token expired on app start - clearing immediately');
+          // Clear everything synchronously to prevent race conditions
+          setUserId(null);
+          await AsyncStorage.removeItem('userId');
+          await logout();
+          setIsInitializing(false);
+          
+          // Navigate to SignIn
+          if (navigationRef.isReady()) {
+            navigationRef.reset({
+              index: 0,
+              routes: [{ name: 'SignIn' as never }],
+            });
+          }
+          return;
+        }
+        
+        // Token is valid or doesn't exist, proceed with initialization
+        setIsInitializing(false);
+      } catch (error) {
+        console.error('❌ Error checking token validity:', error);
+        setIsInitializing(false);
+      }
+    };
+
+    checkTokenValidity();
+  }, []);
 
   // Check for logout flag when app comes to foreground
   useEffect(() => {
@@ -61,31 +97,20 @@ function AppWithBadges(): React.JSX.Element {
     };
   }, []);
 
+  // ✅ STEP 2: Initialize user ONLY if token is valid
   useEffect(() => {
+    // Wait for initial token check to complete
+    if (isInitializing) {
+      return;
+    }
+
     const initializeUser = async () => {
       try {
         // Check token first
         const token = await getAuthToken();
         
         if (token) {
-          // Check if token is expired
-          if (isTokenExpired(token)) {
-            console.log('🔒 Token expired - auto logout');
-            await logout();
-            await AsyncStorage.removeItem('userId');
-            setUserId(null);
-            
-            // Navigate to SignIn
-            if (navigationRef.isReady()) {
-              navigationRef.reset({
-                index: 0,
-                routes: [{ name: 'SignIn' as never }],
-              });
-            }
-            return;
-          }
-          
-          // Token is valid - restore userId
+          // Token is valid (already checked in previous useEffect)
           console.log('✅ Token is valid');
           
           // First, try to get userId from AsyncStorage (consistent with all screens)
@@ -140,7 +165,7 @@ function AppWithBadges(): React.JSX.Element {
     return () => {
       signalRService.disconnect();
     };
-  }, []);
+  }, [isInitializing]);
 
   // Initialize badge notifications
   useBadgeNotifications(userId);

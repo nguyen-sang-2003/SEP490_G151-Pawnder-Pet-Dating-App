@@ -35,7 +35,7 @@ import { getUserPetAvatar } from "../../../utils/petAvatar";
 import ReportMessageModal from "../../report/components/ReportMessageModal";
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../../app/store';
-import { markChatAsRead } from '../../badge/badgeSlice';
+import { markChatAsRead, setActiveViewingChatId } from '../../badge/badgeSlice';
 import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width, height } = Dimensions.get("window");
@@ -154,9 +154,19 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   // Load messages when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      // ✅ Set active viewing chat ID to prevent badge from being added
+      dispatch(setActiveViewingChatId(matchId));
+      console.log('👀 [ChatDetailScreen] Set activeViewingChatId:', matchId);
+      
       loadMessages();
       // Mark this chat as read (remove from unread list)
       dispatch(markChatAsRead(matchId));
+      
+      // Cleanup: Clear active viewing chat when leaving
+      return () => {
+        dispatch(setActiveViewingChatId(null));
+        console.log('👋 [ChatDetailScreen] Cleared activeViewingChatId');
+      };
     }, [matchId, dispatch])
   );
 
@@ -250,6 +260,12 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
     // Parse timestamp as UTC
     const timestamp = new Date(createdAt);
+
+    // ✅ If message is from other user, mark as read IMMEDIATELY (outside setState)
+    if (!isFromMe) {
+      console.log('✅ [handleReceiveMessage] Message from other user - marking chat as read');
+      dispatch(markChatAsRead(matchId));
+    }
 
     setMessages(prev => {
       // Check if message already exists (by text content and recent time)
@@ -597,6 +613,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         try {
           console.log("🗑️ Unmatching matchId:", matchId);
           await deleteChat(matchId);
+
+          // ✅ Remove badge for this chat immediately
+          dispatch(markChatAsRead(matchId));
+          console.log('✅ Removed badge for matchId:', matchId);
 
           showAlert({
             type: 'success',

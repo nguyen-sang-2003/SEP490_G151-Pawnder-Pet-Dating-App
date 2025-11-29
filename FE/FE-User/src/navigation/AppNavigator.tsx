@@ -4,7 +4,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { navigationRef } from "../services/navigation.service";
-import { getAuthToken } from "../features/auth/api/authApi";
+import { getAuthToken, logout } from "../features/auth/api/authApi";
+import { isTokenExpired } from "../utils/jwtHelper";
 import {
   defaultScreenOptions,
   modalScreenOptions,
@@ -227,8 +228,21 @@ const AppNavigator = () => {
   const checkAuth = async () => {
     try {
       const token = await getAuthToken();
-      setIsAuthenticated(!!token);
+      
+      // ✅ Check both existence AND validity of token
+      if (token && !isTokenExpired(token)) {
+        setIsAuthenticated(true);
+      } else if (token && isTokenExpired(token)) {
+        console.log('🔒 [AppNavigator] Token expired - auto logout');
+        // Clear expired token
+        await AsyncStorage.removeItem('userId');
+        await logout();
+        setIsAuthenticated(false);
+      } else {
+        setIsAuthenticated(false);
+      }
     } catch (error) {
+      console.error('❌ [AppNavigator] Error checking auth:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

@@ -24,11 +24,12 @@ import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { getLikesReceived, respondToLike, type LikeReceivedItem } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch, useSelector } from "react-redux";
-import { resetFavoriteBadge, showMatchModal, selectActivePetId } from "../../badge/badgeSlice";
+import { resetFavoriteBadge, showMatchModal, selectActivePetId, markChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
 import { getPetsByUserId } from "../../pet/api/petApi";
 import OptimizedImage from "../../../components/OptimizedImage";
 import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
+import signalRService from "../../../services/signalr.service";
 
 const { width, height } = Dimensions.get("window");
 const CARD_PADDING = 16;
@@ -58,6 +59,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
   const [activeTab, setActiveTab] = useState<'likes' | 'matches'>('likes');
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [reloadTrigger, setReloadTrigger] = useState(0); // Trigger for reload
 
   // ✅ Reload likes when activePetId changes
   useEffect(() => {
@@ -66,6 +68,52 @@ const FavoriteScreen = ({ navigation }: Props) => {
       loadLikes(true); // Force refresh
     }
   }, [activePetId]);
+
+  // ✅ Setup realtime listeners for instant UI updates
+  useEffect(() => {
+    const handleMatchSuccess = (data: any) => {
+      console.log('🎉 [FavoriteScreen] Match success received:', data);
+      // Trigger reload
+      setReloadTrigger(prev => prev + 1);
+    };
+
+    const handleNewLike = (data: any) => {
+      console.log('💗 [FavoriteScreen] New like received:', data);
+      // Trigger reload
+      setReloadTrigger(prev => prev + 1);
+    };
+
+    const handleMatchDeleted = (data: any) => {
+      console.log('💔 [FavoriteScreen] Match deleted:', data);
+      const matchId = data.matchId || data.MatchId;
+      
+      if (matchId) {
+        // ✅ Remove from UI immediately without full reload
+        setPets(prevPets => prevPets.filter(pet => pet.id !== matchId.toString()));
+        console.log('✅ Removed matchId from FavoriteScreen:', matchId);
+      }
+    };
+
+    // Listen to SignalR events
+    signalRService.on('MatchSuccess', handleMatchSuccess);
+    signalRService.on('NewLikeBadge', handleNewLike);
+    signalRService.on('MatchDeleted', handleMatchDeleted);
+
+    return () => {
+      // Cleanup listeners
+      signalRService.off('MatchSuccess', handleMatchSuccess);
+      signalRService.off('NewLikeBadge', handleNewLike);
+      signalRService.off('MatchDeleted', handleMatchDeleted);
+    };
+  }, []); // Empty deps - listeners stay consistent
+
+  // ✅ Reload when reloadTrigger changes
+  useEffect(() => {
+    if (reloadTrigger > 0) {
+      console.log('🔄 Reload triggered by realtime event');
+      loadLikes(true);
+    }
+  }, [reloadTrigger]);
 
   // Reload likes when screen comes into focus
   useFocusEffect(
@@ -78,7 +126,21 @@ const FavoriteScreen = ({ navigation }: Props) => {
       // 🚀 FORCE REFRESH: Always fetch fresh data when entering screen
       loadLikes(true); // Force refresh = true
 
-      // Don't refresh badges here - they are managed by useBadgeNotifications hook
+      // ✅ FORCE badge refresh to ensure all badges are up-to-date
+      const refreshBadges = async () => {
+        try {
+          const userIdStr = await AsyncStorage.getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr);
+            console.log('🔄 [FavoriteScreen] Force refreshing all badges on focus');
+            await refreshBadgesForActivePet(userId, true);
+          }
+        } catch (error) {
+          console.error('❌ [FavoriteScreen] Failed to refresh badges:', error);
+        }
+      };
+      
+      refreshBadges();
     }, [dispatch])
   );
 
@@ -293,6 +355,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
         action: 'pass'
       });
 
+      // ✅ Remove badge for this chat immediately
+      const matchId = parseInt(petId);
+      dispatch(markChatAsRead(matchId));
+      console.log('✅ Removed badge for matchId:', matchId);
+
       // Remove from list immediately
       setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
 
@@ -308,7 +375,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
     } catch (error) {
 
     }
-  }, []);
+  }, [dispatch]);
 
   const handleChat = useCallback((matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
     console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
