@@ -19,7 +19,7 @@ import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { sendOtp, verifyOtp, register, createAddressForUser, login } from "../../../api";
 import { requestLocationAndGetCoordinates } from "../../../services/location.service";
-import { setItem } from "../../../utils/storage";
+import { setItem } from "../../../services/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "OTPVerification">;
 

@@ -16,7 +16,7 @@ import HeartsBackground from "../components/HeartsBackground";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { login } from "../../../api";
-import { setItem } from "../../../utils/storage";
+import { setItem } from "../../../services/storage";
 import { gradients } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SignIn">;

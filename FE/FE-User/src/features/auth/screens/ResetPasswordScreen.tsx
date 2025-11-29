@@ -17,7 +17,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { verifyOtp, resetPassword } from "../../../api/otp";
+import { verifyOtp, resetPassword } from "../api/otpApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ResetPassword">;
 

@@ -22,12 +22,12 @@ import Icon from "react-native-vector-icons/Ionicons";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getUserById, getPetsByUserId, getAddressById, getPetCharacteristics, getPetPhotos, setActivePet as setActivePetAPI, deletePet, type UserResponse, type PetResponse, type PetCharacteristic } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { getVipStatus } from "../../../api/payment";
+import { getVipStatus } from "../../payment/api/paymentApi";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
-import { invalidateCache } from "../../../utils/cache";
+import { invalidateCache } from "../../../services/cache";
 
 const { width } = Dimensions.get("window");
 

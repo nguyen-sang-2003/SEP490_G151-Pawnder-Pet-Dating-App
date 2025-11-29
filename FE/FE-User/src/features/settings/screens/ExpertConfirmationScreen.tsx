@@ -16,9 +16,9 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getUserExpertConfirmations, ExpertConfirmation } from "../../../api";
+import { getUserExpertConfirmations, ExpertConfirmation } from "../../expert/api/expertConfirmationApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createOrGetExpertChat } from "../../../api/expert-chat";
+import { createOrGetExpertChat } from "../../expert/api/expertChatApi";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 

@@ -16,7 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSelector } from "react-redux";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, radius, shadows } from "../../../theme";
-import { getUserExpertChats, ExpertChatListItem } from "../../../api/expert-chat";
+import { getUserExpertChats, ExpertChatListItem } from "../api/expertChatApi";
 import { selectUnreadExpertChats } from "../../badge/badgeSlice";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChatList">;

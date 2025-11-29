@@ -1,6 +1,6 @@
-import { getBadgeCounts } from '../api/match';
-import { getPetsByUserId } from '../api/pet';
-import { getUnreadNotificationCount } from '../api/notification';
+import { getBadgeCounts } from '../features/match/api/matchApi';
+import { getPetsByUserId } from '../features/pet/api/petApi';
+import { getUnreadNotificationCount } from '../features/notification/api/notificationApi';
 import { store } from '../app/store';
 import { setBadgeCounts, setActivePetId } from '../features/badge/badgeSlice';
 

@@ -17,12 +17,12 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, Notification } from "../../../api/notification";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, Notification } from "../api/notificationApi";
 import { useFocusEffect } from "@react-navigation/native";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import signalRService from "../../../services/signalr.service";
-import { createOrGetExpertChat } from "../../../api/expert-chat";
-import { getUserExpertConfirmations } from "../../../api/expert-confirmation";
+import { createOrGetExpertChat } from "../../expert/api/expertChatApi";
+import { getUserExpertConfirmations } from "../../expert/api/expertConfirmationApi";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 

@@ -20,7 +20,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import Icon from "react-native-vector-icons/Ionicons";
 import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser, getPetsByUserId } from "../../../api";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";

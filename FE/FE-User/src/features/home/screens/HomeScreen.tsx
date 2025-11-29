@@ -21,18 +21,18 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../../api/pet";
-import { sendLike } from "../../../api/match";
+import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../pet/api/petApi";
+import { sendLike } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppSelector } from "../../../app/hooks";
 import { selectNotificationBadge } from "../../badge/badgeSlice";
-import { getVipStatus } from "../../../api/payment";
+import { getVipStatus } from "../../payment/api/paymentApi";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
 import signalRService from "../../../services/signalr.service";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { getItem, removeItem } from "../../../utils/storage";
+import { getItem, removeItem } from "../../../services/storage";
 import OptimizedImage from "../../../components/OptimizedImage";
 import PetCardSkeleton from "../../../components/PetCardSkeleton";
 import ReactNativeHapticFeedback from "react-native-haptic-feedback";
@@ -68,8 +68,6 @@ const HomeScreen = ({ navigation }: Props) => {
     const [pets, setPets] = useState<PetProfile[]>([]);
     const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
     const [loading, setLoading] = useState(true);
-    const [showMatchModal, setShowMatchModal] = useState(false);
-    const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [activePetId, setActivePetId] = useState<number | null>(null); // User's active pet ID
     const [showMatchLimitModal, setShowMatchLimitModal] = useState(false);
@@ -194,33 +192,7 @@ const HomeScreen = ({ navigation }: Props) => {
         // Match success handler
         const handleMatchSuccess = (data: any) => {
             console.log('🎉 Match notification received:', data);
-
-            // Create a temporary PetProfile for the matched pet
-            const matchedPetData: PetProfile = {
-                id: data.MatchId?.toString() || '0',
-                name: data.PetName || 'Unknown Pet',
-                age: '',
-                breed: '',
-                gender: 'male',
-                distance: '',
-                bio: '',
-                image: data.PetPhotoUrl ? { uri: data.PetPhotoUrl } : require("../../../assets/cat_avatar.png"),
-                images: data.PetPhotoUrl ? [{ uri: data.PetPhotoUrl }] : [require("../../../assets/cat_avatar.png")],
-                personality: [],
-                owner: data.OtherUserName || 'Someone',
-                ownerId: data.OtherUserId || 0,
-                matchPercent: 100,
-            };
-
-            // Show match modal
-            setMatchedPet(matchedPetData);
-            setShowMatchModal(true);
-
-            // Auto hide after 4 seconds
-            setTimeout(() => {
-                setShowMatchModal(false);
-                setMatchedPet(null);
-            }, 4000);
+            // Match modal is handled globally in App.tsx
         };
 
         // Setup SignalR (NewNotification listener is in AppNavigator globally)
@@ -426,16 +398,7 @@ const HomeScreen = ({ navigation }: Props) => {
 
                 console.log("✅ Like sent successfully:", response);
 
-                // Check if it's a match
-                if (response.isMatch) {
-                    setMatchedPet(currentPet);
-                    setShowMatchModal(true);
-                    // Auto hide after 4 seconds
-                    setTimeout(() => {
-                        setShowMatchModal(false);
-                        setMatchedPet(null);
-                    }, 4000);
-                }
+                // Match modal is handled globally in App.tsx via SignalR
             } catch (error: any) {
                 // Check if it's a 429 limit error
                 if (error.response?.status === 429) {
@@ -1180,41 +1143,6 @@ const HomeScreen = ({ navigation }: Props) => {
                 </View>
             </LinearGradient>
 
-            {/* Match Modal */}
-            {showMatchModal && matchedPet && (
-                <View style={styles.matchModal}>
-                    <LinearGradient
-                        colors={["rgba(255,110,167,0.95)", "rgba(255,155,192,0.95)"]}
-                        style={styles.matchGradient}
-                    >
-                        <Icon name="heart" size={80} color={colors.white} />
-                        <Text style={styles.matchTitle}>It's a Match! 🎉</Text>
-                        <Text style={styles.matchText}>
-                            You and {matchedPet.owner}'s pet {matchedPet.name} liked each other!
-                        </Text>
-                        <TouchableOpacity
-                            style={styles.sendMessageButton}
-                            onPress={() => {
-                                setShowMatchModal(false);
-                                setMatchedPet(null);
-                                navigation.navigate("Chat", {});
-                            }}
-                        >
-                            <Text style={styles.sendMessageText}>Send Message</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.keepSwipingButton}
-                            onPress={() => {
-                                setShowMatchModal(false);
-                                setMatchedPet(null);
-                            }}
-                        >
-                            <Text style={styles.keepSwipingText}>Keep Swiping</Text>
-                        </TouchableOpacity>
-                    </LinearGradient>
-                </View>
-            )}
-
             {/* Match Limit Modal */}
             <LimitReachedModal
                 visible={showMatchLimitModal}
@@ -1694,56 +1622,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: colors.primary,
-    },
-
-    // Match Modal
-    matchModal: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
-    },
-    matchGradient: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        paddingHorizontal: 40,
-    },
-    matchTitle: {
-        fontSize: 36,
-        fontWeight: "bold",
-        color: colors.white,
-        marginTop: 20,
-    },
-    matchText: {
-        fontSize: 18,
-        color: colors.white,
-        textAlign: "center",
-        marginTop: 12,
-    },
-    sendMessageButton: {
-        backgroundColor: colors.white,
-        paddingHorizontal: 48,
-        paddingVertical: 16,
-        borderRadius: radius.lg,
-        marginTop: 30,
-        ...shadows.large,
-    },
-    sendMessageText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.primary,
-    },
-    keepSwipingButton: {
-        marginTop: 16,
-        paddingVertical: 12,
-    },
-    keepSwipingText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.white,
     },
 
     // Match Badge

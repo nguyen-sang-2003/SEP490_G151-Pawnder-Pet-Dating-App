@@ -14,11 +14,11 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { logout } from "../../../api/auth";
-import { getItem } from "../../../utils/storage";
+import { logout } from "../../auth/api/authApi";
+import { getItem } from "../../../services/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { getVipStatus, VipStatusResponse } from "../../../api/payment";
+import { getVipStatus, VipStatusResponse } from "../../payment/api/paymentApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 

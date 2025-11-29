@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, radius, shadows } from "../../../theme";
-import { getExpertChatMessages, sendExpertChatMessage, ExpertChatMessage } from "../../../api/expert-chat";
+import { getExpertChatMessages, sendExpertChatMessage, ExpertChatMessage } from "../api/expertChatApi";
 import signalRService from "../../../services/signalr.service";
 import { markExpertChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";

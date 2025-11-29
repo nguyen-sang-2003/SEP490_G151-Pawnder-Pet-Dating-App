@@ -22,7 +22,7 @@ import {
   UserPreference,
   UserPreferenceBatchRequest
 } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 

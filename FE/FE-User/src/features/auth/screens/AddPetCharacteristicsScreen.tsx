@@ -17,7 +17,7 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
 import { getAttributes, getAttributeOptions, createPetCharacteristic, updatePetCharacteristic, getPetCharacteristics, completeUserProfile, Attribute, AttributeOption, AIAttributeResult } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetCharacteristics">;
 

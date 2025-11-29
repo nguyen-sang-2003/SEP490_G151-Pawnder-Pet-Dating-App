@@ -21,15 +21,14 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
-import { getLikesReceived, respondToLike } from "../../../api/match";
-import type { LikeReceivedItem } from "../../../api/match";
+import { getLikesReceived, respondToLike, type LikeReceivedItem } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch, useSelector } from "react-redux";
 import { resetFavoriteBadge, showMatchModal, selectActivePetId } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
-import { getPetsByUserId } from "../../../api/pet";
+import { getPetsByUserId } from "../../pet/api/petApi";
 import OptimizedImage from "../../../components/OptimizedImage";
-import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
 
 const { width, height } = Dimensions.get("window");
 const CARD_PADDING = 16;

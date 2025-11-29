@@ -25,10 +25,10 @@ import { getUserPetAvatar, getPetAvatar } from "../../../utils/petAvatar";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUnreadChats, selectActivePetId, selectExpertChatBadge, selectTotalChatBadge } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
-import { getVipStatus } from "../../../api/payment";
-import { getPetsByUserId } from "../../../api/pet";
-import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
-import { ChatSkeleton } from "../../../components/ChatSkeleton";
+import { getVipStatus } from "../../payment/api/paymentApi";
+import { getPetsByUserId } from "../../pet/api/petApi";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
+import { ChatSkeleton } from "../components/ChatSkeleton";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 

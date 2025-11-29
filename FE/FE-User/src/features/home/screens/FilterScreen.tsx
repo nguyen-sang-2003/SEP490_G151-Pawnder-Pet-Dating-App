@@ -21,8 +21,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getAttributesForFilter, AttributeForFilter, FilterSuggestion } from "../../../api/attributes";
-import { saveUserPreferencesBatch, getUserPreferences } from "../../../api/preferences";
+import { getAttributesForFilter, AttributeForFilter, FilterSuggestion } from "../api/attributesApi";
+import { saveUserPreferencesBatch, getUserPreferences } from "../api/preferencesApi";
 
 const { width } = Dimensions.get("window");
 

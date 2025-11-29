@@ -16,7 +16,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { sendOtp } from "../../../api/otp";
+import { sendOtp } from "../api/otpApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ForgotPassword">;
 

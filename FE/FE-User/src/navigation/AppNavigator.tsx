@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { navigationRef } from "../services/navigation.service";
-import { getAuthToken } from "../api/auth";
+import { getAuthToken } from "../features/auth/api/authApi";
 import {
   defaultScreenOptions,
   modalScreenOptions,
@@ -45,18 +45,18 @@ const EditUserProfileScreen = lazy(() => import("../features/profile/screens/Edi
 const EditPetScreen = lazy(() => import("../features/profile/screens/EditPetScreen"));
 const HelpAndSupportScreen = lazy(() => import("../features/settings/screens/HelpAndSupportScreen"));
 const ResourceDetailScreen = lazy(() => import("../features/settings/screens/ResourceDetailScreen"));
-const PremiumScreen = lazy(() => import("../features/settings/screens/PremiumScreen"));
+const PremiumScreen = lazy(() => import("../features/payment/screens/PremiumScreen"));
 const PrivacyAndSafetyScreen = lazy(() => import("../features/settings/screens/PrivacyAndSafetyScreen"));
 const ShareProfileScreen = lazy(() => import("../features/settings/screens/ShareProfileScreen"));
 const UserPreferenceScreen = lazy(() => import("../features/settings/screens/UserPreferenceScreen"));
-const ReportScreen = lazy(() => import("../features/settings/screens/ReportScreen"));
-const MyReportsScreen = lazy(() => import("../features/settings/screens/MyReportsScreen"));
+const ReportScreen = lazy(() => import("../features/report/screens/ReportScreen"));
+const MyReportsScreen = lazy(() => import("../features/report/screens/MyReportsScreen"));
 const ExpertConfirmationScreen = lazy(() => import("../features/settings/screens/ExpertConfirmationScreen"));
 const SettingsScreen = lazy(() => import("../features/settings/screens/SettingsScreen"));
-const BlockedUsersScreen = lazy(() => import("../features/settings/screens/BlockedUsersScreen"));
-const PaymentHistoryScreen = lazy(() => import("../features/settings/screens/PaymentHistoryScreen"));
+const BlockedUsersScreen = lazy(() => import("../features/report/screens/BlockedUsersScreen"));
+const PaymentHistoryScreen = lazy(() => import("../features/payment/screens/PaymentHistoryScreen"));
 const PaymentMethodScreen = lazy(() => import("../features/settings/screens/PaymentMethodScreen"));
-const QRPaymentScreen = lazy(() => import("../features/settings/screens/QRPaymentScreen"));
+const QRPaymentScreen = lazy(() => import("../features/payment/screens/QRPaymentScreen"));
 const ChangePasswordScreen = lazy(() => import("../features/settings/screens/ChangePasswordScreen"));
 
 

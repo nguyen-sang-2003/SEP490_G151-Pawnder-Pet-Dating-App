@@ -14,7 +14,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { getUserById, updateUser, getAddressById, createAddressForUser, updateAddress } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 import { colors } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";

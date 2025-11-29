@@ -192,7 +192,8 @@ namespace BE.Services
             return new
             {
                 Message = "Làm mới token thành công",
-                AccessToken = newAccessToken
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken // ✅ Fix: Trả về RefreshToken mới
             };
         }
 

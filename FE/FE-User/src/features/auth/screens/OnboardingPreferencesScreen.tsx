@@ -18,9 +18,9 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import {
   getAttributesForFilter,
   AttributeForFilter
-} from "../../../api/attributes";
-import { saveUserPreferencesBatch } from "../../../api/preferences";
-import { getItem } from "../../../utils/storage";
+} from "../../home/api/attributesApi";
+import { saveUserPreferencesBatch } from "../../home/api/preferencesApi";
+import { getItem } from "../../../services/storage";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
 
