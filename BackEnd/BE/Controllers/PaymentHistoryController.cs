@@ -47,7 +47,7 @@ namespace BE.Controllers
 		// POST /api/payment-history/generate
 		[HttpPost("generate")]
 		[Authorize(Roles = "User")]
-		public async Task<IActionResult> GenerateQr(CancellationToken ct = default)
+		public async Task<IActionResult> GenerateQr([FromBody] GenerateQrRequest request, CancellationToken ct = default)
 		{
 			try
 			{
@@ -58,12 +58,20 @@ namespace BE.Controllers
 					return Unauthorized(new { message = "Không tìm thấy thông tin user trong token" });
 				}
 
-				// Amount mặc định 10000, months cố định 1 tháng
-				decimal amount = 10000;
-				int months = 1;
-				string addInfo = $"userId_{userId}_months_{months}";
+				// Validate request
+				if (request.Amount <= 0)
+				{
+					return BadRequest(new { message = "Amount phải lớn hơn 0" });
+				}
 
-				var qrBytes = await _paymentHistoryService.GenerateQrAsync(amount, addInfo, ct);
+				if (request.Months <= 0 || request.Months > 12)
+				{
+					return BadRequest(new { message = "Months phải từ 1 đến 12" });
+				}
+
+				string addInfo = $"userId_{userId}_months_{request.Months}";
+
+				var qrBytes = await _paymentHistoryService.GenerateQrAsync(request.Amount, addInfo, ct);
 				return File(qrBytes, "image/png");
 			}
 			catch (InvalidOperationException ex)
@@ -216,4 +224,10 @@ namespace BE.Controllers
 			}
 		}
 	}
+}
+
+public class GenerateQrRequest
+{
+	public decimal Amount { get; set; }
+	public int Months { get; set; }
 }

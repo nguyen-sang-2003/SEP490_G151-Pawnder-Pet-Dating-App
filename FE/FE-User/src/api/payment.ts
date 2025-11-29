@@ -39,13 +39,15 @@ export interface VipStatusResponse {
  */
 export const generatePaymentQR = async (
   amount: number,
-  addInfo: string
+  months: number
 ): Promise<Blob> => {
   const response = await apiClient.post(
     '/api/payment-history/generate',
-    null,
     {
-      params: { amount, addInfo },
+      amount: amount,
+      months: months
+    },
+    {
       responseType: 'blob',
     }
   );

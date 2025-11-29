@@ -990,10 +990,12 @@ const styles = StyleSheet.create({
 
   // Bio
   bioCard: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 16,
     ...shadows.small,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 157, 0.15)",
   },
   bioText: {
     fontSize: 15,
@@ -1008,15 +1010,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   characteristicCard: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 14,
     minWidth: "47%",
     flex: 1,
     maxWidth: "48%",
-    ...shadows.medium,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    ...shadows.small,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 157, 0.15)",
   },
   characteristicHeader: {
     flexDirection: "row",
@@ -1080,11 +1082,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   petCard: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 12,
     width: 160,
-    ...shadows.medium,
+    ...shadows.small,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 157, 0.15)",
     position: "relative",
   },
   petCardActive: {
@@ -1208,10 +1212,12 @@ const styles = StyleSheet.create({
 
   // Owner Card - SIMPLE
   ownerCard: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 16,
     ...shadows.small,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 157, 0.15)",
   },
   ownerRow: {
     flexDirection: "row",
@@ -1253,10 +1259,12 @@ const styles = StyleSheet.create({
 
   // Info Card
   infoCard: {
-    backgroundColor: colors.whiteWarm,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: 16,
     ...shadows.small,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 157, 0.15)",
   },
   infoRow: {
     flexDirection: "row",

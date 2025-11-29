@@ -38,11 +38,17 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       setLoading(true);
       setError(null);
 
-      // Generate payment info text with plan ID for tracking
-      const paymentInfo = `PAWNDER ${planId.toUpperCase()} ${Date.now()}`;
+      // Calculate duration in months based on planId
+      const durationMonthsMap: { [key: string]: number } = {
+        '1month': 1,
+        '3months': 3,
+        '6months': 6,
+        '12months': 12,
+      };
+      const months = durationMonthsMap[planId] || 1;
 
-      // Call API to generate QR code
-      const qrBlob = await generatePaymentQR(amount, paymentInfo);
+      // Call API to generate QR code with amount and months
+      const qrBlob = await generatePaymentQR(amount, months);
 
       // Convert blob to base64 URI for React Native Image
       const reader = new FileReader();
