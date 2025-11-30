@@ -91,15 +91,4 @@ export const getUnreadNotificationCount = async (userId: number): Promise<number
   }
 };
 
-/**
- * Delete notification
- */
-export const deleteNotification = async (notificationId: number): Promise<void> => {
-  try {
-    await apiClient.delete(`/api/notification/${notificationId}`);
-  } catch (error) {
-
-    throw error;
-  }
-};
 

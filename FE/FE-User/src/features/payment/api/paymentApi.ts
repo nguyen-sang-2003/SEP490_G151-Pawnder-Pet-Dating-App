@@ -55,14 +55,6 @@ export const generatePaymentQR = async (
 };
 
 /**
- * Get payment history for current user
- */
-export const getPaymentHistory = async (): Promise<PaymentHistoryResponse[]> => {
-  const response = await apiClient.get('/payment-history');
-  return response.data;
-};
-
-/**
  * Get payment history by user ID
  */
 export const getPaymentHistoryByUserId = async (

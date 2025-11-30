@@ -104,30 +104,4 @@ export const getAddressById = async (addressId: number): Promise<any> => {
   }
 };
 
-/**
- * Update address manually (City, District, Ward)
- */
-export const updateAddressManual = async (
-  addressId: number,
-  city: string,
-  district: string,
-  ward: string
-): Promise<any> => {
-  try {
-
-    const response = await apiClient.patch(`/address/${addressId}/manual`, {
-      City: city,
-      District: district,
-      Ward: ward,
-    });
-
-    return response.data;
-  } catch (error: any) {
-
-    if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    }
-    throw new Error('Không thể cập nhật địa chỉ.');
-  }
-};
 

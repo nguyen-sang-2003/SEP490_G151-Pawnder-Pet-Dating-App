@@ -120,28 +120,6 @@ export const updatePetCharacteristic = async (
 };
 
 /**
- * Upload single pet photo
- * POST /api/petphoto/{petId}
- */
-export const uploadPetPhoto = async (petId: number, imageUrl: string) => {
-  const response = await apiClient.post(`/api/petphoto/${petId}`, JSON.stringify(imageUrl), {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  return response.data;
-};
-
-/**
- * Upload multiple pet photos at once
- * POST /api/petphoto/{petId}/batch
- */
-export const uploadPetPhotosBatch = async (petId: number, imageUrls: string[]) => {
-  const response = await apiClient.post(`/api/petphoto/${petId}/batch`, imageUrls);
-  return response.data;
-};
-
-/**
  * Upload pet photos as multipart/form-data (file upload)
  * POST /api/petphoto
  */

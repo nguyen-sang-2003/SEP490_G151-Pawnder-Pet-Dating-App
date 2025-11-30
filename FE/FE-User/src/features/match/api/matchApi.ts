@@ -57,32 +57,11 @@ export interface LikeReceivedItem {
   petPhotos: string[];
 }
 
-export interface MatchStats {
-  matches: number;
-  likes: number;
-}
-
 export interface BadgeCounts {
   unreadChats: number[]; // List of matchIds with unread messages
   favoriteBadge: number;
   notificationBadge: number;
 }
-
-/**
- * Get user stats (matches and likes count)
- * GET /api/match/stats/{userId}
- */
-export const getMatchStats = async (userId: number): Promise<MatchStats> => {
-  try {
-
-    const response = await apiClient.get(`/api/match/stats/${userId}`);
-
-    return response.data;
-  } catch (error: any) {
-
-    throw error;
-  }
-};
 
 /**
  * Get badge counts for user (unread messages + pending likes)
