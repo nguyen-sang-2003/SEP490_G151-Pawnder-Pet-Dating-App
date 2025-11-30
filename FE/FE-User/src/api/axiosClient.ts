@@ -123,18 +123,14 @@ apiClient.interceptors.request.use(
 
 // Flag to prevent multiple refresh attempts
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: any) => void; config: any }> = [];
-let refreshTokenPromise: Promise<string | null> | null = null;
+let failedQueue: any[] = [];
 
 const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(({ resolve, reject, config }) => {
+  failedQueue.forEach(prom => {
     if (error) {
-      reject(error);
+      prom.reject(error);
     } else {
-      if (token && config) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      resolve(token || '');
+      prom.resolve(token);
     }
   });
 
@@ -228,128 +224,90 @@ apiClient.interceptors.response.use(
       const isAuthEndpoint = url.includes('/login') ||
         url.includes('/register') ||
         url.includes('/refresh') ||
-        url.includes('/forgot-password') ||
-        url.includes('/reset-password') ||
-        url.includes('/send-mail-otp') ||
-        url.includes('/check-otp');
+        url.includes('/forgot-password');
 
       if (isAuthEndpoint) {
         // Don't try to refresh token for auth endpoints, just reject
         return Promise.reject(error);
       }
 
-      // If already refreshing, wait for the existing refresh to complete
-      if (isRefreshing && refreshTokenPromise) {
-        return refreshTokenPromise
-          .then(token => {
-            if (token) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-              return apiClient(originalRequest);
-            } else {
-              return Promise.reject(new Error('Token refresh failed'));
-            }
-          })
-          .catch(err => {
-            return Promise.reject(err);
-          });
+      if (isRefreshing) {
+        // Queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
       }
 
-      // Mark this request to prevent infinite retry loop
       originalRequest._retry = true;
       isRefreshing = true;
 
-      // Create refresh promise that all queued requests will wait for
-      refreshTokenPromise = (async (): Promise<string | null> => {
-        try {
-          const refreshToken = await getStoredRefreshToken();
+      try {
+        const refreshToken = await getStoredRefreshToken();
 
-          if (!refreshToken) {
-            console.log('⚠️ No refresh token found in Keychain');
-            throw new Error('No refresh token');
-          }
-
-          console.log('🔄 Refreshing access token...');
-
-          // Call refresh endpoint (use plain axios to avoid interceptor loop)
-          const response = await axios.post(`${BASE_URL}/api/refresh`, {
-            RefreshToken: refreshToken,
-          }, {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            timeout: 10000, // 10s timeout for refresh
-          });
-
-          // Handle both PascalCase and camelCase response
-          const AccessToken = response.data.AccessToken || response.data.accessToken;
-          const newRefreshToken = response.data.RefreshToken || response.data.refreshToken;
-
-          if (!AccessToken || !newRefreshToken) {
-            console.error('❌ Invalid token response:', response.data);
-            throw new Error('Invalid token response from server');
-          }
-
-          // Store new tokens
-          await storeTokens(AccessToken, newRefreshToken);
-
-          console.log('✅ Token refreshed successfully');
-
-          // Process all queued requests with new token
-          processQueue(null, AccessToken);
-          isRefreshing = false;
-          refreshTokenPromise = null;
-
-          return AccessToken;
-        } catch (refreshError: any) {
-          console.log('❌ Refresh token failed:', refreshError?.message || refreshError);
-
-          // Process all queued requests with error
-          processQueue(refreshError, null);
-          isRefreshing = false;
-          refreshTokenPromise = null;
-
-          // Only logout if it's actually a token issue (not network error)
-          const shouldLogout =
-            refreshError?.message === 'No refresh token' ||
-            refreshError?.response?.status === 401 ||
-            refreshError?.response?.status === 403;
-
-          if (shouldLogout) {
-            console.log('🚪 Logging out due to invalid/missing refresh token');
-            // Clear all tokens and user data
-            try {
-              await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
-              await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
-              await AsyncStorage.removeItem('userId');
-              await AsyncStorage.removeItem('userEmail');
-              await AsyncStorage.removeItem('userRole');
-              // Set logout flag to trigger navigation
-              await AsyncStorage.setItem('shouldLogout', 'true');
-              console.log('🔐 Cleared all tokens and set logout flag');
-            } catch (e) {
-              console.error('❌ Error clearing tokens:', e);
-            }
-          } else {
-            console.log('⚠️ Refresh failed due to network/server error, not logging out');
-          }
-
-          throw refreshError;
+        if (!refreshToken) {
+          console.log('⚠️ No refresh token found in Keychain');
+          throw new Error('No refresh token');
         }
-      })();
 
-      // Wait for refresh to complete and retry original request
-      return refreshTokenPromise
-        .then(token => {
-          if (token) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return apiClient(originalRequest);
-          } else {
-            return Promise.reject(new Error('Token refresh failed'));
-          }
-        })
-        .catch(err => {
-          return Promise.reject(err);
+        console.log('🔄 Refreshing access token...');
+
+        // Call refresh endpoint
+        const response = await axios.post(`${BASE_URL}/api/refresh`, {
+          RefreshToken: refreshToken,
         });
+
+        const { AccessToken, RefreshToken: newRefreshToken } = response.data;
+
+        // Store new tokens
+        await storeTokens(AccessToken, newRefreshToken);
+
+        console.log('✅ Token refreshed successfully');
+
+        // Update header and retry original request
+        originalRequest.headers.Authorization = `Bearer ${AccessToken}`;
+
+        processQueue(null, AccessToken);
+        isRefreshing = false;
+
+        return apiClient(originalRequest);
+      } catch (refreshError: any) {
+        console.log('❌ Refresh token failed:', refreshError?.message || refreshError);
+
+        processQueue(refreshError, null);
+        isRefreshing = false;
+
+        // Only logout if it's actually a token issue (not network error)
+        const shouldLogout =
+          refreshError?.message === 'No refresh token' ||
+          refreshError?.response?.status === 401 ||
+          refreshError?.response?.status === 403;
+
+        if (shouldLogout) {
+          console.log('🚪 Logging out due to invalid/missing refresh token');
+          // Clear all tokens and user data
+          try {
+            await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
+            await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
+            await AsyncStorage.removeItem('userId');
+            await AsyncStorage.removeItem('userEmail');
+            await AsyncStorage.removeItem('userRole');
+            // Set logout flag to trigger navigation
+            await AsyncStorage.setItem('shouldLogout', 'true');
+            console.log('🔐 Cleared all tokens and set logout flag');
+          } catch (e) {
+
+          }
+        } else {
+          console.log('⚠️ Refresh failed due to network/server error, not logging out');
+        }
+
+        return Promise.reject(refreshError);
+      }
     }
 
     return Promise.reject(error);
