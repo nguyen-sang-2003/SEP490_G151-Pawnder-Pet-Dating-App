@@ -29,7 +29,7 @@ interface LimitReachedModalProps {
 export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
   visible,
   onClose,
-  title = 'Oops! Out of Limit',
+  title = 'Ối! Hết giới hạn',
   message = 'Bạn đã hết lượt sử dụng hôm nay!',
   actionType = 'match',
 }) => {
@@ -55,13 +55,13 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
   const featureTitle = useMemo(() => {
     switch (actionType) {
       case 'match':
-        return 'Oops! Out of Likes';
+        return 'Ối! Hết lượt thích';
       case 'ai_chat':
-        return 'Oops! Out of AI Questions';
+        return 'Ối! Hết câu hỏi AI';
       case 'expert_confirm':
-        return 'Oops! Out of Expert Confirmations';
+        return 'Ối! Hết lượt xác nhận chuyên gia';
       case 'filter':
-        return 'Oops! Out of Filter Searches';
+        return 'Ối! Hết lượt tìm kiếm bộ lọc';
       default:
         return title;
     }
@@ -101,19 +101,19 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
             <View style={styles.featuresBox}>
               <View style={styles.featureRow}>
                 <Icon name="infinite" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>Unlimited likes</Text>
+                <Text style={styles.featureText}>Lượt thích không giới hạn</Text>
               </View>
               <View style={styles.featureRow}>
                 <Icon name="chatbubbles" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>Unlimited AI chat</Text>
+                <Text style={styles.featureText}>Chat AI không giới hạn</Text>
               </View>
               <View style={styles.featureRow}>
                 <Icon name="people" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>Unlimited expert confirms</Text>
+                <Text style={styles.featureText}>Xác nhận chuyên gia không giới hạn</Text>
               </View>
               <View style={styles.featureRow}>
                 <Icon name="star" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>VIP badge & priority</Text>
+                <Text style={styles.featureText}>Huy hiệu VIP & ưu tiên</Text>
               </View>
             </View>
 
@@ -129,7 +129,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
                 end={{ x: 1, y: 0 }}
               >
                 <Icon name="diamond" size={20} color="#000" />
-                <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+                <Text style={styles.upgradeButtonText}>Nâng cấp Premium</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -138,7 +138,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
               style={styles.closeButton}
               onPress={onClose}
             >
-              <Text style={styles.closeText}>Maybe Later</Text>
+              <Text style={styles.closeText}>Để sau</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>

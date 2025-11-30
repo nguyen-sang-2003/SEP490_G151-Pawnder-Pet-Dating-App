@@ -103,7 +103,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Change Password</Text>
+          <Text style={styles.headerTitle}>Đổi mật khẩu</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -123,7 +123,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            Make sure your new password is strong and secure
+            Đảm bảo mật khẩu mới của bạn mạnh và an toàn
           </Text>
 
           {/* Current Password */}
@@ -136,7 +136,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Current Password"
+              placeholder="Mật khẩu hiện tại"
               placeholderTextColor={colors.textLabel}
               value={currentPassword}
               onChangeText={setCurrentPassword}
@@ -162,7 +162,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="New Password"
+              placeholder="Mật khẩu mới"
               placeholderTextColor={colors.textLabel}
               value={newPassword}
               onChangeText={setNewPassword}
@@ -188,7 +188,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Confirm New Password"
+              placeholder="Xác nhận mật khẩu mới"
               placeholderTextColor={colors.textLabel}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -206,7 +206,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
 
           {/* Password Requirements */}
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Password requirements:</Text>
+            <Text style={styles.requirementsTitle}>Yêu cầu mật khẩu:</Text>
             <View style={styles.requirement}>
               <Icon
                 name={
@@ -225,7 +225,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
                   newPassword.length >= 6 && styles.requirementMet,
                 ]}
               >
-                At least 6 characters
+                Ít nhất 6 ký tự
               </Text>
             </View>
             <View style={styles.requirement}>
@@ -245,12 +245,10 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
               <Text
                 style={[
                   styles.requirementText,
-                  newPassword &&
-                    newPassword !== currentPassword &&
-                    styles.requirementMet,
+                  (newPassword && newPassword !== currentPassword) ? styles.requirementMet : null,
                 ]}
               >
-                Different from current password
+                Khác với mật khẩu hiện tại
               </Text>
             </View>
             <View style={styles.requirement}>
@@ -270,13 +268,10 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
               <Text
                 style={[
                   styles.requirementText,
-                  newPassword &&
-                    confirmPassword &&
-                    newPassword === confirmPassword &&
-                    styles.requirementMet,
+                  (newPassword && confirmPassword && newPassword === confirmPassword) ? styles.requirementMet : null,
                 ]}
               >
-                Passwords match
+                Mật khẩu khớp
               </Text>
             </View>
           </View>
@@ -292,9 +287,9 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
               style={styles.changeGradient}
             >
               {loading ? (
-                <Text style={styles.changeText}>Changing...</Text>
+                <Text style={styles.changeText}>Đang thay đổi...</Text>
               ) : (
-                <Text style={styles.changeText}>Change Password</Text>
+                <Text style={styles.changeText}>Đổi mật khẩu</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -304,7 +299,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             style={styles.forgotLink}
             onPress={() => navigation.navigate("ForgotPassword")}
           >
-            <Text style={styles.forgotText}>Forgot your current password?</Text>
+            <Text style={styles.forgotText}>Quên mật khẩu hiện tại?</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

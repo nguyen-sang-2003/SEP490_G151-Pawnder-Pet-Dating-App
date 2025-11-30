@@ -28,33 +28,33 @@ interface FAQ {
 const faqs: FAQ[] = [
   {
     id: "1",
-    question: "How do I create a cat profile?",
+    question: "Làm thế nào để tạo hồ sơ thú cưng?",
     answer:
-      "After signing up, you'll be prompted to add your cat's information including name, breed, age, and photos. You can also add personality traits to help find better matches!",
+      "Sau khi đăng ký, bạn sẽ được nhắc thêm thông tin thú cưng bao gồm tên, giống, tuổi và ảnh. Bạn cũng có thể thêm đặc điểm tính cách để tìm bạn đời phù hợp hơn!",
   },
   {
     id: "2",
-    question: "What does 'Match' mean?",
+    question: "'Kết nối' có nghĩa là gì?",
     answer:
-      "A match happens when both you and another user like each other's cats. Once matched, you can start chatting and arrange playdates!",
+      "Kết nối xảy ra khi cả bạn và người dùng khác đều thích thú cưng của nhau. Sau khi kết nối, bạn có thể bắt đầu trò chuyện và sắp xếp các buổi gặp gỡ!",
   },
   {
     id: "3",
-    question: "How do I report inappropriate behavior?",
+    question: "Làm thế nào để báo cáo hành vi không phù hợp?",
     answer:
-      "Go to the user's profile, tap the menu button, and select 'Report'. You can also access this from Privacy & Safety settings.",
+      "Đi đến hồ sơ người dùng, nhấn nút menu và chọn 'Báo cáo'. Bạn cũng có thể truy cập từ cài đặt Quyền riêng tư & An toàn.",
   },
   {
     id: "4",
-    question: "Can I change my cat's information?",
+    question: "Tôi có thể thay đổi thông tin thú cưng không?",
     answer:
-      "Yes! Go to your Profile, tap on your cat's card, and you can edit all information including photos, age, and personality traits.",
+      "Có! Đi đến Hồ sơ của bạn, nhấn vào thẻ thú cưng và bạn có thể chỉnh sửa tất cả thông tin bao gồm ảnh, tuổi và đặc điểm tính cách.",
   },
   {
     id: "5",
-    question: "What is Premium membership?",
+    question: "Thành viên Premium là gì?",
     answer:
-      "Premium members get unlimited likes, can see who liked them, get priority support, and unlock exclusive filters!",
+      "Thành viên Premium nhận được lượt thích không giới hạn, có thể xem ai đã thích họ, nhận hỗ trợ ưu tiên và mở khóa các bộ lọc độc quyền!",
   },
 ];
 
@@ -98,7 +98,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Help & Support</Text>
+        <Text style={styles.headerTitle}>Trợ giúp & Hỗ trợ</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -108,7 +108,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
       >
         {/* Quick Contact */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Us</Text>
+          <Text style={styles.sectionTitle}>Liên hệ với chúng tôi</Text>
 
           <View style={styles.contactRow}>
             <TouchableOpacity
@@ -138,7 +138,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                   <Icon name="call" size={24} color="#fff" />
                 </LinearGradient>
               </View>
-              <Text style={styles.contactText}>Call</Text>
+              <Text style={styles.contactText}>Gọi</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.contactCard}>
@@ -150,14 +150,14 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                   <Icon name="chatbubbles" size={24} color="#fff" />
                 </LinearGradient>
               </View>
-              <Text style={styles.contactText}>Live Chat</Text>
+              <Text style={styles.contactText}>Trò chuyện trực tiếp</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* FAQs */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+          <Text style={styles.sectionTitle}>Câu hỏi thường gặp</Text>
 
           <View style={styles.faqContainer}>
             {faqs.map((faq) => (
@@ -194,12 +194,12 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
 
         {/* Send Message */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Send us a message</Text>
+          <Text style={styles.sectionTitle}>Gửi tin nhắn cho chúng tôi</Text>
 
           <View style={styles.messageCard}>
             <TextInput
               style={styles.messageInput}
-              placeholder="Describe your issue or question..."
+              placeholder="Mô tả vấn đề hoặc câu hỏi của bạn..."
               placeholderTextColor={colors.textLabel}
               multiline
               numberOfLines={5}
@@ -215,7 +215,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 colors={gradients.primary}
                 style={styles.sendGradient}
               >
-                <Text style={styles.sendText}>Send Message</Text>
+                <Text style={styles.sendText}>Gửi tin nhắn</Text>
                 <Icon name="send" size={18} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
@@ -224,7 +224,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
 
         {/* Resources */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Resources & Policies</Text>
+          <Text style={styles.sectionTitle}>Tài nguyên & Chính sách</Text>
 
           <View style={styles.resourcesGrid}>
             {/* Terms of Service */}
@@ -241,9 +241,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="document-text" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Terms of Service</Text>
+                <Text style={styles.resourceTitleNew}>Điều khoản dịch vụ</Text>
                 <Text style={styles.resourceDescNew}>
-                  Read our terms and conditions
+                  Đọc điều khoản và điều kiện của chúng tôi
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -265,9 +265,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="shield-checkmark" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Privacy Policy</Text>
+                <Text style={styles.resourceTitleNew}>Chính sách bảo mật</Text>
                 <Text style={styles.resourceDescNew}>
-                  How we protect your data
+                  Cách chúng tôi bảo vệ dữ liệu của bạn
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -289,9 +289,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="people" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Community Guidelines</Text>
+                <Text style={styles.resourceTitleNew}>Hướng dẫn cộng đồng</Text>
                 <Text style={styles.resourceDescNew}>
-                  Rules for respectful interaction
+                  Quy tắc tương tác tôn trọng
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -313,9 +313,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="book" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>User Guide</Text>
+                <Text style={styles.resourceTitleNew}>Hướng dẫn người dùng</Text>
                 <Text style={styles.resourceDescNew}>
-                  Learn how to use Pawnder
+                  Tìm hiểu cách sử dụng Pawnder
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -337,9 +337,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="bulb" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Safety Tips</Text>
+                <Text style={styles.resourceTitleNew}>Mẹo an toàn</Text>
                 <Text style={styles.resourceDescNew}>
-                  Stay safe on Pawnder
+                  Giữ an toàn trên Pawnder
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -361,9 +361,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="information-circle" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>About Pawnder</Text>
+                <Text style={styles.resourceTitleNew}>Về Pawnder</Text>
                 <Text style={styles.resourceDescNew}>
-                  Our mission and story
+                  Sứ mệnh và câu chuyện của chúng tôi
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />

@@ -35,8 +35,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (!petName.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Name Required',
-        message: 'Please enter your pet\'s name to continue.',
+        title: 'Cần có tên',
+        message: 'Vui lòng nhập tên thú cưng của bạn để tiếp tục.',
       });
       return;
     }
@@ -49,8 +49,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       if (!userIdStr) {
         showAlert({
           type: 'error',
-          title: 'Error',
-          message: 'User information not found. Please login again.',
+          title: 'Lỗi',
+          message: 'Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.',
         });
         return;
       }
@@ -83,9 +83,9 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Success!',
-        message: `${petName}'s profile created. Let's add some photos!`,
-        confirmText: 'Continue',
+        title: 'Thành công!',
+        message: `Đã tạo hồ sơ cho ${petName}. Hãy thêm vài bức ảnh!`,
+        confirmText: 'Tiếp tục',
         onClose: () => {
           navigation.navigate("AddPetPhotos", { petId, isFromProfile });
         },
@@ -94,8 +94,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Error',
-        message: error.message || 'Failed to create pet profile. Please try again.',
+        title: 'Lỗi',
+        message: error.message || 'Không thể tạo hồ sơ thú cưng. Vui lòng thử lại.',
       });
     } finally {
       setLoading(false);
@@ -108,8 +108,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     } else {
       showAlert({
         type: 'warning',
-        title: 'Complete Profile',
-        message: 'You need to create at least one pet profile to continue.',
+        title: 'Hoàn thành hồ sơ',
+        message: 'Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục.',
       });
     }
   };
@@ -135,12 +135,12 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
               <View style={[styles.stepBar, styles.stepBarInactive]} />
               <View style={[styles.stepBar, styles.stepBarInactive]} />
             </View>
-            <Text style={styles.stepText}>Step 1 of 3</Text>
+            <Text style={styles.stepText}>Bước 1/3</Text>
           </View>
 
-          <Text style={styles.title}>Pet Profile</Text>
+          <Text style={styles.title}>Hồ sơ thú cưng</Text>
           <Text style={styles.subtitle}>
-            Tell us about your furry friend
+            Hãy cho chúng tôi biết về người bạn lông xù của bạn
           </Text>
         </View>
 
@@ -148,10 +148,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         <View style={styles.form}>
           {/* Pet Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>Tên</Text>
             <View style={styles.inputContainer}>
               <TextInput
-                placeholder="What's your pet's name?"
+                placeholder="Tên thú cưng của bạn là gì?"
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={petName}
@@ -166,10 +166,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
           {/* Breed */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Breed</Text>
+            <Text style={styles.label}>Giống</Text>
             <View style={styles.inputContainer}>
               <TextInput
-                placeholder="e.g., Persian, British Shorthair"
+                placeholder="Ví dụ: Ba Tư, Anh lông ngắn"
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={breed}
@@ -177,15 +177,15 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 autoCapitalize="words"
               />
             </View>
-            <Text style={styles.helperText}>Optional</Text>
+            <Text style={styles.helperText}>Không bắt buộc</Text>
           </View>
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>About</Text>
+            <Text style={styles.label}>Giới thiệu</Text>
             <View style={styles.inputContainer}>
               <TextInput
-                placeholder="Describe your pet's personality and traits..."
+                placeholder="Mô tả tính cách và đặc điểm của thú cưng..."
                 style={[styles.input, styles.textArea]}
                 placeholderTextColor={colors.textLabel}
                 value={description}
@@ -197,7 +197,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
               />
             </View>
             <View style={styles.charCount}>
-              <Text style={styles.helperText}>Optional • {description.length}/200</Text>
+              <Text style={styles.helperText}>Không bắt buộc • {description.length}/200</Text>
             </View>
           </View>
 
@@ -217,7 +217,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>Continue</Text>
+                  <Text style={styles.buttonText}>Tiếp tục</Text>
                   <Icon name="arrow-forward" size={22} color={colors.white} />
                 </>
               )}

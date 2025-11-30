@@ -25,12 +25,12 @@ interface ReportReason {
 }
 
 const REPORT_REASONS: ReportReason[] = [
-  { id: "spam", label: "Spam or Advertising", icon: "megaphone-outline" },
-  { id: "inappropriate", label: "Inappropriate Content", icon: "warning-outline" },
-  { id: "fake", label: "Fake Profile", icon: "person-remove-outline" },
-  { id: "harassment", label: "Harassment or Bullying", icon: "sad-outline" },
-  { id: "scam", label: "Scam or Fraud", icon: "shield-outline" },
-  { id: "other", label: "Other", icon: "ellipsis-horizontal-outline" },
+  { id: "spam", label: "Spam hoặc Quảng cáo", icon: "megaphone-outline" },
+  { id: "inappropriate", label: "Nội dung không phù hợp", icon: "warning-outline" },
+  { id: "fake", label: "Hồ sơ giả mạo", icon: "person-remove-outline" },
+  { id: "harassment", label: "Quấy rối hoặc Bắt nạt", icon: "sad-outline" },
+  { id: "scam", label: "Lừa đảo hoặc Gian lận", icon: "shield-outline" },
+  { id: "other", label: "Khác", icon: "ellipsis-horizontal-outline" },
 ];
 
 const ReportScreen = ({ navigation, route }: Props) => {
@@ -81,7 +81,7 @@ const ReportScreen = ({ navigation, route }: Props) => {
           >
             <Icon name="close" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Report User</Text>
+          <Text style={styles.headerTitle}>Báo cáo người dùng</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -94,18 +94,18 @@ const ReportScreen = ({ navigation, route }: Props) => {
           <View style={styles.userInfo}>
             <Icon name="flag" size={48} color="#FF9800" />
             <Text style={styles.userInfoTitle}>
-              Report {userName || "this user"}
+              Báo cáo {userName || "người dùng này"}
             </Text>
             <Text style={styles.userInfoSubtitle}>
-              Your report is anonymous. We'll review it and take appropriate action.
+              Báo cáo của bạn là ẩn danh. Chúng tôi sẽ xem xét và xử lý phù hợp.
             </Text>
           </View>
 
           {/* Report Reasons */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Why are you reporting?</Text>
+            <Text style={styles.sectionTitle}>Tại sao bạn báo cáo?</Text>
             <Text style={styles.sectionSubtitle}>
-              Select the reason that best describes the issue
+              Chọn lý do mô tả tốt nhất vấn đề
             </Text>
 
             <View style={styles.reasonsList}>
@@ -154,15 +154,15 @@ const ReportScreen = ({ navigation, route }: Props) => {
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Details</Text>
+            <Text style={styles.sectionTitle}>Chi tiết bổ sung</Text>
             <Text style={styles.sectionSubtitle}>
-              Please provide more information about what happened
+              Vui lòng cung cấp thêm thông tin về những gì đã xảy ra
             </Text>
 
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Describe the issue in detail..."
+                placeholder="Mô tả vấn đề chi tiết..."
                 placeholderTextColor={colors.textLabel}
                 value={description}
                 onChangeText={setDescription}
@@ -181,13 +181,13 @@ const ReportScreen = ({ navigation, route }: Props) => {
           <View style={styles.tipsCard}>
             <View style={styles.tipsHeader}>
               <Icon name="shield-checkmark" size={24} color={colors.primary} />
-              <Text style={styles.tipsTitle}>Safety Tips</Text>
+              <Text style={styles.tipsTitle}>Mẹo an toàn</Text>
             </View>
             <Text style={styles.tipsText}>
-              • Your report is completely anonymous{"\n"}
-              • We review all reports within 24-48 hours{"\n"}
-              • Repeated violations may result in account suspension{"\n"}
-              • For urgent safety concerns, contact us directly
+              • Báo cáo của bạn hoàn toàn ẩn danh{"\n"}
+              • Chúng tôi xem xét tất cả báo cáo trong vòng 24-48 giờ{"\n"}
+              • Vi phạm lặp lại có thể dẫn đến đình chỉ tài khoản{"\n"}
+              • Đối với các vấn đề an toàn khẩn cấp, hãy liên hệ trực tiếp với chúng tôi
             </Text>
           </View>
 
@@ -210,11 +210,11 @@ const ReportScreen = ({ navigation, route }: Props) => {
               style={styles.submitGradient}
             >
               {isSubmitting ? (
-                <Text style={styles.submitText}>Submitting...</Text>
+                <Text style={styles.submitText}>Đang gửi...</Text>
               ) : (
                 <>
                   <Icon name="flag" size={20} color={colors.white} />
-                  <Text style={styles.submitText}>Submit Report</Text>
+                  <Text style={styles.submitText}>Gửi báo cáo</Text>
                 </>
               )}
             </LinearGradient>

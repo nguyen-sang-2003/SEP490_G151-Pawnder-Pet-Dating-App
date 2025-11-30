@@ -42,7 +42,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
   const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
-      showAlert({ type: 'warning', title: "Photo Limit", message: `Maximum ${maxPhotos} photos allowed` });
+      showAlert({ type: 'warning', title: "Giới hạn ảnh", message: `Tối đa ${maxPhotos} ảnh được phép` });
       return;
     }
 
@@ -60,7 +60,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
       if (result.errorCode) {
 
-        showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
+        showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
         return;
       }
 
@@ -76,17 +76,17 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       }
     } catch (error) {
 
-      showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
+      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chọn ảnh. Vui lòng thử lại.' });
     }
   };
 
   const handleRemovePhoto = (id: string) => {
     showAlert({
       type: 'warning',
-      title: "Remove Photo",
-      message: "Are you sure you want to remove this photo?",
+      title: "Xóa ảnh",
+      message: "Bạn có chắc muốn xóa ảnh này?",
       showCancel: true,
-      confirmText: "Remove",
+      confirmText: "Xóa",
       onConfirm: () => setPhotos((prev) => prev.filter((photo) => photo.id !== id)),
     });
   };
@@ -95,8 +95,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     if (photos.length < 3) {
       showAlert({
         type: 'warning',
-        title: 'More Photos Needed',
-        message: `Please add at least 3 photos! (Current: ${photos.length}/3)`,
+        title: 'Cần thêm ảnh',
+        message: `Vui lòng thêm ít nhất 3 ảnh! (Hiện tại: ${photos.length}/3)`,
       });
       return;
     }
@@ -123,9 +123,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
           showAlert({
             type: 'success',
-            title: 'AI Analysis Complete! 🤖',
-            message: `Found ${aiResults.length} characteristics. You can review and edit them next.`,
-            confirmText: 'Continue',
+            title: 'Phân tích AI hoàn tất! 🤖',
+            message: `Tìm thấy ${aiResults.length} đặc điểm. Bạn có thể xem và chỉnh sửa ở bước tiếp theo.`,
+            confirmText: 'Tiếp tục',
             onClose: () => {
               navigation.navigate("AddPetCharacteristics", {
                 petId,
@@ -143,9 +143,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         // AI failed, but still allow user to continue manually
         showAlert({
           type: 'info',
-          title: 'Photos Uploaded!',
-          message: 'AI analysis unavailable. You can add characteristics manually.',
-          confirmText: 'Continue',
+          title: 'Đã tải ảnh lên!',
+          message: 'Phân tích AI không khả dụng. Bạn có thể thêm đặc điểm thủ công.',
+          confirmText: 'Tiếp tục',
           onClose: () => {
             navigation.navigate("AddPetCharacteristics", {
               petId,
@@ -159,8 +159,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Error',
-        message: error.message || 'Unable to upload photos. Please try again.',
+        title: 'Lỗi',
+        message: error.message || 'Không thể tải ảnh lên. Vui lòng thử lại.',
       });
     } finally {
       setUploading(false);
@@ -174,8 +174,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     } else {
       showAlert({
         type: 'warning',
-        title: 'Complete Profile',
-        message: 'You need to complete your pet profile to continue.',
+        title: 'Hoàn thành hồ sơ',
+        message: 'Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.',
       });
     }
   };
@@ -205,14 +205,14 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               <View style={[styles.stepBar, styles.stepBarActive]} />
               <View style={[styles.stepBar, styles.stepBarInactive]} />
             </View>
-            <Text style={styles.stepText}>Step 2 of 3</Text>
+            <Text style={styles.stepText}>Bước 2/3</Text>
           </View>
 
           <Text style={styles.title}>
-            {isFromProfile ? 'Pet Photos' : 'Add Photos'}
+            {isFromProfile ? 'Ảnh thú cưng' : 'Thêm ảnh'}
           </Text>
           <Text style={styles.subtitle}>
-            Add at least 3 photos to showcase your pet
+            Thêm ít nhất 3 ảnh để giới thiệu thú cưng của bạn
           </Text>
         </View>
         {/* Photos Grid */}
@@ -241,7 +241,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               >
                 <View style={styles.addPhotoContent}>
                   <Icon name="add" size={36} color={colors.primary} />
-                  <Text style={styles.addPhotoText}>Add Photo</Text>
+                  <Text style={styles.addPhotoText}>Thêm ảnh</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -262,7 +262,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                 styles.counterText,
                 photos.length >= 3 && styles.counterTextComplete
               ]}>
-                {photos.length}/{maxPhotos} photos{photos.length >= 3 ? ' (Ready!)' : ` (${3 - photos.length} more needed)`}
+                {photos.length}/{maxPhotos} ảnh{photos.length >= 3 ? ' (Sẵn sàng!)' : ` (Cần thêm ${3 - photos.length})`}
               </Text>
             </View>
           </View>
@@ -273,19 +273,19 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           <View style={styles.tipsIcon}>
             <Icon name="bulb" size={20} color={colors.primary} />
           </View>
-          <Text style={styles.tipsTitle}>Photo Tips</Text>
+          <Text style={styles.tipsTitle}>Mẹo chụp ảnh</Text>
           <View style={styles.tipsList}>
             <View style={styles.tipItem}>
               <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Use clear, well-lit photos</Text>
+              <Text style={styles.tipText}>Sử dụng ảnh rõ nét, đủ ánh sáng</Text>
             </View>
             <View style={styles.tipItem}>
               <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Show your pet's personality</Text>
+              <Text style={styles.tipText}>Thể hiện tính cách thú cưng</Text>
             </View>
             <View style={styles.tipItem}>
               <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Include full body and close-up shots</Text>
+              <Text style={styles.tipText}>Bao gồm ảnh toàn thân và cận cảnh</Text>
             </View>
           </View>
         </View>
@@ -307,16 +307,16 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             {uploading ? (
               <>
                 <ActivityIndicator color={colors.white} />
-                <Text style={[styles.buttonText, { marginLeft: 8 }]}>Uploading...</Text>
+                <Text style={[styles.buttonText, { marginLeft: 8 }]}>Đang tải lên...</Text>
               </>
             ) : analyzingAI ? (
               <>
                 <ActivityIndicator color={colors.white} />
-                <Text style={[styles.buttonText, { marginLeft: 8 }]}>AI Analyzing...</Text>
+                <Text style={[styles.buttonText, { marginLeft: 8 }]}>AI đang phân tích...</Text>
               </>
             ) : (
               <>
-                <Text style={styles.buttonText}>Continue with AI</Text>
+                <Text style={styles.buttonText}>Tiếp tục với AI</Text>
                 <Icon name="sparkles" size={22} color={colors.white} />
               </>
             )}

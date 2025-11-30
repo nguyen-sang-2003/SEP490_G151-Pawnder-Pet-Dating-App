@@ -19,6 +19,7 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import { getUserExpertConfirmations, ExpertConfirmation } from "../../expert/api/expertConfirmationApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createOrGetExpertChat } from "../../expert/api/expertChatApi";
+import { getChatAIHistory } from "../../chat/api/chataiApi";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
@@ -30,6 +31,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'answered' | 'pending'>('all');
   const [creatingChat, setCreatingChat] = useState(false);
+  const [aiResponses, setAiResponses] = useState<Record<string, string>>({}); // Key: `${userId}-${chatAiId}`, Value: AI response text
   const { visible: alertVisible, alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   useFocusEffect(
@@ -52,6 +54,25 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       const data = await getUserExpertConfirmations(userId);
       setRequests(data);
       console.log("✅ Loaded expert confirmations:", data.length);
+
+      // Load AI responses for each request
+      const aiResponseMap: Record<string, string> = {};
+      await Promise.all(
+        data.map(async (request) => {
+          try {
+            const key = `${request.userId}-${request.chatAiId}`;
+            const chatHistory = await getChatAIHistory(request.chatAiId);
+            // Get the last AI response (most recent answer)
+            if (chatHistory.messages && chatHistory.messages.length > 0) {
+              const lastMessage = chatHistory.messages[chatHistory.messages.length - 1];
+              aiResponseMap[key] = lastMessage.answer || "";
+            }
+          } catch (error) {
+            console.log(`⚠️ Could not load AI response for chat ${request.chatAiId}`);
+          }
+        })
+      );
+      setAiResponses(aiResponseMap);
     } catch (error: any) {
 
     } finally {
@@ -223,6 +244,23 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       </View>
 
       <View style={styles.divider} />
+
+      {/* AI Response - Show first */}
+      {(() => {
+        const key = `${item.userId}-${item.chatAiId}`;
+        const aiResponse = aiResponses[key];
+        return aiResponse ? (
+          <View style={styles.aiResponseSection}>
+            <View style={styles.aiResponseHeader}>
+              <Icon name="sparkles" size={14} color={colors.aiPrimary} />
+              <Text style={styles.aiResponseHeaderText}>Câu trả lời của AI:</Text>
+            </View>
+            <ScrollView style={styles.aiResponseScrollView} nestedScrollEnabled showsVerticalScrollIndicator={true}>
+              <Text style={styles.aiResponseText}>{aiResponse}</Text>
+            </ScrollView>
+          </View>
+        ) : null;
+      })()}
 
       {/* User Request Message */}
       {item.userQuestion && (
@@ -599,6 +637,40 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#F0F0F0",
     marginBottom: 12,
+  },
+
+  // AI Response Section
+  aiResponseSection: {
+    backgroundColor: "#F8F8F8",
+    borderRadius: radius.md,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "rgba(255, 154, 118, 0.2)",
+    overflow: "hidden",
+  },
+  aiResponseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255, 154, 118, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 154, 118, 0.15)",
+  },
+  aiResponseHeaderText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.aiPrimary,
+  },
+  aiResponseScrollView: {
+    maxHeight: 200,
+    padding: 12,
+  },
+  aiResponseText: {
+    fontSize: 14,
+    color: colors.textDark,
+    lineHeight: 20,
   },
 
   // Message Section

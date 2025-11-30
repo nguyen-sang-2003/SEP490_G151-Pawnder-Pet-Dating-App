@@ -202,7 +202,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     },
   } : {
     id: petIdStr,
-    name: "Loading...",
+    name: "Đang tải...",
     breed: "...",
     age: "...",
     gender: "...",
@@ -313,16 +313,16 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       if (response.isMatch) {
         showAlert({
           type: 'success',
-          title: "It's a Match! 🎉",
-          message: `You matched with ${pet.owner.name}! You can now chat with them.`,
-          confirmText: 'Go to Chat',
+          title: "Đã kết nối! 🎉",
+          message: `Bạn đã kết nối với ${pet.owner.name}! Bây giờ bạn có thể trò chuyện với họ.`,
+          confirmText: 'Đến Tin nhắn',
           onConfirm: () => navigation.navigate('Chat', {}),
         });
       } else {
         showAlert({
           type: 'success',
-          title: 'Match Request Sent! 💌',
-          message: `Your match request has been sent to ${pet.owner.name}. They will see it in their Favorites.`,
+          title: 'Đã gửi yêu cầu kết nối! 💌',
+          message: `Yêu cầu kết nối của bạn đã được gửi đến ${pet.owner.name}. Họ sẽ thấy trong Yêu thích.`,
           onClose: () => navigation.goBack(),
         });
       }
@@ -341,7 +341,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading pet profile...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Đang tải hồ sơ thú cưng...</Text>
       </View>
     );
   }
@@ -447,7 +447,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 <Icon name="paw" size={20} color={colors.primary} />
               </View>
               <Text style={styles.quickStatValue}>{pet.breed}</Text>
-              <Text style={styles.quickStatLabel}>Breed</Text>
+              <Text style={styles.quickStatLabel}>Giống</Text>
             </View>
 
             <View style={styles.quickStatCard}>
@@ -455,7 +455,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 <Icon name="calendar-outline" size={20} color={colors.primary} />
               </View>
               <Text style={styles.quickStatValue}>{pet.age}</Text>
-              <Text style={styles.quickStatLabel}>Age</Text>
+              <Text style={styles.quickStatLabel}>Tuổi</Text>
             </View>
 
             <View style={styles.quickStatCard}>
@@ -466,15 +466,15 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                   color={pet.gender === "male" ? colors.male : colors.female}
                 />
               </View>
-              <Text style={styles.quickStatValue}>{pet.gender}</Text>
-              <Text style={styles.quickStatLabel}>Gender</Text>
+              <Text style={styles.quickStatValue}>{pet.gender === "male" ? "Đực" : "Cái"}</Text>
+              <Text style={styles.quickStatLabel}>Giới tính</Text>
             </View>
           </View>
 
           {/* About Section */}
-          {pet.description && pet.description !== 'No description available' && (
+          {pet.description && pet.description !== 'Chưa có mô tả' && (
             <View style={styles.aboutSection}>
-              <Text style={styles.sectionTitleModern}>About {pet.name}</Text>
+              <Text style={styles.sectionTitleModern}>Về {pet.name}</Text>
               <View style={styles.aboutCard}>
                 <Text style={styles.aboutText}>{pet.description}</Text>
               </View>
@@ -486,7 +486,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         {characteristics.length > 0 && (
           <View style={styles.contentContainer}>
             <View style={styles.sectionHeaderModern}>
-              <Text style={styles.sectionTitleModern}>Characteristics</Text>
+              <Text style={styles.sectionTitleModern}>Đặc điểm</Text>
               <View style={styles.badgeCount}>
                 <Text style={styles.badgeCountText}>{characteristics.length}</Text>
               </View>
@@ -505,7 +505,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                       color={colors.white}
                     />
                   </View>
-                  <Text style={styles.charName}>{char.name || 'Unknown'}</Text>
+                  <Text style={styles.charName}>{char.name || 'Chưa xác định'}</Text>
                   <View style={styles.charValueContainer}>
                     {char.optionValue ? (
                       <Text style={styles.charValue}>{char.optionValue}</Text>
@@ -514,7 +514,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                         {char.value} {char.unit || ''}
                       </Text>
                     ) : (
-                      <Text style={styles.charValueEmpty}>Not set</Text>
+                      <Text style={styles.charValueEmpty}>Chưa đặt</Text>
                     )}
                   </View>
                 </View>
@@ -525,7 +525,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
         {/* Owner Section */}
         <View style={styles.contentContainer}>
-          <Text style={styles.sectionTitleModern}>Owner</Text>
+          <Text style={styles.sectionTitleModern}>Chủ sở hữu</Text>
 
           <View style={styles.ownerCardModern}>
             <Image source={pet.owner.avatar} style={styles.ownerAvatarModern} />
@@ -567,7 +567,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             <View style={styles.addressCardModern}>
               <Icon name="map" size={20} color={colors.primary} />
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.addressTitleModern}>Full Address</Text>
+                <Text style={styles.addressTitleModern}>Địa chỉ đầy đủ</Text>
                 <Text style={styles.addressTextModern}>{pet.fullAddress}</Text>
               </View>
             </View>
@@ -596,7 +596,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                   <Icon name="heart" size={24} color="#fff" />
                 )}
                 <Text style={styles.matchButtonText}>
-                  {sendingMatchRequest ? 'Sending...' : 'Send Match Request'}
+                  {sendingMatchRequest ? 'Đang gửi...' : 'Gửi yêu cầu kết nối'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
