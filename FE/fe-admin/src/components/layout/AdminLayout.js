@@ -1,7 +1,7 @@
 import React from 'react';
 import Header from '../common/Header';
 import Sidebar from '../common/Sidebar';
-import './AdminLayout.css';
+import './styles/AdminLayout.css';
 
 const AdminLayout = ({ children }) => {
   return (

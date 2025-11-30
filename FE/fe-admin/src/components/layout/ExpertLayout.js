@@ -1,7 +1,7 @@
 import React from 'react';
 import Header from '../common/Header';
 import ExpertSidebar from '../common/ExpertSidebar';
-import './AdminLayout.css';
+import './styles/AdminLayout.css';
 
 const ExpertLayout = ({ children }) => {
   return (

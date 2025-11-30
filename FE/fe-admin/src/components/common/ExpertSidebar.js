@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import './Sidebar.css';
+import { useAuth } from '../../shared/context/AuthContext';
+import './styles/Sidebar.css';
 
 const ExpertSidebar = () => {
   const { user } = useAuth();
@@ -54,7 +54,7 @@ const ExpertSidebar = () => {
       <div className="sidebar-footer">
         <div className="sidebar-stats">
           <div className="stat-item">
-            <span className="stat-number">Expert</span>
+            <span className="stat-number">{user?.FullName || 'Expert'}</span>
             <span className="stat-label">Chuyên gia</span>
           </div>
         </div>
