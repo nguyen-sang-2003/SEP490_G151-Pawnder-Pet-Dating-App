@@ -44,8 +44,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không tìm thấy thông tin thú cưng. Vui lòng thử lại.',
+        title: 'Error',
+        message: 'Pet information not found. Please try again.',
         onClose: () => navigation.goBack(),
       });
       return;
@@ -63,17 +63,10 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       const validAttrs = attrs.filter(attr => {
         if (attr.AttributeId == null) return false;
 
-        const name = attr.Name?.toLowerCase() || '';
-        
         // Filter out distance/range attributes - these are user preferences, not pet characteristics
+        const name = attr.Name?.toLowerCase() || '';
         if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
           console.log('🚫 Filtering out distance attribute:', attr.Name);
-          return false;
-        }
-
-        // Filter out breed/type/loại attributes - not used
-        if (name.includes('loại') || name.includes('breed') || name.includes('type') || name.includes('giống')) {
-          console.log('🚫 Filtering out breed/type attribute:', attr.Name);
           return false;
         }
 
@@ -161,8 +154,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không thể tải đặc điểm. Vui lòng thử lại.',
+        title: 'Error',
+        message: 'Failed to load characteristics. Please try again.',
       });
     } finally {
       setLoading(false);
@@ -236,9 +229,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Thành công!',
-        message: 'Hồ sơ thú cưng của bạn đã được tạo thành công!',
-        confirmText: isFromProfile ? 'Đến Hồ sơ' : 'Tiếp tục',
+        title: 'Success!',
+        message: 'Your pet profile has been created successfully!',
+        confirmText: isFromProfile ? 'Go to Profile' : 'Continue',
         onClose: () => {
           if (isFromProfile) {
             navigation.navigate("Profile");
@@ -250,7 +243,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     } catch (error: any) {
 
 
-      let errorMessage = 'Không thể lưu đặc điểm. Vui lòng thử lại.';
+      let errorMessage = 'Failed to save characteristics. Please try again.';
 
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -260,7 +253,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
+        title: 'Error',
         message: errorMessage,
       });
     } finally {
@@ -274,8 +267,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     } else {
       showAlert({
         type: 'warning',
-        title: 'Hoàn thành hồ sơ',
-        message: 'Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.',
+        title: 'Complete Profile',
+        message: 'You need to complete your pet profile to continue.',
       });
     }
   };
@@ -289,7 +282,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         end={{ x: 1, y: 1 }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Đang tải thuộc tính...</Text>
+        <Text style={styles.loadingText}>Loading attributes...</Text>
       </LinearGradient>
     );
   }
@@ -315,14 +308,14 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
               <View style={[styles.stepBar, styles.stepBarActive]} />
               <View style={[styles.stepBar, styles.stepBarActive]} />
             </View>
-            <Text style={styles.stepText}>Bước 3/3</Text>
+            <Text style={styles.stepText}>Step 3 of 3</Text>
           </View>
 
           <Text style={styles.title}>
-            {isFromProfile ? 'Chỉnh sửa đặc điểm' : 'Đặc điểm thú cưng'}
+            {isFromProfile ? 'Edit Characteristics' : 'Pet Characteristics'}
           </Text>
           <Text style={styles.subtitle}>
-            {isFromProfile ? 'Cập nhật thông tin thú cưng' : 'Giúp người khác hiểu rõ hơn về thú cưng của bạn'}
+            {isFromProfile ? 'Update your pet\'s details' : 'Help others get to know your pet better'}
           </Text>
         </View>
 
@@ -335,9 +328,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 <Icon name="sparkles" size={20} color={colors.primary} />
               </View>
               <View style={styles.aiBannerContent}>
-                <Text style={styles.aiBannerTitle}>Phân tích AI hoàn tất!</Text>
+                <Text style={styles.aiBannerTitle}>AI Analysis Complete!</Text>
                 <Text style={styles.aiBannerText}>
-                  Phát hiện {aiResults.length} đặc điểm. Xem lại và chỉnh sửa nếu cần.
+                  {aiResults.length} characteristics detected. Review and edit as needed.
                 </Text>
               </View>
             </View>
@@ -370,7 +363,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                   <View style={styles.inputContainer}>
                     <TextInput
                       style={styles.numericInput}
-                      placeholder={`Nhập ${attr.Name?.toLowerCase() || 'giá trị'}`}
+                      placeholder={`Enter ${attr.Name?.toLowerCase() || 'value'}`}
                       placeholderTextColor={colors.textLabel}
                       keyboardType="decimal-pad"
                       value={numericValues[attr.AttributeId!] || ''}
@@ -431,7 +424,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
               <Icon name="bulb" size={20} color={colors.primary} />
             </View>
             <Text style={styles.infoText}>
-              Những thông tin này giúp chúng tôi tìm được bạn đời hoàn hảo cho thú cưng của bạn. Bạn có thể cập nhật bất cứ lúc nào.
+              These details help us find the perfect matches for your pet. You can update anytime.
             </Text>
           </View>
 
@@ -451,7 +444,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>{isFromProfile ? 'Lưu thay đổi' : 'Tiếp tục'}</Text>
+                  <Text style={styles.buttonText}>{isFromProfile ? 'Save Changes' : 'Continue'}</Text>
                   <Icon name="arrow-forward" size={22} color={colors.white} />
                 </>
               )}

@@ -181,10 +181,10 @@ const SignUpScreen = ({ navigation }: Props) => {
 
       {/* Form */}
       <View style={styles.form}>
-        <Text style={styles.title}>Đăng ký</Text>
+        <Text style={styles.title}>Sign Up</Text>
 
         <TextInput
-          placeholder="Họ và tên"
+          placeholder="Full Name"
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           value={fullName}
@@ -211,7 +211,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 gender === "Male" && styles.genderTextActive,
               ]}
             >
-              Nam
+              Male
             </Text>
           </TouchableOpacity>
 
@@ -233,7 +233,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 gender === "Female" && styles.genderTextActive,
               ]}
             >
-              Nữ
+              Female
             </Text>
           </TouchableOpacity>
         </View>
@@ -247,7 +247,7 @@ const SignUpScreen = ({ navigation }: Props) => {
           keyboardType="email-address"
         />
         <TextInput
-          placeholder="Mật khẩu"
+          placeholder="Password"
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           secureTextEntry
@@ -255,7 +255,7 @@ const SignUpScreen = ({ navigation }: Props) => {
           onChangeText={setPass}
         />
         <TextInput
-          placeholder="Xác nhận mật khẩu"
+          placeholder="Confirm Password"
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           secureTextEntry
@@ -265,7 +265,7 @@ const SignUpScreen = ({ navigation }: Props) => {
 
         <Pressable style={styles.checkRow} onPress={() => setAgree((v) => !v)}>
           <View style={[styles.checkbox, agree && styles.checkboxOn]} />
-          <Text style={styles.checkText}>Tôi đồng ý với điều khoản và chính sách</Text>
+          <Text style={styles.checkText}>I accept the terms and policy</Text>
         </Pressable>
 
         <TouchableOpacity 
@@ -283,18 +283,18 @@ const SignUpScreen = ({ navigation }: Props) => {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Đăng ký</Text>
+              <Text style={styles.buttonText}>Sign Up</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
 
         <Text style={styles.footer}>
-          Đã có tài khoản?{" "}
+          Already a member?{" "}
           <Text
             style={styles.link}
             onPress={() => navigation.navigate("SignIn")}
           >
-            Đăng nhập
+            sign in
           </Text>
         </Text>
       </View>

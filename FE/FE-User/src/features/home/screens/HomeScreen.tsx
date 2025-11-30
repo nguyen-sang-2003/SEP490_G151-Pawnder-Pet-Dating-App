@@ -874,7 +874,7 @@ const HomeScreen = ({ navigation }: Props) => {
 
                             <View style={styles.ownerInfo}>
                                 <Icon name="person-outline" size={14} color={colors.white} />
-                                <Text style={styles.ownerText}>Chủ: {pet.owner}</Text>
+                                <Text style={styles.ownerText}>Owner: {pet.owner}</Text>
                                 {pet.ownerIsVip && (
                                     <View style={styles.vipBadgeSmall}>
                                         <Icon name="diamond" size={12} color="#FFD700" />
@@ -1003,12 +1003,12 @@ const HomeScreen = ({ navigation }: Props) => {
                             <Icon name="paw" size={60} color={colors.white} />
                         </LinearGradient>
                     </Animated.View>
-                    <Text style={styles.noMoreTitle}>Hết thú cưng rồi!</Text>
+                    <Text style={styles.noMoreTitle}>No More Pets!</Text>
                     <Text style={styles.noMoreText}>
-                        Quay lại sau để xem thêm nhiều bạn đồng hành đáng yêu
+                        Check back later for more adorable matches
                     </Text>
                     <Text style={styles.noMoreSubtitle}>
-                        Hoặc điều chỉnh bộ lọc để xem thêm thú cưng
+                        Or adjust your filters to see more pets
                     </Text>
                     <View style={styles.emptyStateButtons}>
                         <TouchableOpacity
@@ -1023,7 +1023,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                 style={styles.resetGradient}
                             >
                                 <Icon name="refresh" size={24} color={colors.white} />
-                                <Text style={styles.resetText}>Tải lại</Text>
+                                <Text style={styles.resetText}>Reload Pets</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -1031,7 +1031,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             onPress={() => (navigation as any).navigate("FilterScreen")}
                         >
                             <Icon name="options-outline" size={24} color={colors.primary} />
-                            <Text style={styles.adjustFiltersText}>Điều chỉnh bộ lọc</Text>
+                            <Text style={styles.adjustFiltersText}>Adjust Filters</Text>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>

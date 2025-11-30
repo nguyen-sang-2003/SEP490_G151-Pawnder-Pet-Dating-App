@@ -210,7 +210,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         end={{ x: 1, y: 1 }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Đang tải...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading...</Text>
       </LinearGradient>
     );
   }
@@ -231,21 +231,21 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Icon name="arrow-back" size={26} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ</Text>
+          <Text style={styles.headerTitle}>Edit Profile</Text>
           <View style={{ width: 40 }} />
         </View>
 
         {/* Form */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Họ và tên</Text>
+            <Text style={styles.label}>Full Name</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Nhập tên của bạn"
+              placeholder="Enter your name"
               placeholderTextColor="#999"
             />
           </View>
@@ -255,16 +255,16 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={[styles.input, styles.inputDisabled]}
               value={email}
-              placeholder="Nhập email của bạn"
+              placeholder="Enter your email"
               placeholderTextColor="#999"
               keyboardType="email-address"
               editable={false}
             />
-            <Text style={styles.helperText}>Email không thể thay đổi</Text>
+            <Text style={styles.helperText}>Email cannot be changed</Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Giới tính</Text>
+            <Text style={styles.label}>Gender</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
                 style={[
@@ -279,7 +279,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                     gender === "Male" && styles.genderTextActive,
                   ]}
                 >
-                  Nam
+                  Male
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -295,7 +295,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                     gender === "Female" && styles.genderTextActive,
                   ]}
                 >
-                  Nữ
+                  Female
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -311,14 +311,14 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                     gender === "Other" && styles.genderTextActive,
                   ]}
                 >
-                  Khác
+                  Other
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Location - GPS Only */}
-          <Text style={styles.sectionTitle}>Vị trí (GPS)</Text>
+          <Text style={styles.sectionTitle}>Location (GPS)</Text>
 
           <View style={styles.gpsInfoBox}>
             <Icon name="information-circle" size={20} color={colors.primary} />
@@ -382,10 +382,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             {saving ? (
               <>
                 <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.saveButtonText}>Đang lưu...</Text>
+                <Text style={styles.saveButtonText}>Saving...</Text>
               </>
             ) : (
-              <Text style={styles.saveButtonText}>Lưu thay đổi</Text>
+              <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>

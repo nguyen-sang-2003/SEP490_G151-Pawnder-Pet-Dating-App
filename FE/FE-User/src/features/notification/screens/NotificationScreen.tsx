@@ -45,11 +45,11 @@ const NotificationScreen = ({ navigation }: Props) => {
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (seconds < 60) return "Vừa xong";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} phút trước`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)} ngày trước`;
-    return date.toLocaleDateString('vi-VN');
+    if (seconds < 60) return "Just now";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+    return date.toLocaleDateString();
   };
 
   // Load notifications from API
@@ -440,12 +440,12 @@ const NotificationScreen = ({ navigation }: Props) => {
         <View style={styles.notificationContent}>
           <View style={styles.notificationHeader}>
             <Text style={styles.notificationTitle} numberOfLines={1}>
-              {item.title || 'Thông báo'}
+              {item.title || 'Notification'}
             </Text>
             {type === "expert_reply" || type === "expert" ? (
               <View style={styles.expertBadge}>
                 <Icon name="shield-checkmark" size={12} color="#FF6EA7" />
-                <Text style={styles.expertBadgeText}>Chuyên gia</Text>
+                <Text style={styles.expertBadgeText}>Expert</Text>
               </View>
             ) : null}
           </View>
@@ -456,7 +456,7 @@ const NotificationScreen = ({ navigation }: Props) => {
             ]}
             numberOfLines={3}
           >
-            {item.message || 'Không có tin nhắn'}
+            {item.message || 'No message'}
           </Text>
           <View style={styles.notificationFooter}>
             <Icon name="time-outline" size={14} color={colors.textLabel} />
@@ -486,10 +486,10 @@ const NotificationScreen = ({ navigation }: Props) => {
 
   // 🚀 OPTIMIZATION: Memoize filter tabs configuration
   const filterTabs = useMemo(() => [
-    { id: "all", label: "Tất cả", icon: "apps" },
-    { id: "unread", label: "Chưa đọc", icon: "mail-unread", badge: unreadCount },
-    { id: "system", label: "Hệ thống", icon: "notifications" },
-    { id: "expert", label: "Chuyên gia", icon: "medical" },
+    { id: "all", label: "All", icon: "apps" },
+    { id: "unread", label: "Unread", icon: "mail-unread", badge: unreadCount },
+    { id: "system", label: "System", icon: "notifications" },
+    { id: "expert", label: "Expert", icon: "medical" },
   ], [unreadCount]);
 
   // Show loading state
@@ -503,7 +503,7 @@ const NotificationScreen = ({ navigation }: Props) => {
       >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Đang tải thông báo...</Text>
+          <Text style={styles.loadingText}>Loading notifications...</Text>
         </View>
       </LinearGradient>
     );
@@ -526,10 +526,10 @@ const NotificationScreen = ({ navigation }: Props) => {
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
           <View>
-            <Text style={styles.headerTitle}>Thông báo</Text>
+            <Text style={styles.headerTitle}>Notifications</Text>
             {unreadCount > 0 && (
               <Text style={styles.headerSubtitle}>
-                {unreadCount} thông báo chưa đọc
+                {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}
               </Text>
             )}
           </View>
@@ -622,22 +622,20 @@ const NotificationScreen = ({ navigation }: Props) => {
           </LinearGradient>
           <Text style={styles.emptyText}>
             {filterType === "all"
-              ? "Chưa có thông báo nào"
+              ? "No notifications yet"
               : filterType === "unread"
-                ? "Đã xem hết!"
-                : filterType === "system"
-                  ? "Chưa có thông báo hệ thống"
-                  : "Chưa có thông báo chuyên gia"
+                ? "All caught up!"
+                : `No ${filterType} notifications`
             }
           </Text>
           <Text style={styles.emptySubtext}>
             {filterType === "all"
-              ? "Bạn sẽ thấy thông báo hệ thống và chuyên gia ở đây"
+              ? "You'll see system and expert notifications here"
               : filterType === "unread"
-                ? "Bạn không có thông báo chưa đọc"
+                ? "You have no unread notifications"
                 : filterType === "system"
-                  ? "Thông báo hệ thống sẽ xuất hiện ở đây"
-                  : "Thông báo phản hồi chuyên gia sẽ xuất hiện ở đây"
+                  ? "System notifications will appear here"
+                  : "Expert reply notifications will appear here"
             }
           </Text>
         </View>

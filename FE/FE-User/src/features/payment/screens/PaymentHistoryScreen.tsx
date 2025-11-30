@@ -53,7 +53,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       // Map API response to PaymentRecord format
       const mappedPayments: PaymentRecord[] = data.map((item: any) => ({
         historyId: item.historyId,
-        statusService: item.statusService === "active" ? "Premium đang hoạt động" : "Premium đã hết hạn",
+        statusService: item.statusService === "active" ? "Premium Active" : "Premium Expired",
         amount: item.amount || 0,
         startDate: item.startDate,
         endDate: item.endDate,
@@ -176,9 +176,9 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       <View style={styles.emptyIconContainer}>
         <Icon name="receipt-outline" size={64} color={colors.textLabel} />
       </View>
-      <Text style={styles.emptyTitle}>Chưa có lịch sử thanh toán</Text>
+      <Text style={styles.emptyTitle}>No Payment History</Text>
       <Text style={styles.emptyText}>
-        Các giao dịch thanh toán của bạn sẽ xuất hiện ở đây
+        Your payment transactions will appear here
       </Text>
       <TouchableOpacity
         style={styles.premiumButton}
@@ -189,7 +189,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
           style={styles.premiumGradient}
         >
           <Icon name="diamond-outline" size={20} color={colors.white} />
-          <Text style={styles.premiumText}>Nâng cấp Premium</Text>
+          <Text style={styles.premiumText}>Upgrade to Premium</Text>
         </LinearGradient>
       </TouchableOpacity>
     </View>
@@ -210,7 +210,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Lịch sử thanh toán</Text>
+        <Text style={styles.headerTitle}>Payment History</Text>
         <View style={styles.placeholder} />
       </View>
 

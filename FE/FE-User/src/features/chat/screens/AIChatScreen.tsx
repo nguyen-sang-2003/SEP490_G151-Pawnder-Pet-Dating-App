@@ -48,7 +48,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [chatTitle, setChatTitle] = useState("Trò chuyện AI");
+  const [chatTitle, setChatTitle] = useState("AI Chat");
   const flatListRef = useRef<FlatList>(null);
 
   // Token usage states
@@ -87,14 +87,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setMessages([
         {
           id: "welcome",
-          text: "Xin chào! 👋 Tôi là Trợ lý Chăm sóc Thú cưng AI của bạn. Tôi ở đây để giúp bạn với bất kỳ câu hỏi nào về mèo của bạn! Tôi có thể giúp gì cho bạn hôm nay?",
+          text: "Hi there! 👋 I'm your AI Pet Care Assistant. I'm here to help you with any questions about your cat! How can I assist you today?",
           isAI: true,
           timestamp: new Date(),
           suggestions: [
-            "Mẹo chăm sóc thú cưng",
-            "Tư vấn sức khỏe",
-            "Mẹo huấn luyện",
-            "Hướng dẫn dinh dưỡng",
+            "Pet care tips",
+            "Health advice",
+            "Training tips",
+            "Nutrition guide",
           ],
         },
       ]);
@@ -395,7 +395,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                     style={styles.askExpertGradient}
                   >
                     <Icon name="shield-checkmark" size={16} color={colors.white} />
-                    <Text style={styles.askExpertText}>Gửi đến chuyên gia</Text>
+                    <Text style={styles.askExpertText}>Ask Expert to Confirm</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}
@@ -404,7 +404,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               {item.id !== "welcome" && sentToExpertIds.has(item.id) && (
                 <View style={styles.sentToExpertBadge}>
                   <Icon name="checkmark-circle" size={16} color={colors.success} />
-                  <Text style={styles.sentToExpertText}>Đã gửi đến chuyên gia</Text>
+                  <Text style={styles.sentToExpertText}>Sent to Expert</Text>
                 </View>
               )}
             </View>
@@ -465,13 +465,13 @@ const AIChatScreen = ({ navigation, route }: Props) => {
             </LinearGradient>
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{chatTitle}</Text>
-              <Text style={styles.headerStatus}>Đang tải...</Text>
+              <Text style={styles.headerStatus}>Loading...</Text>
             </View>
           </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.aiPrimary} />
-          <Text style={styles.loadingText}>Đang tải cuộc trò chuyện...</Text>
+          <Text style={styles.loadingText}>Loading chat...</Text>
         </View>
       </LinearGradient>
     );
@@ -500,13 +500,13 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               <Icon name="sparkles" size={24} color={colors.white} />
             </LinearGradient>
             <View style={styles.headerInfo}>
-              <Text style={styles.headerName}>Trợ lý Thú cưng AI</Text>
+              <Text style={styles.headerName}>AI Pet Assistant</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? "đang nhập..." : tokenUsage
+                {isTyping ? "typing..." : tokenUsage
                   ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota
-                    ? "Đã đạt giới hạn (100%)"
-                    : `${tokenUsage.tokensUsed.toLocaleString()}/${tokenUsage.dailyQuota.toLocaleString()} token`)
-                  : "0/10,000 token"}
+                    ? "Limit reached (100%)"
+                    : `${tokenUsage.tokensUsed.toLocaleString()}/${tokenUsage.dailyQuota.toLocaleString()} tokens`)
+                  : "0/10,000 tokens"}
               </Text>
             </View>
           </View>
@@ -562,9 +562,13 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         {/* Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
+            <TouchableOpacity style={styles.attachButton}>
+              <Icon name="camera-outline" size={28} color={colors.aiPrimary} />
+            </TouchableOpacity>
+
             <TextInput
               style={styles.input}
-              placeholder="Hỏi tôi bất cứ điều gì về chăm sóc mèo..."
+              placeholder="Ask me anything about cat care..."
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={setInputText}
@@ -1046,6 +1050,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 154, 118, 0.15)",
     ...shadows.medium,
   },
+  attachButton: {
+    padding: 4,
+    marginRight: 4,
+  },
   input: {
     flex: 1,
     fontSize: 15,
@@ -1157,7 +1165,7 @@ const styles = StyleSheet.create({
     color: colors.aiPrimary,
   },
   aiResponseScrollView: {
-    maxHeight: 200,
+    maxHeight: 150,
     padding: 12,
   },
   aiResponseFullText: {

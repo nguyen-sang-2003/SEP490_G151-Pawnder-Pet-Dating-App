@@ -87,7 +87,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
     }
 
     try {
-      const newChat = await createChatAISession(currentUserId, { title: 'Cuộc trò chuyện mới' });
+      const newChat = await createChatAISession(currentUserId, { title: 'New Chat' });
 
       // Navigate to chat screen immediately
       navigation.navigate("AIChat", { chatId: newChat.chatId.toString() });
@@ -100,7 +100,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
         Alert.alert(
           'Không thể tạo chat',
           error.message || 'Vui lòng thử lại sau',
-          [{ text: 'Đồng ý' }]
+          [{ text: 'OK' }]
         );
       }
     }
@@ -137,12 +137,12 @@ const AIChatListScreen = ({ navigation }: Props) => {
 
   const handleDeleteChat = (chatId: string, title: string) => {
     Alert.alert(
-      "Xóa cuộc trò chuyện",
-      `Xóa "${title}"? Hành động này không thể hoàn tác.`,
+      "Delete Conversation",
+      `Delete "${title}"? This cannot be undone.`,
       [
-        { text: "Hủy", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Xóa",
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
             try {
@@ -167,13 +167,13 @@ const AIChatListScreen = ({ navigation }: Props) => {
       const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
       if (diffHours === 0) {
         const diffMins = Math.floor(diffTime / (1000 * 60));
-        return `${diffMins} phút trước`;
+        return `${diffMins}m ago`;
       }
-      return `${diffHours} giờ trước`;
+      return `${diffHours}h ago`;
     }
-    if (diffDays === 1) return "Hôm qua";
-    if (diffDays < 7) return `${diffDays} ngày trước`;
-    return date.toLocaleDateString("vi-VN");
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
   };
 
   const renderChatSession = ({ item }: { item: ChatSession }) => (
@@ -199,10 +199,10 @@ const AIChatListScreen = ({ navigation }: Props) => {
           <Text style={styles.chatTime}>{formatTime(item.timestamp)}</Text>
         </View>
         <Text style={styles.chatLastMessage} numberOfLines={1}>
-          {item.lastMessage || "Bắt đầu cuộc trò chuyện..."}
+          {item.lastMessage || "Start a conversation..."}
         </Text>
         <Text style={styles.chatMessageCount}>
-          {item.messageCount} tin nhắn
+          {item.messageCount} message{item.messageCount !== 1 ? "s" : ""}
         </Text>
       </View>
 
@@ -239,12 +239,12 @@ const AIChatListScreen = ({ navigation }: Props) => {
               >
                 <Icon name="sparkles" size={24} color={colors.white} />
               </LinearGradient>
-              <Text style={styles.headerTitle}>Trợ lý Thú cưng AI</Text>
+              <Text style={styles.headerTitle}>AI Pet Assistant</Text>
             </View>
           </View>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.aiPrimary} />
-            <Text style={styles.loadingText}>Đang tải cuộc trò chuyện...</Text>
+            <Text style={styles.loadingText}>Loading chats...</Text>
           </View>
         </LinearGradient>
       </View>
@@ -269,7 +269,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
             >
               <Icon name="sparkles" size={24} color={colors.white} />
             </LinearGradient>
-            <Text style={styles.headerTitle}>Trợ lý Thú cưng AI</Text>
+            <Text style={styles.headerTitle}>AI Pet Assistant</Text>
           </View>
           <TouchableOpacity
             style={styles.expertButton}
@@ -293,7 +293,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
             <Icon name="information-circle" size={18} color={colors.white} />
           </LinearGradient>
           <Text style={styles.infoBannerText}>
-            Nhận tư vấn chăm sóc thú cưng tức thì từ AI. Hỏi chuyên gia để xác nhận!
+            Get instant pet care advice from AI. Ask an expert for confirmation!
           </Text>
         </View>
 
@@ -306,15 +306,15 @@ const AIChatListScreen = ({ navigation }: Props) => {
             end={{ x: 1, y: 0 }}
           >
             <Icon name="add-circle-outline" size={24} color={colors.white} />
-            <Text style={styles.newChatText}>Cuộc trò chuyện mới</Text>
+            <Text style={styles.newChatText}>New Conversation</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         {/* Chat Sessions List */}
         <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Cuộc trò chuyện của bạn</Text>
+          <Text style={styles.listTitle}>Your Conversations</Text>
           <Text style={styles.listSubtitle}>
-            {chatSessions.length} cuộc trò chuyện
+            {chatSessions.length} conversation{chatSessions.length !== 1 ? "s" : ""}
           </Text>
         </View>
 
@@ -334,9 +334,9 @@ const AIChatListScreen = ({ navigation }: Props) => {
             >
               <Icon name="chatbubbles-outline" size={60} color={colors.white} />
             </LinearGradient>
-            <Text style={styles.emptyTitle}>Chưa có cuộc trò chuyện</Text>
+            <Text style={styles.emptyTitle}>No Conversations Yet</Text>
             <Text style={styles.emptyText}>
-              Bắt đầu cuộc trò chuyện mới để nhận tư vấn chăm sóc thú cưng từ AI
+              Start a new conversation to get pet care advice from AI
             </Text>
           </View>
         )}

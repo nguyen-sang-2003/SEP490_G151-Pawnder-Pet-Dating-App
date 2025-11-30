@@ -29,7 +29,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   title,
   message,
   onClose,
-  confirmText = 'Đồng ý',
+  confirmText = 'OK',
   onConfirm,
   cancelText = 'Hủy',
   showCancel = false,

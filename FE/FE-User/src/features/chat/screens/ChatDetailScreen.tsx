@@ -899,7 +899,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{userName}</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? "đang nhập..." : otherUserOnline ? "Trực tuyến" : "Ngoại tuyến"}
+                {isTyping ? "typing..." : otherUserOnline ? "Online" : "Offline"}
               </Text>
             </View>
           </View>
@@ -1019,6 +1019,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         {/* Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
+            <TouchableOpacity style={styles.attachButton}>
+              <Icon name="add-circle-outline" size={28} color={colors.primary} />
+            </TouchableOpacity>
+
             <TextInput
               style={styles.input}
               placeholder="Nhắn tin..."
@@ -1069,7 +1073,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               <OptimizedImage source={otherUserAvatar} style={styles.menuAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
               <View style={styles.menuHeaderText}>
                 <Text style={styles.menuUserName}>{userName}</Text>
-                <Text style={styles.menuUserStatus}>Đang hoạt động</Text>
+                <Text style={styles.menuUserStatus}>Active now</Text>
               </View>
               <TouchableOpacity onPress={closeMenu} style={styles.menuCloseBtn}>
                 <Icon name="close" size={24} color={colors.textDark} />
@@ -1427,6 +1431,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(255, 154, 118, 0.15)",
     ...shadows.medium,
+  },
+  attachButton: {
+    padding: 4,
+    marginRight: 4,
   },
   input: {
     flex: 1,
