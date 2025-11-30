@@ -387,70 +387,77 @@ body:not(.dark-theme) .search-input::placeholder {
 }
 
 .payments-table-container {
-  background: rgba(15, 23, 42, 0.85);
-  border-radius: 28px;
-  padding: 1.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 30px 70px rgba(2, 6, 23, 0.65);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 4px 20px rgba(255, 182, 193, 0.1);
+  border: 1px solid rgba(255, 182, 193, 0.2);
   overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-body:not(.dark-theme) .payments-table-container {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(148, 163, 184, 0.2);
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.15);
+body.dark-theme .payments-table-container {
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .payments-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 14px;
+  border-collapse: collapse;
   font-size: 0.9rem;
+  table-layout: auto;
 }
 
 .payments-table thead {
-  background: transparent;
+  background: rgba(255, 240, 245, 0.8);
+}
+
+body.dark-theme .payments-table thead {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .payments-table th {
-  padding: 0.6rem 0.8rem;
+  padding: 0.7rem 0.6rem;
   text-align: left;
   font-weight: 600;
-  color: rgba(248, 250, 252, 0.65);
-  text-transform: uppercase;
-  font-size: 0.78rem;
-  letter-spacing: 1px;
-  border-bottom: 1px solid rgba(248, 250, 252, 0.08);
+  color: #2c3e50;
+  font-size: 0.75rem;
+  border-bottom: 2px solid rgba(255, 182, 193, 0.3);
+  white-space: nowrap;
+}
+
+body.dark-theme .payments-table th {
+  color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 .payments-table td {
-  padding: 1.2rem 0.85rem;
-  background: rgba(15, 23, 42, 0.95);
-  color: #f8fafc;
-  border-bottom: none;
-  border-top: 1px solid rgba(248, 250, 252, 0.05);
-  border-bottom: 1px solid rgba(248, 250, 252, 0.05);
+  padding: 0.7rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 182, 193, 0.2);
+  vertical-align: top;
+  word-wrap: break-word;
+  font-size: 0.85rem;
+  color: #2c3e50;
+}
+
+body.dark-theme .payments-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .payments-table tbody tr {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.3s ease;
 }
 
-.payments-table tbody tr:hover td {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.65);
+.payments-table tbody tr:hover {
+  background: rgba(255, 240, 245, 0.3);
 }
 
-body:not(.dark-theme) .payments-table th {
-  color: #475569;
-  border-bottom-color: rgba(148, 163, 184, 0.35);
-}
-
-body:not(.dark-theme) .payments-table td {
-  background: rgba(248, 250, 252, 0.95);
-  color: #0f172a;
-  border-color: rgba(148, 163, 184, 0.2);
+body.dark-theme .payments-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .no-data {
@@ -467,26 +474,32 @@ body:not(.dark-theme) .payments-table td {
 
 .user-name {
   font-weight: 600;
-  color: #f8fafc;
+  color: #2c3e50;
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
 }
 
 .user-email {
-  font-size: 0.82rem;
-  color: rgba(248, 250, 252, 0.6);
+  font-size: 0.75rem;
+  color: #666;
 }
 
-body:not(.dark-theme) .user-name {
-  color: #111827;
+body.dark-theme .user-name {
+  color: #fff;
 }
 
-body:not(.dark-theme) .user-email {
-  color: #475569;
+body.dark-theme .user-email {
+  color: #ccc;
 }
 
 .amount {
   font-weight: 700;
+  color: #27ae60;
+  font-size: 0.95rem;
+}
+
+body.dark-theme .amount {
   color: #38f2b8;
-  font-size: 1.05rem;
 }
 
 .plan-info {
@@ -497,28 +510,34 @@ body:not(.dark-theme) .user-email {
 
 .plan-type {
   font-weight: 600;
-  color: #fcd34d;
-  font-size: 1rem;
+  color: #f39c12;
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
 }
 
 .plan-duration {
-  font-size: 0.8rem;
-  color: rgba(248, 250, 252, 0.65);
+  font-size: 0.75rem;
+  color: #666;
 }
 
-body:not(.dark-theme) .plan-duration {
-  color: #475569;
+body.dark-theme .plan-type {
+  color: #fcd34d;
+}
+
+body.dark-theme .plan-duration {
+  color: #ccc;
 }
 
 .status-badge {
   display: inline-block;
-  padding: 0.5rem 0.95rem;
-  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  border-radius: 10px;
   color: white;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
 }
 
 .failure-reason {
@@ -528,13 +547,13 @@ body:not(.dark-theme) .plan-duration {
 }
 
 .date-cell {
-  font-size: 0.85rem;
-  color: rgba(248, 250, 252, 0.65);
+  font-size: 0.8rem;
+  color: #666;
   white-space: nowrap;
 }
 
-body:not(.dark-theme) .date-cell {
-  color: #475569;
+body.dark-theme .date-cell {
+  color: #ccc;
 }
 
 .pagination {

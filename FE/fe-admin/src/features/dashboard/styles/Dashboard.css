@@ -188,6 +188,12 @@ body.dark-theme .chart-toggle-btn:hover {
   gap: 2rem;
 }
 
+/* Quick Stats Section - narrower width */
+.quick-stats-section {
+  max-width: 350px;
+  margin-left: auto;
+}
+
 .dashboard-section {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);

@@ -436,7 +436,8 @@ body.dark-theme .stat-label {
 }
 
 .action-btn {
-  width: 28px;
+  width: 18px !important;
+  min-width: 18px;
   height: 28px;
   border: none;
   border-radius: 6px;
@@ -447,11 +448,14 @@ body.dark-theme .stat-label {
   transition: all 0.3s ease;
   flex-shrink: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .action-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 12px !important;
+  height: 12px !important;
+  max-width: 12px;
+  max-height: 12px;
 }
 
 .action-btn.view {
@@ -689,7 +693,8 @@ body.dark-theme .action-btn.view:hover {
   }
 
   .action-btn {
-    width: 26px;
+    width: 18px !important;
+    min-width: 18px;
     height: 26px;
   }
 
@@ -747,7 +752,8 @@ body.dark-theme .action-btn.view:hover {
   }
 
   .action-btn {
-    width: 24px;
+    width: 18px !important;
+    min-width: 18px;
     height: 24px;
   }
 
@@ -784,7 +790,8 @@ body.dark-theme .action-btn.view:hover {
   }
 
   .action-btn {
-    width: 28px;
+    width: 18px !important;
+    min-width: 18px;
     height: 28px;
   }
 }

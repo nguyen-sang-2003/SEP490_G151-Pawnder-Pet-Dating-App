@@ -44,6 +44,7 @@ const UsersList = () => {
   // Timer for countdown
   const [timeRemaining, setTimeRemaining] = useState(null);
   const intervalRef = useRef(null);
+  const banExpiresAtRef = useRef(null); // Store original banExpiresAt to prevent recalculation
 
   // Load ban data from localStorage
   useEffect(() => {
@@ -62,63 +63,130 @@ const UsersList = () => {
   useEffect(() => {
     const checkAndUnban = () => {
       const now = Date.now();
-      const updatedBans = { ...userBans };
-      let hasChanges = false;
+      setUserBans(prevBans => {
+        const updatedBans = { ...prevBans };
+        let hasChanges = false;
+        const userIdsToUnban = [];
 
-      Object.keys(updatedBans).forEach(userId => {
-        const ban = updatedBans[userId];
-        // permanent ban has banExpiresAt === null
-        if (ban.banExpiresAt && ban.banExpiresAt <= now) {
-          delete updatedBans[userId];
-          hasChanges = true;
+        Object.keys(updatedBans).forEach(userId => {
+          const ban = updatedBans[userId];
+          // permanent ban has banExpiresAt === null
+          if (ban.banExpiresAt && ban.banExpiresAt <= now) {
+            delete updatedBans[userId];
+            userIdsToUnban.push(userId);
+            hasChanges = true;
+          }
+        });
+
+        if (hasChanges) {
+          // Update backend for each unbanned user
+          userIdsToUnban.forEach(async (userId) => {
+            try {
+              await userService.updateUserByAdmin(parseInt(userId), {
+                userStatusId: 2 // USER_STATUS.NORMAL
+              });
+            } catch (error) {
+              console.error(`Error unbanning user ${userId}:`, error);
+            }
+          });
+
+          localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+          
+          // Update users state to reflect unbanned status
+          setUsers(prevUsers => 
+            prevUsers.map(user => 
+              userIdsToUnban.includes(user.id.toString())
+                ? { ...user, status: 'NORMAL', userStatusId: 2 }
+                : user
+            )
+          );
         }
-      });
 
-      if (hasChanges) {
-        setUserBans(updatedBans);
-        localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
-      }
+        return updatedBans;
+      });
     };
 
     // Check immediately
     checkAndUnban();
 
-    // Check every minute
-    intervalRef.current = setInterval(checkAndUnban, 60000);
+    // Check every 10 seconds for more responsive updates
+    intervalRef.current = setInterval(checkAndUnban, 10000);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [userBans]);
+  }, []); // Empty dependency array - only run once on mount
 
   // Update countdown timer when modal is open
   useEffect(() => {
-    if (showBanModal && selectedUser && userBans[selectedUser.id]) {
+    if (showBanModal && selectedUser) {
+      // Get ban info once when modal opens and store banExpiresAt in ref
       const ban = userBans[selectedUser.id];
-      if (ban.banExpiresAt) {
+      
+      if (ban && ban.banExpiresAt) {
+        // Store the original banExpiresAt in ref to prevent it from changing
+        // This value is fixed and will never change, ensuring countdown decreases correctly
+        banExpiresAtRef.current = ban.banExpiresAt;
+        
         const updateCountdown = () => {
           const now = Date.now();
-          const remaining = ban.banExpiresAt - now;
+          // Always use the original banExpiresAt from ref, never recalculate
+          const originalBanExpiresAt = banExpiresAtRef.current;
+          if (!originalBanExpiresAt) return;
+          
+          const remaining = originalBanExpiresAt - now;
+          
           if (remaining > 0) {
             setTimeRemaining(remaining);
           } else {
             setTimeRemaining(0);
+            // Ban has expired, remove it
+            banExpiresAtRef.current = null;
+            setUserBans(prevBans => {
+              const updatedBans = { ...prevBans };
+              delete updatedBans[selectedUser.id];
+              localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+              return updatedBans;
+            });
+            
+            // Update backend
+            userService.updateUserByAdmin(selectedUser.id, {
+              userStatusId: 2 // USER_STATUS.NORMAL
+            }).catch(err => console.error('Error unbanning user:', err));
+            
+            // Update users state
+            setUsers(prevUsers => 
+              prevUsers.map(user => 
+                user.id === selectedUser.id
+                  ? { ...user, status: 'NORMAL', userStatusId: 2 }
+                  : user
+              )
+            );
           }
         };
 
+        // Update immediately
         updateCountdown();
+        
+        // Update every second to show countdown
         const countdownInterval = setInterval(updateCountdown, 1000);
 
-        return () => clearInterval(countdownInterval);
+        return () => {
+          clearInterval(countdownInterval);
+          banExpiresAtRef.current = null;
+        };
       } else {
-        setTimeRemaining(null); // Permanent ban
+        setTimeRemaining(null); // Permanent ban or no ban
+        banExpiresAtRef.current = null;
       }
     } else {
       setTimeRemaining(null);
+      banExpiresAtRef.current = null;
     }
-  }, [showBanModal, selectedUser, userBans]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBanModal, selectedUser?.id]); // Only depend on selectedUser.id, not userBans to prevent recalculation
 
   // Helper function to check if user is banned
   const isUserBanned = (userId) => {
@@ -192,32 +260,44 @@ const UsersList = () => {
         userStatusId: USER_STATUS.BANNED
       });
       
-      // Also save to localStorage for ban expiration tracking
-      const now = Date.now();
+      // Check if user is already banned
+      const existingBan = userBans[selectedUser.id];
       let banExpiresAt = null;
-
-      // Calculate ban expiration time
-      switch (banDuration) {
-        case '1': // 1 day
-          banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
-          break;
-        case '3': // 3 days
-          banExpiresAt = now + (3 * 24 * 60 * 60 * 1000);
-          break;
-        case '7': // 7 days
-          banExpiresAt = now + (7 * 24 * 60 * 60 * 1000);
-          break;
-        case '30': // 1 month
-          banExpiresAt = now + (30 * 24 * 60 * 60 * 1000);
-          break;
-        case '90': // 3 months
-          banExpiresAt = now + (90 * 24 * 60 * 60 * 1000);
-          break;
-        case 'permanent': // Permanent
+      
+      // IMPORTANT: If user is already banned, NEVER recalculate banExpiresAt
+      // Keep the original banExpiresAt to ensure countdown continues correctly
+      if (existingBan && existingBan.banExpiresAt) {
+        // User is already banned - keep the original banExpiresAt
+        banExpiresAt = existingBan.banExpiresAt;
+        // Only update if changing to permanent
+        if (banDuration === 'permanent') {
           banExpiresAt = null;
-          break;
-        default:
-          banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+        }
+      } else {
+        // New ban - calculate ban expiration time
+        const now = Date.now();
+        switch (banDuration) {
+          case '1': // 1 day
+            banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+            break;
+          case '3': // 3 days
+            banExpiresAt = now + (3 * 24 * 60 * 60 * 1000);
+            break;
+          case '7': // 7 days
+            banExpiresAt = now + (7 * 24 * 60 * 60 * 1000);
+            break;
+          case '30': // 1 month
+            banExpiresAt = now + (30 * 24 * 60 * 60 * 1000);
+            break;
+          case '90': // 3 months
+            banExpiresAt = now + (90 * 24 * 60 * 60 * 1000);
+            break;
+          case 'permanent': // Permanent
+            banExpiresAt = null;
+            break;
+          default:
+            banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+        }
       }
 
       const updatedBans = {
@@ -225,12 +305,17 @@ const UsersList = () => {
         [selectedUser.id]: {
           banExpiresAt,
           reason: banReason.trim(),
-          bannedAt: now
+          bannedAt: existingBan?.bannedAt || Date.now() // Keep original bannedAt if exists
         }
       };
 
       setUserBans(updatedBans);
       localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+      
+      // Update ref if modal is open
+      if (showBanModal && selectedUser && banExpiresAt) {
+        banExpiresAtRef.current = banExpiresAt;
+      }
       
       // Update user status in local state
       setUsers(prevUsers => 
@@ -394,8 +479,7 @@ const UsersList = () => {
             createdAt: user.CreatedAt || user.createdAt,
             updatedAt: user.UpdatedAt || user.updatedAt,
             lastLogin: null, // Backend doesn't have lastLogin
-            totalPets: 0, // Will be updated after fetching pets count
-            totalMatches: 0 // Backend doesn't have matches data
+            totalPets: 0 // Will be updated after fetching pets count
           };
         });
         
@@ -500,14 +584,6 @@ const UsersList = () => {
     );
   };
 
-  const getVerificationBadge = (isVerified) => {
-    return isVerified ? (
-      <span className="verified-badge">✓ Đã xác thực</span>
-    ) : (
-      <span className="unverified-badge">✗ Chưa xác thực</span>
-    );
-  };
-
   if (loading && users.length === 0) {
     return (
       <div className="users-page">
@@ -597,10 +673,8 @@ const UsersList = () => {
               <th>Thông tin cá nhân</th>
               <th>Liên hệ</th>
               <th>Trạng thái</th>
-              <th>Xác thực</th>
               <th>Thống kê</th>
               <th>Ngày tạo</th>
-              <th>Đăng nhập cuối</th>
               <th>Hành động</th>
             </tr>
           </thead>
@@ -662,9 +736,6 @@ const UsersList = () => {
                   {getStatusBadge(user)}
                 </td>
                 <td>
-                  {getVerificationBadge(user.isVerified)}
-                </td>
-                <td>
                   {user.roleId === ROLE_ID.EXPERT ? (
                     <div className="user-stats placeholder">
                       <span className="stat-label">Không áp dụng cho Expert</span>
@@ -674,10 +745,6 @@ const UsersList = () => {
                       <div className="stat-item">
                         <span className="stat-label">Thú cưng:</span>
                         <span className="stat-value">{user.totalPets}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">Ghép đôi:</span>
-                        <span className="stat-value">{user.totalMatches}</span>
                       </div>
                     </div>
                   )}
@@ -693,39 +760,31 @@ const UsersList = () => {
                   )}
                 </td>
                 <td>
-                  {user.lastLogin ? (
-                    <div className="date-info">
-                      <div>{formatDate(user.lastLogin)}</div>
-                      <div className="time-info">{new Date(user.lastLogin).toLocaleTimeString('vi-VN')}</div>
-                    </div>
-                  ) : (
-                    <span style={{ color: '#999' }}>Chưa đăng nhập</span>
-                  )}
-                </td>
-                <td>
                   <div className="action-buttons">
                     <button 
                       className="action-btn view"
+                      style={{ width: '18px', minWidth: '18px', height: '28px', padding: 0 }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleUserClick(user.id);
                       }}
                       title="Xem chi tiết người dùng"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}>
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                         <circle cx="12" cy="12" r="3"/>
                       </svg>
                     </button>
                     <button 
                       className="action-btn edit"
+                      style={{ width: '18px', minWidth: '18px', height: '28px', padding: 0 }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenBanModal(user);
                       }}
                       title="Xử lý sai phạm"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}>
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                       </svg>
@@ -736,7 +795,7 @@ const UsersList = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
                   Không tìm thấy người dùng nào
                 </td>
               </tr>
@@ -816,7 +875,11 @@ const UsersList = () => {
                     <div className="ban-info-item">
                       <span className="ban-label">Hết hạn vào:</span>
                       <span className="ban-value">
-                        {new Date(getBanInfo(selectedUser.id).banExpiresAt).toLocaleString('vi-VN')}
+                        {(() => {
+                          // Use the stored banExpiresAt, don't recalculate
+                          const banExpiresAt = getBanInfo(selectedUser.id).banExpiresAt;
+                          return new Date(banExpiresAt).toLocaleString('vi-VN');
+                        })()}
                       </span>
                     </div>
                   )}
@@ -857,8 +920,8 @@ const UsersList = () => {
                   />
                 </div>
 
-                {/* Preview ban expiration */}
-                {banDuration !== 'permanent' && (
+                {/* Preview ban expiration - only show for new bans, not existing ones */}
+                {!isUserBanned(selectedUser.id) && banDuration !== 'permanent' && (
                   <div className="ban-preview">
                     <span className="ban-preview-label">Thời gian ban sẽ hết hạn vào:</span>
                     <span className="ban-preview-value">

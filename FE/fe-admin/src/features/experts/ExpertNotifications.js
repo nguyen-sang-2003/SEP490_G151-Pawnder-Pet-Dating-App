@@ -5,13 +5,13 @@ import { expertService, userService } from '../../shared/api';
 import { mockUsers } from '../../shared/data/mockUsers';
 import './styles/ExpertNotifications.css';
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 4;
 
 const getFallbackUserInfo = (userId) => {
   const user = mockUsers.find((u) => u.id === userId);
   if (!user) {
     return {
-      name: `User #${userId}`,
+      name: `Người dùng #${userId}`,
       email: `user${userId}@example.com`,
     };
   }
@@ -154,7 +154,7 @@ const ExpertNotifications = () => {
     try {
       const response = await userService.getUserById(userId);
       return {
-        name: response.FullName || response.fullName || `User #${userId}`,
+        name: response.FullName || response.fullName || `Người dùng #${userId}`,
         email: response.Email || response.email || `user${userId}@example.com`,
       };
     } catch (err) {
@@ -307,6 +307,7 @@ const ExpertNotifications = () => {
         status,
         expertNote: status === 'confirmed' ? expertNote : '',
         requestMessage,
+        UserQuestion: item.UserQuestion || item.userQuestion || null,
         userName: userInfo.name,
         userEmail: userInfo.email,
         title: chatAiId
@@ -459,15 +460,6 @@ const ExpertNotifications = () => {
     return <span className={`status-badge ${info.class}`}>{info.label}</span>;
   };
 
-  const getTypeLabel = (type) => {
-    const map = {
-      ai_verification: 'Xác nhận thông tin AI',
-      account_verification: 'Xác nhận tài khoản',
-      support_request: 'Yêu cầu hỗ trợ',
-      report: 'Báo cáo vi phạm',
-    };
-    return map[type] || 'Thông báo';
-  };
 
   const handleViewDetail = (notification) => {
     setSelectedNotification(notification);
@@ -617,8 +609,7 @@ const ExpertNotifications = () => {
             <tr>
               <th>#</th>
               <th>Người dùng</th>
-              <th>Loại</th>
-              <th>Tiêu đề</th>
+              <th>Câu hỏi người dùng</th>
               <th>Nội dung</th>
               <th>Ngày tạo</th>
               <th>Trạng thái</th>
@@ -628,7 +619,7 @@ const ExpertNotifications = () => {
           <tbody>
             {currentNotifications.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
                   {filterStatus === 'pending'
                     ? 'Không có thông báo nào chờ xử lý'
                     : 'Không có thông báo nào đã xử lý'}
@@ -644,9 +635,14 @@ const ExpertNotifications = () => {
                       <div className="user-email">{notification.userEmail}</div>
                     </div>
                   </td>
-                  <td>{getTypeLabel(notification.type)}</td>
-                  <td>{notification.title}</td>
-                  <td className="content-cell">{notification.content}</td>
+                  <td className="content-cell">
+                    {notification.UserQuestion || notification.aiQuestion || notification.requestMessage || 'Không có'}
+                  </td>
+                  <td className="content-cell">
+                    {notification.status === 'pending' 
+                      ? '-' 
+                      : (notification.expertNote || notification.content || 'Không có')}
+                  </td>
                   <td>{formatDate(notification.createdAt)}</td>
                   <td>{getStatusBadge(notification.status)}</td>
                   <td>
@@ -740,7 +736,10 @@ const ExpertNotifications = () => {
 
       {showConfirmModal && selectedNotification && (
         <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div 
+            className={`modal-content ${showChatHistory && selectedNotification?.chatHistory?.length > 0 ? 'has-chat-history' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h2>Xác nhận thông báo</h2>
               <button className="modal-close" onClick={handleCloseModal}>
@@ -759,66 +758,94 @@ const ExpertNotifications = () => {
             </div>
 
             <div className="modal-body">
-              <div className="notification-detail">
-                <div className="detail-section">
-                  <h3>Thông tin thông báo</h3>
-                  <div className="detail-row">
-                    <span className="detail-label">Người dùng:</span>
-                    <span className="detail-value">
-                      {selectedNotification.userName} ({selectedNotification.userEmail})
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Loại:</span>
-                    <span className="detail-value">{getTypeLabel(selectedNotification.type)}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Ngày tạo:</span>
-                    <span className="detail-value">{formatDate(selectedNotification.createdAt)}</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Trạng thái:</span>
-                    <span className="detail-value">{getStatusBadge(selectedNotification.status)}</span>
-                  </div>
-                </div>
-
-                {selectedNotification.chatHistory.length > 0 && (
-                  <div className="detail-section chat-history-section">
-                    <h3>File đoạn chat</h3>
-                    <div
-                      className="chat-file-card"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setShowChatHistory((prev) => !prev)}
-                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowChatHistory((prev) => !prev)}
-                    >
-                      <div className="chat-file-icon">
-                        <svg
-                          width="32"
-                          height="32"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-                          <polyline points="13 2 13 9 20 9" />
-                          <line x1="16" y1="13" x2="8" y2="13" />
-                          <line x1="16" y1="17" x2="8" y2="17" />
-                        </svg>
+              <div className="modal-body-content">
+                <div className="modal-left-panel">
+                  <div className="notification-detail">
+                    <div className="detail-section">
+                      <h3>Thông tin thông báo</h3>
+                      <div className="detail-row">
+                        <span className="detail-label">Người dùng:</span>
+                        <span className="detail-value">
+                          {selectedNotification.userName} ({selectedNotification.userEmail})
+                        </span>
                       </div>
-                      <div className="chat-file-info">
-                        <div className="chat-file-name">chat_{selectedNotification.chatAiId}.txt</div>
-                        <div className="chat-file-meta">
-                          {selectedNotification.chatHistory.length} tin nhắn · Nhấn để {showChatHistory ? 'ẩn' : 'xem'}
-                        </div>
+                      <div className="detail-row">
+                        <span className="detail-label">Ngày tạo:</span>
+                        <span className="detail-value">{formatDate(selectedNotification.createdAt)}</span>
                       </div>
-                      <div className="chat-file-action">
-                        {showChatHistory ? 'Đang mở' : 'Xem file'}
+                      <div className="detail-row">
+                        <span className="detail-label">Trạng thái:</span>
+                        <span className="detail-value">{getStatusBadge(selectedNotification.status)}</span>
                       </div>
                     </div>
 
-                    {showChatHistory && (
+                    {selectedNotification.chatHistory.length > 0 && (
+                      <div className="detail-section chat-history-section">
+                        <h3>File đoạn chat</h3>
+                        <div
+                          className="chat-file-card"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setShowChatHistory((prev) => !prev)}
+                          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowChatHistory((prev) => !prev)}
+                        >
+                          <div className="chat-file-icon">
+                            <svg
+                              width="32"
+                              height="32"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                              <polyline points="13 2 13 9 20 9" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                            </svg>
+                          </div>
+                          <div className="chat-file-info">
+                            <div className="chat-file-name">chat_{selectedNotification.chatAiId}.txt</div>
+                            <div className="chat-file-meta">
+                              {selectedNotification.chatHistory.length} tin nhắn · Nhấn để {showChatHistory ? 'ẩn' : 'xem'}
+                            </div>
+                          </div>
+                          <div className="chat-file-action">
+                            {showChatHistory ? 'Đang mở' : 'Xem file'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedNotification.status === 'pending' ? (
+                      <div className="note-section">
+                        <h3>Đánh giá và ghi chú từ chuyên gia</h3>
+                        <p className="note-instruction">
+                          Hãy đánh giá tính chính xác của câu trả lời và bổ sung thông tin hữu ích cho người dùng.
+                        </p>
+                        <textarea
+                          className="note-textarea"
+                          placeholder="Ví dụ: 'Thông tin AI đúng nhưng cần bổ sung...' hoặc 'Thông tin AI cần điều chỉnh...'"
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          rows={6}
+                        />
+                      </div>
+                    ) : (
+                      <div className="note-section">
+                        <h3>Ghi chú đã gửi cho người dùng</h3>
+                        <div className="note-display">
+                          {selectedNotification.expertNote || 'Không có ghi chú'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {showChatHistory && selectedNotification.chatHistory.length > 0 && (
+                  <div className="modal-right-panel">
+                    <div className="chat-history-panel">
+                      <h3>Lịch sử chat</h3>
                       <div className="chat-history">
                         {selectedNotification.chatHistory.map((message) => (
                           <div key={message.id} className={`chat-message ${message.role}`}>
@@ -834,29 +861,6 @@ const ExpertNotifications = () => {
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {selectedNotification.status === 'pending' ? (
-                  <div className="note-section">
-                    <h3>Đánh giá và ghi chú từ chuyên gia</h3>
-                    <p className="note-instruction">
-                      Hãy đánh giá tính chính xác của câu trả lời và bổ sung thông tin hữu ích cho người dùng.
-                    </p>
-                    <textarea
-                      className="note-textarea"
-                      placeholder="Ví dụ: 'Thông tin AI đúng nhưng cần bổ sung...' hoặc 'Thông tin AI cần điều chỉnh...'"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      rows={6}
-                    />
-                  </div>
-                ) : (
-                  <div className="note-section">
-                    <h3>Ghi chú đã gửi cho người dùng</h3>
-                    <div className="note-display">
-                      {selectedNotification.expertNote || 'Không có ghi chú'}
                     </div>
                   </div>
                 )}
