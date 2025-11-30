@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import './Sidebar.css';
+import './styles/Sidebar.css';
 
 const Sidebar = () => {
   const menuItems = [
@@ -113,19 +113,6 @@ const Sidebar = () => {
           ))}
         </ul>
       </nav>
-      
-      <div className="sidebar-footer">
-        <div className="sidebar-stats">
-          <div className="stat-item">
-            <span className="stat-number">1,234</span>
-            <span className="stat-label">Người dùng</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">2,456</span>
-            <span className="stat-label">Thú cưng</span>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 };

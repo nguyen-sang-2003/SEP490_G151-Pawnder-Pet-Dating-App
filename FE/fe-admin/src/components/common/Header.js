@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-import { useNotification } from '../../context/NotificationContext';
-import './Header.css';
+import { useAuth } from '../../shared/context/AuthContext';
+import { useTheme } from '../../shared/context/ThemeContext';
+import { useNotification } from '../../shared/context/NotificationContext';
+import './styles/Header.css';
 
 const Header = () => {
   const { user, logout } = useAuth();
