@@ -60,7 +60,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
             end={{ x: 1, y: 1 }}
             style={styles.button}
           >
-            <Text style={styles.buttonText}>CHÀO MỪNG</Text>
+            <Text style={styles.buttonText}>WELCOME</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animatable.View>

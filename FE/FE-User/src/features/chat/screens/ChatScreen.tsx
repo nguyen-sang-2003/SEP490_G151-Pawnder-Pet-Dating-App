@@ -493,7 +493,7 @@ const ChatScreen = ({ navigation }: Props) => {
           >
             <Icon name="chatbubbles" size={22} color={colors.white} />
           </LinearGradient>
-          <Text style={styles.headerTitle}>Tin nhắn</Text>
+          <Text style={styles.headerTitle}>Messages</Text>
         </View>
       </View>
 
@@ -502,7 +502,7 @@ const ChatScreen = ({ navigation }: Props) => {
         <Icon name="search" size={20} color={colors.textMedium} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Tìm kiếm cuộc trò chuyện..."
+          placeholder="Search conversations..."
           placeholderTextColor={colors.textLabel}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -531,8 +531,8 @@ const ChatScreen = ({ navigation }: Props) => {
             <View style={styles.specialChatIconContainer}>
               <Icon name="sparkles" size={24} color={colors.white} />
             </View>
-            <Text style={styles.specialChatTitle}>Trợ lý AI</Text>
-            <Text style={styles.specialChatSubtitle}>Tư vấn tức thì</Text>
+            <Text style={styles.specialChatTitle}>AI Assistant</Text>
+            <Text style={styles.specialChatSubtitle}>Instant advice</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -587,7 +587,7 @@ const ChatScreen = ({ navigation }: Props) => {
           activeOpacity={0.7}
         >
           <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
-            Tất cả
+            All Chats
           </Text>
           {totalChatBadge > 0 && (
             <View style={[styles.filterBadge, activeFilter === 'all' && styles.filterBadgeActive]}>
@@ -604,7 +604,7 @@ const ChatScreen = ({ navigation }: Props) => {
           activeOpacity={0.7}
         >
           <Text style={[styles.filterText, activeFilter === 'unread' && styles.filterTextActive]}>
-            Chưa đọc
+            Unread
           </Text>
           {unreadChats.length > 0 && (
             <View style={[styles.filterBadge, activeFilter === 'unread' && styles.filterBadgeActive]}>
@@ -640,9 +640,9 @@ const ChatScreen = ({ navigation }: Props) => {
               ) : (
                 <>
                   <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
-                  <Text style={styles.emptyTitle}>Chưa có cuộc trò chuyện</Text>
+                  <Text style={styles.emptyTitle}>No chats yet</Text>
                   <Text style={styles.emptyText}>
-                    Kết nối với chủ thú cưng khác để bắt đầu trò chuyện!
+                    Match with other pet owners to start chatting!
                   </Text>
                 </>
               )}

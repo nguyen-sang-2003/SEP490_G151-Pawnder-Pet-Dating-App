@@ -325,9 +325,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Xác thực Email</Text>
+          <Text style={styles.title}>Verify Your Email</Text>
           <Text style={styles.subtitle}>
-            Chúng tôi đã gửi mã 6 chữ số đến{"\n"}
+            We've sent a 6-digit code to{"\n"}
             <Text style={styles.email}>{email}</Text>
           </Text>
 
@@ -382,7 +382,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               {loading ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={styles.verifyText}>Xác thực Email</Text>
+                <Text style={styles.verifyText}>Verify Email</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>

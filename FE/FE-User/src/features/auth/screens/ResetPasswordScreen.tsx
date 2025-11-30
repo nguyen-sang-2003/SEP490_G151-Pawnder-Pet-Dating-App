@@ -109,10 +109,11 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Đặt lại mật khẩu</Text>
+          <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>
-            Nhập mã đã gửi đến{" "}
-            <Text style={styles.email}>{email}</Text> và tạo mật khẩu mới
+            Enter the code sent to{" "}
+            <Text style={styles.email}>{email}</Text> and create a new
+            password
           </Text>
 
           {/* OTP Input */}
@@ -125,7 +126,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Nhập mã OTP"
+              placeholder="Enter OTP Code"
               placeholderTextColor={colors.textLabel}
               value={otp}
               onChangeText={setOtp}
@@ -144,7 +145,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Mật khẩu mới"
+              placeholder="New Password"
               placeholderTextColor={colors.textLabel}
               value={newPassword}
               onChangeText={setNewPassword}
@@ -172,7 +173,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Xác nhận mật khẩu mới"
+              placeholder="Confirm New Password"
               placeholderTextColor={colors.textLabel}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -192,7 +193,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
 
           {/* Password Requirements */}
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Mật khẩu phải:</Text>
+            <Text style={styles.requirementsTitle}>Password must:</Text>
             <View style={styles.requirement}>
               <Icon
                 name={
@@ -211,7 +212,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                   newPassword.length >= 6 && styles.requirementMet,
                 ]}
               >
-                Có ít nhất 6 ký tự
+                Be at least 6 characters
               </Text>
             </View>
             <View style={styles.requirement}>
@@ -234,7 +235,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                   newPassword && newPassword === confirmPassword ? styles.requirementMet : null,
                 ]}
               >
-                Khớp với mật khẩu xác nhận
+                Match confirmation password
               </Text>
             </View>
           </View>
@@ -250,9 +251,9 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
               style={styles.resetGradient}
             >
               {loading ? (
-                <Text style={styles.resetText}>Đang đặt lại...</Text>
+                <Text style={styles.resetText}>Resetting...</Text>
               ) : (
-                <Text style={styles.resetText}>Đặt lại mật khẩu</Text>
+                <Text style={styles.resetText}>Reset Password</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>

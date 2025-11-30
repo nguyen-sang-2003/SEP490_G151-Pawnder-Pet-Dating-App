@@ -87,10 +87,10 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Quên mật khẩu?</Text>
+          <Text style={styles.title}>Forgot Password?</Text>
           <Text style={styles.subtitle}>
-            Đừng lo! Nhập địa chỉ email của bạn và chúng tôi sẽ gửi mã để
-            đặt lại mật khẩu.
+            Don't worry! Enter your email address and we'll send you a code to
+            reset your password.
           </Text>
 
           {/* Email Input */}
@@ -103,7 +103,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Địa chỉ Email"
+              placeholder="Email Address"
               placeholderTextColor={colors.textLabel}
               value={email}
               onChangeText={setEmail}
@@ -124,9 +124,9 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
               style={styles.sendGradient}
             >
               {loading ? (
-                <Text style={styles.sendText}>Đang gửi...</Text>
+                <Text style={styles.sendText}>Sending...</Text>
               ) : (
-                <Text style={styles.sendText}>Gửi mã đặt lại</Text>
+                <Text style={styles.sendText}>Send Reset Code</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -137,7 +137,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
             onPress={() => navigation.navigate("SignIn")}
           >
             <Icon name="arrow-back-outline" size={16} color={colors.primary} />
-            <Text style={styles.backToSignInText}>Quay lại Đăng nhập</Text>
+            <Text style={styles.backToSignInText}>Back to Sign In</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

@@ -28,79 +28,79 @@ interface Feature {
 const features: Feature[] = [
   {
     icon: "heart",
-    title: "Kết nối hàng ngày",
-    free: "15/ngày",
-    premium: "Không giới hạn",
+    title: "Daily Matches",
+    free: "15/day",
+    premium: "Unlimited",
   },
   {
     icon: "chatbubbles",
-    title: "Chat AI & Xác nhận",
-    free: "3/ngày",
-    premium: "Không giới hạn",
+    title: "AI Chat & Confirm",
+    free: "3/day",
+    premium: "Unlimited",
   },
   {
     icon: "eye",
-    title: "Xem ai thích bạn",
-    free: "Không",
-    premium: "Có",
+    title: "See Who Liked You",
+    free: "No",
+    premium: "Yes",
   },
   {
     icon: "filter",
-    title: "Bộ lọc nâng cao",
-    free: "Không",
-    premium: "Có",
+    title: "Advanced Filters",
+    free: "No",
+    premium: "Yes",
   },
   {
     icon: "shield-checkmark",
-    title: "Huy hiệu xác minh",
-    free: "Không",
-    premium: "Có",
+    title: "Verified Badge",
+    free: "No",
+    premium: "Yes",
   },
   {
     icon: "paw",
-    title: "Duyệt thú cưng",
-    free: "Có",
-    premium: "Có",
+    title: "Browse Pets",
+    free: "Yes",
+    premium: "Yes",
   },
   {
     icon: "notifications",
-    title: "Nhận thông báo",
-    free: "Có",
-    premium: "Có",
+    title: "Get Notifications",
+    free: "Yes",
+    premium: "Yes",
   },
 ];
 
 const pricingPlans = [
   {
     id: "1month",
-    duration: "1 Tháng",
+    duration: "1 Month",
     price: "125,000₫",
-    pricePerMonth: "125,000₫/tháng",
+    pricePerMonth: "125,000₫/month",
     savings: null,
     popular: false,
   },
   {
     id: "3months",
-    duration: "3 Tháng",
+    duration: "3 Months",
     price: "315,000₫",
-    pricePerMonth: "105,000₫/tháng",
-    savings: "Tiết kiệm 16%",
+    pricePerMonth: "105,000₫/month",
+    savings: "Save 16%",
     popular: true,
   },
   {
     id: "6months",
-    duration: "6 Tháng",
+    duration: "6 Months",
     price: "540,000₫",
-    pricePerMonth: "90,000₫/tháng",
-    savings: "Tiết kiệm 28%",
+    pricePerMonth: "90,000₫/month",
+    savings: "Save 28%",
     popular: false,
   },
   {
     id: "12months",
-    duration: "12 Tháng",
+    duration: "12 Months",
     price: "960,000₫",
-    pricePerMonth: "80,000₫/tháng",
-    savings: "Tiết kiệm 36%",
+    pricePerMonth: "80,000₫/month",
+    savings: "Save 36%",
     popular: false,
   },
 ];
@@ -153,11 +153,11 @@ const PremiumScreen = ({ navigation }: Props) => {
           </LinearGradient>
           <Text style={styles.headerTitle}>Pawnder Premium</Text>
           <Text style={styles.headerSubtitle}>
-            Mở khóa khả năng vô hạn cho thú cưng của bạn
+            Unlock unlimited possibilities for your pets
           </Text>
           <View style={styles.priceTag}>
             <Text style={styles.priceAmount}>125,000₫</Text>
-            <Text style={styles.priceMonth}>/tháng</Text>
+            <Text style={styles.priceMonth}>/month</Text>
           </View>
         </View>
       </LinearGradient>
@@ -168,7 +168,7 @@ const PremiumScreen = ({ navigation }: Props) => {
       >
         {/* Premium Benefits */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tính năng Premium</Text>
+          <Text style={styles.sectionTitle}>Premium Features</Text>
 
           <View style={styles.benefitsGrid}>
             <View style={styles.benefitCard}>
@@ -179,8 +179,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="heart" size={28} color="#667eea" />
                 </View>
-                <Text style={styles.benefitTitle}>Kết nối không giới hạn</Text>
-                <Text style={styles.benefitDesc}>Gửi lượt thích không giới hạn mỗi ngày</Text>
+                <Text style={styles.benefitTitle}>Unlimited Matches</Text>
+                <Text style={styles.benefitDesc}>Send unlimited likes daily</Text>
               </LinearGradient>
             </View>
 
@@ -192,8 +192,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="chatbubbles" size={28} color="#f093fb" />
                 </View>
-                <Text style={styles.benefitTitle}>AI không giới hạn</Text>
-                <Text style={styles.benefitDesc}>Hỏi AI bất cứ lúc nào bạn muốn</Text>
+                <Text style={styles.benefitTitle}>Unlimited AI</Text>
+                <Text style={styles.benefitDesc}>Ask AI anytime you want</Text>
               </LinearGradient>
             </View>
 
@@ -205,8 +205,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="eye" size={28} color="#4facfe" />
                 </View>
-                <Text style={styles.benefitTitle}>Xem ai thích</Text>
-                <Text style={styles.benefitDesc}>Xem ai đã thích bạn trước</Text>
+                <Text style={styles.benefitTitle}>See Who Likes</Text>
+                <Text style={styles.benefitDesc}>View who liked you first</Text>
               </LinearGradient>
             </View>
 
@@ -218,8 +218,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="shield-checkmark" size={28} color="#fa709a" />
                 </View>
-                <Text style={styles.benefitTitle}>Huy hiệu xác minh</Text>
-                <Text style={styles.benefitDesc}>Nổi bật với huy hiệu xác minh</Text>
+                <Text style={styles.benefitTitle}>Verified Badge</Text>
+                <Text style={styles.benefitDesc}>Stand out with verified</Text>
               </LinearGradient>
             </View>
           </View>
@@ -227,16 +227,16 @@ const PremiumScreen = ({ navigation }: Props) => {
 
         {/* Feature Details */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Những gì bạn nhận được</Text>
+          <Text style={styles.sectionTitle}>What You'll Get</Text>
 
           <View style={styles.featureDetailCard}>
             <View style={[styles.featureDetailIcon, { backgroundColor: "#667eea15" }]}>
               <Icon name="heart" size={28} color="#667eea" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Kết nối không giới hạn</Text>
+              <Text style={styles.featureDetailTitle}>Unlimited Matches</Text>
               <Text style={styles.featureDetailDesc}>
-                Gửi yêu cầu kết nối không giới hạn mỗi ngày thay vì chỉ 15
+                Send unlimited match requests daily instead of just 15
               </Text>
             </View>
           </View>
@@ -246,9 +246,9 @@ const PremiumScreen = ({ navigation }: Props) => {
               <Icon name="chatbubbles" size={28} color="#f093fb" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Hỗ trợ AI không giới hạn</Text>
+              <Text style={styles.featureDetailTitle}>Unlimited AI Assistance</Text>
               <Text style={styles.featureDetailDesc}>
-                Nhận chat AI và xác nhận chuyên gia không giới hạn mỗi ngày thay vì chỉ 3
+                Get unlimited AI chat and expert confirmations daily instead of just 3
               </Text>
             </View>
           </View>
@@ -258,9 +258,9 @@ const PremiumScreen = ({ navigation }: Props) => {
               <Icon name="eye" size={28} color="#4facfe" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Xem ai thích bạn</Text>
+              <Text style={styles.featureDetailTitle}>See Who Liked You</Text>
               <Text style={styles.featureDetailDesc}>
-                Xem tất cả thú cưng đã thích hồ sơ của bạn trước khi kết nối
+                View all pets that liked your profile before matching
               </Text>
             </View>
           </View>
@@ -270,9 +270,9 @@ const PremiumScreen = ({ navigation }: Props) => {
               <Icon name="shield-checkmark" size={28} color="#fa709a" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Huy hiệu xác minh</Text>
+              <Text style={styles.featureDetailTitle}>Verified Badge</Text>
               <Text style={styles.featureDetailDesc}>
-                Nhận huy hiệu xác minh để thể hiện hồ sơ của bạn là xác thực
+                Get a verified badge to show your profile is authentic
               </Text>
             </View>
           </View>
@@ -280,15 +280,15 @@ const PremiumScreen = ({ navigation }: Props) => {
 
         {/* Feature Comparison */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Miễn phí vs Premium</Text>
+          <Text style={styles.sectionTitle}>Free vs Premium</Text>
 
           <View style={styles.comparisonTable}>
             <View style={styles.tableHeader}>
               <View style={styles.featureColumn}>
-                <Text style={styles.tableHeaderText}>Tính năng</Text>
+                <Text style={styles.tableHeaderText}>Features</Text>
               </View>
               <View style={styles.planColumn}>
-                <Text style={styles.tableHeaderText}>Miễn phí</Text>
+                <Text style={styles.tableHeaderText}>Free</Text>
               </View>
               <View style={styles.planColumn}>
                 <LinearGradient
@@ -334,7 +334,7 @@ const PremiumScreen = ({ navigation }: Props) => {
 
         {/* Pricing Plans */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Chọn gói của bạn</Text>
+          <Text style={styles.sectionTitle}>Choose Your Plan</Text>
 
           {pricingPlans.map((plan) => (
             <TouchableOpacity
@@ -351,7 +351,7 @@ const PremiumScreen = ({ navigation }: Props) => {
                     colors={["#667eea", "#764ba2"]}
                     style={styles.popularGradient}
                   >
-                    <Text style={styles.popularText}>PHỔ BIẾN NHẤT</Text>
+                    <Text style={styles.popularText}>MOST POPULAR</Text>
                   </LinearGradient>
                 </View>
               )}
@@ -397,12 +397,12 @@ const PremiumScreen = ({ navigation }: Props) => {
               end={{ x: 1, y: 0 }}
             >
               <Icon name="diamond" size={24} color="#fff" />
-              <Text style={styles.subscribeText}>Đăng ký Premium ngay</Text>
+              <Text style={styles.subscribeText}>Get Premium Now</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <Text style={styles.disclaimer}>
-            Hủy bất cứ lúc nào • Thanh toán an toàn • Kích hoạt ngay lập tức
+            Cancel anytime • Secure payment • Instant activation
           </Text>
         </View>
 

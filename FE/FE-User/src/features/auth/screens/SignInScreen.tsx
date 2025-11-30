@@ -129,7 +129,7 @@ const SignInScreen = ({ navigation }: Props) => {
 
       {/* Form */}
       <View style={styles.form}>
-        <Text style={styles.title}>Đăng nhập</Text>
+        <Text style={styles.title}>Sign in</Text>
 
         <TextInput
           placeholder="Email"
@@ -139,7 +139,7 @@ const SignInScreen = ({ navigation }: Props) => {
           onChangeText={setEmail}
         />
         <TextInput
-          placeholder="Mật khẩu"
+          placeholder="Password"
           style={styles.input}
           placeholderTextColor="#999"
           secureTextEntry
@@ -163,7 +163,7 @@ const SignInScreen = ({ navigation }: Props) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Đăng nhập →</Text>
+                <Text style={styles.buttonText}>Sign in →</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -174,13 +174,13 @@ const SignInScreen = ({ navigation }: Props) => {
             style={styles.link}
             onPress={() => navigation.navigate("SignUp")}
           >
-            Đăng ký ngay!
+            Register Now!
           </Text>{" "}
           / <Text
             style={[styles.link, { color: "#666" }]}
             onPress={() => navigation.navigate("ForgotPassword")}
           >
-            Quên mật khẩu
+            Forgot password
           </Text>
         </Text>
       </View>

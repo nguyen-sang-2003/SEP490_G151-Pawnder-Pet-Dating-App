@@ -347,7 +347,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         end={{ x: 1, y: 1 }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Đang tải...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading...</Text>
       </LinearGradient>
     );
   }
@@ -368,7 +368,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Icon name="arrow-back" size={26} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ thú cưng</Text>
+          <Text style={styles.headerTitle}>Edit Pet Profile</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -396,13 +396,13 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-          <Text style={styles.changePhotoText}>Đổi ảnh thú cưng</Text>
+          <Text style={styles.changePhotoText}>Change pet photo</Text>
         </View>
 
         {/* Photos Grid */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Ảnh thú cưng ({photos.length}/{maxPhotos})</Text>
+            <Text style={styles.sectionTitle}>Pet Photos ({photos.length}/{maxPhotos})</Text>
             <TouchableOpacity
               onPress={handleAddPhoto}
               disabled={uploading || photos.length >= maxPhotos}
@@ -479,44 +479,44 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
         {/* Form */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin thú cưng</Text>
+          <Text style={styles.sectionTitle}>Pet Information</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tên thú cưng</Text>
+            <Text style={styles.label}>Pet Name</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Nhập tên thú cưng"
+              placeholder="Enter pet name"
               placeholderTextColor="#999"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Giống</Text>
+            <Text style={styles.label}>Breed</Text>
             <TextInput
               style={styles.input}
               value={breed}
               onChangeText={setBreed}
-              placeholder="Nhập giống"
+              placeholder="Enter breed"
               placeholderTextColor="#999"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tuổi (năm)</Text>
+            <Text style={styles.label}>Age (years)</Text>
             <TextInput
               style={styles.input}
               value={age}
               onChangeText={setAge}
-              placeholder="Nhập tuổi theo năm"
+              placeholder="Enter age in years"
               placeholderTextColor="#999"
               keyboardType="numeric"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Giới tính</Text>
+            <Text style={styles.label}>Gender</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
                 style={[
@@ -531,7 +531,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                     gender === "Male" && styles.genderTextActive,
                   ]}
                 >
-                  Đực
+                  Male
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -547,19 +547,19 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                     gender === "Female" && styles.genderTextActive,
                   ]}
                 >
-                  Cái
+                  Female
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mô tả</Text>
+            <Text style={styles.label}>Description</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Mô tả thú cưng của bạn"
+              placeholder="Describe your pet"
               placeholderTextColor="#999"
               multiline
               numberOfLines={3}
@@ -577,18 +577,18 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               style={styles.editCharacteristicsBtnGradient}
             >
               <Icon name="create-outline" size={20} color="#FFF" />
-              <Text style={styles.editCharacteristicsBtnText}>Chỉnh sửa đặc điểm</Text>
+              <Text style={styles.editCharacteristicsBtnText}>Edit Characteristics</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           {/* Owner's Location (Read-only) */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Vị trí chủ sở hữu</Text>
+            <Text style={styles.label}>Owner's Location</Text>
 
             <View style={styles.readOnlyField}>
               <Icon name="location-outline" size={16} color="#666" />
               <Text style={styles.readOnlyText}>
-                {[ward, district, city].filter(Boolean).join(', ') || 'Chưa đặt vị trí'}
+                {[ward, district, city].filter(Boolean).join(', ') || 'No location set'}
               </Text>
             </View>
           </View>
@@ -597,7 +597,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           <View style={styles.noteCard}>
             <Icon name="information-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.noteText}>
-              Vị trí thú cưng được kế thừa từ tài khoản của bạn. Cập nhật vị trí trong cài đặt hồ sơ.
+              Pet location is inherited from your account. Update your location in your profile settings.
             </Text>
           </View>
         </View>
@@ -618,10 +618,10 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             {saving ? (
               <>
                 <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.saveButtonText}>Đang lưu...</Text>
+                <Text style={styles.saveButtonText}>Saving...</Text>
               </>
             ) : (
-              <Text style={styles.saveButtonText}>Lưu thay đổi</Text>
+              <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
