@@ -336,8 +336,9 @@ body.dark-theme .search-input::placeholder {
 }
 
 .action-btn {
-  width: 24px;
-  height: 24px;
+  width: 18px !important;
+  min-width: 18px;
+  height: 28px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -349,11 +350,14 @@ body.dark-theme .search-input::placeholder {
   border: 1px solid rgba(255, 182, 193, 0.3);
   flex-shrink: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .action-btn svg {
-  width: 12px;
-  height: 12px;
+  width: 12px !important;
+  height: 12px !important;
+  max-width: 12px;
+  max-height: 12px;
 }
 
 .action-btn.view {
@@ -365,6 +369,18 @@ body.dark-theme .search-input::placeholder {
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.action-btn.pending {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f39c12;
+  border: 1px solid rgba(241, 196, 15, 0.3);
+}
+
+.action-btn.pending:hover {
+  background: rgba(241, 196, 15, 0.25);
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(241, 196, 15, 0.3);
 }
 
 .action-btn.resolve {
@@ -460,6 +476,17 @@ body.dark-theme .action-btn.view:hover {
   background: #f72585;
   color: white;
   box-shadow: 0 4px 8px rgba(247, 37, 133, 0.3);
+}
+
+body.dark-theme .action-btn.pending {
+  background: rgba(241, 196, 15, 0.2);
+  color: #f1c40f;
+  border-color: rgba(241, 196, 15, 0.4);
+}
+
+body.dark-theme .action-btn.pending:hover {
+  background: rgba(241, 196, 15, 0.3);
+  box-shadow: 0 2px 8px rgba(241, 196, 15, 0.4);
 }
 
 body.dark-theme .action-btn.resolve {
@@ -605,13 +632,14 @@ body.dark-theme .pagination-info {
   }
 
   .action-btn {
-    width: 22px;
-    height: 22px;
+    width: 18px !important;
+    min-width: 18px;
+    height: 28px;
   }
 
   .action-btn svg {
-    width: 11px;
-    height: 11px;
+    width: 12px !important;
+    height: 12px !important;
   }
 }
 
@@ -669,13 +697,14 @@ body.dark-theme .pagination-info {
   }
 
   .action-btn {
-    width: 20px;
-    height: 20px;
+    width: 18px !important;
+    min-width: 18px;
+    height: 28px;
   }
 
   .action-btn svg {
-    width: 10px;
-    height: 10px;
+    width: 12px !important;
+    height: 12px !important;
   }
 
   .reason-text {
@@ -708,7 +737,8 @@ body.dark-theme .pagination-info {
   }
 
   .action-btn {
-    width: 100%;
+    width: 18px !important;
+    min-width: 18px;
     height: 28px;
   }
 }
@@ -746,13 +776,14 @@ body.dark-theme .pagination-info {
   }
 
   .action-btn {
-    width: 18px;
-    height: 18px;
+    width: 18px !important;
+    min-width: 18px;
+    height: 28px;
   }
 
   .action-btn svg {
-    width: 9px;
-    height: 9px;
+    width: 12px !important;
+    height: 12px !important;
   }
 
   .reason-text {

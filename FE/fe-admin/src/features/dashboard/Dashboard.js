@@ -59,8 +59,6 @@ const Dashboard = () => {
     {
       title: 'Tổng người dùng',
       value: stats.totalUsers.toLocaleString('en-US'),
-      change: '+12%',
-      changeType: 'positive',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -72,8 +70,6 @@ const Dashboard = () => {
     {
       title: 'Tổng thú cưng',
       value: stats.totalPets.toLocaleString('en-US'),
-      change: '+8%',
-      changeType: 'positive',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7z"/>
@@ -84,8 +80,6 @@ const Dashboard = () => {
     {
       title: 'Báo cáo chờ xử lý',
       value: stats.pendingReports.toString(),
-      change: '-3%',
-      changeType: 'negative',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -99,8 +93,6 @@ const Dashboard = () => {
     {
       title: 'Ghép đôi thành công',
       value: stats.totalMatches.toLocaleString('en-US'),
-      change: '+15%',
-      changeType: 'positive',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -114,7 +106,7 @@ const Dashboard = () => {
     return (
       <div className="dashboard">
         <div className="dashboard-header">
-          <h1>Dashboard</h1>
+          <h1>Bảng điều khiển</h1>
           <p>Đang tải dữ liệu...</p>
         </div>
         <div style={{ textAlign: 'center', padding: '2rem' }}>
@@ -128,7 +120,7 @@ const Dashboard = () => {
     return (
       <div className="dashboard">
         <div className="dashboard-header">
-          <h1>Dashboard</h1>
+          <h1>Bảng điều khiển</h1>
           <p style={{ color: '#e74c3c' }}>{error}</p>
         </div>
       </div>
@@ -151,9 +143,6 @@ const Dashboard = () => {
             <div className="stat-content">
               <h3>{stat.title}</h3>
               <div className="stat-value">{stat.value}</div>
-              <div className={`stat-change ${stat.changeType}`}>
-                {stat.change} so với tháng trước
-              </div>
               {stat.title === 'Tổng người dùng' && (
                 <button 
                   className="chart-toggle-btn"
@@ -237,7 +226,7 @@ const Dashboard = () => {
           </div>
           <div className="activities-list">
             {recentActivities.length > 0 ? (
-              recentActivities.map((activity) => (
+              recentActivities.slice(0, 2).map((activity) => (
                 <div key={activity.id} className="activity-item">
                   <div className="activity-avatar">
                     {activity.avatar}
@@ -256,7 +245,7 @@ const Dashboard = () => {
           </div>
         </div>
         
-        <div className="dashboard-section">
+        <div className="dashboard-section quick-stats-section">
           <div className="section-header">
             <h2>Thống kê nhanh</h2>
           </div>

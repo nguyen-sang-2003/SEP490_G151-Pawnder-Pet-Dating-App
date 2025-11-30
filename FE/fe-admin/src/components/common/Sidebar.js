@@ -14,7 +14,7 @@ const Sidebar = () => {
           <rect x="3" y="14" width="7" height="7"/>
         </svg>
       ),
-      label: 'Dashboard',
+      label: 'Bảng điều khiển',
       exact: true
     },
     {
@@ -77,7 +77,8 @@ const Sidebar = () => {
           <path d="M6 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1"/>
         </svg>
       ),
-      label: 'Quản lý Expert'
+      label: 'Quản lý Expert',
+      exact: true
     },
     {
       path: '/experts/create',

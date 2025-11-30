@@ -12,7 +12,7 @@ const ReportsList = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
   // Fetch reports from API
   useEffect(() => {
@@ -169,7 +169,16 @@ const ReportsList = () => {
         (report.reason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         report.id.toString().includes(searchTerm);
 
-      const matchesStatus = filterStatus === 'all' || (report.status || '').toLowerCase() === filterStatus.toLowerCase();
+      let matchesStatus = false;
+      if (filterStatus === 'all') {
+        matchesStatus = true;
+      } else if (filterStatus === 'resolved') {
+        // Khi chọn "Đã xử lý", hiển thị cả "resolved" và "rejected"
+        const status = (report.status || '').toLowerCase();
+        matchesStatus = status === 'resolved' || status === 'rejected';
+      } else {
+        matchesStatus = (report.status || '').toLowerCase() === filterStatus.toLowerCase();
+      }
 
       return matchesSearch && matchesStatus;
     });
@@ -201,7 +210,7 @@ const ReportsList = () => {
     const statusLower = (status || '').toLowerCase();
     const config = statusConfig[statusLower] || { 
       color: '#95a5a6', 
-      text: status || 'Unknown', 
+            text: status || 'Không xác định',
       bg: '#e9ecef' 
     };
     
@@ -224,23 +233,15 @@ const ReportsList = () => {
     navigate(`/reports/${reportId}`);
   };
 
-  const handleResolve = (reportId, e) => {
-    e.stopPropagation();
-    // Navigate đến ReportDetail để xem chi tiết và xử lý
-    navigate(`/reports/${reportId}`);
-  };
-
-  const handleReject = (reportId, e) => {
-    e.stopPropagation();
-    // Navigate đến ReportDetail để xem chi tiết và từ chối
-    navigate(`/reports/${reportId}`);
-  };
-
   // Calculate stats
   const stats = useMemo(() => {
     const total = reports.length;
     const pending = reports.filter(r => (r.status || '').toLowerCase() === 'pending').length;
-    const resolved = reports.filter(r => (r.status || '').toLowerCase() === 'resolved').length;
+    // "Đã xử lý" bao gồm cả "resolved" và "rejected"
+    const resolved = reports.filter(r => {
+      const status = (r.status || '').toLowerCase();
+      return status === 'resolved' || status === 'rejected';
+    }).length;
     return { total, pending, resolved };
   }, [reports]);
 
@@ -248,7 +249,7 @@ const ReportsList = () => {
     return (
       <div className="reports-list-page">
         <div className="page-header">
-          <h1>Reports Management</h1>
+          <h1>Quản lý báo cáo</h1>
         </div>
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <div className="spinner" style={{ margin: '0 auto' }}></div>
@@ -262,7 +263,7 @@ const ReportsList = () => {
     return (
       <div className="reports-list-page">
         <div className="page-header">
-          <h1>Reports Management</h1>
+          <h1>Quản lý báo cáo</h1>
         </div>
         <div className="error-message" style={{ textAlign: 'center', padding: '2rem' }}>
           <h2>Lỗi</h2>
@@ -275,11 +276,11 @@ const ReportsList = () => {
   return (
     <div className="reports-list-page">
       <div className="page-header">
-        <h1>Reports Management</h1>
+        <h1>Quản lý báo cáo</h1>
         <div className="header-stats">
           <div className="stat-card">
             <span className="stat-number">{stats.total}</span>
-            <span className="stat-label">Tổng báo cáo</span>
+            <span className="stat-label">báo cáo</span>
           </div>
           <div className="stat-card">
             <span className="stat-number">{stats.pending}</span>
@@ -318,7 +319,6 @@ const ReportsList = () => {
             <option value="all">Tất cả trạng thái</option>
             <option value="pending">Đang chờ</option>
             <option value="resolved">Đã xử lý</option>
-            <option value="rejected">Từ chối</option>
           </select>
         </div>
       </div>
@@ -328,12 +328,12 @@ const ReportsList = () => {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Reporter</th>
-              <th>Reported User/Pet</th>
-              <th>Reason</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th>Actions</th>
+              <th>Người báo cáo</th>
+              <th>Người/Thú cưng bị báo cáo</th>
+              <th>Lý do</th>
+              <th>Trạng thái</th>
+              <th>Ngày</th>
+              <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -374,38 +374,30 @@ const ReportsList = () => {
                   </td>
                   <td className="actions-cell">
                     <div className="action-buttons">
-                      <button
-                        className="action-btn view"
-                        onClick={(e) => handleView(report.id, e)}
-                        title="Xem chi tiết"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                      </button>
-                      {/* Chỉ hiển thị button Xử lý và Từ chối khi report chưa được xử lý (Pending) */}
-                      {(report.status || '').toLowerCase() === 'pending' && (
-                        <>
-                          <button
-                            className="action-btn resolve"
-                            onClick={(e) => handleResolve(report.id, e)}
-                            title="Xử lý"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M20 6L9 17l-5-5"/>
-                            </svg>
-                          </button>
-                          <button
-                            className="action-btn reject"
-                            onClick={(e) => handleReject(report.id, e)}
-                            title="Từ chối"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M18 6L6 18M6 6l12 12"/>
-                            </svg>
-                          </button>
-                        </>
+                      {((report.status || '').toLowerCase() === 'pending') ? (
+                        <button
+                          className="action-btn pending"
+                          style={{ width: '18px', minWidth: '18px', height: '28px', padding: 0 }}
+                          onClick={(e) => handleView(report.id, e)}
+                          title="Xử lý báo cáo"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}>
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                          </svg>
+                        </button>
+                      ) : (
+                        <button
+                          className="action-btn view"
+                          style={{ width: '18px', minWidth: '18px', height: '28px', padding: 0 }}
+                          onClick={(e) => handleView(report.id, e)}
+                          title="Xem chi tiết"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}>
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        </button>
                       )}
                     </div>
                   </td>

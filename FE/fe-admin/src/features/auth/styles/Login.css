@@ -1,6 +1,7 @@
 /* Login Container */
 .min-h-screen {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .w-full {
@@ -229,6 +230,9 @@
   justify-content: center;
   gap: 0.5rem;
   margin-bottom: 2rem;
+  min-height: 48px;
+  height: 48px;
+  box-sizing: border-box;
 }
 
 .login-button:hover:not(:disabled) {
@@ -248,16 +252,22 @@
 
 .login-button.loading {
   background: linear-gradient(135deg, #A0AEC0, #718096);
+  min-height: 48px;
+  height: 48px;
+  padding: 1rem;
+  font-size: 1rem;
+  white-space: nowrap;
 }
 
 /* Spinner */
 .spinner {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {

@@ -125,8 +125,8 @@ const Login = () => {
                 </svg>
               </div>
             </div>
-            <h1 className="login-title">Welcome Back</h1>
-            <p className="login-subtitle">Sign in to your creative workspace</p>
+            <h1 className="login-title">Chào mừng trở lại</h1>
+            <p className="login-subtitle">Đăng nhập vào không gian làm việc của bạn</p>
           </div>
 
           {/* Form */}
@@ -144,7 +144,7 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 className={`form-input ${errors.email ? 'error' : ''}`}
-                placeholder="Email Address"
+                placeholder="Địa chỉ email"
                 disabled={isLoading}
               />
               {errors.email && (
@@ -160,7 +160,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   className={`form-input ${errors.password ? 'error' : ''}`}
-                  placeholder="Password"
+                  placeholder="Mật khẩu"
                   disabled={isLoading}
                 />
                 <button
@@ -191,7 +191,7 @@ const Login = () => {
               <label className="checkbox-wrapper">
                 <input type="checkbox" />
                 <span className="checkmark"></span>
-                Remember me
+                Ghi nhớ đăng nhập
               </label>
             </div>
             
@@ -203,10 +203,10 @@ const Login = () => {
               {isLoading ? (
                 <>
                   <div className="spinner"></div>
-                  Signing in...
+                  Đang đăng nhập...
                 </>
               ) : (
-                'Sign In'
+                'Đăng nhập'
               )}
             </button>
           </form>

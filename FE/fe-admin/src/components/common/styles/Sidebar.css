@@ -25,6 +25,8 @@ body.dark-theme .sidebar {
 .sidebar-nav {
   flex: 1;
   padding: 1.5rem 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .nav-list {

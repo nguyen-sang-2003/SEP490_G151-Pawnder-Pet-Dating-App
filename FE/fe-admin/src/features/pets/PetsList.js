@@ -235,7 +235,6 @@ const PetsList = () => {
               <th>Ảnh</th>
               <th>Thông tin thú cưng</th>
               <th>Chủ sở hữu</th>
-              <th>Thống kê</th>
               <th>Hành động</th>
             </tr>
           </thead>
@@ -276,22 +275,6 @@ const PetsList = () => {
                   </div>
                 </td>
                 <td>
-                  <div className="pet-stats">
-                    <div className="stat-item">
-                      <span className="stat-label">Ghép đôi:</span>
-                      <span className="stat-value">{pet.totalMatches}</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Lượt thích:</span>
-                      <span className="stat-value">{pet.totalLikes}</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Ảnh:</span>
-                      <span className="stat-value">{pet.photos ? pet.photos.length : 0}</span>
-                    </div>
-                  </div>
-                </td>
-                <td>
                   <div className="action-buttons">
                     <button 
                       className="action-btn view"
@@ -312,7 +295,7 @@ const PetsList = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
                   Không tìm thấy thú cưng nào
                 </td>
               </tr>

@@ -429,10 +429,15 @@ const ExpertChat = () => {
     };
   }, [selectedChat?.chatExpertId, connection, user?.id]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or chat changes
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (selectedChat?.chatExpertId && messages.length > 0) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [messages, selectedChat?.chatExpertId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -497,8 +502,35 @@ const ExpertChat = () => {
 
       console.log('✅ Message sent, result:', result);
 
-      // Don't add to state here - let SignalR handle it to avoid duplicates
-      // SignalR will broadcast the message back to all clients including sender
+      // Add message to state immediately (optimistic update)
+      // SignalR will also broadcast it, but we'll handle duplicates
+      const newMsg = {
+        contentId: result?.contentId || Date.now(),
+        chatExpertId: selectedChat.chatExpertId,
+        fromId: userId,
+        message: messageText,
+        expertId: userId,
+        userId: selectedChat.userId,
+        chatAIId: null,
+        createdAt: result?.createdAt || new Date().toISOString(),
+      };
+
+      setMessages((prev) => {
+        // Check if message already exists (from SignalR)
+        const exists = prev.some(m => 
+          m.contentId === newMsg.contentId || 
+          (m.message === newMsg.message && 
+           Math.abs(new Date(m.createdAt).getTime() - new Date(newMsg.createdAt).getTime()) < 2000)
+        );
+        
+        if (exists) {
+          console.log('⚠️ Message already exists, skipping optimistic update');
+          return prev;
+        }
+        
+        return [...prev, newMsg];
+      });
+      
       scrollToBottom();
     } catch (err) {
       console.error('❌ Failed to send message:', err);
