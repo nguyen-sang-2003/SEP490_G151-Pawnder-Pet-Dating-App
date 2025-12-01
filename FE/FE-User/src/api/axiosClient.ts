@@ -291,24 +291,32 @@ apiClient.interceptors.response.use(
             { signal: controller.signal }
           );
 
-          clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-          const { AccessToken, RefreshToken: newRefreshToken } = response.data;
+        // Backend (ASP.NET Core) mặc định trả camelCase (accessToken, refreshToken)
+        // nhưng vẫn hỗ trợ cả PascalCase nếu có cấu hình khác.
+        const accessToken =
+          (response.data as any).AccessToken ??
+          (response.data as any).accessToken;
+        const newRefreshToken =
+          (response.data as any).RefreshToken ??
+          (response.data as any).refreshToken;
 
-          // ✅ Validate tokens before storing
-          if (!AccessToken || !newRefreshToken) {
-            throw new Error('Invalid tokens received from server');
-          }
+        // ✅ Validate tokens before storing
+        if (!accessToken || !newRefreshToken) {
+          throw new Error('Invalid tokens received from server');
+        }
 
-          // Store new tokens
-          await storeTokens(AccessToken, newRefreshToken);
+        // Store new tokens
+        await storeTokens(accessToken, newRefreshToken);
 
-          console.log('✅ Token refreshed successfully');
+        console.log('✅ Token refreshed successfully');
 
-          processQueue(null, AccessToken);
+        processQueue(null, accessToken);
           isRefreshing = false;
 
-          return AccessToken;
+          // Trả về accessToken mới cho các request đang chờ
+          return accessToken;
         } catch (refreshError: any) {
           console.log('❌ Refresh token failed:', refreshError?.message || refreshError);
 
