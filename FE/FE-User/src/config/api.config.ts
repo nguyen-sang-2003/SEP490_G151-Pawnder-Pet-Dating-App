@@ -6,6 +6,7 @@
 export const API_CONFIG = {
   // Development URLs
   ANDROID_EMULATOR: 'http://10.0.2.2:5297',
+  // ANDROID_EMULATOR: 'https://nonenigmatical-catarrhally-elvie.ngrok-free.dev',
   IOS_SIMULATOR: 'http://localhost:5297',
   
   // Production URL - Azure Backend
