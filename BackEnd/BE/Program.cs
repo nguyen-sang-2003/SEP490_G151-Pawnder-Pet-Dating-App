@@ -120,7 +120,8 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSection["Issuer"],
         ValidAudience = jwtSection["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+        ClockSkew = TimeSpan.Zero
     };
 });
 builder.Services.AddAuthorization();
@@ -138,8 +139,21 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<KickboxSettings>(builder.Configuration.GetSection("KickboxSettings"));
 builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
 
-// realtime
-builder.Services.AddSignalR();
+// realtime with Redis Backplane for multi-server support
+var redisConnection = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrEmpty(redisConnection))
+{
+    builder.Services.AddSignalR().AddStackExchangeRedis(redisConnection, options =>
+    {
+        options.Configuration.ChannelPrefix = "Pawnder";
+    });
+    Console.WriteLine("✅ SignalR configured with Redis Backplane for real-time across multiple servers");
+}
+else
+{
+    builder.Services.AddSignalR();
+    Console.WriteLine("⚠️ SignalR running without Redis (single server mode only)");
+}
 
 // Register DistanceService
 builder.Services.AddScoped<DistanceService>();

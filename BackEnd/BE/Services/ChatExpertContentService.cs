@@ -12,17 +12,20 @@ namespace BE.Services
         private readonly IChatExpertRepository _chatExpertRepository;
         private readonly PawnderDatabaseContext _context;
         private readonly IHubContext<ChatHub> _hubContext;
+        private readonly IDailyLimitService _dailyLimitService;
 
         public ChatExpertContentService(
             IChatExpertContentRepository contentRepository,
             IChatExpertRepository chatExpertRepository,
             PawnderDatabaseContext context,
-            IHubContext<ChatHub> hubContext)
+            IHubContext<ChatHub> hubContext,
+            IDailyLimitService dailyLimitService)
         {
             _contentRepository = contentRepository;
             _chatExpertRepository = chatExpertRepository;
             _context = context;
             _hubContext = hubContext;
+            _dailyLimitService = dailyLimitService;
         }
 
         public async Task<IEnumerable<object>> GetChatMessagesAsync(int chatExpertId, CancellationToken ct = default)
@@ -52,6 +55,17 @@ namespace BE.Services
             if (chatExpert.ExpertId != fromId && chatExpert.UserId != fromId)
                 throw new InvalidOperationException("Người dùng không thuộc cuộc chat này.");
 
+            // Kiểm tra giới hạn chat với expert (chỉ áp dụng cho User gửi tin nhắn cho Expert)
+            if (fromId == chatExpert.UserId)
+            {
+                bool canChat = await _dailyLimitService.CanPerformAction(fromId, "expert_chat");
+                if (!canChat)
+                {
+                    int remaining = await _dailyLimitService.GetRemainingCount(fromId, "expert_chat");
+                    throw new InvalidOperationException($"Bạn đã hết lượt chat với chuyên gia hôm nay. Số lượt còn lại: {remaining}. Nâng cấp VIP để có thêm lượt chat.");
+                }
+            }
+
             // If ExpertConfirmation is provided, validate it exists
             if (expertId.HasValue && userId.HasValue && chatAiid.HasValue)
             {
@@ -78,6 +92,12 @@ namespace BE.Services
             };
 
             await _contentRepository.AddAsync(chatMessage, ct);
+
+            // Ghi nhận action nếu là User gửi tin nhắn cho Expert
+            if (fromId == chatExpert.UserId)
+            {
+                await _dailyLimitService.RecordAction(fromId, "expert_chat");
+            }
 
             // Determine recipient (the other person in the chat)
             int? toUserId = (fromId == chatExpert.ExpertId) ? chatExpert.UserId : chatExpert.ExpertId;
