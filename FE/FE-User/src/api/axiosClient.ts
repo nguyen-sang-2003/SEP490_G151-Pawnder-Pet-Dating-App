@@ -124,6 +124,9 @@ apiClient.interceptors.request.use(
 // Flag to prevent multiple refresh attempts
 let isRefreshing = false;
 let failedQueue: any[] = [];
+let refreshPromise: Promise<string> | null = null;
+let refreshAttempts = 0;
+let lastRefreshAttemptTime = 0;
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach(prom => {
@@ -135,6 +138,13 @@ const processQueue = (error: any, token: string | null = null) => {
   });
 
   failedQueue = [];
+  refreshPromise = null; // ✅ Reset promise after processing
+  
+  // ✅ Reset attempts on success
+  if (!error) {
+    refreshAttempts = 0;
+    lastRefreshAttemptTime = 0;
+  }
 };
 
 // Response interceptor for auto-refresh token, retry logic, and cache management
@@ -231,11 +241,10 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      if (isRefreshing) {
-        // Queue this request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
+      if (isRefreshing && refreshPromise) {
+        // ✅ Wait for ongoing refresh, then retry with new token
+        console.log('⏳ Queueing request while token refresh in progress...');
+        return refreshPromise.then(token => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return apiClient(originalRequest);
         }).catch(err => {
@@ -244,69 +253,109 @@ apiClient.interceptors.response.use(
       }
 
       originalRequest._retry = true;
+      
+      // ✅ Exponential backoff - prevent rapid refresh attempts
+      const now = Date.now();
+      const timeSinceLastAttempt = now - lastRefreshAttemptTime;
+      const backoffDelay = Math.min(1000 * Math.pow(2, refreshAttempts), 30000); // Max 30s
+      
+      if (refreshAttempts > 0 && timeSinceLastAttempt < backoffDelay) {
+        console.log(`⏸️ Waiting ${backoffDelay - timeSinceLastAttempt}ms before retry (attempt ${refreshAttempts + 1})`);
+        await new Promise(resolve => setTimeout(resolve, backoffDelay - timeSinceLastAttempt));
+      }
+      
+      refreshAttempts++;
+      lastRefreshAttemptTime = Date.now();
       isRefreshing = true;
 
-      try {
-        const refreshToken = await getStoredRefreshToken();
+      // ✅ Create a shared promise for all waiting requests
+      refreshPromise = (async () => {
+        try {
+          const refreshToken = await getStoredRefreshToken();
 
-        if (!refreshToken) {
-          console.log('⚠️ No refresh token found in Keychain');
-          throw new Error('No refresh token');
-        }
-
-        console.log('🔄 Refreshing access token...');
-
-        // Call refresh endpoint
-        const response = await axios.post(`${BASE_URL}/api/refresh`, {
-          RefreshToken: refreshToken,
-        });
-
-        const { AccessToken, RefreshToken: newRefreshToken } = response.data;
-
-        // Store new tokens
-        await storeTokens(AccessToken, newRefreshToken);
-
-        console.log('✅ Token refreshed successfully');
-
-        // Update header and retry original request
-        originalRequest.headers.Authorization = `Bearer ${AccessToken}`;
-
-        processQueue(null, AccessToken);
-        isRefreshing = false;
-
-        return apiClient(originalRequest);
-      } catch (refreshError: any) {
-        console.log('❌ Refresh token failed:', refreshError?.message || refreshError);
-
-        processQueue(refreshError, null);
-        isRefreshing = false;
-
-        // Only logout if it's actually a token issue (not network error)
-        const shouldLogout =
-          refreshError?.message === 'No refresh token' ||
-          refreshError?.response?.status === 401 ||
-          refreshError?.response?.status === 403;
-
-        if (shouldLogout) {
-          console.log('🚪 Logging out due to invalid/missing refresh token');
-          // Clear all tokens and user data
-          try {
-            await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
-            await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
-            await AsyncStorage.removeItem('userId');
-            await AsyncStorage.removeItem('userEmail');
-            await AsyncStorage.removeItem('userRole');
-            // Set logout flag to trigger navigation
-            await AsyncStorage.setItem('shouldLogout', 'true');
-            console.log('🔐 Cleared all tokens and set logout flag');
-          } catch (e) {
-
+          if (!refreshToken) {
+            console.log('⚠️ No refresh token found in Keychain');
+            throw new Error('No refresh token');
           }
-        } else {
-          console.log('⚠️ Refresh failed due to network/server error, not logging out');
-        }
 
-        return Promise.reject(refreshError);
+          console.log('🔄 Refreshing access token...');
+
+          // ✅ Add timeout to refresh call (10 seconds max)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+          // Call refresh endpoint
+          const response = await axios.post(
+            `${BASE_URL}/api/refresh`,
+            { RefreshToken: refreshToken },
+            { signal: controller.signal }
+          );
+
+          clearTimeout(timeoutId);
+
+          const { AccessToken, RefreshToken: newRefreshToken } = response.data;
+
+          // ✅ Validate tokens before storing
+          if (!AccessToken || !newRefreshToken) {
+            throw new Error('Invalid tokens received from server');
+          }
+
+          // Store new tokens
+          await storeTokens(AccessToken, newRefreshToken);
+
+          console.log('✅ Token refreshed successfully');
+
+          processQueue(null, AccessToken);
+          isRefreshing = false;
+
+          return AccessToken;
+        } catch (refreshError: any) {
+          console.log('❌ Refresh token failed:', refreshError?.message || refreshError);
+
+          processQueue(refreshError, null);
+          isRefreshing = false;
+
+          // ✅ More conservative logout logic - only logout if DEFINITELY a token issue
+          const isTokenError = 
+            refreshError?.message === 'No refresh token' ||
+            refreshError?.message === 'Invalid tokens received from server' ||
+            (refreshError?.response?.status === 401 && refreshError?.response?.data?.message?.includes('token')) ||
+            (refreshError?.response?.status === 403 && refreshError?.response?.data?.message?.includes('token'));
+
+          const isNetworkError = 
+            !refreshError?.response || // No response = network issue
+            refreshError?.code === 'ECONNABORTED' || // Timeout
+            refreshError?.code === 'ERR_NETWORK'; // Network error
+
+          if (isTokenError && !isNetworkError) {
+            console.log('🚪 Logging out due to invalid/missing refresh token');
+            // Clear all tokens and user data
+            try {
+              await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
+              await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
+              await AsyncStorage.removeItem('userId');
+              await AsyncStorage.removeItem('userEmail');
+              await AsyncStorage.removeItem('userRole');
+              // Set logout flag to trigger navigation
+              await AsyncStorage.setItem('shouldLogout', 'true');
+              console.log('🔐 Cleared all tokens and set logout flag');
+            } catch (e) {
+              console.error('Error clearing tokens:', e);
+            }
+          } else {
+            console.log('⚠️ Refresh failed due to network/server error, NOT logging out - will retry later');
+          }
+
+          throw refreshError;
+        }
+      })();
+
+      try {
+        const newToken = await refreshPromise;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      } catch (err) {
+        return Promise.reject(err);
       }
     }
 
