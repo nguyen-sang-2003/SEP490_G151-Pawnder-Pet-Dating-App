@@ -14,6 +14,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -29,6 +30,7 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 type Props = NativeStackScreenProps<RootStackParamList, "Notification">;
 
 const NotificationScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,10 +47,10 @@ const NotificationScreen = ({ navigation }: Props) => {
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (seconds < 60) return "Vừa xong";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} phút trước`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)} ngày trước`;
+    if (seconds < 60) return t('notification.time.justNow');
+    if (seconds < 3600) return t('notification.time.minutesAgo', { count: Math.floor(seconds / 60) });
+    if (seconds < 86400) return t('notification.time.hoursAgo', { count: Math.floor(seconds / 3600) });
+    if (seconds < 604800) return t('notification.time.daysAgo', { count: Math.floor(seconds / 86400) });
     return date.toLocaleDateString();
   };
 
@@ -135,7 +137,7 @@ const NotificationScreen = ({ navigation }: Props) => {
           // ✅ Create notification object from SignalR data
           const newNotification: Notification = {
             notificationId: 0, // Temporary, will be replaced on next full reload
-            title: data.Title || data.title || 'New Notification',
+            title: data.Title || data.title || t('notification.title'),
             message: data.Message || data.message || '',
             type: data.Type || data.type || 'system',
             isRead: false,
@@ -307,8 +309,8 @@ const NotificationScreen = ({ navigation }: Props) => {
     if (!selectedNotification || !currentUserId) {
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không thể tạo chat với chuyên gia'
+        title: t('alerts.error'),
+        message: t('notification.errors.createChatFailed')
       });
       return;
     }
@@ -374,8 +376,8 @@ const NotificationScreen = ({ navigation }: Props) => {
       if (!expertId) {
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: 'Không tìm thấy thông tin chuyên gia. Vui lòng thử lại sau hoặc liên hệ admin.'
+          title: t('alerts.error'),
+          message: t('notification.errors.createChatFailed')
         });
 
         return;
@@ -400,8 +402,8 @@ const NotificationScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.message || 'Không thể tạo chat với chuyên gia'
+        title: t('alerts.error'),
+        message: error.message || t('notification.errors.createChatFailed')
       });
     } finally {
       setCreatingChat(false);
@@ -440,12 +442,12 @@ const NotificationScreen = ({ navigation }: Props) => {
         <View style={styles.notificationContent}>
           <View style={styles.notificationHeader}>
             <Text style={styles.notificationTitle} numberOfLines={1}>
-              {item.title || 'Notification'}
+              {item.title || t('notification.title')}
             </Text>
             {type === "expert_reply" || type === "expert" ? (
               <View style={styles.expertBadge}>
                 <Icon name="shield-checkmark" size={12} color="#FF6EA7" />
-                <Text style={styles.expertBadgeText}>Expert</Text>
+                <Text style={styles.expertBadgeText}>{t('badges.expert')}</Text>
               </View>
             ) : null}
           </View>
@@ -456,7 +458,7 @@ const NotificationScreen = ({ navigation }: Props) => {
             ]}
             numberOfLines={3}
           >
-            {item.message || 'No message'}
+            {item.message || t('common.noData')}
           </Text>
           <View style={styles.notificationFooter}>
             <Icon name="time-outline" size={14} color={colors.textLabel} />
@@ -486,11 +488,11 @@ const NotificationScreen = ({ navigation }: Props) => {
 
   // 🚀 OPTIMIZATION: Memoize filter tabs configuration
   const filterTabs = useMemo(() => [
-    { id: "all", label: "Tất cả", icon: "apps" },
-    { id: "unread", label: "Chưa đọc", icon: "mail-unread", badge: unreadCount },
-    { id: "system", label: "Hệ thống", icon: "notifications" },
-    { id: "expert", label: "Chuyên gia", icon: "medical" },
-  ], [unreadCount]);
+    { id: "all", label: t('notification.filter.all'), icon: "apps" },
+    { id: "unread", label: t('notification.filter.unread'), icon: "mail-unread", badge: unreadCount },
+    { id: "system", label: t('notification.filter.system'), icon: "notifications" },
+    { id: "expert", label: t('notification.filter.expert'), icon: "medical" },
+  ], [unreadCount, t]);
 
   // Show loading state
   if (loading) {
@@ -503,7 +505,7 @@ const NotificationScreen = ({ navigation }: Props) => {
       >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Đang tải thông báo...</Text>
+          <Text style={styles.loadingText}>{t('notification.loading')}</Text>
         </View>
       </LinearGradient>
     );
@@ -526,10 +528,10 @@ const NotificationScreen = ({ navigation }: Props) => {
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
           <View>
-            <Text style={styles.headerTitle}>Thông báo</Text>
+            <Text style={styles.headerTitle}>{t('notification.title')}</Text>
             {unreadCount > 0 && (
               <Text style={styles.headerSubtitle}>
-                {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}
+                {unreadCount} {t('notification.filter.unread').toLowerCase()}
               </Text>
             )}
           </View>
@@ -621,22 +623,10 @@ const NotificationScreen = ({ navigation }: Props) => {
             />
           </LinearGradient>
           <Text style={styles.emptyText}>
-            {filterType === "all"
-              ? "Chưa có thông báo"
-              : filterType === "unread"
-                ? "Đã đọc hết!"
-                : `Không có thông báo ${filterType}`
-            }
+            {t(`notification.empty.${filterType}.title`)}
           </Text>
           <Text style={styles.emptySubtext}>
-            {filterType === "all"
-              ? "Bạn sẽ thấy thông báo hệ thống và chuyên gia ở đây"
-              : filterType === "unread"
-                ? "Bạn không có thông báo chưa đọc"
-                : filterType === "system"
-                  ? "Thông báo hệ thống sẽ xuất hiện ở đây"
-                  : "Thông báo trả lời từ chuyên gia sẽ xuất hiện ở đây"
-            }
+            {t(`notification.empty.${filterType}.message`)}
           </Text>
         </View>
       )}
@@ -692,12 +682,12 @@ const NotificationScreen = ({ navigation }: Props) => {
               {/* Title */}
               <View style={styles.modalTitleContainer}>
                 <Text style={styles.modalTitle}>
-                  {selectedNotification?.title || 'Notification'}
+                  {selectedNotification?.title || t('notification.title')}
                 </Text>
                 {(selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert") && (
                   <View style={styles.modalExpertBadge}>
                     <Icon name="shield-checkmark" size={14} color="#FF6EA7" />
-                    <Text style={styles.modalExpertBadgeText}>Expert</Text>
+                    <Text style={styles.modalExpertBadgeText}>{t('badges.expert')}</Text>
                   </View>
                 )}
               </View>
@@ -709,12 +699,12 @@ const NotificationScreen = ({ navigation }: Props) => {
                   <View style={styles.questionSection}>
                     <View style={styles.sectionHeader}>
                       <Icon name="help-circle" size={18} color={colors.primary} />
-                      <Text style={styles.sectionTitle}>Câu hỏi của bạn</Text>
+                      <Text style={styles.sectionTitle}>{t('notification.modal.yourQuestion')}</Text>
                     </View>
                     <View style={styles.questionBox}>
                       <Text style={styles.questionText}>
                         {/* TODO: Replace with actual question from API */}
-                        Mèo của tôi bị chảy nước mắt và hắt hơi liên tục. Có phải mèo bị cảm không? Tôi cần làm gì?
+                        {t('notification.modal.yourQuestion')}
                       </Text>
                     </View>
                   </View>
@@ -723,11 +713,11 @@ const NotificationScreen = ({ navigation }: Props) => {
                   <View style={styles.answerSection}>
                     <View style={styles.sectionHeader}>
                       <Icon name="medical" size={18} color="#FF6EA7" />
-                      <Text style={styles.sectionTitle}>Câu trả lời từ chuyên gia</Text>
+                      <Text style={styles.sectionTitle}>{t('notification.modal.expertAnswer')}</Text>
                     </View>
                     <View style={styles.answerBox}>
                       <Text style={styles.answerText}>
-                        {selectedNotification?.message || 'No answer available'}
+                        {selectedNotification?.message || t('fallback.noAnswer')}
                       </Text>
                     </View>
                   </View>
@@ -742,10 +732,10 @@ const NotificationScreen = ({ navigation }: Props) => {
                     >
                       <Icon name="chatbubbles" size={24} color={colors.primary} />
                       <Text style={styles.ctaTitle}>
-                        Bạn có hài lòng với câu trả lời?
+                        {t('notification.modal.satisfaction')}
                       </Text>
                       <Text style={styles.ctaSubtitle}>
-                        Muốn thảo luận thêm với chuyên gia không?
+                        {t('notification.modal.discussMore')}
                       </Text>
                     </LinearGradient>
                   </View>
@@ -754,7 +744,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                 <>
                   {/* Regular Message */}
                   <Text style={styles.modalMessage}>
-                    {selectedNotification?.message || 'No message'}
+                    {selectedNotification?.message || t('common.noData')}
                   </Text>
                 </>
               )}
@@ -790,7 +780,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                       ) : (
                         <>
                           <Icon name="chatbubbles" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                          <Text style={styles.modalButtonText}>Nhắn tin với chuyên gia</Text>
+                          <Text style={styles.modalButtonText}>{t('notification.modal.chatWithExpert')}</Text>
                         </>
                       )}
                     </LinearGradient>
@@ -799,7 +789,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                     style={styles.modalSecondaryButton}
                     onPress={closeModal}
                   >
-                    <Text style={styles.modalSecondaryButtonText}>Đóng</Text>
+                    <Text style={styles.modalSecondaryButtonText}>{t('notification.modal.close')}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -813,7 +803,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Text style={styles.modalButtonText}>Đã hiểu</Text>
+                    <Text style={styles.modalButtonText}>{t('notification.modal.close')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}

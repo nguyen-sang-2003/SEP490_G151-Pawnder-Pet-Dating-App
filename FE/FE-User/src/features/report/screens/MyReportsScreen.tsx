@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getMyReports, Report } from "../api/reportApi";
@@ -21,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 type Props = NativeStackScreenProps<RootStackParamList, "MyReports">;
 
 const MyReportsScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -111,13 +113,13 @@ const MyReportsScreen = ({ navigation }: Props) => {
       const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
       if (diffHours === 0) {
         const diffMinutes = Math.floor(diffTime / (1000 * 60));
-        return diffMinutes <= 1 ? "Vừa xong" : `${diffMinutes} phút trước`;
+        return diffMinutes <= 1 ? t('report.myReports.time.justNow') : t('report.myReports.time.minutesAgo', { count: diffMinutes });
       }
-      return `${diffHours} giờ trước`;
+      return t('report.myReports.time.hoursAgo', { count: diffHours });
     }
-    if (diffDays === 1) return "Hôm qua";
-    if (diffDays < 7) return `${diffDays} ngày trước`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
+    if (diffDays === 1) return t('report.myReports.time.yesterday');
+    if (diffDays < 7) return t('report.myReports.time.daysAgo', { count: diffDays });
+    if (diffDays < 30) return t('report.myReports.time.weeksAgo', { count: Math.floor(diffDays / 7) });
 
     // Older - show full date time
     return date.toLocaleString("vi-VN", {
@@ -146,7 +148,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
         <View style={styles.reportIdRow}>
           <View style={styles.reportIdLeft}>
             <Icon name="flag" size={18} color={colors.error} />
-            <Text style={styles.reportTitle}>Báo cáo tin nhắn</Text>
+            <Text style={styles.reportTitle}>{t('report.myReports.reportMessage')}</Text>
           </View>
           <View
             style={[
@@ -160,10 +162,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
               color={getStatusColor(item.status)}
             />
             <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-              {getStatusLabel(item.status) === 'pending' ? 'Đang xử lý' : 
-               getStatusLabel(item.status) === 'resolved' ? 'Đã xử lý' : 
-               getStatusLabel(item.status) === 'rejected' ? 'Bị từ chối' : 
-               getStatusLabel(item.status) || 'Không rõ'}
+              {t(`report.myReports.status.${getStatusLabel(item.status) || 'unknown'}`)}
             </Text>
           </View>
         </View>
@@ -174,7 +173,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
         {item.reportedUser ? (
           <View style={styles.infoRow}>
             <Icon name="person-outline" size={16} color={colors.textMedium} />
-            <Text style={styles.infoLabel}>Người bị báo cáo:</Text>
+            <Text style={styles.infoLabel}>{t('report.myReports.reportedUser')}</Text>
             <Text style={styles.infoValue}>
               {item.reportedUser.fullName}
             </Text>
@@ -183,7 +182,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
           <View style={styles.warningBox}>
             <Icon name="information-circle-outline" size={16} color="#FF9800" />
             <Text style={styles.warningText}>
-              Thông tin người dùng không khả dụng (có thể đã bị xóa hoặc chặn)
+              {t('report.myReports.userUnavailable')}
             </Text>
           </View>
         )}
@@ -191,7 +190,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
         {/* Reason */}
         <View style={styles.infoRow}>
           <Icon name="alert-circle-outline" size={16} color={colors.error} />
-          <Text style={styles.infoLabel}>Lý do:</Text>
+          <Text style={styles.infoLabel}>{t('report.myReports.reason')}</Text>
           <Text style={[styles.infoValue, { color: colors.error, fontWeight: "600" }]}>
             {item.reason}
           </Text>
@@ -200,7 +199,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
         {/* Message Content */}
         {item.content ? (
           <View style={styles.messageSection}>
-            <Text style={styles.messageSectionLabel}>Tin nhắn bị báo cáo:</Text>
+            <Text style={styles.messageSectionLabel}>{t('report.myReports.reportedMessage')}</Text>
             <View style={styles.messageContentBox}>
               <Icon name="chatbox-ellipses-outline" size={14} color={colors.textMedium} style={{ marginTop: 2 }} />
               <Text style={styles.messageContentText} numberOfLines={3}>
@@ -212,7 +211,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
           <View style={styles.warningBox}>
             <Icon name="information-circle-outline" size={16} color="#FF9800" />
             <Text style={styles.warningText}>
-              Tin nhắn không khả dụng (có thể đã bị xóa)
+              {t('report.myReports.messageUnavailable')}
             </Text>
           </View>
         )}
@@ -222,7 +221,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
           <View style={styles.resolutionSection}>
             <View style={styles.resolutionHeader}>
               <Icon name="document-text-outline" size={14} color="#4CAF50" />
-              <Text style={styles.resolutionHeaderText}>Kết quả xử lý:</Text>
+              <Text style={styles.resolutionHeaderText}>{t('report.myReports.resolution')}</Text>
             </View>
             <Text style={styles.resolutionText}>{item.resolution}</Text>
           </View>
@@ -238,22 +237,13 @@ const MyReportsScreen = ({ navigation }: Props) => {
   };
 
   const renderEmpty = () => {
-    let emptyMessage = "Bạn chưa gửi báo cáo nào.\nLịch sử báo cáo của bạn sẽ hiển thị ở đây.";
-    let emptyTitle = "Chưa có báo cáo nào";
-
-    if (selectedFilter === 'resolved') {
-      emptyTitle = "Chưa có báo cáo được xử lý";
-      emptyMessage = "Các báo cáo đã được xử lý sẽ xuất hiện ở đây";
-    } else if (selectedFilter === 'pending') {
-      emptyTitle = "Chưa có báo cáo đang chờ";
-      emptyMessage = "Các báo cáo đang chờ xử lý sẽ xuất hiện ở đây";
-    }
+    const emptyKey = selectedFilter === 'all' ? 'all' : selectedFilter === 'resolved' ? 'resolved' : 'pending';
 
     return (
       <View style={styles.emptyContainer}>
         <Icon name="document-text-outline" size={80} color={colors.textLabel} />
-        <Text style={styles.emptyTitle}>{emptyTitle}</Text>
-        <Text style={styles.emptyText}>{emptyMessage}</Text>
+        <Text style={styles.emptyTitle}>{t(`report.myReports.empty.${emptyKey}.title`)}</Text>
+        <Text style={styles.emptyText}>{t(`report.myReports.empty.${emptyKey}.message`)}</Text>
       </View>
     );
   };
@@ -281,12 +271,12 @@ const MyReportsScreen = ({ navigation }: Props) => {
             >
               <Icon name="arrow-back" size={24} color={colors.textDark} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Báo cáo của tôi</Text>
+            <Text style={styles.headerTitle}>{t('report.myReports.title')}</Text>
             <View style={{ width: 40 }} />
           </View>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Đang tải...</Text>
+            <Text style={styles.loadingText}>{t('report.myReports.loading')}</Text>
           </View>
         </LinearGradient>
       </View>
@@ -307,7 +297,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Báo cáo của tôi</Text>
+          <Text style={styles.headerTitle}>{t('report.myReports.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -325,7 +315,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
             >
               <Icon name="flag" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>{reports.length}</Text>
-              <Text style={styles.statLabel}>Tổng số</Text>
+              <Text style={styles.statLabel}>{t('report.myReports.stats.total')}</Text>
             </TouchableOpacity>
 
             {/* Resolved */}
@@ -339,7 +329,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
             >
               <Icon name="checkmark-circle" size={24} color="#4CAF50" />
               <Text style={styles.statNumber}>{resolvedCount}</Text>
-              <Text style={styles.statLabel}>Đã xử lý</Text>
+              <Text style={styles.statLabel}>{t('report.myReports.stats.resolved')}</Text>
             </TouchableOpacity>
 
             {/* Pending */}
@@ -353,7 +343,7 @@ const MyReportsScreen = ({ navigation }: Props) => {
             >
               <Icon name="time" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>{pendingCount}</Text>
-              <Text style={styles.statLabel}>Đang xử lý</Text>
+              <Text style={styles.statLabel}>{t('report.myReports.stats.pending')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -363,10 +353,10 @@ const MyReportsScreen = ({ navigation }: Props) => {
           <View style={styles.filterInfo}>
             <Text style={styles.filterInfoText}>
               {selectedFilter === 'all'
-                ? `Hiển thị tất cả ${filteredReports.length} báo cáo`
+                ? t('report.myReports.filter.showAll', { count: filteredReports.length })
                 : selectedFilter === 'resolved'
-                  ? `${filteredReports.length} báo cáo đã được xử lý`
-                  : `${filteredReports.length} báo cáo đang chờ xử lý`}
+                  ? t('report.myReports.filter.showResolved', { count: filteredReports.length })
+                  : t('report.myReports.filter.showPending', { count: filteredReports.length })}
             </Text>
           </View>
         )}

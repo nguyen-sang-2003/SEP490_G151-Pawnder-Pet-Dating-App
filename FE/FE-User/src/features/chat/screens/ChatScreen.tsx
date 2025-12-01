@@ -14,6 +14,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -46,6 +47,7 @@ interface ChatItem {
 }
 
 const ChatScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const unreadChats = useSelector(selectUnreadChats); // Get list of unread matchIds
   const expertChatBadge = useSelector(selectExpertChatBadge); // Get expert chat badge count
@@ -325,7 +327,7 @@ const ChatScreen = ({ navigation }: Props) => {
             }
 
             // Get last message
-            let lastMessage = "Bắt đầu trò chuyện!";
+            let lastMessage = t('chat.startConversation');
             let lastMessageTime = chat.createdAt;
 
             try {
@@ -343,7 +345,7 @@ const ChatScreen = ({ navigation }: Props) => {
               id: chat.matchId.toString(),
               matchId: chat.matchId,
               otherUserId: otherUserId,
-              name: otherUser.fullName || 'Unknown',
+              name: otherUser.fullName || t('fallback.unknown'),
               lastMessage: lastMessage,
               time: formatTime(lastMessageTime),
               unread: 0, // Unread count requires DB changes - keep simple for now
@@ -387,19 +389,19 @@ const ChatScreen = ({ navigation }: Props) => {
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffDays > 0) {
-      return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày`;
+      return diffDays === 1 ? t('chat.time.yesterday') : t('chat.time.daysAgo', { count: diffDays });
     }
 
     if (diffHours > 0) {
-      return `${diffHours} giờ`;
+      return t('chat.time.hoursAgo', { count: diffHours });
     }
 
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins > 0) {
-      return `${diffMins} phút`;
+      return t('chat.time.minutesAgo', { count: diffMins });
     }
 
-    return 'Vừa xong';
+    return t('chat.time.justNow');
   };
 
   const filteredChats = chatData
@@ -493,7 +495,7 @@ const ChatScreen = ({ navigation }: Props) => {
           >
             <Icon name="chatbubbles" size={22} color={colors.white} />
           </LinearGradient>
-          <Text style={styles.headerTitle}>Tin nhắn</Text>
+          <Text style={styles.headerTitle}>{t('chat.title')}</Text>
         </View>
       </View>
 
@@ -502,7 +504,7 @@ const ChatScreen = ({ navigation }: Props) => {
         <Icon name="search" size={20} color={colors.textMedium} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Tìm kiếm cuộc trò chuyện..."
+          placeholder={t('chat.searchPlaceholder')}
           placeholderTextColor={colors.textLabel}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -531,8 +533,8 @@ const ChatScreen = ({ navigation }: Props) => {
             <View style={styles.specialChatIconContainer}>
               <Icon name="sparkles" size={24} color={colors.white} />
             </View>
-            <Text style={styles.specialChatTitle}>Trợ lý AI</Text>
-            <Text style={styles.specialChatSubtitle}>Tư vấn tức thì</Text>
+            <Text style={styles.specialChatTitle}>{t('chat.specialChat.aiTitle')}</Text>
+            <Text style={styles.specialChatSubtitle}>{t('chat.specialChat.aiSubtitle')}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -551,8 +553,8 @@ const ChatScreen = ({ navigation }: Props) => {
             <View style={styles.specialChatIconContainer}>
               <Icon name="medical" size={24} color={colors.white} />
             </View>
-            <Text style={styles.specialChatTitle}>Chuyên gia</Text>
-            <Text style={styles.specialChatSubtitle}>Tư vấn chuyên sâu</Text>
+            <Text style={styles.specialChatTitle}>{t('chat.specialChat.expertTitle')}</Text>
+            <Text style={styles.specialChatSubtitle}>{t('chat.specialChat.expertSubtitle')}</Text>
             {expertChatBadge > 0 && (
               <View style={{
                 position: 'absolute',
@@ -587,7 +589,7 @@ const ChatScreen = ({ navigation }: Props) => {
           activeOpacity={0.7}
         >
           <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
-            Tất cả
+            {t('chat.filter.all')}
           </Text>
           {totalChatBadge > 0 && (
             <View style={[styles.filterBadge, activeFilter === 'all' && styles.filterBadgeActive]}>
@@ -604,7 +606,7 @@ const ChatScreen = ({ navigation }: Props) => {
           activeOpacity={0.7}
         >
           <Text style={[styles.filterText, activeFilter === 'unread' && styles.filterTextActive]}>
-            Chưa đọc
+            {t('chat.filter.unread')}
           </Text>
           {unreadChats.length > 0 && (
             <View style={[styles.filterBadge, activeFilter === 'unread' && styles.filterBadgeActive]}>
@@ -632,17 +634,17 @@ const ChatScreen = ({ navigation }: Props) => {
               {searchQuery.length > 0 ? (
                 <>
                   <Icon name="search-outline" size={64} color={colors.textLabel} />
-                  <Text style={styles.emptyTitle}>Không tìm thấy kết quả</Text>
+                  <Text style={styles.emptyTitle}>{t('chat.noSearchResults')}</Text>
                   <Text style={styles.emptyText}>
-                    Thử tìm kiếm với tên hoặc tin nhắn khác
+                    {t('chat.noSearchResultsDesc')}
                   </Text>
                 </>
               ) : (
                 <>
                   <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
-                  <Text style={styles.emptyTitle}>Chưa có cuộc trò chuyện</Text>
+                  <Text style={styles.emptyTitle}>{t('chat.noChats')}</Text>
                   <Text style={styles.emptyText}>
-                    Kết nối với chủ thú cưng khác để bắt đầu trò chuyện!
+                    {t('chat.noChatsDesc')}
                   </Text>
                 </>
               )}

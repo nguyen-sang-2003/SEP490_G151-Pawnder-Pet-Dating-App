@@ -20,6 +20,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getChatMessages, sendMessage, deleteChat, ChatMessage } from "../api/chatApi";
@@ -52,6 +53,7 @@ interface Message {
 }
 
 const ChatDetailScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { matchId, otherUserId, userName: initialUserName, userAvatar } = route.params;
   const dispatch = useDispatch<AppDispatch>();
 
@@ -86,11 +88,11 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         try {
           console.log('📱 Fetching user info for userId:', otherUserId);
           const userInfo = await getUserById(otherUserId);
-          setUserName(userInfo.fullName || "User");
+          setUserName(userInfo.fullName || t('fallback.unknown'));
           console.log('✅ User info loaded:', userInfo.fullName);
         } catch (error) {
 
-          setUserName("User");
+          setUserName(t('fallback.unknown'));
         }
       }
     };
@@ -440,7 +442,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
     } catch (error: any) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải tin nhắn. Vui lòng thử lại.' });
+      showAlert({ type: 'error', title: t('common.error'), message: t('chat.detail.loadError') });
     } finally {
       setLoading(false);
     }
@@ -505,10 +507,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi gửi tin nhắn',
-        message: error.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.',
+        title: t('chat.detail.sendErrorTitle'),
+        message: error.message || t('chat.detail.sendError'),
         showCancel: true,
-        confirmText: 'Thử lại',
+        confirmText: t('chat.detail.retryButton'),
         onConfirm: () => setInputText(messageText),
       });
     } finally {
@@ -563,8 +565,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       if (!pets || pets.length === 0) {
         showAlert({
           type: 'info',
-          title: 'Thông báo',
-          message: 'Người dùng này chưa có thông tin thú cưng'
+          title: t('alerts.info'),
+          message: t('chat.profile.noPetInfo')
         });
         return;
       }
@@ -572,13 +574,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       // Get the first pet (or active pet if you have that logic)
       const firstPet = pets[0];
       const petId = firstPet.petId || firstPet.PetId;
-      const petName = firstPet.name || firstPet.Name || 'Pet';
+      const petName = firstPet.name || firstPet.Name || t('fallback.unknown');
 
       if (!petId) {
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: 'Không tìm thấy thông tin thú cưng'
+          title: t('common.error'),
+          message: t('chat.profile.petNotFound')
         });
         return;
       }
@@ -595,8 +597,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không thể tải thông tin profile. Vui lòng thử lại.'
+        title: t('common.error'),
+        message: t('chat.profile.loadError')
       });
     }
   };
@@ -605,10 +607,10 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     closeMenu();
     showAlert({
       type: 'warning',
-      title: "Hủy kết nối",
-      message: `Bạn có chắc muốn hủy kết nối với ${userName}? Cuộc trò chuyện sẽ bị ẩn và bạn không thể nhắn tin với nhau nữa.`,
+      title: t('chat.unmatch.title'),
+      message: t('chat.unmatch.message', { name: userName }),
       showCancel: true,
-      confirmText: "Xác nhận",
+      confirmText: t('common.confirm'),
       onConfirm: async () => {
         try {
           console.log("🗑️ Unmatching matchId:", matchId);
@@ -620,8 +622,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
           showAlert({
             type: 'success',
-            title: "Đã hủy kết nối",
-            message: `Bạn đã hủy kết nối với ${userName}. Cuộc trò chuyện đã bị ẩn.`,
+            title: t('chat.unmatch.success'),
+            message: t('chat.unmatch.successMessage', { name: userName }),
             onClose: () => {
               navigation.reset({
                 index: 0,
@@ -631,7 +633,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           });
         } catch (error: any) {
 
-          showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể hủy kết nối. Vui lòng thử lại.' });
+          showAlert({ type: 'error', title: t('common.error'), message: error.message || t('chat.detail.sendError') });
         }
       },
     });
@@ -657,8 +659,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: "Đã báo cáo",
-        message: `Đã báo cáo tin nhắn và chặn ${userName}. Cuộc trò chuyện đã bị ẩn.`,
+        title: t('chat.report.success'),
+        message: t('chat.report.successMessage', { name: userName }),
         onClose: () => {
           navigation.reset({
             index: 0,
@@ -668,7 +670,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       });
     } catch (error: any) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể gửi báo cáo. Vui lòng thử lại.' });
+      showAlert({ type: 'error', title: t('common.error'), message: error.message || t('chat.expert.submitError') });
     }
   };
 
@@ -676,15 +678,15 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     closeMenu();
     showAlert({
       type: 'warning',
-      title: "Chặn người dùng",
-      message: `Bạn có chắc muốn chặn ${userName}? Bạn sẽ không thể nhắn tin với nhau nữa và match sẽ bị hủy.`,
+      title: t('chat.block.title'),
+      message: t('chat.block.message', { name: userName }),
       showCancel: true,
-      confirmText: "Chặn",
+      confirmText: t('chat.menu.block'),
       onConfirm: async () => {
         try {
           const currentUserIdStr = await AsyncStorage.getItem('userId');
           if (!currentUserIdStr) {
-            showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+            showAlert({ type: 'error', title: t('common.error'), message: t('chat.aiList.userNotFound') });
             return;
           }
           const currentUserId = parseInt(currentUserIdStr, 10);
@@ -696,8 +698,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
           showAlert({
             type: 'success',
-            title: "Đã chặn",
-            message: `${userName} đã bị chặn. Cuộc trò chuyện đã bị ẩn.`,
+            title: t('chat.block.success'),
+            message: t('chat.block.successMessage', { name: userName }),
             onClose: () => {
               navigation.reset({
                 index: 0,
@@ -707,7 +709,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           });
         } catch (error: any) {
 
-          showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể chặn người dùng. Vui lòng thử lại.' });
+          showAlert({ type: 'error', title: t('common.error'), message: t('chat.detail.sendError') });
         }
       },
     });
@@ -717,15 +719,15 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     closeMenu();
     showAlert({
       type: 'warning',
-      title: "Xóa cuộc trò chuyện",
-      message: `Xóa cuộc trò chuyện với ${userName}? Bạn vẫn còn kết nối và có thể bắt đầu chat mới. Để xóa kết nối hoàn toàn, hãy dùng "Hủy kết nối".`,
+      title: t('chat.deleteChat.title'),
+      message: t('chat.deleteChat.message', { name: userName }),
       showCancel: true,
-      confirmText: "Xóa",
+      confirmText: t('common.delete'),
       onConfirm: () => {
         // Clear messages locally (backend doesn't have delete all messages endpoint)
         console.log("🗑️ Clearing conversation locally");
         setMessages([]);
-        showAlert({ type: 'success', title: "Đã xóa", message: "Cuộc trò chuyện đã được xóa. Bạn vẫn còn kết nối." });
+        showAlert({ type: 'success', title: t('chat.deleteChat.success'), message: t('chat.deleteChat.successMessage') });
       },
     });
   };
@@ -751,9 +753,9 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     yesterday.setHours(0, 0, 0, 0);
 
     if (compareDate.getTime() === today.getTime()) {
-      return "Hôm nay";
+      return t('chat.detail.today');
     } else if (compareDate.getTime() === yesterday.getTime()) {
-      return "Hôm qua";
+      return t('chat.detail.yesterday');
     } else {
       return date.toLocaleDateString("vi-VN", {
         day: "2-digit",
@@ -899,7 +901,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{userName}</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? "đang nhập..." : otherUserOnline ? "Đang online" : "Offline"}
+                {isTyping ? t('chat.detail.typing') : otherUserOnline ? t('chat.detail.online') : t('chat.detail.offline')}
               </Text>
             </View>
           </View>
@@ -922,13 +924,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Đang tải tin nhắn...</Text>
+            <Text style={styles.loadingText}>{t('common.loading')}</Text>
           </View>
         ) : messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
-            <Text style={styles.emptyTitle}>Chưa có tin nhắn</Text>
-            <Text style={styles.emptyText}>Hãy bắt đầu cuộc trò chuyện!</Text>
+            <Text style={styles.emptyTitle}>{t('chat.noChats')}</Text>
+            <Text style={styles.emptyText}>{t('chat.startConversation')}</Text>
           </View>
         ) : (
           /* Messages */
@@ -1025,7 +1027,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
             <TextInput
               style={styles.input}
-              placeholder="Nhắn tin..."
+              placeholder={t('chat.detail.inputPlaceholder')}
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={handleInputChange}
@@ -1073,7 +1075,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               <OptimizedImage source={otherUserAvatar} style={styles.menuAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
               <View style={styles.menuHeaderText}>
                 <Text style={styles.menuUserName}>{userName}</Text>
-                <Text style={styles.menuUserStatus}>Đang hoạt động</Text>
+                <Text style={styles.menuUserStatus}>{t('chat.detail.online')}</Text>
               </View>
               <TouchableOpacity onPress={closeMenu} style={styles.menuCloseBtn}>
                 <Icon name="close" size={24} color={colors.textDark} />
@@ -1088,8 +1090,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="person-circle-outline" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={styles.menuOptionTitle}>Xem profile</Text>
-                  <Text style={styles.menuOptionDesc}>Xem ảnh và thông tin thú cưng</Text>
+                  <Text style={styles.menuOptionTitle}>{t('chat.menu.viewProfile')}</Text>
+                  <Text style={styles.menuOptionDesc}>{t('chat.profile.noPetInfo')}</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -1102,8 +1104,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="heart-dislike-outline" size={22} color="#FFA726" />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={styles.menuOptionTitle}>Hủy kết nối</Text>
-                  <Text style={styles.menuOptionDesc}>Ẩn kết nối này</Text>
+                  <Text style={styles.menuOptionTitle}>{t('chat.menu.unmatch')}</Text>
+                  <Text style={styles.menuOptionDesc}>{t('chat.unmatch.title')}</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -1114,8 +1116,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="ban-outline" size={22} color="#E94D6B" />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>Chặn</Text>
-                  <Text style={styles.menuOptionDesc}>Chặn người dùng này</Text>
+                  <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>{t('chat.menu.block')}</Text>
+                  <Text style={styles.menuOptionDesc}>{t('chat.block.title')}</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -1128,8 +1130,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                   <Icon name="trash-outline" size={22} color={colors.error} />
                 </View>
                 <View style={styles.menuOptionText}>
-                  <Text style={[styles.menuOptionTitle, { color: colors.error }]}>Xóa cuộc trò chuyện</Text>
-                  <Text style={styles.menuOptionDesc}>Xóa tất cả tin nhắn</Text>
+                  <Text style={[styles.menuOptionTitle, { color: colors.error }]}>{t('chat.menu.deleteChat')}</Text>
+                  <Text style={styles.menuOptionDesc}>{t('chat.deleteChat.title')}</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>
@@ -1152,8 +1154,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 <Icon name="flag" size={22} color="#E94D6B" />
               </View>
               <View style={styles.menuOptionText}>
-                <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>Báo cáo tin nhắn</Text>
-                <Text style={styles.menuOptionDesc}>Báo cáo nội dung không phù hợp</Text>
+                <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>{t('chat.report.title')}</Text>
+                <Text style={styles.menuOptionDesc}>{t('chat.menu.report')}</Text>
               </View>
             </TouchableOpacity>
           </Pressable>

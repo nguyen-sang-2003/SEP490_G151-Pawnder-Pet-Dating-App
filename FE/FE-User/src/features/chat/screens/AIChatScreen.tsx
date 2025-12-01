@@ -19,6 +19,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -42,6 +43,7 @@ interface Message {
 
 
 const AIChatScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const chatId = route.params?.chatId || "new";
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -87,14 +89,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setMessages([
         {
           id: "welcome",
-          text: "Xin chào! 👋 Tôi là Trợ lý AI Chăm sóc Thú cưng. Tôi ở đây để giúp bạn với mọi câu hỏi về mèo của bạn! Tôi có thể giúp gì cho bạn hôm nay?",
+          text: t('chat.ai.welcome'),
           isAI: true,
           timestamp: new Date(),
           suggestions: [
-            "Mẹo chăm sóc",
-            "Tư vấn sức khỏe",
-            "Mẹo huấn luyện",
-            "Hướng dẫn dinh dưỡng",
+            t('chat.ai.suggestions.careTips'),
+            t('chat.ai.suggestions.healthAdvice'),
+            t('chat.ai.suggestions.trainingTips'),
+            t('chat.ai.suggestions.nutritionGuide'),
           ],
         },
       ]);
@@ -144,7 +146,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setMessages(formattedMessages);
     } catch (error: any) {
 
-      Alert.alert('Lỗi', error.message || 'Không thể tải lịch sử chat');
+      Alert.alert(t('common.error'), error.message || t('chat.ai.loadError'));
     } finally {
       setLoading(false);
     }
@@ -156,7 +158,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     if (!messageText) return;
 
     if (chatId === "new") {
-      Alert.alert('Lỗi', 'Vui lòng tạo cuộc trò chuyện mới trước');
+      Alert.alert(t('common.error'), t('chat.ai.createChatFirst'));
       return;
     }
 
@@ -239,18 +241,18 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         // Timeout error
         Alert.alert(
-          'AI đang quá tải',
-          'AI đang mất nhiều thời gian để xử lý. Vui lòng thử lại sau vài giây.'
+          t('chat.ai.aiOverloaded'),
+          t('chat.ai.aiOverloadedMessage')
         );
       } else if (error.response?.status === 500) {
         // Backend error with custom message
-        const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra với AI. Vui lòng thử lại.';
-        Alert.alert('Lỗi', errorMsg);
+        const errorMsg = error.response?.data?.message || t('chat.ai.sendError');
+        Alert.alert(t('common.error'), errorMsg);
       } else {
         // Generic error
 
-        const errorMsg = error.response?.data?.message || error.message || 'Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối.';
-        Alert.alert('Lỗi', errorMsg);
+        const errorMsg = error.response?.data?.message || error.message || t('chat.ai.sendError');
+        Alert.alert(t('common.error'), errorMsg);
       }
     } finally {
       setIsTyping(false);
@@ -268,7 +270,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     
     // Validate user question
     if (!userQuestion.trim()) {
-      setErrorMessage('Vui lòng nhập câu hỏi của bạn');
+      setErrorMessage(t('chat.expert.emptyQuestion'));
       setShowErrorAlert(true);
       return;
     }
@@ -276,7 +278,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     try {
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        setErrorMessage('Không tìm thấy thông tin người dùng');
+        setErrorMessage(t('chat.aiList.userNotFound'));
         setShowErrorAlert(true);
         return;
       }
@@ -286,7 +288,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       // Get current chatId from route or state
       const currentChatId = route.params?.chatId;
       if (!currentChatId || currentChatId === 'new') {
-        setErrorMessage('Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia');
+        setErrorMessage(t('chat.expert.saveChatFirst'));
         setShowErrorAlert(true);
         return;
       }
@@ -328,11 +330,11 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       } else if (error.response?.status === 400) {
         // Show error message from backend
         const errorMsg = error.response?.data?.Message || error.response?.data?.message || '';
-        setErrorMessage(errorMsg || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setErrorMessage(errorMsg || t('chat.expert.submitError'));
         setShowErrorAlert(true);
       } else {
 
-        setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setErrorMessage(error.message || t('chat.expert.submitError'));
         setShowErrorAlert(true);
       }
     } finally {
@@ -379,7 +381,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           {item.isAI ? (
             <View style={styles.aiContent}>
               <View style={styles.aiHeader}>
-                <Text style={styles.aiLabel}>Trợ lý AI</Text>
+                <Text style={styles.aiLabel}>{t('chat.ai.aiLabel')}</Text>
                 <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
               </View>
               <Text style={styles.aiMessageText}>{item.text}</Text>
@@ -395,7 +397,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                     style={styles.askExpertGradient}
                   >
                     <Icon name="shield-checkmark" size={16} color={colors.white} />
-                    <Text style={styles.askExpertText}>Hỏi chuyên gia xác nhận</Text>
+                    <Text style={styles.askExpertText}>{t('chat.expert.askExpert')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}
@@ -404,7 +406,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               {item.id !== "welcome" && sentToExpertIds.has(item.id) && (
                 <View style={styles.sentToExpertBadge}>
                   <Icon name="checkmark-circle" size={16} color={colors.success} />
-                  <Text style={styles.sentToExpertText}>Đã gửi cho chuyên gia</Text>
+                  <Text style={styles.sentToExpertText}>{t('chat.expert.sentToExpert')}</Text>
                 </View>
               )}
             </View>
@@ -465,13 +467,13 @@ const AIChatScreen = ({ navigation, route }: Props) => {
             </LinearGradient>
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{chatTitle}</Text>
-              <Text style={styles.headerStatus}>Đang tải...</Text>
+              <Text style={styles.headerStatus}>{t('chat.ai.loading')}</Text>
             </View>
           </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.aiPrimary} />
-          <Text style={styles.loadingText}>Đang tải cuộc trò chuyện...</Text>
+          <Text style={styles.loadingText}>{t('chat.ai.loadingChat')}</Text>
         </View>
       </LinearGradient>
     );
@@ -500,12 +502,12 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               <Icon name="sparkles" size={24} color={colors.white} />
             </LinearGradient>
             <View style={styles.headerInfo}>
-              <Text style={styles.headerName}>Trợ lý AI thú cưng</Text>
+              <Text style={styles.headerName}>{t('chat.ai.title')}</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? "đang nhập..." : tokenUsage
+                {isTyping ? t('chat.ai.typing') : tokenUsage
                   ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota
-                    ? "Đã đạt giới hạn (100%)"
-                    : `${tokenUsage.tokensUsed.toLocaleString()}/${tokenUsage.dailyQuota.toLocaleString()} tokens`)
+                    ? t('chat.ai.limitReached')
+                    : t('chat.ai.tokenUsage', { used: tokenUsage.tokensUsed.toLocaleString(), total: tokenUsage.dailyQuota.toLocaleString() }))
                   : "0/10,000 tokens"}
               </Text>
             </View>
@@ -568,7 +570,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
 
             <TextInput
               style={styles.input}
-              placeholder="Hỏi tôi bất cứ điều gì về chăm sóc mèo..."
+              placeholder={t('chat.ai.inputPlaceholder')}
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={setInputText}
@@ -636,16 +638,16 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               style={styles.modalBody}
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.modalTitle}>Yêu cầu chuyên gia xác nhận</Text>
+              <Text style={styles.modalTitle}>{t('chat.expert.modalTitle')}</Text>
               <Text style={styles.modalDescription}>
-                Nhập câu hỏi của bạn để chuyên gia thú y có thể hiểu rõ vấn đề và đưa ra lời khuyên chính xác nhất.
+                {t('chat.expert.modalDescription')}
               </Text>
 
               {/* AI Response - Full Display */}
               <View style={styles.aiResponseSection}>
                 <View style={styles.aiResponseHeader}>
                   <Icon name="sparkles" size={18} color={colors.aiPrimary} />
-                  <Text style={styles.aiResponseHeaderText}>Câu trả lời của AI</Text>
+                  <Text style={styles.aiResponseHeaderText}>{t('chat.expert.aiResponseHeader')}</Text>
                 </View>
                 <ScrollView style={styles.aiResponseScrollView} nestedScrollEnabled>
                   <Text style={styles.aiResponseFullText}>
@@ -657,14 +659,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               {/* Question Input */}
               <View style={styles.questionInputContainer}>
                 <Text style={styles.questionLabel}>
-                  Câu hỏi/thắc mắc của bạn về câu trả lời này <Text style={styles.required}>*</Text>
+                  {t('chat.expert.questionLabel')} <Text style={styles.required}>{t('chat.expert.required')}</Text>
                 </Text>
                 <Text style={styles.questionHint}>
-                  Hãy mô tả chi tiết vấn đề hoặc thắc mắc của bạn để chuyên gia có thể tư vấn chính xác
+                  {t('chat.expert.questionHint')}
                 </Text>
                 <TextInput
                   style={styles.questionInput}
-                  placeholder="Ví dụ: Mèo của tôi bị chảy nước mắt và hắt hơi liên tục. Có phải mèo bị cảm không? Tôi cần làm gì?"
+                  placeholder={t('chat.expert.questionPlaceholder')}
                   placeholderTextColor={colors.textLabel}
                   value={userQuestion}
                   onChangeText={setUserQuestion}
@@ -674,14 +676,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                   textAlignVertical="top"
                 />
                 <Text style={styles.characterCount}>
-                  {userQuestion.length}/500
+                  {t('chat.expert.charCount', { count: userQuestion.length })}
                 </Text>
               </View>
 
               <View style={styles.infoBox}>
                 <Icon name="information-circle" size={20} color="#4CAF50" />
                 <Text style={styles.infoText}>
-                  Chuyên gia sẽ xem xét câu hỏi và câu trả lời của AI, sau đó gửi phản hồi cho bạn qua thông báo.
+                  {t('chat.expert.infoText')}
                 </Text>
               </View>
             </ScrollView>
@@ -692,7 +694,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                 style={styles.modalCancelButton}
                 onPress={() => setShowQuestionModal(false)}
               >
-                <Text style={styles.modalCancelButtonText}>Hủy</Text>
+                <Text style={styles.modalCancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalConfirmButton, submittingExpert && styles.modalButtonDisabled]}
@@ -708,7 +710,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                   ) : (
                     <>
                       <Icon name="send" size={18} color={colors.white} />
-                      <Text style={styles.modalConfirmButtonText}>Gửi yêu cầu</Text>
+                      <Text style={styles.modalConfirmButtonText}>{t('chat.expert.submitButton')}</Text>
                     </>
                   )}
                 </LinearGradient>
@@ -722,9 +724,9 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       <CustomAlert
         visible={showSuccessAlert}
         type="success"
-        title="Đã gửi yêu cầu!"
-        message="Yêu cầu của bạn đã được gửi đến chuyên gia. Bạn sẽ nhận được thông báo khi họ phản hồi."
-        confirmText="Xem yêu cầu của tôi"
+        title={t('chat.expert.successTitle')}
+        message={t('chat.expert.successMessage')}
+        confirmText={t('chat.expert.viewRequests')}
         onClose={() => setShowSuccessAlert(false)}
         onConfirm={() => {
           setShowSuccessAlert(false);
@@ -736,9 +738,9 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       <CustomAlert
         visible={showErrorAlert}
         type="error"
-        title="Lỗi"
+        title={t('common.error')}
         message={errorMessage}
-        confirmText="Đóng"
+        confirmText={t('common.close')}
         onClose={() => setShowErrorAlert(false)}
       />
 

@@ -13,6 +13,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import { useTranslation } from "react-i18next";
 
 const { width } = Dimensions.get("window");
 
@@ -20,57 +21,61 @@ type Props = NativeStackScreenProps<RootStackParamList, "Premium">;
 
 interface Feature {
   icon: string;
-  title: string;
+  titleKey: string;
   free: string;
   premium: string;
 }
 
-const features: Feature[] = [
+const getFeatures = (t: any): Feature[] => [
   {
     icon: "heart",
-    title: "Gửi yêu cầu ghép đôi",
-    free: "10/ngày",
-    premium: "30/ngày",
+    titleKey: "payment.premium.features.matchRequests",
+    free: t("payment.premium.features.comparison.matchFree"),
+    premium: t("payment.premium.features.comparison.matchPremium"),
   },
   {
     icon: "chatbubbles",
-    title: "Chat với chuyên gia",
-    free: "5 tin nhắn/ngày",
-    premium: "15 tin nhắn/ngày",
+    titleKey: "payment.premium.features.expertChat",
+    free: t("payment.premium.features.comparison.expertChatFree"),
+    premium: t("payment.premium.features.comparison.expertChatPremium"),
   },
   {
     icon: "checkmark-done",
-    title: "Xác nhận từ chuyên gia",
-    free: "2/ngày",
-    premium: "10/ngày",
+    titleKey: "payment.premium.features.expertConfirmation",
+    free: t("payment.premium.features.comparison.expertConfirmFree"),
+    premium: t("payment.premium.features.comparison.expertConfirmPremium"),
   },
   {
     icon: "sparkles",
-    title: "Chat AI (Tokens)",
-    free: "10,000 tokens/ngày",
-    premium: "50,000 tokens/ngày",
+    titleKey: "payment.premium.features.aiTokens",
+    free: t("payment.premium.features.comparison.aiTokensFree"),
+    premium: t("payment.premium.features.comparison.aiTokensPremium"),
   },
   {
     icon: "shield-checkmark",
-    title: "Huy hiệu Premium",
-    free: "Không",
-    premium: "Có",
+    titleKey: "payment.premium.features.premiumBadge",
+    free: t("payment.premium.features.no"),
+    premium: t("payment.premium.features.yes"),
   },
 ];
 
-const pricingPlans = [
+const getPricingPlans = (t: any) => [
   {
     id: "1month",
-    duration: "1 Tháng",
+    duration: t("payment.premium.plans.month1"),
     price: "99,000₫",
-    pricePerMonth: "99,000₫/tháng",
+    pricePerMonth: `99,000₫${t("payment.premium.plans.perMonth")}`,
     savings: null,
     popular: true,
   },
 ];
 
 const PremiumScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [selectedPlan, setSelectedPlan] = useState("1month");
+  
+  const features = getFeatures(t);
+  const pricingPlans = getPricingPlans(t);
 
   const handleSubscribe = () => {
     const plan = pricingPlans.find((p) => p.id === selectedPlan);
@@ -115,13 +120,13 @@ const PremiumScreen = ({ navigation }: Props) => {
           >
             <Icon name="diamond" size={48} color="#fff" />
           </LinearGradient>
-          <Text style={styles.headerTitle}>Pawnder Premium</Text>
+          <Text style={styles.headerTitle}>{t("payment.premium.title")}</Text>
           <Text style={styles.headerSubtitle}>
-            Nâng cao trải nghiệm ghép đôi cho thú cưng của bạn
+            {t("payment.premium.subtitle")}
           </Text>
           <View style={styles.priceTag}>
-            <Text style={styles.priceAmount}>99,000₫</Text>
-            <Text style={styles.priceMonth}>/tháng</Text>
+            <Text style={styles.priceAmount}>{t("payment.premium.price")}</Text>
+            <Text style={styles.priceMonth}>{t("payment.premium.pricePerMonth")}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -132,7 +137,7 @@ const PremiumScreen = ({ navigation }: Props) => {
       >
         {/* Premium Benefits */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tính năng Premium</Text>
+          <Text style={styles.sectionTitle}>{t("payment.premium.sectionFeatures")}</Text>
 
           <View style={styles.benefitsGrid}>
             <View style={styles.benefitCard}>
@@ -143,8 +148,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="heart" size={28} color="#667eea" />
                 </View>
-                <Text style={styles.benefitTitle}>3x Lượt ghép đôi</Text>
-                <Text style={styles.benefitDesc}>30 lượt/ngày thay vì 10</Text>
+                <Text style={styles.benefitTitle}>{t("payment.premium.benefits.matchTitle")}</Text>
+                <Text style={styles.benefitDesc}>{t("payment.premium.benefits.matchDesc")}</Text>
               </LinearGradient>
             </View>
 
@@ -156,8 +161,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="chatbubbles" size={28} color="#f093fb" />
                 </View>
-                <Text style={styles.benefitTitle}>3x Chat chuyên gia</Text>
-                <Text style={styles.benefitDesc}>15 tin nhắn/ngày thay vì 5</Text>
+                <Text style={styles.benefitTitle}>{t("payment.premium.benefits.expertChatTitle")}</Text>
+                <Text style={styles.benefitDesc}>{t("payment.premium.benefits.expertChatDesc")}</Text>
               </LinearGradient>
             </View>
 
@@ -169,8 +174,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="sparkles" size={28} color="#4facfe" />
                 </View>
-                <Text style={styles.benefitTitle}>5x Tokens AI</Text>
-                <Text style={styles.benefitDesc}>50,000 tokens/ngày thay vì 10,000</Text>
+                <Text style={styles.benefitTitle}>{t("payment.premium.benefits.aiTokensTitle")}</Text>
+                <Text style={styles.benefitDesc}>{t("payment.premium.benefits.aiTokensDesc")}</Text>
               </LinearGradient>
             </View>
 
@@ -182,8 +187,8 @@ const PremiumScreen = ({ navigation }: Props) => {
                 <View style={styles.benefitIconCircle}>
                   <Icon name="shield-checkmark" size={28} color="#fa709a" />
                 </View>
-                <Text style={styles.benefitTitle}>Huy hiệu Premium</Text>
-                <Text style={styles.benefitDesc}>Nổi bật với huy hiệu đặc biệt</Text>
+                <Text style={styles.benefitTitle}>{t("payment.premium.benefits.badgeTitle")}</Text>
+                <Text style={styles.benefitDesc}>{t("payment.premium.benefits.badgeDesc")}</Text>
               </LinearGradient>
             </View>
           </View>
@@ -191,16 +196,16 @@ const PremiumScreen = ({ navigation }: Props) => {
 
         {/* Feature Details */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Những gì bạn nhận được</Text>
+          <Text style={styles.sectionTitle}>{t("payment.premium.sectionBenefits")}</Text>
 
           <View style={styles.featureDetailCard}>
             <View style={[styles.featureDetailIcon, { backgroundColor: "#667eea15" }]}>
               <Icon name="heart" size={28} color="#667eea" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Tăng 3 lần lượt ghép đôi</Text>
+              <Text style={styles.featureDetailTitle}>{t("payment.premium.details.matchTitle")}</Text>
               <Text style={styles.featureDetailDesc}>
-                Gửi 30 yêu cầu ghép đôi mỗi ngày thay vì chỉ 10 lượt
+                {t("payment.premium.details.matchDesc")}
               </Text>
             </View>
           </View>
@@ -210,9 +215,9 @@ const PremiumScreen = ({ navigation }: Props) => {
               <Icon name="chatbubbles" size={28} color="#f093fb" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Tăng 3 lần chat chuyên gia</Text>
+              <Text style={styles.featureDetailTitle}>{t("payment.premium.details.expertChatTitle")}</Text>
               <Text style={styles.featureDetailDesc}>
-                Chat với chuyên gia 15 tin nhắn/ngày thay vì chỉ 5 tin nhắn
+                {t("payment.premium.details.expertChatDesc")}
               </Text>
             </View>
           </View>
@@ -222,9 +227,9 @@ const PremiumScreen = ({ navigation }: Props) => {
               <Icon name="checkmark-done" size={28} color="#4facfe" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Tăng 5 lần xác nhận chuyên gia</Text>
+              <Text style={styles.featureDetailTitle}>{t("payment.premium.details.expertConfirmTitle")}</Text>
               <Text style={styles.featureDetailDesc}>
-                Nhận 10 xác nhận từ chuyên gia mỗi ngày thay vì chỉ 2 lần
+                {t("payment.premium.details.expertConfirmDesc")}
               </Text>
             </View>
           </View>
@@ -234,9 +239,9 @@ const PremiumScreen = ({ navigation }: Props) => {
               <Icon name="sparkles" size={28} color="#fa709a" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Tăng 5 lần tokens AI</Text>
+              <Text style={styles.featureDetailTitle}>{t("payment.premium.details.aiTokensTitle")}</Text>
               <Text style={styles.featureDetailDesc}>
-                Sử dụng 50,000 tokens AI mỗi ngày thay vì chỉ 10,000 tokens
+                {t("payment.premium.details.aiTokensDesc")}
               </Text>
             </View>
           </View>
@@ -246,9 +251,9 @@ const PremiumScreen = ({ navigation }: Props) => {
               <Icon name="shield-checkmark" size={28} color="#667eea" />
             </View>
             <View style={styles.featureDetailContent}>
-              <Text style={styles.featureDetailTitle}>Huy hiệu Premium</Text>
+              <Text style={styles.featureDetailTitle}>{t("payment.premium.details.badgeTitle")}</Text>
               <Text style={styles.featureDetailDesc}>
-                Nhận huy hiệu Premium để nổi bật và tăng uy tín
+                {t("payment.premium.details.badgeDesc")}
               </Text>
             </View>
           </View>
@@ -256,15 +261,15 @@ const PremiumScreen = ({ navigation }: Props) => {
 
         {/* Feature Comparison */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Miễn phí vs Premium</Text>
+          <Text style={styles.sectionTitle}>{t("payment.premium.sectionComparison")}</Text>
 
           <View style={styles.comparisonTable}>
             <View style={styles.tableHeader}>
               <View style={styles.featureColumn}>
-                <Text style={styles.tableHeaderText}>Tính năng</Text>
+                <Text style={styles.tableHeaderText}>{t("payment.premium.comparison.feature")}</Text>
               </View>
               <View style={styles.planColumn}>
-                <Text style={styles.tableHeaderText}>Miễn phí</Text>
+                <Text style={styles.tableHeaderText}>{t("payment.premium.comparison.free")}</Text>
               </View>
               <View style={styles.planColumn}>
                 <LinearGradient
@@ -272,7 +277,7 @@ const PremiumScreen = ({ navigation }: Props) => {
                   style={styles.premiumHeaderGradient}
                 >
                   <Icon name="diamond" size={16} color="#fff" />
-                  <Text style={styles.premiumHeaderText}>Premium</Text>
+                  <Text style={styles.premiumHeaderText}>{t("payment.premium.comparison.premium")}</Text>
                 </LinearGradient>
               </View>
             </View>
@@ -285,7 +290,7 @@ const PremiumScreen = ({ navigation }: Props) => {
                     size={18}
                     color={colors.textDark}
                   />
-                  <Text style={styles.featureText}>{feature.title}</Text>
+                  <Text style={styles.featureText}>{t(feature.titleKey)}</Text>
                 </View>
                 <View style={styles.planColumn}>
                   <Text style={[
@@ -310,7 +315,7 @@ const PremiumScreen = ({ navigation }: Props) => {
 
         {/* Pricing Plans */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Chọn gói của bạn</Text>
+          <Text style={styles.sectionTitle}>{t("payment.premium.sectionChoosePlan")}</Text>
 
           {pricingPlans.map((plan) => (
             <TouchableOpacity
@@ -327,7 +332,7 @@ const PremiumScreen = ({ navigation }: Props) => {
                     colors={["#667eea", "#764ba2"]}
                     style={styles.popularGradient}
                   >
-                    <Text style={styles.popularText}>PHỔ BIẾN NHẤT</Text>
+                    <Text style={styles.popularText}>{t("payment.premium.plans.mostPopular")}</Text>
                   </LinearGradient>
                 </View>
               )}
@@ -373,12 +378,12 @@ const PremiumScreen = ({ navigation }: Props) => {
               end={{ x: 1, y: 0 }}
             >
               <Icon name="diamond" size={24} color="#fff" />
-              <Text style={styles.subscribeText}>Nâng cấp Premium ngay</Text>
+              <Text style={styles.subscribeText}>{t("payment.premium.subscribeButton")}</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <Text style={styles.disclaimer}>
-            Hủy bất cứ lúc nào • Thanh toán an toàn • Kích hoạt ngay lập tức
+            {t("payment.premium.disclaimer")}
           </Text>
         </View>
 

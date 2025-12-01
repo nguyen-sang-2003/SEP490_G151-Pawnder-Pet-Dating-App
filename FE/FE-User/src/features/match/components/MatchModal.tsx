@@ -11,6 +11,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 import { colors, shadows } from '../../../theme';
 
 const { width, height } = Dimensions.get('window');
@@ -38,6 +39,8 @@ const MatchModal: React.FC<MatchModalProps> = ({
   onStartChat,
   onClose,
 }) => {
+  const { t } = useTranslation();
+  
   return (
     <Modal
       visible={visible}
@@ -54,10 +57,10 @@ const MatchModal: React.FC<MatchModalProps> = ({
             <Icon name="heart" size={80} color={colors.white} />
           </View>
           
-          <Text style={styles.matchTitle}>Ghép đôi thành công</Text>
+          <Text style={styles.matchTitle}>{t('match.title')}</Text>
           
           <Text style={styles.matchText}>
-            Bạn và {otherUserName} đã thích thú cưng của nhau
+            {t('match.subtitle', { name: otherUserName })}
           </Text>
 
           {petPhotoUrl && petPhotoUrl !== "null" && petPhotoUrl !== "" && (
@@ -80,7 +83,7 @@ const MatchModal: React.FC<MatchModalProps> = ({
             activeOpacity={0.9}
           >
             <Icon name="chatbubble" size={20} color={colors.primary} />
-            <Text style={styles.sendMessageText}>Gửi tin nhắn</Text>
+            <Text style={styles.sendMessageText}>{t('match.sendMessage')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -88,7 +91,7 @@ const MatchModal: React.FC<MatchModalProps> = ({
             onPress={onClose}
             activeOpacity={0.8}
           >
-            <Text style={styles.keepSwipingText}>Tiếp tục duyệt</Text>
+            <Text style={styles.keepSwipingText}>{t('match.keepSwiping')}</Text>
           </TouchableOpacity>
         </LinearGradient>
       </View>

@@ -14,6 +14,7 @@ import {
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
+import { useTranslation } from "react-i18next";
 import { colors, gradients, radius, shadows } from "../../../theme";
 
 const { width, height } = Dimensions.get("window");
@@ -29,66 +30,66 @@ interface ReportMessageModalProps {
 // Report reasons based on popular dating apps (Tinder, Bumble, Hinge)
 const REPORT_REASONS = [
   {
-    id: "inappropriate_content",
+    id: "inappropriateContent",
     icon: "image-outline",
-    title: "Nội dung không phù hợp",
-    description: "Hình ảnh hoặc nội dung không phù hợp",
+    titleKey: "report.modal.reasons.inappropriateContent.title",
+    descriptionKey: "report.modal.reasons.inappropriateContent.description",
     color: "#FF6B9D",
   },
   {
-    id: "spam_scam",
+    id: "spamScam",
     icon: "warning-outline",
-    title: "Spam hoặc lừa đảo",
-    description: "Tin nhắn quảng cáo, lừa đảo",
+    titleKey: "report.modal.reasons.spamScam.title",
+    descriptionKey: "report.modal.reasons.spamScam.description",
     color: "#FFA726",
   },
   {
     id: "harassment",
     icon: "sad-outline",
-    title: "Quấy rối hoặc bắt nạt",
-    description: "Hành vi quấy rối, bắt nạt",
+    titleKey: "report.modal.reasons.harassment.title",
+    descriptionKey: "report.modal.reasons.harassment.description",
     color: "#EF5350",
   },
   {
-    id: "inappropriate_messages",
+    id: "inappropriateMessages",
     icon: "chatbox-ellipses-outline",
-    title: "Tin nhắn khiếm nhã",
-    description: "Tin nhắn tình dục, phản cảm",
+    titleKey: "report.modal.reasons.inappropriateMessages.title",
+    descriptionKey: "report.modal.reasons.inappropriateMessages.description",
     color: "#E91E63",
   },
   {
-    id: "hate_speech",
+    id: "hateSpeech",
     icon: "alert-circle-outline",
-    title: "Ngôn từ căm thù",
-    description: "Phân biệt chủng tộc, tôn giáo",
+    titleKey: "report.modal.reasons.hateSpeech.title",
+    descriptionKey: "report.modal.reasons.hateSpeech.description",
     color: "#F44336",
   },
   {
-    id: "violence_threats",
+    id: "violenceThreats",
     icon: "flash-outline",
-    title: "Bạo lực hoặc đe dọa",
-    description: "Đe dọa, khuyến khích bạo lực",
+    titleKey: "report.modal.reasons.violenceThreats.title",
+    descriptionKey: "report.modal.reasons.violenceThreats.description",
     color: "#D32F2F",
   },
   {
-    id: "fake_profile",
+    id: "fakeProfile",
     icon: "person-remove-outline",
-    title: "Hồ sơ giả mạo",
-    description: "Giả danh người khác",
+    titleKey: "report.modal.reasons.fakeProfile.title",
+    descriptionKey: "report.modal.reasons.fakeProfile.description",
     color: "#9C27B0",
   },
   {
     id: "underage",
     icon: "shield-outline",
-    title: "Người dùng chưa đủ tuổi",
-    description: "Nghi ngờ dưới 18 tuổi",
+    titleKey: "report.modal.reasons.underage.title",
+    descriptionKey: "report.modal.reasons.underage.description",
     color: "#673AB7",
   },
   {
     id: "other",
     icon: "ellipsis-horizontal-circle-outline",
-    title: "Lý do khác",
-    description: "Mô tả lý do của bạn",
+    titleKey: "report.modal.reasons.other.title",
+    descriptionKey: "report.modal.reasons.other.description",
     color: "#757575",
   },
 ];
@@ -100,6 +101,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
   onSubmit,
   userName,
 }) => {
+  const { t } = useTranslation();
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [otherReason, setOtherReason] = useState("");
   const [step, setStep] = useState<"select" | "confirm">("select");
@@ -123,11 +125,11 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
 
     // Get the reason text
     const reason = REPORT_REASONS.find((r) => r.id === selectedReason);
-    let finalReason = reason?.title || "";
+    let finalReason = reason ? t(reason.titleKey) : "";
 
     // If "other" is selected, use the custom text
     if (selectedReason === "other" && otherReason.trim()) {
-      finalReason = `${reason?.title}: ${otherReason.trim()}`;
+      finalReason = `${finalReason}: ${otherReason.trim()}`;
     }
 
     onSubmit(finalReason);
@@ -136,7 +138,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
     setSelectedReason(null);
     setOtherReason("");
     setStep("select");
-  }, [selectedReason, otherReason, onSubmit]);
+  }, [selectedReason, otherReason, onSubmit, t]);
 
   const handleClose = useCallback(() => {
     setSelectedReason(null);
@@ -176,7 +178,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                 style={styles.headerIcon}
               />
               <Text style={styles.headerTitle}>
-                {step === "select" ? "Báo cáo tin nhắn" : "Xác nhận báo cáo"}
+                {step === "select" ? t('report.modal.title') : t('report.modal.confirmTitle')}
               </Text>
             </View>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
@@ -199,12 +201,12 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                     color={colors.primary}
                   />
                   <Text style={styles.infoText}>
-                    Báo cáo sẽ được xem xét và giữ bí mật. Người dùng này sẽ bị chặn sau khi bạn báo cáo.
+                    {t('report.modal.infoBanner')}
                   </Text>
                 </View>
 
                 <Text style={styles.sectionTitle}>
-                  Chọn lý do báo cáo tin nhắn từ {userName}:
+                  {t('report.modal.selectReason', { name: userName })}
                 </Text>
 
                 {REPORT_REASONS.map((reason) => (
@@ -231,9 +233,9 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                       />
                     </View>
                     <View style={styles.reasonTextContainer}>
-                      <Text style={styles.reasonTitle}>{reason.title}</Text>
+                      <Text style={styles.reasonTitle}>{t(reason.titleKey)}</Text>
                       <Text style={styles.reasonDescription}>
-                        {reason.description}
+                        {t(reason.descriptionKey)}
                       </Text>
                     </View>
                     <View style={styles.radioButton}>
@@ -248,11 +250,11 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                 {selectedReason === "other" && (
                   <View style={styles.otherReasonContainer}>
                     <Text style={styles.otherReasonLabel}>
-                      Vui lòng mô tả chi tiết lý do:
+                      {t('report.modal.otherReasonLabel')}
                     </Text>
                     <TextInput
                       style={styles.otherReasonInput}
-                      placeholder="Nhập lý do của bạn..."
+                      placeholder={t('report.modal.otherReasonPlaceholder')}
                       placeholderTextColor={colors.textLabel}
                       value={otherReason}
                       onChangeText={setOtherReason}
@@ -292,7 +294,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                     }
                     style={styles.nextButtonGradient}
                   >
-                    <Text style={styles.nextButtonText}>Tiếp tục</Text>
+                    <Text style={styles.nextButtonText}>{t('report.modal.nextButton')}</Text>
                     <Icon name="arrow-forward" size={20} color={colors.white} />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -314,12 +316,12 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                     style={styles.confirmIcon}
                   />
                   <Text style={styles.confirmTitle}>
-                    Xác nhận báo cáo tin nhắn
+                    {t('report.modal.confirmTitle')}
                   </Text>
                   <Text style={styles.confirmMessage}>
-                    Bạn đang báo cáo tin nhắn từ{" "}
-                    <Text style={styles.confirmUserName}>{userName}</Text> với
-                    lý do:
+                    {t('report.modal.confirmMessage')}{" "}
+                    <Text style={styles.confirmUserName}>{userName}</Text>{" "}
+                    {t('report.modal.confirmReason')}
                   </Text>
 
                   <View style={styles.selectedReasonBox}>
@@ -341,7 +343,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                           />
                         </View>
                         <Text style={styles.selectedReasonTitle}>
-                          {selectedReasonData.title}
+                          {t(selectedReasonData.titleKey)}
                         </Text>
                         {selectedReason === "other" && otherReason.trim() && (
                           <Text style={styles.selectedReasonDescription}>
@@ -355,7 +357,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                   <View style={styles.warningBox}>
                     <Icon name="shield-outline" size={18} color="#FFA726" />
                     <Text style={styles.warningText}>
-                      Sau khi báo cáo, {userName} sẽ bị chặn tự động và cuộc trò chuyện sẽ bị ẩn. Hành động này không thể hoàn tác.
+                      {t('report.modal.warningMessage', { name: userName })}
                     </Text>
                   </View>
                 </View>
@@ -367,7 +369,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                   style={styles.cancelButton}
                   onPress={handleBack}
                 >
-                  <Text style={styles.cancelButtonText}>Quay lại</Text>
+                  <Text style={styles.cancelButtonText}>{t('report.modal.backButton')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -379,7 +381,7 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
                     style={styles.confirmButtonGradient}
                   >
                     <Icon name="flag" size={20} color={colors.white} />
-                    <Text style={styles.confirmButtonText}>Gửi báo cáo</Text>
+                    <Text style={styles.confirmButtonText}>{t('report.modal.submitButton')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

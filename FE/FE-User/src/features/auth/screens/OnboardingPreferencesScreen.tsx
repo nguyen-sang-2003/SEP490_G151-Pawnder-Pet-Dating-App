@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import {
@@ -35,6 +36,7 @@ interface ActiveFilter {
 }
 
 const OnboardingPreferencesScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -57,7 +59,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
       const userIdStr = await getItem('userId');
       if (!userIdStr) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        showAlert({ type: 'error', title: t('auth.onboarding.error'), message: t('auth.onboarding.userNotFound') });
         return;
       }
 
@@ -69,7 +71,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       console.log('📋 Loaded attributes:', attrs);
     } catch (error: any) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải dữ liệu' });
+      showAlert({ type: 'error', title: t('auth.onboarding.error'), message: t('auth.onboarding.loadFailed') });
     } finally {
       setLoading(false);
     }
@@ -130,7 +132,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
   const handleFinish = async () => {
     if (!userId) {
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+      showAlert({ type: 'error', title: t('auth.onboarding.error'), message: t('auth.onboarding.userNotFound') });
       return;
     }
 
@@ -175,10 +177,10 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Hoàn tất',
+        title: t('auth.onboarding.complete'),
         message: preferences.length > 0
-          ? `Đã lưu ${preferences.length} sở thích. Sẵn sàng tìm bạn đồng hành!`
-          : 'Bạn có thể cập nhật sở thích sau. Sẵn sàng khám phá!',
+          ? t('auth.onboarding.completeWithPrefs', { count: preferences.length })
+          : t('auth.onboarding.completeWithoutPrefs'),
         onClose: () => {
           navigation.replace("Home");
         },
@@ -187,8 +189,8 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.response?.data?.message || 'Không thể lưu sở thích'
+        title: t('auth.onboarding.error'),
+        message: error.response?.data?.message || t('auth.onboarding.saveFailed')
       });
     } finally {
       setSaving(false);
@@ -233,7 +235,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <Text style={styles.loadingText}>{t('auth.onboarding.loading')}</Text>
         </View>
       );
     }
@@ -259,8 +261,8 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
     return (
       <View style={styles.stepContainer}>
         <Icon name="male-female" size={60} color={colors.primary} style={styles.stepIcon} />
-        <Text style={styles.stepTitle}>Giới tính bạn mong muốn?</Text>
-        <Text style={styles.stepSubtitle}>Chọn giới tính thú cưng bạn muốn tìm</Text>
+        <Text style={styles.stepTitle}>{t('auth.onboarding.steps.gender.title')}</Text>
+        <Text style={styles.stepSubtitle}>{t('auth.onboarding.steps.gender.subtitle')}</Text>
 
         <View style={styles.optionsContainer}>
           {genderAttr.Options.map((option) => {
@@ -309,8 +311,8 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.stepContainer}>
           <Icon name="color-palette" size={60} color={colors.primary} style={styles.stepIcon} />
-          <Text style={styles.stepTitle}>Ngoại hình bạn thích?</Text>
-          <Text style={styles.stepSubtitle}>Chọn các đặc điểm ngoại hình bạn ưa thích</Text>
+          <Text style={styles.stepTitle}>{t('auth.onboarding.steps.appearance.title')}</Text>
+          <Text style={styles.stepSubtitle}>{t('auth.onboarding.steps.appearance.subtitle')}</Text>
 
           {appearanceAttrs.map((attr) => (
             <View key={attr.AttributeId} style={styles.attributeSection}>
@@ -356,15 +358,15 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.stepContainer}>
           <Icon name="resize" size={60} color={colors.primary} style={styles.stepIcon} />
-          <Text style={styles.stepTitle}>Kích thước mong muốn?</Text>
-          <Text style={styles.stepSubtitle}>Chọn khoảng cân nặng và chiều cao</Text>
+          <Text style={styles.stepTitle}>{t('auth.onboarding.steps.size.title')}</Text>
+          <Text style={styles.stepSubtitle}>{t('auth.onboarding.steps.size.subtitle')}</Text>
 
           {weightAttr && (
             <View style={styles.rangeSection}>
-              <Text style={styles.rangeLabel}>Cân nặng (kg)</Text>
+              <Text style={styles.rangeLabel}>{t('auth.onboarding.steps.size.weight')}</Text>
               <View style={styles.rangeInputs}>
                 <View style={styles.rangeInputContainer}>
-                  <Text style={styles.rangeInputLabel}>Từ</Text>
+                  <Text style={styles.rangeInputLabel}>{t('auth.onboarding.steps.size.from')}</Text>
                   <View style={styles.rangeInputWrapper}>
                     <TouchableOpacity
                       onPress={() => {
@@ -393,7 +395,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
                 <Text style={styles.rangeSeparator}>→</Text>
 
                 <View style={styles.rangeInputContainer}>
-                  <Text style={styles.rangeInputLabel}>Đến</Text>
+                  <Text style={styles.rangeInputLabel}>{t('auth.onboarding.steps.size.to')}</Text>
                   <View style={styles.rangeInputWrapper}>
                     <TouchableOpacity
                       onPress={() => {
@@ -424,10 +426,10 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
           {heightAttr && (
             <View style={styles.rangeSection}>
-              <Text style={styles.rangeLabel}>Chiều cao (cm)</Text>
+              <Text style={styles.rangeLabel}>{t('auth.onboarding.steps.size.height')}</Text>
               <View style={styles.rangeInputs}>
                 <View style={styles.rangeInputContainer}>
-                  <Text style={styles.rangeInputLabel}>Từ</Text>
+                  <Text style={styles.rangeInputLabel}>{t('auth.onboarding.steps.size.from')}</Text>
                   <View style={styles.rangeInputWrapper}>
                     <TouchableOpacity
                       onPress={() => {
@@ -456,7 +458,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
                 <Text style={styles.rangeSeparator}>→</Text>
 
                 <View style={styles.rangeInputContainer}>
-                  <Text style={styles.rangeInputLabel}>Đến</Text>
+                  <Text style={styles.rangeInputLabel}>{t('auth.onboarding.steps.size.to')}</Text>
                   <View style={styles.rangeInputWrapper}>
                     <TouchableOpacity
                       onPress={() => {
@@ -499,8 +501,8 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
     return (
       <View style={styles.stepContainer}>
         <Icon name="location" size={60} color={colors.primary} style={styles.stepIcon} />
-        <Text style={styles.stepTitle}>Khoảng cách tối đa?</Text>
-        <Text style={styles.stepSubtitle}>Bạn sẵn sàng đi bao xa để gặp bạn đồng hành?</Text>
+        <Text style={styles.stepTitle}>{t('auth.onboarding.steps.distance.title')}</Text>
+        <Text style={styles.stepSubtitle}>{t('auth.onboarding.steps.distance.subtitle')}</Text>
 
         <View style={styles.distanceOptionsContainer}>
           {distances.map((distance) => {
@@ -541,9 +543,9 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-          <Text style={styles.skipButtonText}>Bỏ qua</Text>
+          <Text style={styles.skipButtonText}>{t('auth.onboarding.skip')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thiết lập sở thích</Text>
+        <Text style={styles.headerTitle}>{t('auth.onboarding.title')}</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -565,7 +567,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
               activeOpacity={0.7}
             >
               <Icon name="arrow-back" size={24} color={colors.primary} />
-              <Text style={styles.backButtonText}>Quay lại</Text>
+              <Text style={styles.backButtonText}>{t('auth.onboarding.back')}</Text>
             </TouchableOpacity>
           )}
 
@@ -586,7 +588,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
               ) : (
                 <>
                   <Text style={styles.nextButtonText}>
-                    {currentStep === totalSteps ? 'Hoàn tất' : 'Tiếp tục'}
+                    {currentStep === totalSteps ? t('auth.onboarding.finish') : t('auth.onboarding.continue')}
                   </Text>
                   <Icon name={currentStep === totalSteps ? "checkmark" : "arrow-forward"} size={24} color="#FFF" />
                 </>

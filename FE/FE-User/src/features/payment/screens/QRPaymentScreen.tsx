@@ -17,10 +17,12 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { generatePaymentQR, createPaymentHistory } from "../api/paymentApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTranslation } from "react-i18next";
 
 type Props = NativeStackScreenProps<RootStackParamList, "QRPayment">;
 
 const QRPaymentScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [qrCodeUri, setQrCodeUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +62,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       reader.readAsDataURL(qrBlob);
     } catch (err) {
 
-      setError("Không thể tạo mã QR. Vui lòng thử lại.");
+      setError(t("payment.qr.generateError"));
       setLoading(false);
     }
   };
@@ -76,14 +78,14 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       // Get userId from AsyncStorage
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
+        Alert.alert(t("payment.qr.error.title"), t("payment.qr.error.userNotFound"));
         setProcessing(false);
         return;
       }
 
       const userId = parseInt(userIdStr);
       if (!userId || isNaN(userId)) {
-        Alert.alert("Lỗi", "Thông tin người dùng không hợp lệ.");
+        Alert.alert(t("payment.qr.error.title"), t("payment.qr.error.invalidUser"));
         setProcessing(false);
         return;
       }
@@ -110,11 +112,11 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       if (response.success) {
         // Show success alert
         Alert.alert(
-          "Thanh toán thành công",
-          `Bạn đã nâng cấp lên ${planName}!\n\nThời hạn: ${duration}\nCảm ơn bạn đã tin tưởng sử dụng dịch vụ!`,
+          t("payment.qr.success.title"),
+          t("payment.qr.success.message", { planName, duration }),
           [
             {
-              text: "Tuyệt vời!",
+              text: t("payment.qr.success.button"),
               onPress: () => {
                 // Navigate back to home
                 navigation.reset({
@@ -126,14 +128,14 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
           ]
         );
       } else {
-        Alert.alert("Lỗi", "Không thể hoàn tất thanh toán. Vui lòng thử lại.");
+        Alert.alert(t("payment.qr.error.title"), t("payment.qr.error.paymentFailed"));
       }
     } catch (err: any) {
       setProcessing(false);
 
       Alert.alert(
-        "Lỗi thanh toán",
-        err.response?.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau."
+        t("payment.qr.error.paymentError"),
+        err.response?.data?.message || t("payment.qr.error.genericError")
       );
     }
   };
@@ -153,7 +155,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thanh toán</Text>
+        <Text style={styles.headerTitle}>{t("payment.qr.title")}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -165,33 +167,33 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         {/* Payment Info Card */}
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Gói dịch vụ</Text>
+            <Text style={styles.infoLabel}>{t("payment.qr.planLabel")}</Text>
             <Text style={styles.infoValue}>{planName}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Thời hạn</Text>
+            <Text style={styles.infoLabel}>{t("payment.qr.durationLabel")}</Text>
             <Text style={styles.infoValue}>{duration}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Số tiền</Text>
+            <Text style={styles.infoLabel}>{t("payment.qr.amountLabel")}</Text>
             <Text style={styles.amountValue}>{amount.toLocaleString('vi-VN')}₫</Text>
           </View>
         </View>
 
         {/* QR Code Section */}
         <View style={styles.qrSection}>
-          <Text style={styles.qrTitle}>Quét mã QR để thanh toán</Text>
+          <Text style={styles.qrTitle}>{t("payment.qr.scanTitle")}</Text>
           <Text style={styles.qrSubtitle}>
-            Mở ứng dụng ngân hàng và quét mã QR bên dưới
+            {t("payment.qr.scanSubtitle")}
           </Text>
 
           <View style={styles.qrContainer}>
             {loading ? (
               <View style={styles.qrLoading}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Đang tạo mã QR...</Text>
+                <Text style={styles.loadingText}>{t("payment.qr.generating")}</Text>
               </View>
             ) : error ? (
               <View style={styles.qrError}>
@@ -201,7 +203,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
                   style={styles.retryButton}
                   onPress={handleRetry}
                 >
-                  <Text style={styles.retryText}>Thử lại</Text>
+                  <Text style={styles.retryText}>{t("payment.qr.retry")}</Text>
                 </TouchableOpacity>
               </View>
             ) : qrCodeUri ? (
@@ -221,7 +223,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
               <Text style={styles.stepText}>1</Text>
             </View>
             <Text style={styles.instructionText}>
-              Mở ứng dụng ngân hàng của bạn
+              {t("payment.qr.instructions.step1")}
             </Text>
           </View>
 
@@ -230,7 +232,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
               <Text style={styles.stepText}>2</Text>
             </View>
             <Text style={styles.instructionText}>
-              Chọn chức năng quét mã QR
+              {t("payment.qr.instructions.step2")}
             </Text>
           </View>
 
@@ -239,7 +241,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
               <Text style={styles.stepText}>3</Text>
             </View>
             <Text style={styles.instructionText}>
-              Quét mã QR và xác nhận thanh toán
+              {t("payment.qr.instructions.step3")}
             </Text>
           </View>
         </View>
@@ -257,11 +259,11 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
             {processing ? (
               <>
                 <ActivityIndicator size="small" color={colors.white} />
-                <Text style={styles.doneText}>Đang xử lý...</Text>
+                <Text style={styles.doneText}>{t("payment.qr.processing")}</Text>
               </>
             ) : (
               <>
-                <Text style={styles.doneText}>Đã thanh toán</Text>
+                <Text style={styles.doneText}>{t("payment.qr.doneButton")}</Text>
                 <Icon name="checkmark-circle" size={24} color={colors.white} />
               </>
             )}
@@ -269,7 +271,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
-          Giao dịch sẽ được xử lý trong vòng 5-10 phút
+          {t("payment.qr.disclaimer")}
         </Text>
       </ScrollView>
     </LinearGradient>

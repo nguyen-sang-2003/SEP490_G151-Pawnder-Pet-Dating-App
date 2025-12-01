@@ -17,6 +17,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -52,6 +53,7 @@ interface LikeCat {
 }
 
 const FavoriteScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const activePetId = useSelector(selectActivePetId); // Get current active pet ID
   const [pets, setPets] = useState<LikeCat[]>([]);
@@ -459,7 +461,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     end={{ x: 1, y: 1 }}
                   >
                     <Icon name="heart" size={14} color={colors.white} />
-                    <Text style={styles.matchBadgeText}>Ghép đôi!</Text>
+                    <Text style={styles.matchBadgeText}>{t('favorite.card.matched')}</Text>
                   </LinearGradient>
                 </View>
               )}
@@ -488,7 +490,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 </View>
                 <View style={styles.metaRow}>
                   <Icon name="paw" size={16} color={colors.white} />
-                  <Text style={styles.metaText}>{item.age ? `${item.age} tuổi` : 'Không rõ'} • {item.breed || 'Không rõ'}</Text>
+                  <Text style={styles.metaText}>{item.age ? t('favorite.card.age', { age: item.age }) : t('favorite.card.unknownAge')} • {item.breed || t('favorite.card.unknownBreed')}</Text>
                 </View>
                 <View style={styles.ownerRow}>
                   <Icon name="person-outline" size={16} color={colors.white} />
@@ -518,7 +520,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     end={{ x: 1, y: 1 }}
                   >
                     <Icon name="chatbubble" size={25} color={colors.white} />
-                    <Text style={styles.actionTextWhite}>Gửi tin nhắn</Text>
+                    <Text style={styles.actionTextWhite}>{t('favorite.actions.sendMessage')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -531,7 +533,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   activeOpacity={0.8}
                 >
                   <Icon name="close-circle" size={20} color="#FF6B6B" />
-                  <Text style={styles.actionTextDanger}>Hủy ghép đôi</Text>
+                  <Text style={styles.actionTextDanger}>{t('favorite.actions.unmatch')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -592,14 +594,14 @@ const FavoriteScreen = ({ navigation }: Props) => {
               <Icon name="heart" size={22} color={colors.white} />
             </LinearGradient>
             <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>Yêu thích</Text>
-              <Text style={styles.headerSubtitle}>Thú cưng đã thích bạn</Text>
+              <Text style={styles.headerTitle}>{t('favorite.title')}</Text>
+              <Text style={styles.headerSubtitle}>{t('favorite.subtitle')}</Text>
             </View>
           </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#EF476F" />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <Text style={styles.loadingText}>{t('favorite.loading')}</Text>
         </View>
         <BottomNav active="Favorite" />
       </View>
@@ -627,8 +629,8 @@ const FavoriteScreen = ({ navigation }: Props) => {
               <Icon name="heart" size={24} color={colors.white} />
             </LinearGradient>
             <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>Favorites</Text>
-              <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+              <Text style={styles.headerTitle}>{t('favorite.title')}</Text>
+              <Text style={styles.headerSubtitle}>{t('favorite.subtitle')}</Text>
             </View>
           </View>
         </View>
@@ -653,7 +655,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 styles.tabText,
                 activeTab === 'likes' && styles.tabTextActive
               ]}>
-                Lượt thích ({pets.filter(p => !p.isMatch).length})
+                {t('favorite.tabs.likesCount', { count: pets.filter(p => !p.isMatch).length })}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -676,7 +678,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 styles.tabText,
                 activeTab === 'matches' && styles.tabTextActive
               ]}>
-                Ghép đôi ({pets.filter(p => p.isMatch).length})
+                {t('favorite.tabs.matchesCount', { count: pets.filter(p => p.isMatch).length })}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -703,12 +705,12 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 />
               </LinearGradient>
               <Text style={styles.emptyTitle}>
-                {activeTab === 'likes' ? 'Chưa có lượt thích' : 'Chưa có ghép đôi'}
+                {activeTab === 'likes' ? t('favorite.empty.likes.title') : t('favorite.empty.matches.title')}
               </Text>
               <Text style={styles.emptyText}>
                 {activeTab === 'likes'
-                  ? "Khi thú cưng khác thích bạn, chúng sẽ xuất hiện ở đây.\nTiếp tục vuốt để tìm cặp đôi hoàn hảo!"
-                  : "Khi bạn ghép đôi với ai đó, họ sẽ xuất hiện ở đây.\nBắt đầu thích thú cưng để tạo ghép đôi!"
+                  ? t('favorite.empty.likes.message')
+                  : t('favorite.empty.matches.message')
                 }
               </Text>
               <TouchableOpacity
@@ -721,7 +723,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   style={styles.emptyButtonGradient}
                 >
                   <Icon name="paw" size={20} color={colors.white} />
-                  <Text style={styles.emptyButtonText}>Bắt đầu vuốt</Text>
+                  <Text style={styles.emptyButtonText}>{t('favorite.startSwiping')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View >

@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getBlockedUsers, unblockUser } from "../api/blockApi";
@@ -30,6 +31,7 @@ interface BlockedUser {
 }
 
 const BlockedUsersScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
@@ -46,7 +48,7 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
       setLoading(true);
       const currentUserIdStr = await AsyncStorage.getItem('userId');
       if (!currentUserIdStr) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        showAlert({ type: 'error', title: t('alerts.error'), message: t('report.blocked.errors.userNotFound') });
         return;
       }
       const currentUserId = parseInt(currentUserIdStr, 10);
@@ -57,7 +59,7 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
       setBlockedUsers(users);
     } catch (error: any) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không thể tải danh sách người dùng đã chặn' });
+      showAlert({ type: 'error', title: t('alerts.error'), message: t('report.blocked.errors.loadFailed') });
     } finally {
       setLoading(false);
     }
@@ -67,17 +69,17 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
     try {
       const currentUserIdStr = await AsyncStorage.getItem('userId');
       if (!currentUserIdStr) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        showAlert({ type: 'error', title: t('alerts.error'), message: t('report.blocked.errors.userNotFound') });
         return;
       }
       const currentUserId = parseInt(currentUserIdStr, 10);
 
       showAlert({
         type: 'warning',
-        title: "Bỏ chặn người dùng",
-        message: `Bạn có chắc muốn bỏ chặn ${userName}?`,
+        title: t('report.blocked.unblockTitle'),
+        message: t('report.blocked.unblockConfirm', { name: userName }),
         showCancel: true,
-        confirmText: "Bỏ chặn",
+        confirmText: t('report.blocked.unblock'),
         onConfirm: async () => {
           try {
             console.log("✅ Unblocking user:", currentUserId, "->", toUserId);
@@ -88,16 +90,16 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
               prev.filter((user) => user.toUserId !== toUserId)
             );
 
-            showAlert({ type: 'success', title: "Đã bỏ chặn", message: `${userName} đã được bỏ chặn.` });
+            showAlert({ type: 'success', title: t('report.blocked.unblockSuccess'), message: t('report.blocked.unblockSuccessMessage', { name: userName }) });
           } catch (error: any) {
 
-            showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể bỏ chặn người dùng' });
+            showAlert({ type: 'error', title: t('alerts.error'), message: error.message || t('report.blocked.errors.unblockFailed') });
           }
         },
       });
     } catch (error) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Đã xảy ra lỗi' });
+      showAlert({ type: 'error', title: t('alerts.error'), message: t('errors.unknown') });
     }
   };
 
@@ -107,11 +109,11 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return "Hôm nay";
-    if (diffDays === 1) return "Hôm qua";
-    if (diffDays < 7) return `${diffDays} ngày trước`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
-    return `${Math.floor(diffDays / 30)} tháng trước`;
+    if (diffDays === 0) return t('report.myReports.time.justNow');
+    if (diffDays === 1) return t('report.myReports.time.yesterday');
+    if (diffDays < 7) return t('report.myReports.time.daysAgo', { count: diffDays });
+    if (diffDays < 30) return t('report.myReports.time.weeksAgo', { count: Math.floor(diffDays / 7) });
+    return t('report.myReports.time.monthsAgo', { count: Math.floor(diffDays / 30) });
   };
 
   const renderBlockedUser = ({ item }: { item: BlockedUser }) => (
@@ -122,14 +124,14 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
         </View>
         <View style={styles.userDetails}>
           <Text style={styles.userName}>{item.toUserFullName}</Text>
-          <Text style={styles.blockedTime}>Chặn {formatDate(item.createdAt)}</Text>
+          <Text style={styles.blockedTime}>{t('report.blocked.blockedTime', { time: formatDate(item.createdAt) })}</Text>
         </View>
       </View>
       <TouchableOpacity
         style={styles.unblockButton}
         onPress={() => handleUnblock(item.toUserId, item.toUserFullName)}
       >
-        <Text style={styles.unblockText}>Bỏ chặn</Text>
+        <Text style={styles.unblockText}>{t('report.blocked.unblock')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -139,9 +141,9 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
       <View style={styles.emptyIconContainer}>
         <Icon name="ban-outline" size={64} color={colors.textLabel} />
       </View>
-      <Text style={styles.emptyTitle}>Không có người dùng bị chặn</Text>
+      <Text style={styles.emptyTitle}>{t('report.blocked.empty.title')}</Text>
       <Text style={styles.emptyText}>
-        Bạn chưa chặn ai. Danh sách người dùng bị chặn sẽ hiển thị ở đây.
+        {t('report.blocked.empty.message')}
       </Text>
     </View>
   );
@@ -161,12 +163,12 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Người dùng đã chặn</Text>
+          <Text style={styles.headerTitle}>{t('report.blocked.title')}</Text>
           <View style={styles.placeholder} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <Text style={styles.loadingText}>{t('report.blocked.loading')}</Text>
         </View>
       </LinearGradient>
     );
@@ -187,7 +189,7 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Người dùng đã chặn</Text>
+        <Text style={styles.headerTitle}>{t('report.blocked.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -199,7 +201,7 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
           color={colors.primary}
         />
         <Text style={styles.infoText}>
-          Người dùng bị chặn sẽ không thấy hồ sơ của bạn trên HomeScreen
+          {t('report.blocked.infoBanner')}
         </Text>
       </View>
 

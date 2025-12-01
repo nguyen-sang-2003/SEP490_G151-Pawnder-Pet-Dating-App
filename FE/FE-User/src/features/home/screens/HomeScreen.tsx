@@ -18,6 +18,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -62,6 +63,7 @@ interface PetProfile {
 }
 
 const HomeScreen = ({ navigation }: Props) => {
+    const { t } = useTranslation();
     const notificationBadge = useAppSelector(selectNotificationBadge);
     const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -403,7 +405,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 // Check if it's a 429 limit error
                 if (error.response?.status === 429) {
                     const errorData = error.response?.data;
-                    setLimitMessage(errorData?.message || "Bạn đã hết lượt gửi match hôm nay!");
+                    setLimitMessage(errorData?.message || t('home.matchLimit'));
                     setShowMatchLimitModal(true);
 
                     // Reset card position
@@ -480,15 +482,15 @@ const HomeScreen = ({ navigation }: Props) => {
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
-                        age: pet.age ? `${pet.age} tuổi` : 'N/A',
-                        breed: pet.breed || 'Không rõ',
+                        age: pet.age ? t('home.petAge', { age: pet.age }) : 'N/A',
+                        breed: pet.breed || t('home.unknownBreed'),
                         gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
                         distance: pet.distanceKm ? `${pet.distanceKm} km` : (pet.owner?.address ? `${pet.owner.address.city || pet.owner.address.district || ''}` : 'N/A'),
-                        bio: pet.description || 'Chưa có mô tả',
+                        bio: pet.description || t('home.noDescription'),
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || 'Unknown',
+                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: matchPercent,
                     };
@@ -550,15 +552,15 @@ const HomeScreen = ({ navigation }: Props) => {
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
-                        age: pet.age ? `${pet.age} tuổi` : 'N/A',
-                        breed: pet.breed || 'Không rõ',
+                        age: pet.age ? t('home.petAge', { age: pet.age }) : 'N/A',
+                        breed: pet.breed || t('home.unknownBreed'),
                         gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
                         distance: pet.distanceKm ? `${pet.distanceKm} km` : (pet.owner?.address ? `${pet.owner.address.city || pet.owner.address.district || ''}` : 'N/A'),
-                        bio: pet.description || 'Chưa có mô tả',
+                        bio: pet.description || t('home.noDescription'),
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || 'Unknown',
+                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: pet.matchPercent ?? 0,
                         ownerIsVip: false, // Will be updated later if needed
@@ -605,8 +607,8 @@ const HomeScreen = ({ navigation }: Props) => {
                     setTimeout(() => {
                         showAlert({
                             type: 'success',
-                            title: 'Chào mừng',
-                            message: 'Đăng nhập thành công',
+                            title: t('home.welcome'),
+                            message: t('home.loginSuccess'),
                         });
                     }, 500); // Small delay to let screen render first
                 }
@@ -689,8 +691,8 @@ const HomeScreen = ({ navigation }: Props) => {
 
             showAlert({
                 type: 'error',
-                title: 'Lỗi',
-                message: 'Không thể tải lại danh sách pets. Vui lòng thử lại.',
+                title: t('common.error'),
+                message: t('home.loadError'),
             });
         } finally {
             setRefreshing(false);
@@ -812,7 +814,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                     style={styles.labelGradient}
                                 >
                                     <Icon name="heart" size={40} color={colors.white} />
-                                    <Text style={styles.labelText}>THÍCH</Text>
+                                    <Text style={styles.labelText}>{t('home.like')}</Text>
                                 </LinearGradient>
                             </Animated.View>
 
@@ -824,7 +826,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                     style={styles.labelGradient}
                                 >
                                     <Icon name="close" size={40} color={colors.white} />
-                                    <Text style={styles.labelText}>BỎ QUA</Text>
+                                    <Text style={styles.labelText}>{t('home.pass')}</Text>
                                 </LinearGradient>
                             </Animated.View>
                         </>
@@ -874,7 +876,7 @@ const HomeScreen = ({ navigation }: Props) => {
 
                             <View style={styles.ownerInfo}>
                                 <Icon name="person-outline" size={14} color={colors.white} />
-                                <Text style={styles.ownerText}>Chủ: {pet.owner}</Text>
+                                <Text style={styles.ownerText}>{t('home.owner', { name: pet.owner })}</Text>
                                 {pet.ownerIsVip && (
                                     <View style={styles.vipBadgeSmall}>
                                         <Icon name="diamond" size={12} color="#FFD700" />
@@ -1003,12 +1005,12 @@ const HomeScreen = ({ navigation }: Props) => {
                             <Icon name="paw" size={60} color={colors.white} />
                         </LinearGradient>
                     </Animated.View>
-                    <Text style={styles.noMoreTitle}>Hết thú cưng rồi!</Text>
+                    <Text style={styles.noMoreTitle}>{t('home.noMorePets')}</Text>
                     <Text style={styles.noMoreText}>
-                        Quay lại sau để xem thêm những cặp đôi đáng yêu
+                        {t('home.noMorePetsDesc')}
                     </Text>
                     <Text style={styles.noMoreSubtitle}>
-                        Hoặc điều chỉnh bộ lọc để xem thêm thú cưng
+                        {t('home.noMorePetsSubtitle')}
                     </Text>
                     <View style={styles.emptyStateButtons}>
                         <TouchableOpacity
@@ -1023,7 +1025,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                 style={styles.resetGradient}
                             >
                                 <Icon name="refresh" size={24} color={colors.white} />
-                                <Text style={styles.resetText}>Tải lại</Text>
+                                <Text style={styles.resetText}>{t('home.reload')}</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -1031,7 +1033,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             onPress={() => (navigation as any).navigate("FilterScreen")}
                         >
                             <Icon name="options-outline" size={24} color={colors.primary} />
-                            <Text style={styles.adjustFiltersText}>Điều chỉnh bộ lọc</Text>
+                            <Text style={styles.adjustFiltersText}>{t('home.adjustFilters')}</Text>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>

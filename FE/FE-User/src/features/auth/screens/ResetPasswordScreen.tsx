@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
@@ -22,6 +23,7 @@ import { verifyOtp, resetPassword } from "../api/otpApi";
 type Props = NativeStackScreenProps<RootStackParamList, "ResetPassword">;
 
 const ResetPasswordScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { email } = route.params;
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -34,35 +36,35 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
 
   const handleResetPassword = async () => {
     if (!otp.trim()) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mã OTP" });
+      showAlert({ type: 'warning', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.enterOtp') });
       return;
     }
 
     if (!newPassword.trim()) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu mới" });
+      showAlert({ type: 'warning', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.enterNewPassword') });
       return;
     }
 
     // Kiểm tra độ dài tối thiểu 8 ký tự
     if (newPassword.length < 8) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải có ít nhất 8 ký tự" });
+      showAlert({ type: 'warning', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.passwordMinLength') });
       return;
     }
 
     // Kiểm tra có chứa số
     if (!/\d/.test(newPassword)) {
-      showAlert({ type: 'error', title: "Lỗi", message: "Mật khẩu phải chứa ít nhất 1 chữ số" });
+      showAlert({ type: 'error', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.passwordNeedsNumber') });
       return;
     }
 
     // Kiểm tra có ký tự đặc biệt
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
-      showAlert({ type: 'error', title: "Lỗi", message: "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)" });
+      showAlert({ type: 'error', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.passwordNeedsSpecial') });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu không khớp" });
+      showAlert({ type: 'warning', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.passwordMismatch') });
       return;
     }
 
@@ -77,13 +79,13 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: "Thành công",
-        message: "Đã đặt lại mật khẩu thành công!",
+        title: t('auth.resetPassword.success'),
+        message: t('auth.resetPassword.resetSuccess'),
         onClose: () => navigation.navigate("SignIn"),
       });
     } catch (error: any) {
-      const errorMessage = error.message || "Không thể đặt lại mật khẩu. Vui lòng thử lại.";
-      showAlert({ type: 'error', title: "Lỗi", message: errorMessage });
+      const errorMessage = error.message || t('auth.resetPassword.resetFailed');
+      showAlert({ type: 'error', title: t('auth.resetPassword.error'), message: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -123,11 +125,9 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Đặt lại mật khẩu</Text>
+          <Text style={styles.title}>{t('auth.resetPassword.title')}</Text>
           <Text style={styles.subtitle}>
-            Nhập mã đã gửi đến{" "}
-            <Text style={styles.email}>{email}</Text> và tạo mật khẩu
-            mới
+            {t('auth.resetPassword.subtitle', { email })}
           </Text>
 
           {/* OTP Input */}
@@ -140,7 +140,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Nhập mã OTP"
+              placeholder={t('auth.resetPassword.otpPlaceholder')}
               placeholderTextColor={colors.textLabel}
               value={otp}
               onChangeText={setOtp}
@@ -159,7 +159,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Mật khẩu mới"
+              placeholder={t('auth.resetPassword.newPassword')}
               placeholderTextColor={colors.textLabel}
               value={newPassword}
               onChangeText={setNewPassword}
@@ -187,7 +187,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Xác nhận mật khẩu mới"
+              placeholder={t('auth.resetPassword.confirmPassword')}
               placeholderTextColor={colors.textLabel}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -217,7 +217,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
           {/* Password Requirements - Only show when focused */}
           {isPasswordFocused && (
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Mật khẩu phải:</Text>
+            <Text style={styles.requirementsTitle}>{t('auth.resetPassword.requirements.title')}</Text>
             
             {/* Ít nhất 8 ký tự */}
             <View style={styles.requirement}>
@@ -238,7 +238,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                   newPassword.length >= 8 && styles.requirementMet,
                 ]}
               >
-                Có ít nhất 8 ký tự
+                {t('auth.resetPassword.requirements.minLength')}
               </Text>
             </View>
 
@@ -261,7 +261,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                   /\d/.test(newPassword) && styles.requirementMet,
                 ]}
               >
-                Chứa ít nhất 1 chữ số
+                {t('auth.resetPassword.requirements.hasNumber')}
               </Text>
             </View>
 
@@ -284,7 +284,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                   /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) && styles.requirementMet,
                 ]}
               >
-                Chứa ít nhất 1 ký tự đặc biệt
+                {t('auth.resetPassword.requirements.hasSpecial')}
               </Text>
             </View>
 
@@ -309,7 +309,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                   newPassword && newPassword === confirmPassword ? styles.requirementMet : null,
                 ]}
               >
-                Khớp với mật khẩu xác nhận
+                {t('auth.resetPassword.requirements.match')}
               </Text>
             </View>
           </View>
@@ -326,9 +326,9 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
               style={styles.resetGradient}
             >
               {loading ? (
-                <Text style={styles.resetText}>Đang đặt lại...</Text>
+                <Text style={styles.resetText}>{t('auth.resetPassword.resettingButton')}</Text>
               ) : (
-                <Text style={styles.resetText}>Đặt lại mật khẩu</Text>
+                <Text style={styles.resetText}>{t('auth.resetPassword.resetButton')}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>

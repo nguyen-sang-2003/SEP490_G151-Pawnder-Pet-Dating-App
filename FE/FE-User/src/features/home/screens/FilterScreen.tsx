@@ -18,6 +18,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -40,6 +41,7 @@ interface ActiveFilter {
 }
 
 const FilterScreen = ({ navigation }: Props) => {
+    const { t } = useTranslation();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [attributes, setAttributes] = useState<AttributeForFilter[]>([]);
@@ -202,8 +204,8 @@ const FilterScreen = ({ navigation }: Props) => {
         } catch (error: any) {
 
             Alert.alert(
-                "Lỗi khi lưu",
-                error.response?.data?.message || error.message || "Lỗi không xác định. Vui lòng thử lại.",
+                t('home.filter.saveError'),
+                error.response?.data?.message || error.message || t('home.filter.unknownError'),
                 [{ text: "OK" }]
             );
         } finally {
@@ -375,7 +377,7 @@ const FilterScreen = ({ navigation }: Props) => {
                     </TouchableOpacity>
 
                     <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle}>Bộ lọc</Text>
+                        <Text style={styles.headerTitle}>{t('home.filter.title')}</Text>
                         {activeFilterCount > 0 && (
                             <View style={styles.filterCountBadge}>
                                 <Text style={styles.filterCountText}>{activeFilterCount}</Text>
@@ -389,7 +391,7 @@ const FilterScreen = ({ navigation }: Props) => {
                         disabled={activeFilterCount === 0}
                     >
                         <Text style={[styles.clearButtonText, activeFilterCount === 0 && styles.clearButtonTextDisabled]}>
-                            Clear
+                            {t('home.filter.clear')}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -418,7 +420,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                     <Icon name="sparkles" size={22} color="#4CAF50" />
                                 </View>
                                 <View style={styles.suggestionContent}>
-                                    <Text style={styles.suggestionTitle}>💡 Mẹo nhỏ</Text>
+                                    <Text style={styles.suggestionTitle}>{t('home.filter.tips')}</Text>
                                     <Text style={styles.suggestionText}>{suggestion.message}</Text>
                                 </View>
                             </LinearGradient>
@@ -437,10 +439,10 @@ const FilterScreen = ({ navigation }: Props) => {
                                 <View style={styles.sectionHeaderWithValue}>
                                     <View style={styles.sectionHeaderLeft}>
                                         <Icon name="location" size={22} color={colors.primary} />
-                                        <Text style={styles.sectionTitle}>Khoảng cách</Text>
+                                        <Text style={styles.sectionTitle}>{t('home.filter.distance')}</Text>
                                     </View>
                                     <Text style={styles.sectionValue}>
-                                        {isAny ? "Tất cả" : `0 - ${maxValue} km`}
+                                        {isAny ? t('home.filter.all') : `0 - ${maxValue} km`}
                                     </Text>
                                 </View>
                                 <View style={styles.distanceCard}>
@@ -512,7 +514,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                         <Text style={styles.sectionTitle}>{attribute.Name}</Text>
                                     </View>
                                     <Text style={styles.sectionValue}>
-                                        {isAny ? "Tất cả" : `${min} - ${max} ${attribute.Unit}`}
+                                        {isAny ? t('home.filter.all') : `${min} - ${max} ${attribute.Unit}`}
                                     </Text>
                                 </View>
                                 <View style={styles.rangeCard}>
@@ -580,7 +582,7 @@ const FilterScreen = ({ navigation }: Props) => {
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Icon name="sparkles" size={22} color={colors.primary} />
-                                <Text style={styles.sectionTitle}>Ngoại hình</Text>
+                                <Text style={styles.sectionTitle}>{t('home.filter.appearance')}</Text>
                             </View>
                             {stringAttributes.map((attribute) => {
                                 const percent = attribute.Percent ?? 0;
@@ -591,9 +593,9 @@ const FilterScreen = ({ navigation }: Props) => {
                                 // Xác định label và màu
                                 let badge = null;
                                 if (isHighWeight) {
-                                    badge = { label: 'Ưu tiên', icon: 'star', color: '#FF6B6B', bgColor: '#FFE5E5' };
+                                    badge = { label: t('home.filter.priority'), icon: 'star', color: '#FF6B6B', bgColor: '#FFE5E5' };
                                 } else if (isMediumWeight) {
-                                    badge = { label: 'Nên chọn', icon: 'heart', color: '#FF9800', bgColor: '#FFF3E0' };
+                                    badge = { label: t('home.filter.recommended'), icon: 'heart', color: '#FF9800', bgColor: '#FFF3E0' };
                                 }
 
                                 return (
@@ -672,7 +674,7 @@ const FilterScreen = ({ navigation }: Props) => {
                             <>
                                 <Icon name="checkmark-circle" size={24} color="#FFF" />
                                 <Text style={styles.applyButtonText}>
-                                    Apply Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
+                                    {activeFilterCount > 0 ? t('home.filter.applyWithCount', { count: activeFilterCount }) : t('home.filter.apply')}
                                 </Text>
                             </>
                         )}

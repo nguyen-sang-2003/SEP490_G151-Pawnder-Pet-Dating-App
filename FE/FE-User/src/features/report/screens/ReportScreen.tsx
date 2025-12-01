@@ -11,6 +11,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
@@ -20,20 +21,21 @@ type Props = NativeStackScreenProps<RootStackParamList, "Report">;
 
 interface ReportReason {
   id: string;
-  label: string;
+  labelKey: string;
   icon: string;
 }
 
 const REPORT_REASONS: ReportReason[] = [
-  { id: "spam", label: "Spam hoặc Quảng cáo", icon: "megaphone-outline" },
-  { id: "inappropriate", label: "Nội dung không phù hợp", icon: "warning-outline" },
-  { id: "fake", label: "Hồ sơ giả mạo", icon: "person-remove-outline" },
-  { id: "harassment", label: "Quấy rối hoặc Bắt nạt", icon: "sad-outline" },
-  { id: "scam", label: "Lừa đảo", icon: "shield-outline" },
-  { id: "other", label: "Khác", icon: "ellipsis-horizontal-outline" },
+  { id: "spam", labelKey: "report.reasons.spam", icon: "megaphone-outline" },
+  { id: "inappropriate", labelKey: "report.reasons.inappropriate", icon: "warning-outline" },
+  { id: "fake", labelKey: "report.reasons.fake", icon: "person-remove-outline" },
+  { id: "harassment", labelKey: "report.reasons.harassment", icon: "sad-outline" },
+  { id: "scam", labelKey: "report.reasons.scam", icon: "shield-outline" },
+  { id: "other", labelKey: "report.reasons.other", icon: "ellipsis-horizontal-outline" },
 ];
 
 const ReportScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { userId, userName } = route.params || {};
   
   const [selectedReason, setSelectedReason] = useState<string>("");
@@ -44,19 +46,19 @@ const ReportScreen = ({ navigation, route }: Props) => {
   const handleSubmit = async () => {
     // Validation: Kiểm tra đã chọn lý do
     if (!selectedReason) {
-      showAlert({ type: 'warning', title: "Thiếu thông tin", message: "Vui lòng chọn lý do báo cáo" });
+      showAlert({ type: 'warning', title: t('report.validation.missingInfo'), message: t('report.validation.selectReason') });
       return;
     }
 
     // Validation: Kiểm tra mô tả trống
     if (!description.trim()) {
-      showAlert({ type: 'warning', title: "Thiếu thông tin", message: "Vui lòng cung cấp thêm chi tiết về vấn đề" });
+      showAlert({ type: 'warning', title: t('report.validation.missingInfo'), message: t('report.validation.provideDetails') });
       return;
     }
 
     // Validation: Kiểm tra độ dài mô tả
     if (description.trim().length < 10) {
-      showAlert({ type: 'error', title: "Mô tả quá ngắn", message: "Vui lòng nhập ít nhất 10 ký tự để mô tả vấn đề" });
+      showAlert({ type: 'error', title: t('report.validation.descriptionTooShort'), message: t('report.validation.minCharacters') });
       return;
     }
 
@@ -68,8 +70,8 @@ const ReportScreen = ({ navigation, route }: Props) => {
       setIsSubmitting(false);
       showAlert({
         type: 'success',
-        title: "Đã gửi báo cáo",
-        message: "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét và xử lý phù hợp.",
+        title: t('report.success.title'),
+        message: t('report.success.message'),
         onClose: () => navigation.goBack(),
       });
     }, 1500);
@@ -89,7 +91,7 @@ const ReportScreen = ({ navigation, route }: Props) => {
           >
             <Icon name="close" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Báo cáo người dùng</Text>
+          <Text style={styles.headerTitle}>{t('report.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -102,18 +104,18 @@ const ReportScreen = ({ navigation, route }: Props) => {
           <View style={styles.userInfo}>
             <Icon name="flag" size={48} color="#FF9800" />
             <Text style={styles.userInfoTitle}>
-              Báo cáo {userName || "người dùng này"}
+              {t('report.reportUser', { name: userName || t('common.noData') })}
             </Text>
             <Text style={styles.userInfoSubtitle}>
-              Báo cáo của bạn sẽ được giữ bí mật. Chúng tôi sẽ xem xét và xử lý phù hợp.
+              {t('report.reportSubtitle')}
             </Text>
           </View>
 
           {/* Report Reasons */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tại sao bạn báo cáo?</Text>
+            <Text style={styles.sectionTitle}>{t('report.whyReport')}</Text>
             <Text style={styles.sectionSubtitle}>
-              Chọn lý do mô tả đúng nhất vấn đề
+              {t('report.selectReason')}
             </Text>
 
             <View style={styles.reasonsList}>
@@ -149,7 +151,7 @@ const ReportScreen = ({ navigation, route }: Props) => {
                         selectedReason === reason.id && styles.reasonTextActive,
                       ]}
                     >
-                      {reason.label}
+                      {t(reason.labelKey)}
                     </Text>
                   </View>
                   {selectedReason === reason.id && (
@@ -162,15 +164,15 @@ const ReportScreen = ({ navigation, route }: Props) => {
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Chi tiết bổ sung</Text>
+            <Text style={styles.sectionTitle}>{t('report.additionalDetails')}</Text>
             <Text style={styles.sectionSubtitle}>
-              Please provide more information about what happened
+              {t('report.provideMoreInfo')}
             </Text>
 
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Mô tả chi tiết vấn đề..."
+                placeholder={t('report.descriptionPlaceholder')}
                 placeholderTextColor={colors.textLabel}
                 value={description}
                 onChangeText={setDescription}
@@ -189,13 +191,10 @@ const ReportScreen = ({ navigation, route }: Props) => {
           <View style={styles.tipsCard}>
             <View style={styles.tipsHeader}>
               <Icon name="shield-checkmark" size={24} color={colors.primary} />
-              <Text style={styles.tipsTitle}>Mẹo an toàn</Text>
+              <Text style={styles.tipsTitle}>{t('report.safetyTips')}</Text>
             </View>
             <Text style={styles.tipsText}>
-              • Your report is completely anonymous{"\n"}
-              • We review all reports within 24-48 hours{"\n"}
-              • Repeated violations may result in account suspension{"\n"}
-              • For urgent safety concerns, contact us directly
+              {t('report.safetyTipsContent')}
             </Text>
           </View>
 
@@ -218,11 +217,11 @@ const ReportScreen = ({ navigation, route }: Props) => {
               style={styles.submitGradient}
             >
               {isSubmitting ? (
-                <Text style={styles.submitText}>Đang gửi...</Text>
+                <Text style={styles.submitText}>{t('report.submitting')}</Text>
               ) : (
                 <>
                   <Icon name="flag" size={20} color={colors.white} />
-                  <Text style={styles.submitText}>Gửi báo cáo</Text>
+                  <Text style={styles.submitText}>{t('report.submitButton')}</Text>
                 </>
               )}
             </LinearGradient>

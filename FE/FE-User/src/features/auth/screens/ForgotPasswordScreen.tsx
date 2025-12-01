@@ -12,6 +12,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
@@ -21,19 +22,20 @@ import { sendOtp } from "../api/otpApi";
 type Props = NativeStackScreenProps<RootStackParamList, "ForgotPassword">;
 
 const ForgotPasswordScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleSendOTP = async () => {
     if (!email.trim()) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập email" });
+      showAlert({ type: 'warning', title: t('auth.forgotPassword.error'), message: t('auth.forgotPassword.enterEmail') });
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập email hợp lệ" });
+      showAlert({ type: 'warning', title: t('auth.forgotPassword.error'), message: t('auth.forgotPassword.invalidEmail') });
       return;
     }
 
@@ -44,13 +46,13 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'success',
-        title: "Thành công",
-        message: "Mã đặt lại mật khẩu đã được gửi đến email của bạn",
+        title: t('auth.forgotPassword.success'),
+        message: t('auth.forgotPassword.codeSent'),
         onClose: () => navigation.navigate("ResetPassword", { email }),
       });
     } catch (error: any) {
-      const errorMessage = error.message || "Không thể gửi mã. Vui lòng thử lại.";
-      showAlert({ type: 'error', title: "Lỗi", message: errorMessage });
+      const errorMessage = error.message || t('auth.forgotPassword.sendFailed');
+      showAlert({ type: 'error', title: t('auth.forgotPassword.error'), message: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -87,10 +89,9 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Quên mật khẩu?</Text>
+          <Text style={styles.title}>{t('auth.forgotPassword.title')}</Text>
           <Text style={styles.subtitle}>
-            Đừng lo! Nhập địa chỉ email của bạn và chúng tôi sẽ gửi cho bạn mã để
-            đặt lại mật khẩu.
+            {t('auth.forgotPassword.subtitle')}
           </Text>
 
           {/* Email Input */}
@@ -103,7 +104,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Địa chỉ Email"
+              placeholder={t('auth.forgotPassword.emailPlaceholder')}
               placeholderTextColor={colors.textLabel}
               value={email}
               onChangeText={setEmail}
@@ -124,9 +125,9 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
               style={styles.sendGradient}
             >
               {loading ? (
-                <Text style={styles.sendText}>Đang gửi...</Text>
+                <Text style={styles.sendText}>{t('auth.forgotPassword.sendingButton')}</Text>
               ) : (
-                <Text style={styles.sendText}>Gửi mã đặt lại</Text>
+                <Text style={styles.sendText}>{t('auth.forgotPassword.sendButton')}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -137,7 +138,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
             onPress={() => navigation.navigate("SignIn")}
           >
             <Icon name="arrow-back-outline" size={16} color={colors.primary} />
-            <Text style={styles.backToSignInText}>Quay lại đăng nhập</Text>
+            <Text style={styles.backToSignInText}>{t('auth.forgotPassword.backToSignIn')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
@@ -21,6 +22,7 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 type Props = NativeStackScreenProps<RootStackParamList, "ChangePassword">;
 
 const ChangePasswordScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,40 +35,40 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
 
   const validatePassword = () => {
     if (!currentPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu hiện tại" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.enterCurrentPassword') });
       return false;
     }
 
     if (!newPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu mới" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.enterNewPassword') });
       return false;
     }
 
     // Kiểm tra độ dài tối thiểu 8 ký tự
     if (newPassword.length < 8) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải có ít nhất 8 ký tự" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordMinLength') });
       return false;
     }
 
     // Kiểm tra có chứa số
     if (!/\d/.test(newPassword)) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải chứa ít nhất 1 chữ số" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordNeedsNumber') });
       return false;
     }
 
     // Kiểm tra có ký tự đặc biệt
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordNeedsSpecial') });
       return false;
     }
 
     if (newPassword === currentPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu mới phải khác mật khẩu hiện tại" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordSameAsCurrent') });
       return false;
     }
 
     if (newPassword !== confirmPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu không khớp" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordMismatch') });
       return false;
     }
 
@@ -82,11 +84,11 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
       // TODO: Implement API call to change password
       showAlert({
         type: 'warning',
-        title: "Thông báo",
-        message: "Tính năng đổi mật khẩu đang được phát triển. Vui lòng thử lại sau.",
+        title: t('alerts.info'),
+        message: t('settings.changePassword.featureInDevelopment'),
       });
     } catch (error) {
-      showAlert({ type: 'error', title: "Lỗi", message: "Không thể thay đổi mật khẩu. Vui lòng thử lại." });
+      showAlert({ type: 'error', title: t('common.error'), message: t('settings.changePassword.errors.changeFailed') });
     } finally {
       setLoading(false);
     }
@@ -111,7 +113,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Đổi mật khẩu</Text>
+          <Text style={styles.headerTitle}>{t('settings.changePassword.title')}</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -131,7 +133,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            Đảm bảo mật khẩu mới của bạn mạnh và an toàn
+            {t('settings.changePassword.subtitle')}
           </Text>
 
           {/* Current Password */}
@@ -144,7 +146,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Mật khẩu hiện tại"
+              placeholder={t('settings.changePassword.currentPassword')}
               placeholderTextColor={colors.textLabel}
               value={currentPassword}
               onChangeText={setCurrentPassword}
@@ -170,7 +172,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Mật khẩu mới"
+              placeholder={t('settings.changePassword.newPassword')}
               placeholderTextColor={colors.textLabel}
               value={newPassword}
               onChangeText={setNewPassword}
@@ -198,7 +200,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Xác nhận mật khẩu mới"
+              placeholder={t('settings.changePassword.confirmPassword')}
               placeholderTextColor={colors.textLabel}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -226,7 +228,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
           {/* Password Requirements - Only show when focused */}
           {isPasswordFocused && (
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Yêu cầu mật khẩu:</Text>
+            <Text style={styles.requirementsTitle}>{t('settings.changePassword.requirements.title')}</Text>
             {/* Ít nhất 8 ký tự */}
             <View style={styles.requirement}>
               <Icon
@@ -246,7 +248,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
                   newPassword.length >= 8 && styles.requirementMet,
                 ]}
               >
-                Ít nhất 8 ký tự
+                {t('settings.changePassword.requirements.minLength')}
               </Text>
             </View>
 
@@ -269,7 +271,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
                   /\d/.test(newPassword) && styles.requirementMet,
                 ]}
               >
-                Chứa ít nhất 1 chữ số
+                {t('settings.changePassword.requirements.hasNumber')}
               </Text>
             </View>
 
@@ -292,7 +294,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
                   /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) && styles.requirementMet,
                 ]}
               >
-                Chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)
+                {t('settings.changePassword.requirements.hasSpecial')}
               </Text>
             </View>
 
@@ -319,7 +321,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
                     : null,
                 ]}
               >
-                Khác với mật khẩu hiện tại
+                {t('settings.changePassword.requirements.differentFromCurrent')}
               </Text>
             </View>
           </View>
@@ -336,9 +338,9 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
               style={styles.changeGradient}
             >
               {loading ? (
-                <Text style={styles.changeText}>Đang đổi...</Text>
+                <Text style={styles.changeText}>{t('settings.changePassword.changingButton')}</Text>
               ) : (
-                <Text style={styles.changeText}>Đổi mật khẩu</Text>
+                <Text style={styles.changeText}>{t('settings.changePassword.changeButton')}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -348,7 +350,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             style={styles.forgotLink}
             onPress={() => navigation.navigate("ForgotPassword")}
           >
-            <Text style={styles.forgotText}>Quên mật khẩu hiện tại?</Text>
+            <Text style={styles.forgotText}>{t('settings.changePassword.forgotPassword')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

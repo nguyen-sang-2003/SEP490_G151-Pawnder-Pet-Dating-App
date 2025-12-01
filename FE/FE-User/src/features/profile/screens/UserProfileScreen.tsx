@@ -11,11 +11,11 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
-  Platform,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
@@ -44,6 +44,7 @@ interface PetItem {
 }
 
 const UserProfileScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<UserResponse | null>(null);
@@ -64,7 +65,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
       // Get userId from storage
       const userIdStr = await getItem('userId');
       if (!userIdStr) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.' });
+        showAlert({ type: 'error', title: t('common.error'), message: t('profile.userNotFound') });
         return;
       }
 
@@ -120,11 +121,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
     } catch (error: any) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin profile' });
+      showAlert({ type: 'error', title: t('common.error'), message: error.response?.data?.message || t('profile.loadError') });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // Reload data when screen comes into focus
   useFocusEffect(
@@ -227,7 +228,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
       breed: activePet.Breed || activePet.breed || '',
       age: getAgeFromCharacteristics(characteristics), // Get from characteristics instead of pet model
       gender: (activePet.Gender || activePet.gender || 'male').toLowerCase() as "male" | "female",
-      bio: activePet.Description || activePet.description || "Chưa có mô tả",
+      bio: activePet.Description || activePet.description || t('profile.noDescription'),
       photos,
     };
   })() : {
@@ -257,7 +258,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
   // Owner Info
   const owner = {
     name: userData?.FullName || userData?.fullName || "",
-    location: shortLocation || 'Chưa đặt vị trí',
+    location: shortLocation || t('profile.owner.noLocation'),
     fullAddress: fullAddress,
     isPremium: isVip, // Use actual VIP status
     email: userData?.Email || userData?.email || "",
@@ -293,7 +294,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
     if (userId) {
       navigation.navigate("EditProfile", { userId });
     } else {
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+      showAlert({ type: 'error', title: t('common.error'), message: t('profile.userNotFound') });
     }
   };
 
@@ -308,18 +309,18 @@ const UserProfileScreen = ({ navigation }: Props) => {
     // Confirmation alert
     showAlert({
       type: 'warning',
-      title: 'Xóa thú cưng? 🗑️',
-      message: `Bạn có chắc muốn xóa ${petName}? Hành động này sẽ xóa tất cả dữ liệu liên quan đến thú cưng này (ảnh, đặc điểm, ghép đôi).`,
-      confirmText: 'Xóa',
-      cancelText: 'Cancel',
+      title: t('profile.deletePet.title'),
+      message: t('profile.deletePet.message', { name: petName }),
+      confirmText: t('profile.deletePet.confirmText'),
+      cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
           await deletePet(petId);
 
           showAlert({
             type: 'success',
-            title: 'Đã xóa! 👋',
-            message: `${petName} đã được xóa thành công.`,
+            title: t('profile.deletePet.successTitle'),
+            message: t('profile.deletePet.successMessage', { name: petName }),
             confirmText: 'OK',
             onClose: () => {
               // Reload pets list
@@ -330,8 +331,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
           showAlert({
             type: 'error',
-            title: 'Lỗi',
-            message: error.response?.data?.Message || 'Không thể xóa thú cưng. Vui lòng thử lại.',
+            title: t('common.error'),
+            message: error.response?.data?.Message || t('profile.deletePet.error'),
             confirmText: 'OK'
           });
         }
@@ -349,8 +350,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
     if (pet.IsActive === true || pet.isActive === true) {
       showAlert({
         type: 'info',
-        title: 'Đã kích hoạt',
-        message: `${pet.Name || pet.name} đã là thú cưng đang hoạt động của bạn!`,
+        title: t('profile.myPets.alreadyActive'),
+        message: t('profile.myPets.alreadyActiveMessage', { name: pet.Name || pet.name }),
         confirmText: 'Got it'
       });
       return;
@@ -360,10 +361,10 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
     showAlert({
       type: 'info',
-      title: 'Đặt pet hoạt động',
-      message: `Bạn muốn đặt ${petName} làm pet hoạt động để matching?`,
+      title: t('profile.myPets.setActiveTitle'),
+      message: t('profile.myPets.setActiveMessage', { name: petName }),
       showCancel: true,
-      confirmText: 'Đồng ý',
+      confirmText: t('common.confirm'),
       onConfirm: async () => {
         try {
           // Call API để update DB
@@ -393,15 +394,15 @@ const UserProfileScreen = ({ navigation }: Props) => {
           // Show success message
           showAlert({
             type: 'success',
-            title: 'Thành công',
-            message: `${petName} giờ là pet hoạt động của bạn!`,
+            title: t('common.success'),
+            message: t('profile.myPets.setActiveSuccess', { name: petName }),
           });
         } catch (error: any) {
 
           showAlert({
             type: 'error',
-            title: 'Lỗi',
-            message: 'Không thể đặt pet hoạt động. Vui lòng thử lại.',
+            title: t('common.error'),
+            message: t('profile.myPets.setActiveError'),
           });
         }
       },
@@ -430,7 +431,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Đang tải hồ sơ...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>{t('profile.loading')}</Text>
       </View>
     );
   }
@@ -449,7 +450,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
           >
             <Icon name="person" size={20} color={colors.white} />
           </LinearGradient>
-          <Text style={styles.topHeaderTitle}>Hồ sơ của tôi</Text>
+          <Text style={styles.topHeaderTitle}>{t('profile.title')}</Text>
         </View>
         <TouchableOpacity
           style={styles.settingsButton}
@@ -503,7 +504,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 end={{ x: 1, y: 1 }}
               >
                 <Icon name="diamond" size={14} color="#fff" />
-                <Text style={styles.premiumText}>VIP</Text>
+                <Text style={styles.premiumText}>{t('badges.vip')}</Text>
               </LinearGradient>
             </View>
           )}
@@ -542,15 +543,15 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            <Text style={styles.breedText}>{myCat.breed || 'Không rõ giống'} • {myCat.age ? `${myCat.age} tuổi` : 'Không rõ'}</Text>
+            <Text style={styles.breedText}>{myCat.breed || t('profile.unknownBreed')} • {myCat.age ? t('profile.ageYears', { age: myCat.age }) : t('profile.unknownAge')}</Text>
           </View>
         </View>
 
         {/* About My Cat */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Về {myCat.name || 'thú cưng'}</Text>
+          <Text style={styles.sectionTitle}>{t('profile.about', { name: myCat.name || t('profile.aboutPet') })}</Text>
           <View style={styles.bioCard}>
-            <Text style={styles.bioText}>{myCat.bio || 'Chưa có mô tả'}</Text>
+            <Text style={styles.bioText}>{myCat.bio || t('profile.noDescription')}</Text>
           </View>
         </View>
 
@@ -558,8 +559,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {characteristics.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Đặc điểm</Text>
-              <Text style={styles.sectionSubtitle}>{characteristics.length} thuộc tính</Text>
+              <Text style={styles.sectionTitle}>{t('profile.characteristics')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('profile.attributeCount', { count: characteristics.length })}</Text>
             </View>
             <View style={styles.characteristicsGrid}>
               {(showAllCharacteristics ? characteristics : characteristics.slice(0, 6)).map((char, index) => (
@@ -584,7 +585,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                         {char.value} {char.unit || ''}
                       </Text>
                     ) : (
-                      <Text style={styles.characteristicValueEmpty}>Chưa đặt</Text>
+                      <Text style={styles.characteristicValueEmpty}>{t('profile.notSet')}</Text>
                     )}
                   </View>
                 </View>
@@ -598,7 +599,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 onPress={() => setShowAllCharacteristics(!showAllCharacteristics)}
               >
                 <Text style={styles.showMoreText}>
-                  {showAllCharacteristics ? 'Thu gọn' : `Xem thêm ${characteristics.length - 6}`}
+                  {showAllCharacteristics ? t('profile.showLess') : t('profile.showMore', { count: characteristics.length - 6 })}
                 </Text>
                 <Icon
                   name={showAllCharacteristics ? 'chevron-up' : 'chevron-down'}
@@ -614,9 +615,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Thú cưng của tôi ({myPets.length})</Text>
+              <Text style={styles.sectionTitle}>{t('profile.myPets.count', { count: myPets.length })}</Text>
               <Text style={styles.sectionSubtitle}>
-                Nhấn để đặt thú cưng hoạt động để ghép đôi
+                {t('profile.myPets.subtitle')}
               </Text>
             </View>
             <TouchableOpacity
@@ -628,7 +629,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 style={styles.addPetGradient}
               >
                 <Icon name="add" size={18} color="#fff" />
-                <Text style={styles.addPetText}>Thêm thú cưng</Text>
+                <Text style={styles.addPetText}>{t('profile.myPets.addPet')}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -658,20 +659,20 @@ const UserProfileScreen = ({ navigation }: Props) => {
                         style={styles.activeBadgeGradient}
                       >
                         <Icon name="checkmark-circle" size={14} color="#fff" />
-                        <Text style={styles.activeBadgeText}>Hoạt động</Text>
+                        <Text style={styles.activeBadgeText}>{t('profile.myPets.active')}</Text>
                       </LinearGradient>
                     </View>
                   )}
 
                   <View style={styles.petInfo}>
                     <Text style={styles.petName}>
-                      {pet.name || 'Không rõ'}{" "}
+                      {pet.name || t('profile.unknownAge')}{" "}
                       <Text style={pet.gender === "male" ? styles.male : styles.female}>
                         {pet.gender === "male" ? "♂" : "♀"}
                       </Text>
                     </Text>
-                    <Text style={styles.petBreed}>{pet.breed || 'Không rõ giống'}</Text>
-                    <Text style={styles.petAge}>{pet.age ? `${pet.age} tuổi` : 'Không rõ'}</Text>
+                    <Text style={styles.petBreed}>{pet.breed || t('profile.unknownBreed')}</Text>
+                    <Text style={styles.petAge}>{pet.age ? t('profile.ageYears', { age: pet.age }) : t('profile.unknownAge')}</Text>
                   </View>
 
                   {/* Edit Button */}
@@ -704,7 +705,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     onPress={() => handleSetActivePet(pet.id)}
                   >
                     <Icon name="radio-button-off" size={18} color={colors.textMedium} />
-                    <Text style={styles.setActiveText}>Đặt hoạt động</Text>
+                    <Text style={styles.setActiveText}>{t('profile.myPets.setActive')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -715,13 +716,13 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {/* Owner Info - SIMPLE */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Thông tin chủ sở hữu</Text>
+            <Text style={styles.sectionTitle}>{t('profile.owner.title')}</Text>
             <TouchableOpacity
               style={styles.editOwnerButton}
               onPress={handleEditProfile}
             >
               <Icon name="pencil" size={18} color={colors.primary} />
-              <Text style={styles.editOwnerText}>Sửa</Text>
+              <Text style={styles.editOwnerText}>{t('profile.owner.edit')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.ownerCard}>
@@ -733,11 +734,11 @@ const UserProfileScreen = ({ navigation }: Props) => {
                   {owner.isPremium && (
                     <View style={styles.vipBadgeInline}>
                       <Icon name="diamond" size={14} color="#FFD700" />
-                      <Text style={styles.vipBadgeText}>VIP</Text>
+                      <Text style={styles.vipBadgeText}>{t('badges.vip')}</Text>
                     </View>
                   )}
                 </View>
-                <Text style={styles.ownerSubtext}>Thành viên từ {owner.memberSince}</Text>
+                <Text style={styles.ownerSubtext}>{t('profile.owner.memberSince', { date: owner.memberSince })}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -749,7 +750,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
             <View style={styles.ownerRow}>
               <Icon name="location-outline" size={20} color={colors.textMedium} />
               <View style={{ flex: 1 }}>
-                {owner.location && owner.location !== 'Chưa đặt vị trí' ? (
+                {owner.location && owner.location !== t('profile.owner.noLocation') ? (
                   <>
                     <Text style={styles.ownerText}>{owner.location}</Text>
                     {owner.fullAddress && (
@@ -760,7 +761,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                   </>
                 ) : (
                   <Text style={[styles.ownerText, { color: '#999', fontStyle: 'italic' }]}>
-                    Chưa đặt vị trí
+                    {t('profile.owner.noLocation')}
                   </Text>
                 )}
               </View>

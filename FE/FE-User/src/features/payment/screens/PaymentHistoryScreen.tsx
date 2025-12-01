@@ -16,6 +16,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getPaymentHistoryByUserId } from "../api/paymentApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTranslation } from "react-i18next";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PaymentHistory">;
 
@@ -30,6 +31,7 @@ interface PaymentRecord {
 }
 
 const PaymentHistoryScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +45,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       // Get userId from AsyncStorage
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        setError("Không tìm thấy thông tin người dùng");
+        setError(t("payment.history.userNotFound"));
         return;
       }
 
@@ -53,7 +55,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       // Map API response to PaymentRecord format
       const mappedPayments: PaymentRecord[] = data.map((item: any) => ({
         historyId: item.historyId,
-        statusService: item.statusService === "active" ? "Premium Active" : "Premium Expired",
+        statusService: item.statusService === "active" ? t("payment.history.status.premiumActive") : t("payment.history.status.premiumExpired"),
         amount: item.amount || 0,
         startDate: item.startDate,
         endDate: item.endDate,
@@ -64,7 +66,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       setPayments(mappedPayments);
     } catch (err: any) {
 
-      setError(err.message || "Không thể tải lịch sử thanh toán");
+      setError(err.message || t("payment.history.loadError"));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -150,7 +152,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
         </Text>
         <Text style={styles.paymentMethod}>
           <Icon name="qr-code-outline" size={12} color={colors.textMedium} />{" "}
-          Chuyển khoản QR
+          {t("payment.history.paymentMethod")}
         </Text>
       </View>
 
@@ -164,7 +166,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
               { color: getStatusColor(item.status) },
             ]}
           >
-            {item.status === "success" ? "Thành công" : item.status === "pending" ? "Chờ xử lý" : "Thất bại"}
+            {item.status === "success" ? t("payment.history.status.success") : item.status === "pending" ? t("payment.history.status.pending") : t("payment.history.status.failed")}
           </Text>
         </View>
       </View>
@@ -176,9 +178,9 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       <View style={styles.emptyIconContainer}>
         <Icon name="receipt-outline" size={64} color={colors.textLabel} />
       </View>
-      <Text style={styles.emptyTitle}>Chưa có lịch sử thanh toán</Text>
+      <Text style={styles.emptyTitle}>{t("payment.history.empty.title")}</Text>
       <Text style={styles.emptyText}>
-        Your payment transactions will appear here
+        {t("payment.history.empty.subtitle")}
       </Text>
       <TouchableOpacity
         style={styles.premiumButton}
@@ -189,7 +191,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
           style={styles.premiumGradient}
         >
           <Icon name="diamond-outline" size={20} color={colors.white} />
-          <Text style={styles.premiumText}>Nâng cấp Premium</Text>
+          <Text style={styles.premiumText}>{t("payment.history.empty.upgradePremium")}</Text>
         </LinearGradient>
       </TouchableOpacity>
     </View>
@@ -210,7 +212,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Lịch sử thanh toán</Text>
+        <Text style={styles.headerTitle}>{t("payment.history.title")}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -218,7 +220,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       {loading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Đang tải lịch sử thanh toán...</Text>
+          <Text style={styles.loadingText}>{t("payment.history.loading")}</Text>
         </View>
       )}
 
@@ -231,7 +233,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
             style={styles.retryButton}
             onPress={() => loadPaymentHistory()}
           >
-            <Text style={styles.retryButtonText}>Thử lại</Text>
+            <Text style={styles.retryButtonText}>{t("payment.history.retry")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -247,14 +249,14 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
                 style={styles.summaryGradient}
               >
                 <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Tổng chi tiêu</Text>
+                  <Text style={styles.summaryLabel}>{t("payment.history.summary.totalSpent")}</Text>
                   <Text style={styles.summaryValue}>
                     {formatCurrency(payments.reduce((sum, p) => sum + p.amount, 0))}
                   </Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Giao dịch</Text>
+                  <Text style={styles.summaryLabel}>{t("payment.history.summary.transactions")}</Text>
                   <Text style={styles.summaryValue}>{payments.length}</Text>
                 </View>
               </LinearGradient>

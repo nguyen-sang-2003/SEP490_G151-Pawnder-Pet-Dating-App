@@ -14,6 +14,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import HeartsBackground from "../components/HeartsBackground";
 import CustomAlert from "../../../components/CustomAlert";
@@ -24,6 +25,7 @@ import { gradients } from "../../../theme/colors";
 type Props = NativeStackScreenProps<RootStackParamList, "SignUp">;
 
 const SignUpScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState("");
   const [gender, setGender] = useState<"Male" | "Female" | "">("");
   const [email, setEmail] = useState("");
@@ -39,8 +41,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!fullName.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Thiếu thông tin',
-        message: 'Vui lòng nhập họ tên của bạn',
+        title: t('auth.signUp.missingInfo'),
+        message: t('auth.signUp.enterFullName'),
       });
       return;
     }
@@ -49,8 +51,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (fullName.trim().length < 2) {
       showAlert({
         type: 'error',
-        title: 'Họ tên không hợp lệ',
-        message: 'Họ tên phải có ít nhất 2 ký tự',
+        title: t('auth.signUp.invalidFullName'),
+        message: t('auth.signUp.fullNameMinLength'),
       });
       return;
     }
@@ -59,8 +61,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!gender) {
       showAlert({
         type: 'warning',
-        title: 'Thiếu thông tin',
-        message: 'Vui lòng chọn giới tính',
+        title: t('auth.signUp.missingInfo'),
+        message: t('auth.signUp.selectGender'),
       });
       return;
     }
@@ -69,8 +71,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!email.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Thiếu thông tin',
-        message: 'Vui lòng nhập email',
+        title: t('auth.signUp.missingInfo'),
+        message: t('auth.signUp.enterEmail'),
       });
       return;
     }
@@ -79,8 +81,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!/\S+@\S+\.\S+/.test(email.trim())) {
       showAlert({
         type: 'error',
-        title: 'Email không hợp lệ',
-        message: 'Vui lòng nhập đúng định dạng email (ví dụ: example@email.com)',
+        title: t('auth.signUp.invalidEmail'),
+        message: t('auth.signUp.invalidEmailFormat'),
       });
       return;
     }
@@ -89,8 +91,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!pass) {
       showAlert({
         type: 'warning',
-        title: 'Thiếu mật khẩu',
-        message: 'Vui lòng nhập mật khẩu',
+        title: t('auth.signUp.missingPassword'),
+        message: t('auth.signUp.enterPassword'),
       });
       return;
     }
@@ -99,8 +101,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (pass.length < 8) {
       showAlert({
         type: 'error',
-        title: 'Mật khẩu quá ngắn',
-        message: 'Mật khẩu phải có ít nhất 8 ký tự',
+        title: t('auth.signUp.passwordTooShort'),
+        message: t('auth.signUp.passwordMinLength'),
       });
       return;
     }
@@ -109,8 +111,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!/\d/.test(pass)) {
       showAlert({
         type: 'error',
-        title: 'Mật khẩu không hợp lệ',
-        message: 'Mật khẩu phải chứa ít nhất 1 chữ số',
+        title: t('auth.signUp.passwordInvalid'),
+        message: t('auth.signUp.passwordNeedsNumber'),
       });
       return;
     }
@@ -119,8 +121,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) {
       showAlert({
         type: 'error',
-        title: 'Mật khẩu không hợp lệ',
-        message: 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)',
+        title: t('auth.signUp.passwordInvalid'),
+        message: t('auth.signUp.passwordNeedsSpecial'),
       });
       return;
     }
@@ -129,8 +131,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!confirm) {
       showAlert({
         type: 'warning',
-        title: 'Thiếu xác nhận mật khẩu',
-        message: 'Vui lòng nhập lại mật khẩu để xác nhận',
+        title: t('auth.signUp.missingConfirmPassword'),
+        message: t('auth.signUp.enterConfirmPassword'),
       });
       return;
     }
@@ -139,8 +141,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (pass !== confirm) {
       showAlert({
         type: 'error',
-        title: 'Mật khẩu không khớp',
-        message: 'Mật khẩu xác nhận không giống mật khẩu đã nhập',
+        title: t('auth.signUp.passwordMismatch'),
+        message: t('auth.signUp.passwordMismatchMessage'),
       });
       return;
     }
@@ -149,8 +151,8 @@ const SignUpScreen = ({ navigation }: Props) => {
     if (!agree) {
       showAlert({
         type: 'warning',
-        title: 'Chưa đồng ý điều khoản',
-        message: 'Vui lòng đồng ý với điều khoản và chính sách để tiếp tục',
+        title: t('auth.signUp.termsNotAgreed'),
+        message: t('auth.signUp.termsNotAgreedMessage'),
       });
       return;
     }
@@ -170,9 +172,9 @@ const SignUpScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Kiểm tra email',
-        message: 'Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và nhập mã xác thực.',
-        confirmText: 'Xác thực ngay',
+        title: t('auth.signUp.checkEmail'),
+        message: t('auth.signUp.otpSent'),
+        confirmText: t('auth.signUp.verifyNow'),
         onClose: () => navigation.navigate("OTPVerification", { 
           email: email.trim(),
           userData: userData // Pass user data to OTP screen
@@ -180,26 +182,26 @@ const SignUpScreen = ({ navigation }: Props) => {
       });
     } catch (error: any) {
       // Xử lý các loại lỗi cụ thể
-      let errorTitle = 'Đăng ký thất bại';
-      let errorMessage = 'Không thể gửi mã OTP. Vui lòng thử lại.';
+      let errorTitle = t('auth.signUp.signUpFailed');
+      let errorMessage = t('auth.signUp.otpSendFailed');
       
       if (error.message) {
         const msg = error.message.toLowerCase();
         
         // Email đã tồn tại
         if (msg.includes('exist') || msg.includes('already') || msg.includes('duplicate')) {
-          errorTitle = 'Email đã được sử dụng';
-          errorMessage = 'Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập';
+          errorTitle = t('auth.signUp.emailExists');
+          errorMessage = t('auth.signUp.emailExistsMessage');
         }
         // Lỗi gửi OTP
         else if (msg.includes('otp') || msg.includes('email')) {
-          errorTitle = 'Không thể gửi mã xác thực';
-          errorMessage = 'Không thể gửi mã OTP đến email. Vui lòng kiểm tra email và thử lại';
+          errorTitle = t('auth.signUp.otpSendError');
+          errorMessage = t('auth.signUp.otpSendErrorMessage');
         }
         // Lỗi mạng
         else if (msg.includes('network') || msg.includes('timeout') || msg.includes('connection')) {
-          errorTitle = 'Lỗi kết nối';
-          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng';
+          errorTitle = t('auth.signIn.connectionError');
+          errorMessage = t('auth.signIn.connectionErrorMessage');
         }
         // Lỗi khác từ server
         else {
@@ -251,10 +253,10 @@ const SignUpScreen = ({ navigation }: Props) => {
 
       {/* Form */}
       <View style={styles.form}>
-        <Text style={styles.title}>Đăng ký</Text>
+        <Text style={styles.title}>{t('auth.signUp.title')}</Text>
 
         <TextInput
-          placeholder="Họ và tên"
+          placeholder={t('auth.signUp.fullName')}
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           value={fullName}
@@ -281,7 +283,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 gender === "Male" && styles.genderTextActive,
               ]}
             >
-              Nam
+              {t('auth.signUp.male')}
             </Text>
           </TouchableOpacity>
 
@@ -303,13 +305,13 @@ const SignUpScreen = ({ navigation }: Props) => {
                 gender === "Female" && styles.genderTextActive,
               ]}
             >
-              Nữ
+              {t('auth.signUp.female')}
             </Text>
           </TouchableOpacity>
         </View>
 
         <TextInput
-          placeholder="Email"
+          placeholder={t('auth.signUp.email')}
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           value={email}
@@ -317,7 +319,7 @@ const SignUpScreen = ({ navigation }: Props) => {
           keyboardType="email-address"
         />
         <TextInput
-          placeholder="Mật khẩu"
+          placeholder={t('auth.signUp.password')}
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           secureTextEntry
@@ -337,7 +339,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 color={pass.length >= 8 ? "#4CAF50" : "#999"}
               />
               <Text style={[styles.requirementText, pass.length >= 8 && styles.requirementMet]}>
-                Ít nhất 8 ký tự
+                {t('auth.signUp.passwordRequirements.minLength')}
               </Text>
             </View>
             <View style={styles.requirement}>
@@ -347,7 +349,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 color={/\d/.test(pass) ? "#4CAF50" : "#999"}
               />
               <Text style={[styles.requirementText, /\d/.test(pass) && styles.requirementMet]}>
-                Chứa ít nhất 1 chữ số
+                {t('auth.signUp.passwordRequirements.hasNumber')}
               </Text>
             </View>
             <View style={styles.requirement}>
@@ -357,7 +359,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 color={/[!@#$%^&*(),.?":{}|<>]/.test(pass) ? "#4CAF50" : "#999"}
               />
               <Text style={[styles.requirementText, /[!@#$%^&*(),.?":{}|<>]/.test(pass) && styles.requirementMet]}>
-                Chứa ít nhất 1 ký tự đặc biệt
+                {t('auth.signUp.passwordRequirements.hasSpecial')}
               </Text>
             </View>
           </View>
@@ -365,7 +367,7 @@ const SignUpScreen = ({ navigation }: Props) => {
 
         <View style={styles.passwordInputContainer}>
           <TextInput
-            placeholder="Xác nhận mật khẩu"
+            placeholder={t('auth.signUp.confirmPassword')}
             style={styles.input}
             placeholderTextColor="#6B6B6B"
             secureTextEntry
@@ -385,7 +387,7 @@ const SignUpScreen = ({ navigation }: Props) => {
 
         <Pressable style={styles.checkRow} onPress={() => setAgree((v) => !v)}>
           <View style={[styles.checkbox, agree && styles.checkboxOn]} />
-          <Text style={styles.checkText}>Tôi đồng ý với điều khoản và chính sách</Text>
+          <Text style={styles.checkText}>{t('auth.signUp.agreeTerms')}</Text>
         </Pressable>
 
         <TouchableOpacity 
@@ -403,18 +405,18 @@ const SignUpScreen = ({ navigation }: Props) => {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Đăng ký</Text>
+              <Text style={styles.buttonText}>{t('auth.signUp.button')}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
 
         <Text style={styles.footer}>
-          Đã có tài khoản?{" "}
+          {t('auth.signUp.hasAccount')}{" "}
           <Text
             style={styles.link}
             onPress={() => navigation.navigate("SignIn")}
           >
-            Đăng nhập
+            {t('auth.signUp.signInLink')}
           </Text>
         </Text>
       </View>

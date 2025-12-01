@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 import { colors, gradients, radius, shadows } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -35,6 +36,7 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
   tokensRemaining = 0,
   estimatedTokens = 0,
 }) => {
+  const { t } = useTranslation();
   const isFullyUsed = tokensRemaining === 0;
   const needsMore = estimatedTokens > tokensRemaining;
   return (
@@ -64,21 +66,21 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
             {/* Title */}
             <Text style={styles.title}>
               {isFullyUsed 
-                ? (isVip ? 'Hết lượt chat VIP!' : 'Hết lượt chat miễn phí!')
-                : 'Không đủ tokens!'}
+                ? (isVip ? t('tokenLimitModal.vipChatLimit') : t('tokenLimitModal.freeChatLimit'))
+                : t('tokenLimitModal.notEnoughTokens')}
             </Text>
 
             {/* Subtitle nếu còn tokens nhưng không đủ */}
             {!isFullyUsed && needsMore && (
               <Text style={styles.subtitle}>
-                Câu hỏi này cần ~{estimatedTokens.toLocaleString()} tokens, nhưng bạn chỉ còn {tokensRemaining.toLocaleString()} tokens
+                {t('tokenLimitModal.needMoreTokens', { estimated: estimatedTokens.toLocaleString(), remaining: tokensRemaining.toLocaleString() })}
               </Text>
             )}
 
             {/* Simple message */}
             <View style={simpleStyles.simpleMessageContainer}>
               <Text style={simpleStyles.simpleMessage}>
-                Bạn đã sử dụng hết {dailyQuota.toLocaleString()} tokens {isVip ? 'VIP' : 'miễn phí'} ngày hôm nay
+                {t('tokenLimitModal.usedAllTokens', { quota: dailyQuota.toLocaleString(), type: isVip ? t('tokenLimitModal.vipType') : t('tokenLimitModal.freeType') })}
               </Text>
             </View>
 
@@ -93,7 +95,7 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
                 />
               </View>
               <Text style={styles.progressText}>
-                {Math.min(Math.round((tokensUsed / dailyQuota) * 100), 100)}% đã sử dụng
+                {t('tokenLimitModal.percentUsed', { percent: Math.min(Math.round((tokensUsed / dailyQuota) * 100), 100) })}
               </Text>
             </View>
 
@@ -102,7 +104,7 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
               <View style={styles.messageContainer}>
                 <Icon name="time-outline" size={20} color={colors.textMedium} />
                 <Text style={styles.message}>
-                  Bạn đã sử dụng hết {dailyQuota.toLocaleString()} tokens VIP hôm nay. Quota sẽ được làm mới vào 00:00 ngày mai.
+                  {t('tokenLimitModal.vipQuotaMessage', { quota: dailyQuota.toLocaleString() })}
                 </Text>
               </View>
             ) : (
@@ -110,7 +112,7 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
                 <View style={styles.messageContainer}>
                   <Icon name="information-circle-outline" size={20} color={colors.textMedium} />
                   <Text style={styles.message}>
-                    Bạn đã sử dụng hết {dailyQuota.toLocaleString()} tokens miễn phí hôm nay!
+                    {t('tokenLimitModal.freeQuotaMessage', { quota: dailyQuota.toLocaleString() })}
                   </Text>
                 </View>
 
@@ -118,27 +120,27 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
                 <View style={styles.vipSection}>
                   <View style={styles.vipHeader}>
                     <Icon name="star" size={24} color="#FFD700" />
-                    <Text style={styles.vipTitle}>Nâng cấp VIP - 99,000đ/tháng</Text>
+                    <Text style={styles.vipTitle}>{t('tokenLimitModal.upgradeVipTitle')}</Text>
                   </View>
 
                   <View style={styles.benefitsList}>
                     <View style={styles.benefitItem}>
                       <Icon name="checkmark-circle" size={20} color={colors.success} />
                       <Text style={styles.benefitText}>
-                        <Text style={styles.benefitHighlight}>50,000 tokens/ngày</Text> (5x nhiều hơn)
+                        <Text style={styles.benefitHighlight}>{t('tokenLimitModal.benefits.moreTokens')}</Text> {t('tokenLimitModal.benefits.moreTokensDesc')}
                       </Text>
                     </View>
                     <View style={styles.benefitItem}>
                       <Icon name="checkmark-circle" size={20} color={colors.success} />
-                      <Text style={styles.benefitText}>Xem ai thích pet của bạn trước</Text>
+                      <Text style={styles.benefitText}>{t('tokenLimitModal.benefits.seeLikes')}</Text>
                     </View>
                     <View style={styles.benefitItem}>
                       <Icon name="checkmark-circle" size={20} color={colors.success} />
-                      <Text style={styles.benefitText}>Ưu tiên ghép đôi (Priority matching)</Text>
+                      <Text style={styles.benefitText}>{t('tokenLimitModal.benefits.priorityMatching')}</Text>
                     </View>
                     <View style={styles.benefitItem}>
                       <Icon name="checkmark-circle" size={20} color={colors.success} />
-                      <Text style={styles.benefitText}>Không có quảng cáo</Text>
+                      <Text style={styles.benefitText}>{t('tokenLimitModal.benefits.noAds')}</Text>
                     </View>
                   </View>
                 </View>
@@ -161,7 +163,7 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
                   end={{ x: 1, y: 0 }}
                 >
                   <Icon name="star" size={20} color={colors.white} />
-                  <Text style={styles.upgradeText}>Nâng cấp VIP ngay</Text>
+                  <Text style={styles.upgradeText}>{t('tokenLimitModal.upgradeNow')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -172,7 +174,7 @@ export const TokenLimitModal: React.FC<TokenLimitModalProps> = ({
               activeOpacity={0.7}
             >
               <Text style={styles.closeText}>
-                {isVip ? 'Đã hiểu' : 'Để sau'}
+                {isVip ? t('tokenLimitModal.understood') : t('tokenLimitModal.later')}
               </Text>
             </TouchableOpacity>
           </View>

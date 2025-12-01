@@ -12,6 +12,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSelector } from "react-redux";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
@@ -22,6 +23,7 @@ import { selectUnreadExpertChats } from "../../badge/badgeSlice";
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChatList">;
 
 const ExpertChatListScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [expertChats, setExpertChats] = useState<ExpertChatListItem[]>([]);
   const unreadExpertChats = useSelector(selectUnreadExpertChats);
@@ -71,19 +73,19 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffDays > 0) {
-      return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày trước`;
+      return diffDays === 1 ? t('expert.chatList.time.yesterday') : t('expert.chatList.time.daysAgo', { count: diffDays });
     }
 
     if (diffHours > 0) {
-      return `${diffHours} giờ trước`;
+      return t('expert.chatList.time.hoursAgo', { count: diffHours });
     }
 
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins > 0) {
-      return `${diffMins} phút trước`;
+      return t('expert.chatList.time.minutesAgo', { count: diffMins });
     }
 
-    return 'Vừa xong';
+    return t('expert.chatList.time.justNow');
   };
 
   const renderExpertChat = ({ item }: { item: ExpertChatListItem }) => {
@@ -168,11 +170,11 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
             <View style={styles.headerIconContainer}>
               <Icon name="medical" size={24} color={colors.white} />
             </View>
-            <Text style={styles.headerTitle}>Chuyên gia</Text>
+            <Text style={styles.headerTitle}>{t('expert.chatList.title')}</Text>
           </View>
         </View>
         <Text style={styles.headerSubtitle}>
-          Tư vấn từ các chuyên gia thú y
+          {t('expert.chatList.subtitle')}
         </Text>
       </LinearGradient>
 
@@ -186,7 +188,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
         >
           <Icon name="information-circle" size={20} color="#4CAF50" />
           <Text style={styles.infoText}>
-            Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất
+            {t('expert.chatList.infoBanner')}
           </Text>
         </LinearGradient>
       </View>
@@ -195,7 +197,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <Text style={styles.loadingText}>{t('expert.chatList.loading')}</Text>
         </View>
       ) : expertChats.length > 0 ? (
         <FlatList
@@ -215,9 +217,9 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
           >
             <Icon name="medical-outline" size={48} color={colors.white} />
           </LinearGradient>
-          <Text style={styles.emptyTitle}>Chưa có cuộc trò chuyện</Text>
+          <Text style={styles.emptyTitle}>{t('expert.chatList.empty.title')}</Text>
           <Text style={styles.emptyText}>
-            Gửi câu hỏi để được chuyên gia tư vấn
+            {t('expert.chatList.empty.message')}
           </Text>
           <TouchableOpacity
             style={styles.askButton}
@@ -230,7 +232,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
               end={{ x: 1, y: 1 }}
             >
               <Icon name="add-circle" size={20} color={colors.white} />
-              <Text style={styles.askButtonText}>Đặt câu hỏi mới</Text>
+              <Text style={styles.askButtonText}>{t('expert.chatList.askNewQuestion')}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>

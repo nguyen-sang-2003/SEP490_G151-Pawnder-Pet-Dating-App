@@ -14,6 +14,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getUserExpertConfirmations, ExpertConfirmation } from "../../expert/api/expertConfirmationApi";
@@ -25,6 +26,7 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertConfirmation">;
 
 const ExpertConfirmationScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [requests, setRequests] = useState<ExpertConfirmation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,8 +76,8 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       if (!userIdStr) {
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: 'Không tìm thấy thông tin người dùng'
+          title: t('common.error'),
+          message: t('settings.expertConfirmation.errors.userNotFound')
         });
         return;
       }
@@ -86,8 +88,8 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       if (!expertId) {
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: 'Không tìm thấy thông tin chuyên gia'
+          title: t('common.error'),
+          message: t('settings.expertConfirmation.errors.expertNotFound')
         });
         return;
       }
@@ -108,8 +110,8 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       console.error('❌ Error creating expert chat:', error);
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.message || 'Không thể tạo chat với chuyên gia'
+        title: t('common.error'),
+        message: error.message || t('settings.expertConfirmation.errors.createChatFailed')
       });
     } finally {
       setCreatingChat(false);
@@ -176,16 +178,16 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
       if (diffHours === 0) {
         const diffMinutes = Math.floor(diffTime / (1000 * 60));
-        return diffMinutes <= 1 ? "Vừa xong" : `${diffMinutes} phút trước`;
+        return diffMinutes <= 1 ? t('settings.expertConfirmation.time.justNow') : t('settings.expertConfirmation.time.minutesAgo', { count: diffMinutes });
       }
-      return `${diffHours} giờ trước`;
+      return t('settings.expertConfirmation.time.hoursAgo', { count: diffHours });
     }
 
     // Yesterday
-    if (diffDays === 1) return "Hôm qua";
+    if (diffDays === 1) return t('settings.expertConfirmation.time.yesterday');
 
     // Within a week
-    if (diffDays < 7) return `${diffDays} ngày trước`;
+    if (diffDays < 7) return t('settings.expertConfirmation.time.daysAgo', { count: diffDays });
 
     // Older - show full date time (will be in local timezone UTC+7)
     return date.toLocaleString('vi-VN', {
@@ -203,7 +205,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       <View style={styles.cardHeader}>
         <View style={styles.headerLeft}>
           <Icon name="shield-checkmark" size={20} color="#4CAF50" />
-          <Text style={styles.cardTitle}>Yêu cầu chuyên gia</Text>
+          <Text style={styles.cardTitle}>{t('settings.expertConfirmation.requestCard.title')}</Text>
         </View>
         <View
           style={[
@@ -217,10 +219,10 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
             color={getStatusColor(item.status)}
           />
           <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status) === 'pending' ? 'Đang chờ' : 
-             getStatusLabel(item.status) === 'answered' ? 'Đã trả lời' : 
-             getStatusLabel(item.status) === 'rejected' ? 'Bị từ chối' : 
-             getStatusLabel(item.status) || 'Không rõ'}
+            {getStatusLabel(item.status) === 'pending' ? t('settings.expertConfirmation.status.pending') : 
+             getStatusLabel(item.status) === 'answered' ? t('settings.expertConfirmation.status.answered') : 
+             getStatusLabel(item.status) === 'rejected' ? t('settings.expertConfirmation.status.rejected') : 
+             getStatusLabel(item.status) || t('settings.expertConfirmation.status.unknown')}
           </Text>
         </View>
       </View>
@@ -230,7 +232,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       {/* User Request Message */}
       {item.userQuestion && (
         <View style={styles.messageSection}>
-          <Text style={styles.messageSectionLabel}>Nội dung yêu cầu:</Text>
+          <Text style={styles.messageSectionLabel}>{t('settings.expertConfirmation.requestCard.requestContent')}</Text>
           <View style={styles.messageBox}>
             <Icon name="document-text-outline" size={14} color={colors.textMedium} style={{ marginTop: 2 }} />
             <Text style={styles.messageText} numberOfLines={5}>
@@ -248,12 +250,12 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
             <View style={styles.expertResponseSection}>
               <View style={styles.expertResponseHeader}>
                 <Icon name="checkmark-circle" size={14} color="#4CAF50" />
-                <Text style={styles.expertResponseHeaderText}>Phản hồi của chuyên gia:</Text>
+                <Text style={styles.expertResponseHeaderText}>{t('settings.expertConfirmation.requestCard.expertResponse')}</Text>
               </View>
               <Text style={styles.expertResponseText}>{item.message}</Text>
               {item.updatedAt && (
                 <Text style={styles.expertResponseTime}>
-                  Trả lời lúc: {formatTime(item.updatedAt)}
+                  {t('settings.expertConfirmation.requestCard.respondedAt', { time: formatTime(item.updatedAt) })}
                 </Text>
               )}
             </View>
@@ -266,7 +268,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
             >
               <Icon name="chatbubbles" size={18} color="#4CAF50" />
               <Text style={styles.chatExpertButtonText}>
-                Nhắn tin với chuyên gia
+                {t('settings.expertConfirmation.requestCard.chatWithExpert')}
               </Text>
               <Icon name="arrow-forward" size={16} color="#4CAF50" />
             </TouchableOpacity>
@@ -278,7 +280,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         <View style={styles.pendingBox}>
           <Icon name="hourglass-outline" size={16} color="#FF9800" />
           <Text style={styles.pendingText}>
-            Đang chờ chuyên gia xem xét. Bạn sẽ nhận được thông báo khi có phản hồi.
+            {t('settings.expertConfirmation.requestCard.pendingMessage')}
           </Text>
         </View>
       )}
@@ -292,15 +294,15 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   );
 
   const renderEmpty = () => {
-    let emptyMessage = "Khi bạn cần chuyên gia xác nhận lời khuyên của AI, các yêu cầu sẽ xuất hiện ở đây";
-    let emptyTitle = "Chưa có yêu cầu chuyên gia";
+    let emptyMessage = t('settings.expertConfirmation.empty.all.message');
+    let emptyTitle = t('settings.expertConfirmation.empty.all.title');
 
     if (selectedFilter === 'answered') {
-      emptyTitle = "Chưa có yêu cầu được trả lời";
-      emptyMessage = "Các yêu cầu đã được chuyên gia trả lời sẽ xuất hiện ở đây";
+      emptyTitle = t('settings.expertConfirmation.empty.answered.title');
+      emptyMessage = t('settings.expertConfirmation.empty.answered.message');
     } else if (selectedFilter === 'pending') {
-      emptyTitle = "Chưa có yêu cầu đang chờ";
-      emptyMessage = "Các yêu cầu đang chờ chuyên gia xử lý sẽ xuất hiện ở đây";
+      emptyTitle = t('settings.expertConfirmation.empty.pending.title');
+      emptyMessage = t('settings.expertConfirmation.empty.pending.message');
     }
 
     return (
@@ -338,7 +340,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Yêu cầu chuyên gia</Text>
+          <Text style={styles.headerTitle}>{t('settings.expertConfirmation.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -356,7 +358,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
             >
               <Icon name="shield-checkmark" size={24} color="#4CAF50" />
               <Text style={styles.statNumber}>{answeredCount}</Text>
-              <Text style={styles.statLabel}>Đã trả lời</Text>
+              <Text style={styles.statLabel}>{t('settings.expertConfirmation.stats.answered')}</Text>
             </TouchableOpacity>
 
             {/* Pending */}
@@ -370,7 +372,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
             >
               <Icon name="hourglass" size={24} color="#FF9800" />
               <Text style={styles.statNumber}>{pendingCount}</Text>
-              <Text style={styles.statLabel}>Chờ xử lý</Text>
+              <Text style={styles.statLabel}>{t('settings.expertConfirmation.stats.pending')}</Text>
             </TouchableOpacity>
 
             {/* Total (All) */}
@@ -384,7 +386,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
             >
               <Icon name="documents" size={24} color={colors.primary} />
               <Text style={styles.statNumber}>{requests.length}</Text>
-              <Text style={styles.statLabel}>Tổng cộng</Text>
+              <Text style={styles.statLabel}>{t('settings.expertConfirmation.stats.total')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -394,10 +396,10 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
           <View style={styles.filterInfo}>
             <Text style={styles.filterInfoText}>
               {selectedFilter === 'all'
-                ? `Hiển thị tất cả ${filteredRequests.length} yêu cầu`
+                ? t('settings.expertConfirmation.filter.showAll', { count: filteredRequests.length })
                 : selectedFilter === 'answered'
-                  ? `${filteredRequests.length} yêu cầu đã được trả lời`
-                  : `${filteredRequests.length} yêu cầu đang chờ xử lý`}
+                  ? t('settings.expertConfirmation.filter.showAnswered', { count: filteredRequests.length })
+                  : t('settings.expertConfirmation.filter.showPending', { count: filteredRequests.length })}
             </Text>
           </View>
         )}
@@ -406,7 +408,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         <View style={styles.infoBanner}>
           <Icon name="information-circle" size={20} color="#4CAF50" />
           <Text style={styles.infoBannerText}>
-            Các chuyên gia thú y được chứng nhận sẽ xem xét câu trả lời của AI
+            {t('settings.expertConfirmation.infoBanner')}
           </Text>
         </View>
 
@@ -414,7 +416,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Đang tải yêu cầu...</Text>
+            <Text style={styles.loadingText}>{t('settings.expertConfirmation.loading')}</Text>
           </View>
         ) : (
           /* Requests List */

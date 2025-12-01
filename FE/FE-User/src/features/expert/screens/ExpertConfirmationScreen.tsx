@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getUserExpertConfirmations, ExpertConfirmation } from "../api/expertConfirmationApi";
@@ -24,6 +25,7 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertConfirmation">;
 
 const ExpertConfirmationScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [requests, setRequests] = useState<ExpertConfirmation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,4 +33,6 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const [creatingChat, setCreatingChat] = useState(false);
   const { visible: alertVisible, alertConfig, showAlert, hideAlert } = useCustomAlert();
 
+  // TODO: Implement the rest of the screen
+  return null;
 }

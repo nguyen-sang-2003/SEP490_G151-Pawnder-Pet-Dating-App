@@ -12,6 +12,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { logout } from "../../auth/api/authApi";
@@ -32,6 +33,7 @@ interface SettingsItem {
 }
 
 const SettingsScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
   const [loadingVip, setLoadingVip] = useState(true);
@@ -62,20 +64,20 @@ const SettingsScreen = ({ navigation }: Props) => {
   const accountSettings: SettingsItem[] = [
     {
       icon: "person-outline",
-      title: "Chỉnh sửa hồ sơ",
-      subtitle: "Cập nhật thông tin cá nhân của bạn",
+      title: t('settings.account.editProfile'),
+      subtitle: t('settings.account.editProfileDesc'),
       onPress: () => navigation.navigate("EditProfile", {}),
     },
     {
       icon: "paw-outline",
-      title: "Thú cưng của tôi",
-      subtitle: "Quản lý hồ sơ thú cưng của bạn",
+      title: t('settings.account.myPets'),
+      subtitle: t('settings.account.myPetsDesc'),
       onPress: () => navigation.navigate("Profile"),
     },
     {
       icon: "key-outline",
-      title: "Đổi mật khẩu",
-      subtitle: "Cập nhật mật khẩu của bạn",
+      title: t('settings.account.changePassword'),
+      subtitle: t('settings.account.changePasswordDesc'),
       onPress: () => navigation.navigate("ChangePassword"),
     },
   ];
@@ -83,26 +85,26 @@ const SettingsScreen = ({ navigation }: Props) => {
   const appSettings: SettingsItem[] = [
     {
       icon: "shield-checkmark-outline",
-      title: "Xác nhận chuyên gia",
-      subtitle: "Xem phản hồi AI đã được chuyên gia xác nhận",
+      title: t('settings.appSettings.expertConfirmation'),
+      subtitle: t('settings.appSettings.expertConfirmationDesc'),
       onPress: () => navigation.navigate("ExpertConfirmation"),
     },
     {
       icon: "ban-outline",
-      title: "Người dùng bị chặn",
-      subtitle: "Quản lý tài khoản bị chặn",
+      title: t('settings.appSettings.blockedUsers'),
+      subtitle: t('settings.appSettings.blockedUsersDesc'),
       onPress: () => navigation.navigate("BlockedUsers"),
     },
     {
       icon: "flag-outline",
-      title: "Báo cáo của tôi",
-      subtitle: "Xem nội dung bạn đã báo cáo",
+      title: t('settings.appSettings.myReports'),
+      subtitle: t('settings.appSettings.myReportsDesc'),
       onPress: () => navigation.navigate("MyReports"),
     },
     {
       icon: "notifications-outline",
-      title: "Thông báo",
-      subtitle: "Xem thông báo của bạn",
+      title: t('settings.appSettings.notifications'),
+      subtitle: t('settings.appSettings.notificationsDesc'),
       onPress: () => navigation.navigate("Notification"),
     },
   ];
@@ -110,20 +112,20 @@ const SettingsScreen = ({ navigation }: Props) => {
   const supportSettings: SettingsItem[] = [
     {
       icon: "help-circle-outline",
-      title: "Trợ giúp & Hỗ trợ",
-      subtitle: "Nhận trợ giúp và liên hệ hỗ trợ",
+      title: t('settings.supportSection.helpSupport'),
+      subtitle: t('settings.supportSection.helpSupportDesc'),
       onPress: () => navigation.navigate("HelpAndSupport"),
     },
     {
       icon: "document-text-outline",
-      title: "Điều khoản & Điều kiện",
-      subtitle: "Đọc điều khoản dịch vụ của chúng tôi",
+      title: t('settings.supportSection.terms'),
+      subtitle: t('settings.supportSection.termsDesc'),
       onPress: () => navigation.navigate("ResourceDetail", { type: "terms" }),
     },
     {
       icon: "shield-outline",
-      title: "Chính sách bảo mật",
-      subtitle: "Đọc chính sách bảo mật của chúng tôi",
+      title: t('settings.supportSection.privacy'),
+      subtitle: t('settings.supportSection.privacyDesc'),
       onPress: () => navigation.navigate("ResourceDetail", { type: "privacy" }),
     },
   ];
@@ -131,15 +133,15 @@ const SettingsScreen = ({ navigation }: Props) => {
   const premiumSettings: SettingsItem[] = [
     {
       icon: "diamond-outline",
-      title: "Pawnder Premium",
-      subtitle: "Mở khóa các tính năng độc quyền",
+      title: t('settings.premiumSection.pawnderPremium'),
+      subtitle: t('settings.premiumSection.pawnderPremiumDesc'),
       onPress: () => navigation.navigate("Premium"),
       iconColor: colors.primary,
     },
     {
       icon: "receipt-outline",
-      title: "Lịch sử thanh toán",
-      subtitle: "Xem lịch sử giao dịch của bạn",
+      title: t('settings.premiumSection.paymentHistory'),
+      subtitle: t('settings.premiumSection.paymentHistoryDesc'),
       onPress: () => navigation.navigate("PaymentHistory"),
     },
   ];
@@ -169,14 +171,14 @@ const SettingsScreen = ({ navigation }: Props) => {
   const dangerSettings: SettingsItem[] = [
     {
       icon: "log-out-outline",
-      title: "Đăng xuất",
+      title: t('settings.danger.logout'),
       onPress: () => {
         showAlert({
           type: 'warning',
-          title: "Đăng xuất",
-          message: "Bạn có chắc chắn muốn đăng xuất?",
+          title: t('settings.danger.logoutTitle'),
+          message: t('settings.danger.logoutConfirm'),
           showCancel: true,
-          confirmText: "Đăng xuất",
+          confirmText: t('settings.danger.logout'),
           onConfirm: handleLogout,
         });
       },
@@ -184,14 +186,14 @@ const SettingsScreen = ({ navigation }: Props) => {
     },
     {
       icon: "trash-outline",
-      title: "Xóa tài khoản",
+      title: t('settings.danger.deleteAccount'),
       onPress: () => {
         showAlert({
           type: 'error',
-          title: "Xóa tài khoản",
-          message: "Hành động này không thể hoàn tác. Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn.",
+          title: t('settings.danger.deleteAccountTitle'),
+          message: t('settings.danger.deleteAccountConfirm'),
           showCancel: true,
-          confirmText: "Xóa",
+          confirmText: t('common.delete'),
           onConfirm: () => console.log("Delete account"),
         });
       },
@@ -287,14 +289,14 @@ const SettingsScreen = ({ navigation }: Props) => {
             {/* VIP Info */}
             <View style={styles.vipInfo}>
               <View style={styles.vipTitleRow}>
-                <Text style={styles.vipTitle}>Pawnder Premium</Text>
+                <Text style={styles.vipTitle}>{t('settings.premiumSection.pawnderPremium')}</Text>
                 <View style={styles.vipBadge}>
                   <Icon name="checkmark-circle" size={16} color="#FFF" />
-                  <Text style={styles.vipBadgeText}>ACTIVE</Text>
+                  <Text style={styles.vipBadgeText}>{t('settings.vip.active')}</Text>
                 </View>
               </View>
               <Text style={styles.vipSubtitle}>
-                Hết hạn {formattedDate} • Còn {daysRemaining} ngày
+                {t('settings.vip.expireDate', { date: formattedDate, days: daysRemaining })}
               </Text>
             </View>
 
@@ -325,15 +327,15 @@ const SettingsScreen = ({ navigation }: Props) => {
 
           {/* Call to Action */}
           <View style={styles.vipInfo}>
-            <Text style={styles.vipTitle}>Mở khóa Pawnder Premium</Text>
+            <Text style={styles.vipTitle}>{t('settings.vip.unlockPremium')}</Text>
             <Text style={styles.vipSubtitle}>
-              Tăng giới hạn ghép đôi, AI và nhiều hơn nữa
+              {t('settings.vip.unlockDesc')}
             </Text>
           </View>
 
           {/* Upgrade Button */}
           <View style={styles.upgradeButton}>
-            <Text style={styles.upgradeButtonText}>Nâng cấp</Text>
+            <Text style={styles.upgradeButtonText}>{t('settings.vip.upgrade')}</Text>
             <Icon name="arrow-forward" size={16} color="#F5576C" />
           </View>
         </LinearGradient>
@@ -356,7 +358,7 @@ const SettingsScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cài đặt</Text>
+        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -369,14 +371,14 @@ const SettingsScreen = ({ navigation }: Props) => {
         {/* VIP Status Card */}
         {renderVipStatusCard()}
 
-        {renderSection("Tài khoản", accountSettings)}
-        {renderSection("Cài đặt ứng dụng", appSettings)}
-        {renderSection("Premium & Thanh toán", premiumSettings)}
-        {renderSection("Hỗ trợ", supportSettings)}
-        {renderSection("Vùng nguy hiểm", dangerSettings)}
+        {renderSection(t('settings.sections.account'), accountSettings)}
+        {renderSection(t('settings.sections.appSettings'), appSettings)}
+        {renderSection(t('settings.sections.premium'), premiumSettings)}
+        {renderSection(t('settings.sections.support'), supportSettings)}
+        {renderSection(t('settings.sections.dangerZone'), dangerSettings)}
 
         {/* Version */}
-        <Text style={styles.version}>Phiên bản 1.0.0</Text>
+        <Text style={styles.version}>{t('settings.version', { version: '1.0.0' })}</Text>
       </ScrollView>
 
       {/* Custom Alert */}
