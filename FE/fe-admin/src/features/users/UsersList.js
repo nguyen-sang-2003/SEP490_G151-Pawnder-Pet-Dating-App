@@ -410,17 +410,17 @@ const UsersList = () => {
     }
   }, []);
 
-  // Fetch users from API
+  // Fetch users from API (lấy toàn bộ để sắp xếp theo ngày tạo phía frontend)
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Prepare query parameters
+        // Prepare query parameters - luôn lấy full list, phân trang phía frontend
         const params = {
-          page: currentPage,
-          pageSize: itemsPerPage,
+          page: 1,
+          pageSize: 1000,
           includeDeleted: false
         };
         
@@ -442,7 +442,6 @@ const UsersList = () => {
         
         // Backend returns: { Items: UserResponse[], Total: number, Page: number, PageSize: number }
         const usersData = response.Items || response.items || [];
-        const total = response.Total || response.total || 0;
         
         // Map backend UserResponse to frontend user format
         const mappedUsers = usersData.map(user => {
@@ -482,12 +481,19 @@ const UsersList = () => {
             totalPets: 0 // Will be updated after fetching pets count
           };
         });
+
+        // Sắp xếp theo ngày tạo (mới nhất -> cũ nhất)
+        const sortedUsers = mappedUsers.sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
         
-        setUsers(mappedUsers);
-        setTotalPages(Math.ceil(total / itemsPerPage));
+        setUsers(sortedUsers);
+        setTotalPages(Math.max(1, Math.ceil(sortedUsers.length / itemsPerPage)));
         
         // Fetch pets count for each user (in parallel, but limit concurrency)
-        fetchPetsCount(mappedUsers);
+        fetchPetsCount(sortedUsers);
         
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -498,7 +504,7 @@ const UsersList = () => {
     };
     
     fetchUsers();
-  }, [currentPage, searchTerm, filterStatus, itemsPerPage, USER_STATUS.BANNED, USER_STATUS.NORMAL, USER_STATUS.PREMIUM, fetchPetsCount]);
+  }, [searchTerm, filterStatus, itemsPerPage, USER_STATUS.BANNED, USER_STATUS.NORMAL, USER_STATUS.PREMIUM, fetchPetsCount]);
 
   // Fetch user stats (total, normal, premium, verified)
   useEffect(() => {
@@ -609,6 +615,15 @@ const UsersList = () => {
     );
   }
 
+  // Sắp xếp người dùng theo ngày tạo (mới nhất -> cũ nhất) và phân trang phía frontend
+  const sortedUsersForView = [...users].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedUsers = sortedUsersForView.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div className="users-page">
       <div className="page-header">
@@ -679,8 +694,8 @@ const UsersList = () => {
             </tr>
           </thead>
           <tbody>
-            {users.length > 0 ? (
-              users.map((user) => (
+          {paginatedUsers.length > 0 ? (
+              paginatedUsers.map((user) => (
               <tr key={user.id}>
                 <td>
                   <div className="user-avatar">

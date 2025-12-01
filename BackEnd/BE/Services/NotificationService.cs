@@ -65,7 +65,7 @@ namespace BE.Services
                 UserId = notificationDto.UserId.Value,
                 Title = notificationDto.Title,
                 Message = notificationDto.Message,
-                Type = "expert_confirmation", // Set type for expert confirmation notifications
+                Type = notificationDto.Type ?? "expert_confirmation", // Allow custom type, default expert_confirmation
                 IsRead = false,
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now

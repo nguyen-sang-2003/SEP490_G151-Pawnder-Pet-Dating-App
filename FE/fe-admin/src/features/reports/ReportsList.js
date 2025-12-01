@@ -138,11 +138,11 @@ const ReportsList = () => {
           };
         });
         
-        // Sắp xếp theo ReportId (ID tăng dần)
+        // Sắp xếp theo ngày tạo (mới nhất -> cũ nhất)
         const sortedReports = mappedReports.sort((a, b) => {
-          const idA = a.id || 0;
-          const idB = b.id || 0;
-          return idA - idB;
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
         });
         
         setReports(sortedReports);
