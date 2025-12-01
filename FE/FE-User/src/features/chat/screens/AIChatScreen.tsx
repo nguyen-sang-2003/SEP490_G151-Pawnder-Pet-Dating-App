@@ -87,14 +87,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setMessages([
         {
           id: "welcome",
-          text: "Hi there! 👋 I'm your AI Pet Care Assistant. I'm here to help you with any questions about your cat! How can I assist you today?",
+          text: "Xin chào! 👋 Tôi là Trợ lý AI Chăm sóc Thú cưng. Tôi ở đây để giúp bạn với mọi câu hỏi về mèo của bạn! Tôi có thể giúp gì cho bạn hôm nay?",
           isAI: true,
           timestamp: new Date(),
           suggestions: [
-            "Pet care tips",
-            "Health advice",
-            "Training tips",
-            "Nutrition guide",
+            "Mẹo chăm sóc",
+            "Tư vấn sức khỏe",
+            "Mẹo huấn luyện",
+            "Hướng dẫn dinh dưỡng",
           ],
         },
       ]);
@@ -379,7 +379,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           {item.isAI ? (
             <View style={styles.aiContent}>
               <View style={styles.aiHeader}>
-                <Text style={styles.aiLabel}>AI Assistant</Text>
+                <Text style={styles.aiLabel}>Trợ lý AI</Text>
                 <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
               </View>
               <Text style={styles.aiMessageText}>{item.text}</Text>
@@ -395,7 +395,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                     style={styles.askExpertGradient}
                   >
                     <Icon name="shield-checkmark" size={16} color={colors.white} />
-                    <Text style={styles.askExpertText}>Ask Expert to Confirm</Text>
+                    <Text style={styles.askExpertText}>Hỏi chuyên gia xác nhận</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}
@@ -404,7 +404,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               {item.id !== "welcome" && sentToExpertIds.has(item.id) && (
                 <View style={styles.sentToExpertBadge}>
                   <Icon name="checkmark-circle" size={16} color={colors.success} />
-                  <Text style={styles.sentToExpertText}>Sent to Expert</Text>
+                  <Text style={styles.sentToExpertText}>Đã gửi cho chuyên gia</Text>
                 </View>
               )}
             </View>
@@ -465,13 +465,13 @@ const AIChatScreen = ({ navigation, route }: Props) => {
             </LinearGradient>
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{chatTitle}</Text>
-              <Text style={styles.headerStatus}>Loading...</Text>
+              <Text style={styles.headerStatus}>Đang tải...</Text>
             </View>
           </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.aiPrimary} />
-          <Text style={styles.loadingText}>Loading chat...</Text>
+          <Text style={styles.loadingText}>Đang tải cuộc trò chuyện...</Text>
         </View>
       </LinearGradient>
     );
@@ -500,11 +500,11 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               <Icon name="sparkles" size={24} color={colors.white} />
             </LinearGradient>
             <View style={styles.headerInfo}>
-              <Text style={styles.headerName}>AI Pet Assistant</Text>
+              <Text style={styles.headerName}>Trợ lý AI thú cưng</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? "typing..." : tokenUsage
+                {isTyping ? "đang nhập..." : tokenUsage
                   ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota
-                    ? "Limit reached (100%)"
+                    ? "Đã đạt giới hạn (100%)"
                     : `${tokenUsage.tokensUsed.toLocaleString()}/${tokenUsage.dailyQuota.toLocaleString()} tokens`)
                   : "0/10,000 tokens"}
               </Text>
@@ -568,7 +568,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
 
             <TextInput
               style={styles.input}
-              placeholder="Ask me anything about cat care..."
+              placeholder="Hỏi tôi bất cứ điều gì về chăm sóc mèo..."
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={setInputText}

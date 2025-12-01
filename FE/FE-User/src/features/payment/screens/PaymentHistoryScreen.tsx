@@ -176,7 +176,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       <View style={styles.emptyIconContainer}>
         <Icon name="receipt-outline" size={64} color={colors.textLabel} />
       </View>
-      <Text style={styles.emptyTitle}>No Payment History</Text>
+      <Text style={styles.emptyTitle}>Chưa có lịch sử thanh toán</Text>
       <Text style={styles.emptyText}>
         Your payment transactions will appear here
       </Text>
@@ -189,7 +189,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
           style={styles.premiumGradient}
         >
           <Icon name="diamond-outline" size={20} color={colors.white} />
-          <Text style={styles.premiumText}>Upgrade to Premium</Text>
+          <Text style={styles.premiumText}>Nâng cấp Premium</Text>
         </LinearGradient>
       </TouchableOpacity>
     </View>
@@ -210,7 +210,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payment History</Text>
+        <Text style={styles.headerTitle}>Lịch sử thanh toán</Text>
         <View style={styles.placeholder} />
       </View>
 

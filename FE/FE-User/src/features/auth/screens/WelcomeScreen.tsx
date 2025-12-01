@@ -39,7 +39,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
 
       {/* Tagline */}
       <Animatable.Text animation="fadeInUp" delay={600} style={styles.tagline}>
-        Tìm bạn đời hoàn hảo cho thú cưng của bạn 🐾💖
+        Tìm bạn đời hoàn hảo cho thú cưng của bạn
       </Animatable.Text>
 
       {/* Nút welcome */}
@@ -60,7 +60,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
             end={{ x: 1, y: 1 }}
             style={styles.button}
           >
-            <Text style={styles.buttonText}>WELCOME</Text>
+            <Text style={styles.buttonText}>CHÀO MỪNG</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animatable.View>

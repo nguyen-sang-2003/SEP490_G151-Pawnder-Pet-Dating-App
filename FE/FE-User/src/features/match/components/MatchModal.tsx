@@ -54,10 +54,10 @@ const MatchModal: React.FC<MatchModalProps> = ({
             <Icon name="heart" size={80} color={colors.white} />
           </View>
           
-          <Text style={styles.matchTitle}>It's a Match! 🎉</Text>
+          <Text style={styles.matchTitle}>Ghép đôi thành công</Text>
           
           <Text style={styles.matchText}>
-            You and {otherUserName} liked each other's pets
+            Bạn và {otherUserName} đã thích thú cưng của nhau
           </Text>
 
           {petPhotoUrl && petPhotoUrl !== "null" && petPhotoUrl !== "" && (
@@ -80,7 +80,7 @@ const MatchModal: React.FC<MatchModalProps> = ({
             activeOpacity={0.9}
           >
             <Icon name="chatbubble" size={20} color={colors.primary} />
-            <Text style={styles.sendMessageText}>Send Message</Text>
+            <Text style={styles.sendMessageText}>Gửi tin nhắn</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -88,7 +88,7 @@ const MatchModal: React.FC<MatchModalProps> = ({
             onPress={onClose}
             activeOpacity={0.8}
           >
-            <Text style={styles.keepSwipingText}>Keep Browsing</Text>
+            <Text style={styles.keepSwipingText}>Tiếp tục duyệt</Text>
           </TouchableOpacity>
         </LinearGradient>
       </View>

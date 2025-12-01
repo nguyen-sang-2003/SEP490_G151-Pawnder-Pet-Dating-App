@@ -899,7 +899,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{userName}</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? "typing..." : otherUserOnline ? "Online" : "Offline"}
+                {isTyping ? "đang nhập..." : otherUserOnline ? "Đang online" : "Offline"}
               </Text>
             </View>
           </View>
@@ -1073,7 +1073,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               <OptimizedImage source={otherUserAvatar} style={styles.menuAvatar} resizeMode="cover" showLoader={false} imageSize="thumbnail" />
               <View style={styles.menuHeaderText}>
                 <Text style={styles.menuUserName}>{userName}</Text>
-                <Text style={styles.menuUserStatus}>Active now</Text>
+                <Text style={styles.menuUserStatus}>Đang hoạt động</Text>
               </View>
               <TouchableOpacity onPress={closeMenu} style={styles.menuCloseBtn}>
                 <Icon name="close" size={24} color={colors.textDark} />

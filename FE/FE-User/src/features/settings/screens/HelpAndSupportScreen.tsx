@@ -98,7 +98,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Help & Support</Text>
+        <Text style={styles.headerTitle}>Trợ giúp & Hỗ trợ</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -265,7 +265,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="shield-checkmark" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Privacy Policy</Text>
+                <Text style={styles.resourceTitleNew}>Chính sách bảo mật</Text>
                 <Text style={styles.resourceDescNew}>
                   How we protect your data
                 </Text>
@@ -361,7 +361,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="information-circle" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>About Pawnder</Text>
+                <Text style={styles.resourceTitleNew}>Về Pawnder</Text>
                 <Text style={styles.resourceDescNew}>
                   Our mission and story
                 </Text>

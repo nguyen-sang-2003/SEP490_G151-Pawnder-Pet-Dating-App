@@ -110,7 +110,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       if (response.success) {
         // Show success alert
         Alert.alert(
-          "🎉 Thanh toán thành công!",
+          "Thanh toán thành công",
           `Bạn đã nâng cấp lên ${planName}!\n\nThời hạn: ${duration}\nCảm ơn bạn đã tin tưởng sử dụng dịch vụ!`,
           [
             {
