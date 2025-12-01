@@ -99,8 +99,15 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    // Validation: Kiểm tra tên trống
     if (!name.trim()) {
-      showAlert({ type: 'warning', title: 'Lỗi nhập liệu', message: 'Tên không được để trống' });
+      showAlert({ type: 'warning', title: 'Thiếu thông tin', message: 'Vui lòng nhập họ tên' });
+      return;
+    }
+
+    // Validation: Kiểm tra độ dài tên
+    if (name.trim().length < 2) {
+      showAlert({ type: 'error', title: 'Tên không hợp lệ', message: 'Họ tên phải có ít nhất 2 ký tự' });
       return;
     }
 
@@ -231,21 +238,21 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Icon name="arrow-back" size={26} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ</Text>
           <View style={{ width: 40 }} />
         </View>
 
         {/* Form */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>Họ và tên</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter your name"
+              placeholder="Nhập tên của bạn"
               placeholderTextColor="#999"
             />
           </View>
@@ -255,16 +262,16 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={[styles.input, styles.inputDisabled]}
               value={email}
-              placeholder="Enter your email"
+              placeholder="Nhập email của bạn"
               placeholderTextColor="#999"
               keyboardType="email-address"
               editable={false}
             />
-            <Text style={styles.helperText}>Email cannot be changed</Text>
+            <Text style={styles.helperText}>Email không thể thay đổi</Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Gender</Text>
+            <Text style={styles.label}>Giới tính</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
                 style={[
@@ -279,7 +286,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                     gender === "Male" && styles.genderTextActive,
                   ]}
                 >
-                  Male
+                  Nam
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -295,30 +302,14 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                     gender === "Female" && styles.genderTextActive,
                   ]}
                 >
-                  Female
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.genderButton,
-                  gender === "Other" && styles.genderButtonActive,
-                ]}
-                onPress={() => setGender("Other")}
-              >
-                <Text
-                  style={[
-                    styles.genderText,
-                    gender === "Other" && styles.genderTextActive,
-                  ]}
-                >
-                  Other
+                  Nữ
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Location - GPS Only */}
-          <Text style={styles.sectionTitle}>Location (GPS)</Text>
+          <Text style={styles.sectionTitle}>Vị trí (GPS)</Text>
 
           <View style={styles.gpsInfoBox}>
             <Icon name="information-circle" size={20} color={colors.primary} />
@@ -382,10 +373,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             {saving ? (
               <>
                 <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.saveButtonText}>Saving...</Text>
+                <Text style={styles.saveButtonText}>Đang lưu...</Text>
               </>
             ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
+              <Text style={styles.saveButtonText}>Lưu thay đổi</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>

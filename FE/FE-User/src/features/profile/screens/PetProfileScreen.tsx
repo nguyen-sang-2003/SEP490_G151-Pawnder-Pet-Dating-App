@@ -158,8 +158,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
   const location = addressData
     ? (isMyPet
-      ? [ward, district, city].filter(Boolean).join(', ') || 'Unknown location'
-      : city || 'Unknown location')
+      ? [ward, district, city].filter(Boolean).join(', ') || 'Không rõ vị trí'
+      : city || 'Không rõ vị trí')
     : null;
 
   const fullAddress = addressData?.FullAddress || addressData?.fullAddress;
@@ -185,7 +185,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     id: petIdStr,
     name: petData.Name || petData.name || 'Unknown',
     breed: petData.Breed || petData.breed || 'Unknown breed',
-    age: petData.Age ? `${petData.Age} years` : (petData.age ? `${petData.age} years` : 'Unknown'),
+    age: petData.Age ? petData.Age.toString() : (petData.age ? petData.age.toString() : ''),
     gender: petData.Gender || petData.gender || 'Unknown',
     description: petData.Description || petData.description || 'No description available',
     avatar: photos[0], // Use first photo as avatar
@@ -313,16 +313,16 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       if (response.isMatch) {
         showAlert({
           type: 'success',
-          title: "It's a Match! 🎉",
-          message: `You matched with ${pet.owner.name}! You can now chat with them.`,
+          title: "Ghép đôi thành công",
+          message: `Bạn đã ghép đôi với ${pet.owner.name}! Bây giờ bạn có thể trò chuyện với họ.`,
           confirmText: 'Go to Chat',
           onConfirm: () => navigation.navigate('Chat', {}),
         });
       } else {
         showAlert({
           type: 'success',
-          title: 'Match Request Sent! 💌',
-          message: `Your match request has been sent to ${pet.owner.name}. They will see it in their Favorites.`,
+          title: 'Đã gửi yêu cầu ghép đôi! 💌',
+          message: `Yêu cầu ghép đôi của bạn đã được gửi đến ${pet.owner.name}. Họ sẽ thấy trong mục Yêu thích.`,
           onClose: () => navigation.goBack(),
         });
       }
@@ -341,7 +341,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading pet profile...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Đang tải hồ sơ thú cưng...</Text>
       </View>
     );
   }
@@ -425,7 +425,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               </View>
               <View style={styles.heroMetaRow}>
                 <Icon name="paw" size={16} color="#fff" />
-                <Text style={styles.heroMeta}>{pet.breed} • {pet.age}</Text>
+                <Text style={styles.heroMeta}>{pet.breed || 'Không rõ'} • {pet.age ? `${pet.age} tuổi` : 'Không rõ'}</Text>
               </View>
               {pet.location && (
                 <View style={styles.heroLocationRow}>
@@ -447,15 +447,15 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 <Icon name="paw" size={20} color={colors.primary} />
               </View>
               <Text style={styles.quickStatValue}>{pet.breed}</Text>
-              <Text style={styles.quickStatLabel}>Breed</Text>
+              <Text style={styles.quickStatLabel}>Giống</Text>
             </View>
 
             <View style={styles.quickStatCard}>
               <View style={styles.quickStatIconBg}>
                 <Icon name="calendar-outline" size={20} color={colors.primary} />
               </View>
-              <Text style={styles.quickStatValue}>{pet.age}</Text>
-              <Text style={styles.quickStatLabel}>Age</Text>
+              <Text style={styles.quickStatValue}>{pet.age ? `${pet.age} tuổi` : 'Không rõ'}</Text>
+              <Text style={styles.quickStatLabel}>Tuổi</Text>
             </View>
 
             <View style={styles.quickStatCard}>
@@ -467,14 +467,14 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 />
               </View>
               <Text style={styles.quickStatValue}>{pet.gender}</Text>
-              <Text style={styles.quickStatLabel}>Gender</Text>
+              <Text style={styles.quickStatLabel}>Giới tính</Text>
             </View>
           </View>
 
           {/* About Section */}
           {pet.description && pet.description !== 'No description available' && (
             <View style={styles.aboutSection}>
-              <Text style={styles.sectionTitleModern}>About {pet.name}</Text>
+              <Text style={styles.sectionTitleModern}>Về {pet.name}</Text>
               <View style={styles.aboutCard}>
                 <Text style={styles.aboutText}>{pet.description}</Text>
               </View>
@@ -486,7 +486,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         {characteristics.length > 0 && (
           <View style={styles.contentContainer}>
             <View style={styles.sectionHeaderModern}>
-              <Text style={styles.sectionTitleModern}>Characteristics</Text>
+              <Text style={styles.sectionTitleModern}>Đặc điểm</Text>
               <View style={styles.badgeCount}>
                 <Text style={styles.badgeCountText}>{characteristics.length}</Text>
               </View>
@@ -505,7 +505,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                       color={colors.white}
                     />
                   </View>
-                  <Text style={styles.charName}>{char.name || 'Unknown'}</Text>
+                  <Text style={styles.charName}>{char.name || 'Không rõ'}</Text>
                   <View style={styles.charValueContainer}>
                     {char.optionValue ? (
                       <Text style={styles.charValue}>{char.optionValue}</Text>
@@ -514,7 +514,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                         {char.value} {char.unit || ''}
                       </Text>
                     ) : (
-                      <Text style={styles.charValueEmpty}>Not set</Text>
+                      <Text style={styles.charValueEmpty}>Chưa đặt</Text>
                     )}
                   </View>
                 </View>
@@ -525,7 +525,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
         {/* Owner Section */}
         <View style={styles.contentContainer}>
-          <Text style={styles.sectionTitleModern}>Owner</Text>
+          <Text style={styles.sectionTitleModern}>Chủ sở hữu</Text>
 
           <View style={styles.ownerCardModern}>
             <Image source={pet.owner.avatar} style={styles.ownerAvatarModern} />
@@ -567,7 +567,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             <View style={styles.addressCardModern}>
               <Icon name="map" size={20} color={colors.primary} />
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.addressTitleModern}>Full Address</Text>
+                <Text style={styles.addressTitleModern}>Địa chỉ đầy đủ</Text>
                 <Text style={styles.addressTextModern}>{pet.fullAddress}</Text>
               </View>
             </View>
@@ -596,7 +596,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                   <Icon name="heart" size={24} color="#fff" />
                 )}
                 <Text style={styles.matchButtonText}>
-                  {sendingMatchRequest ? 'Sending...' : 'Send Match Request'}
+                  {sendingMatchRequest ? 'Đang gửi...' : 'Gửi yêu cầu ghép đôi'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>

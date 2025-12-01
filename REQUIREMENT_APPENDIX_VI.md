@@ -103,79 +103,54 @@
 
 ## 5.3 Danh sách Thông báo Ứng dụng
 
-| # | Mã Thông báo | Loại Thông báo | Ngữ cảnh | Nội dung |
-|---|--------------|----------------|----------|----------|
-| 1 | MSG01 | Trong dòng | Không tìm thấy kết quả tìm kiếm | Không tìm thấy kết quả nào. |
-| 2 | MSG02 | Màu đỏ, dưới ô văn bản | Trường bắt buộc trống | Trường * là bắt buộc. |
-| 3 | MSG03 | Thông báo Toast | Cập nhật thông tin thành công | Cập nhật thông tin thành công. |
-| 4 | MSG04 | Thông báo Toast | Thêm mới thành công | Thêm mới thành công. |
-| 5 | MSG05 | Thông báo Toast | Email xác nhận đã được gửi thành công | Email xác nhận đã được gửi đến {email_address}. |
-| 6 | MSG06 | Thông báo Toast | Đặt lại thông tin thành công | Đặt lại thông tin thành công. |
-| 7 | MSG07 | Thông báo Toast | Xóa thông tin thành công | Xóa thành công. |
-| 8 | MSG08 | Màu đỏ, dưới ô văn bản | Giá trị đầu vào vượt quá độ dài tối đa | Vượt quá độ dài tối đa {max_length} ký tự. |
-| 9 | MSG09 | Trong dòng | Tên đăng nhập hoặc mật khẩu không đúng khi nhấp đăng nhập | Tên đăng nhập hoặc mật khẩu không đúng. Vui lòng kiểm tra lại. |
-| 10 | MSG10 | Thông báo Toast | Đăng nhập thành công | Đăng nhập thành công. |
-| 11 | MSG11 | Thông báo Toast | Đăng xuất thành công | Đăng xuất thành công. |
-| 12 | MSG12 | Thông báo Toast | Đăng ký thành công | Đăng ký thành công. |
-| 13 | MSG13 | Thông báo Toast | Đổi mật khẩu thành công | Đổi mật khẩu thành công. |
-| 14 | MSG14 | Thông báo Toast | Cập nhật hồ sơ thành công | Cập nhật hồ sơ thành công. |
-| 15 | MSG15 | Thông báo Toast | Gửi tin nhắn thành công | Gửi tin nhắn thành công. |
-| 16 | MSG16 | Thông báo Toast | Thêm thú cưng thành công | Thêm thú cưng thành công. |
-| 17 | MSG17 | Thông báo Toast | Cập nhật thú cưng thành công | Cập nhật thú cưng thành công. |
-| 18 | MSG18 | Thông báo Toast | Xóa thú cưng thành công | Xóa thú cưng thành công. |
-| 19 | MSG19 | Thông báo Toast | Gửi báo cáo thành công | Gửi báo cáo thành công. |
-| 20 | MSG20 | Thông báo Toast | Xử lý báo cáo thành công | Xử lý báo cáo thành công. |
-| 21 | MSG21 | Thông báo Toast | Cấm người dùng thành công | Cấm người dùng thành công. |
-| 22 | MSG22 | Thông báo Toast | Gỡ cấm người dùng thành công | Gỡ cấm người dùng thành công. |
-| 23 | MSG23 | Thông báo Toast | Xác nhận chuyên gia thành công | Xác nhận chuyên gia thành công. |
-| 24 | MSG24 | Thông báo Toast | Thanh toán thành công | Thanh toán thành công. |
-| 25 | MSG25 | Trong dòng | Không có kết nối internet | Không có kết nối internet. Vui lòng kiểm tra lại. |
-| 26 | MSG26 | Thông báo Toast | Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại | Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại. |
-| 27 | MSG27 | Thông báo Toast | Truy cập trái phép | Bạn không có quyền truy cập tính năng này. |
-| 28 | MSG28 | Thông báo Toast | Lỗi máy chủ, vui lòng thử lại sau | Lỗi máy chủ. Vui lòng thử lại sau. |
-| 29 | MSG29 | Trong dòng | Không có dữ liệu | Không có dữ liệu. |
-| 30 | MSG30 | Thông báo Toast | Tải ảnh lên thành công | Tải ảnh lên thành công. |
-| 31 | MSG31 | Màu đỏ, dưới ô văn bản | Định dạng email không hợp lệ | Định dạng email không hợp lệ. |
-| 32 | MSG32 | Màu đỏ, dưới ô văn bản | Định dạng số điện thoại không hợp lệ | Định dạng số điện thoại không hợp lệ. |
-| 33 | MSG33 | Màu đỏ, dưới ô văn bản | Mật khẩu quá yếu | Mật khẩu quá yếu. Vui lòng sử dụng ít nhất 8 ký tự bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt. |
-| 34 | MSG34 | Thông báo Toast | Email đặt lại mật khẩu đã được gửi | Email đặt lại mật khẩu đã được gửi. |
-| 35 | MSG35 | Thông báo Toast | Đặt lại mật khẩu thành công | Đặt lại mật khẩu thành công. |
-| 36 | MSG36 | Thông báo Toast | Xác thực email thành công | Xác thực email thành công. |
-| 37 | MSG37 | Thông báo Toast | Email xác thực đã được gửi | Email xác thực đã được gửi. |
-| 38 | MSG38 | Thông báo Toast | Đã tải lịch sử chat | Đã tải lịch sử chat. |
-| 39 | MSG39 | Thông báo Toast | Câu trả lời AI đã được tạo | Câu trả lời AI đã được tạo. |
-| 40 | MSG40 | Thông báo Toast | Đã tạo thông báo cho chuyên gia | Đã tạo thông báo cho chuyên gia. |
-| 41 | MSG41 | Thông báo Toast | Đã nhận phản hồi từ chuyên gia | Đã nhận phản hồi từ chuyên gia. |
-| 42 | MSG42 | Trong dòng | Không có thông báo | Không có thông báo nào. |
-| 43 | MSG43 | Thông báo Toast | Đã đánh dấu thông báo là đã đọc | Đã đánh dấu thông báo là đã đọc. |
-| 44 | MSG44 | Trong dòng | Đang tải... | Đang tải... |
-| 45 | MSG45 | Thông báo Toast | Đã hủy thao tác | Đã hủy thao tác. |
-| 46 | MSG46 | Thông báo Toast | Yêu cầu xác nhận | Vui lòng xác nhận thao tác này. |
-| 47 | MSG47 | Màu đỏ, dưới ô văn bản | Kích thước file quá lớn | Kích thước file quá lớn. Tối đa {max_size}MB. |
-| 48 | MSG48 | Màu đỏ, dưới ô văn bản | Loại file không hợp lệ | Loại file không hợp lệ. Chỉ chấp nhận {allowed_types}. |
-| 49 | MSG49 | Thông báo Toast | Tải file lên thành công | Tải file lên thành công. |
-| 50 | MSG50 | Thông báo Toast | Xóa file thành công | Xóa file thành công. |
-| 51 | MSG51 | Thông báo Toast | Đã áp dụng bộ lọc | Đã áp dụng bộ lọc. |
-| 52 | MSG52 | Thông báo Toast | Đã xóa bộ lọc | Đã xóa bộ lọc. |
-| 53 | MSG53 | Thông báo Toast | Đã thay đổi thứ tự sắp xếp | Đã thay đổi thứ tự sắp xếp. |
-| 54 | MSG54 | Thông báo Toast | Đã thay đổi trang | Đã thay đổi trang. |
-| 55 | MSG55 | Trong dòng | Không có mục nào trong trang này | Không có mục nào trong trang này. |
-| 56 | MSG56 | Trong dòng | Thanh toán thất bại | Thanh toán thất bại. Vui lòng thử lại. |
-| 57 | MSG57 | Trong dòng | Tài khoản bị cấm | Tài khoản của bạn đã bị cấm. Vui lòng liên hệ hỗ trợ. |
-| 58 | MSG58 | Thông báo Toast | Tạo tài khoản chuyên gia thành công | Tạo tài khoản chuyên gia thành công. |
-| 59 | MSG59 | Thông báo Toast | Cập nhật thông tin chuyên gia thành công | Cập nhật thông tin chuyên gia thành công. |
-| 60 | MSG60 | Thông báo Toast | Cập nhật thông tin người dùng thành công | Cập nhật thông tin người dùng thành công. |
-| 61 | MSG61 | Thông báo Toast | Thêm thuộc tính thành công | Thêm thuộc tính thành công. |
-| 62 | MSG62 | Thông báo Toast | Cập nhật thuộc tính thành công | Cập nhật thuộc tính thành công. |
-| 63 | MSG63 | Thông báo Toast | Xóa thuộc tính thành công | Xóa thuộc tính thành công. |
-| 64 | MSG64 | Thông báo Toast | Đã tạo gợi ý thú cưng | Đã tạo gợi ý thú cưng. |
-| 65 | MSG65 | Thông báo Toast | Đã phân tích ảnh thú cưng | Đã phân tích ảnh thú cưng. |
-| 66 | MSG66 | Thông báo Toast | Đã lưu tùy chọn người dùng | Đã lưu tùy chọn người dùng. |
-| 67 | MSG67 | Thông báo Toast | Đã chặn người dùng | Đã chặn người dùng. |
-| 68 | MSG68 | Thông báo Toast | Đã bỏ chặn người dùng | Đã bỏ chặn người dùng. |
-| 69 | MSG69 | Thông báo Toast | Đã đạt giới hạn hàng ngày | Đã đạt giới hạn hàng ngày. |
-| 70 | MSG70 | Thông báo Toast | Đã cập nhật địa chỉ | Đã cập nhật địa chỉ. |
+Bảng sau chỉ liệt kê các thông báo đang tồn tại trong mã nguồn (React fe-admin và React Native FE-User) kèm vị trí sử dụng để tiện truy vết.
+
+| # | Mã Thông báo | Loại Thông báo | Ngữ cảnh (file / màn) | Nội dung |
+|---|--------------|----------------|-----------------------|----------|
+| 1 | MSG01 | Hộp thoại cảnh báo | `fe-admin/src/features/users/UsersList.js` – Modal ban | `Vui lòng nhập lý do ban!` |
+| 2 | MSG02 | Hộp thoại cảnh báo | `fe-admin/src/features/users/UsersList.js` – Modal ban | `Đã ban người dùng thành công!` |
+| 3 | MSG03 | Hộp thoại cảnh báo | `fe-admin/src/features/users/UsersList.js` – Modal ban | `Không thể ban người dùng. Vui lòng thử lại sau.` |
+| 4 | MSG04 | Hộp thoại cảnh báo | `fe-admin/src/features/users/UsersList.js` – Modal ban | `Đã gỡ ban người dùng thành công!` |
+| 5 | MSG05 | Hộp thoại cảnh báo | `fe-admin/src/features/users/UsersList.js` – Modal ban | `Không thể gỡ ban người dùng. Vui lòng thử lại sau.` |
+| 6 | MSG06 | Hộp thoại cảnh báo | `fe-admin/src/features/experts/ExpertNotifications.js` – Form xác nhận | `Vui lòng nhập ghi chú trước khi xác nhận.` |
+| 7 | MSG07 | Hộp thoại cảnh báo | `fe-admin/src/features/experts/ExpertNotifications.js` – Form xác nhận | `Không thể xác định chuyên gia. Vui lòng đăng nhập lại.` |
+| 8 | MSG08 | Hộp thoại cảnh báo | `fe-admin/src/features/experts/ExpertNotifications.js` – Form xác nhận | `Đã xác nhận thông báo thành công.` |
+| 9 | MSG09 | Hộp thoại cảnh báo | `fe-admin/src/features/experts/ExpertNotifications.js` – Form xác nhận | `Không thể xác nhận thông báo. Vui lòng thử lại.` |
+| 10 | MSG10 | Hộp thoại cảnh báo | `fe-admin/src/features/experts/ExpertChat.js` – Chat chuyên gia | `Không thể gửi tin nhắn. Vui lòng đăng nhập lại.` |
+| 11 | MSG11 | Hộp thoại cảnh báo | `fe-admin/src/features/experts/ExpertChat.js` – Chat chuyên gia | `Không thể gửi tin nhắn. Vui lòng thử lại.` |
+| 12 | MSG12 | Thông báo inline | `fe-admin/src/features/experts/ExpertChat.js`, `fe-admin/src/features/experts/ExpertNotifications.js` | `Đang tải...` / `Đang tải dữ liệu...` |
+| 13 | MSG13 | Thông báo inline | `FE-User/src/features/payment/screens/QRPaymentScreen.tsx` | `Không thể tạo mã QR. Vui lòng thử lại.` |
+| 14 | MSG14 | `Alert.alert` | `QRPaymentScreen.tsx` – Thanh toán | `Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.` |
+| 15 | MSG15 | `Alert.alert` | `QRPaymentScreen.tsx` – Thanh toán | `Thông tin người dùng không hợp lệ.` |
+| 16 | MSG16 | `Alert.alert` | `QRPaymentScreen.tsx` – Thanh toán thành công | `🎉 Thanh toán thành công! Bạn đã nâng cấp lên {planName}! …` |
+| 17 | MSG17 | `Alert.alert` | `QRPaymentScreen.tsx` – Thanh toán | `Không thể hoàn tất thanh toán. Vui lòng thử lại.` |
+| 18 | MSG18 | `Alert.alert` | `QRPaymentScreen.tsx` – Thanh toán | `Lỗi thanh toán – Đã có lỗi xảy ra. Vui lòng thử lại sau.` |
+| 19 | MSG19 | `Alert.alert` | `FE-User/src/features/home/screens/FilterScreen.tsx` | `Failed to Save – Unknown error. Please try again.` |
+| 20 | MSG20 | `Alert.alert` | `FE-User/src/features/expert/screens/ExpertChatScreen.tsx` | `Không tìm thấy cuộc trò chuyện.` |
+| 21 | MSG21 | `Alert.alert` | `ExpertChatScreen.tsx` | `Không thể tải tin nhắn.` |
+| 22 | MSG22 | `Alert.alert` | `ExpertChatScreen.tsx`, `FE-User/src/features/chat/screens/AIChatScreen.tsx` | `Không thể gửi tin nhắn. Vui lòng thử lại.` |
+| 23 | MSG23 | `Alert.alert` | `AIChatScreen.tsx` | `Không thể tải lịch sử chat.` |
+| 24 | MSG24 | `Alert.alert` | `AIChatScreen.tsx` | `Vui lòng tạo cuộc trò chuyện mới trước.` |
+| 25 | MSG25 | `Alert.alert` | `AIChatScreen.tsx` | `AI đang quá tải – AI đang mất nhiều thời gian để xử lý. Vui lòng thử lại sau vài giây.` |
+| 26 | MSG26 | `Alert.alert` | `AIChatScreen.tsx` | `Có lỗi xảy ra với AI. Vui lòng thử lại.` |
+| 27 | MSG27 | `Alert.alert` | `AIChatScreen.tsx` | `Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối.` |
+| 28 | MSG28 | `CustomAlert` | `AIChatScreen.tsx` – Modal gửi chuyên gia | `Vui lòng nhập câu hỏi của bạn.` |
+| 29 | MSG29 | `CustomAlert` | `AIChatScreen.tsx` – Modal gửi chuyên gia | `Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia.` |
+| 30 | MSG30 | `CustomAlert` | `AIChatScreen.tsx` – Modal gửi chuyên gia | `Không thể gửi yêu cầu. Vui lòng thử lại.` |
+| 31 | MSG31 | Modal giới hạn | `AIChatScreen.tsx` – Giới hạn xác nhận chuyên gia | `Bạn đã hết lượt xác nhận chuyên gia hôm nay!` |
+| 32 | MSG32 | `CustomAlert` | `AIChatScreen.tsx` – Thông báo thành công | `Đã gửi yêu cầu! Yêu cầu của bạn đã được gửi đến chuyên gia…` |
+| 33 | MSG33 | `Alert.alert` | `FE-User/src/features/chat/screens/AIChatListScreen.tsx` | `Không thể tạo chat. Vui lòng thử lại sau.` |
+| 34 | MSG34 | `Alert.alert` | `AIChatListScreen.tsx` | `Không thể đổi tên cuộc trò chuyện.` |
+| 35 | MSG35 | Hộp thoại xác nhận | `AIChatListScreen.tsx` | `Delete Conversation – Delete "<title>"? This cannot be undone.` |
+| 36 | MSG36 | `Alert.alert` | `AIChatListScreen.tsx` | `Không thể xóa cuộc trò chuyện.` |
+| 37 | MSG37 | Thông báo lỗi inline | `fe-admin/src/features/auth/Login.js` – ô Email | `Email là bắt buộc.` |
+| 38 | MSG38 | Thông báo lỗi inline | `fe-admin/src/features/auth/Login.js` – ô Email | `Email không hợp lệ.` |
+| 39 | MSG39 | Thông báo lỗi inline | `fe-admin/src/features/auth/Login.js` – ô Mật khẩu | `Mật khẩu là bắt buộc.` |
+| 40 | MSG40 | Thông báo lỗi inline | `fe-admin/src/features/auth/Login.js` – ô Mật khẩu | `Mật khẩu phải có ít nhất 6 ký tự.` |
+| 41 | MSG41 | Thông báo lỗi chung | `fe-admin/src/features/auth/Login.js` – banner | `Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.` |
+| 42 | MSG42 | `Alert.alert` | `FE-User/src/features/expert/screens/ExpertChatScreen.tsx` | `Không tìm thấy thông tin người dùng.` |
+| 43 | MSG43 | `Alert.alert` | `FE-User/src/features/chat/screens/AIChatListScreen.tsx` | `Không tìm thấy thông tin người dùng.` |
 
 ---
 
-**Lưu ý:** Tất cả thông báo được hiển thị bằng tiếng Việt (vi-VN) làm ngôn ngữ chính của ứng dụng. Mã thông báo theo định dạng MSG## trong đó ## là số có hai chữ số. Thông báo Toast xuất hiện trong 3-5 giây và có thể bị hủy bởi tương tác của người dùng. Thông báo trong dòng tồn tại cho đến khi điều kiện thay đổi hoặc người dùng thực hiện hành động.
+**Lưu ý:** Mã MSG## chỉ phục vụ tài liệu, không phải mã trong code. Các thông điệp trên đều xuất hiện nguyên văn tại vị trí đã nêu.

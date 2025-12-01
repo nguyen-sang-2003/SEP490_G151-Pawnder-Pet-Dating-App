@@ -88,13 +88,13 @@ const MyReportsScreen = ({ navigation }: Props) => {
   const getStatusLabel = (status: string) => {
     switch (status?.toLowerCase()) {
       case "pending":
-        return "Đang xử lý";
+        return "pending";
       case "resolved":
-        return "Đã xử lý";
+        return "resolved";
       case "rejected":
-        return "Bị từ chối";
+        return "rejected";
       default:
-        return status || "Không rõ";
+        return status || "";
     }
   };
 
@@ -160,7 +160,10 @@ const MyReportsScreen = ({ navigation }: Props) => {
               color={getStatusColor(item.status)}
             />
             <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-              {getStatusLabel(item.status)}
+              {getStatusLabel(item.status) === 'pending' ? 'Đang xử lý' : 
+               getStatusLabel(item.status) === 'resolved' ? 'Đã xử lý' : 
+               getStatusLabel(item.status) === 'rejected' ? 'Bị từ chối' : 
+               getStatusLabel(item.status) || 'Không rõ'}
             </Text>
           </View>
         </View>

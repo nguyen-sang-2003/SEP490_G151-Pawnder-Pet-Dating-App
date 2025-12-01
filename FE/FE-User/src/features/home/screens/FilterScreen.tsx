@@ -202,8 +202,8 @@ const FilterScreen = ({ navigation }: Props) => {
         } catch (error: any) {
 
             Alert.alert(
-                "Failed to Save",
-                error.response?.data?.message || error.message || "Unknown error. Please try again.",
+                "Lỗi khi lưu",
+                error.response?.data?.message || error.message || "Lỗi không xác định. Vui lòng thử lại.",
                 [{ text: "OK" }]
             );
         } finally {
@@ -375,7 +375,7 @@ const FilterScreen = ({ navigation }: Props) => {
                     </TouchableOpacity>
 
                     <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle}>Filters</Text>
+                        <Text style={styles.headerTitle}>Bộ lọc</Text>
                         {activeFilterCount > 0 && (
                             <View style={styles.filterCountBadge}>
                                 <Text style={styles.filterCountText}>{activeFilterCount}</Text>
@@ -437,10 +437,10 @@ const FilterScreen = ({ navigation }: Props) => {
                                 <View style={styles.sectionHeaderWithValue}>
                                     <View style={styles.sectionHeaderLeft}>
                                         <Icon name="location" size={22} color={colors.primary} />
-                                        <Text style={styles.sectionTitle}>Distance</Text>
+                                        <Text style={styles.sectionTitle}>Khoảng cách</Text>
                                     </View>
                                     <Text style={styles.sectionValue}>
-                                        {isAny ? "Any" : `0 - ${maxValue} km`}
+                                        {isAny ? "Tất cả" : `0 - ${maxValue} km`}
                                     </Text>
                                 </View>
                                 <View style={styles.distanceCard}>
@@ -512,7 +512,7 @@ const FilterScreen = ({ navigation }: Props) => {
                                         <Text style={styles.sectionTitle}>{attribute.Name}</Text>
                                     </View>
                                     <Text style={styles.sectionValue}>
-                                        {isAny ? "Any" : `${min} - ${max} ${attribute.Unit}`}
+                                        {isAny ? "Tất cả" : `${min} - ${max} ${attribute.Unit}`}
                                     </Text>
                                 </View>
                                 <View style={styles.rangeCard}>
@@ -580,7 +580,7 @@ const FilterScreen = ({ navigation }: Props) => {
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Icon name="sparkles" size={22} color={colors.primary} />
-                                <Text style={styles.sectionTitle}>Appearance</Text>
+                                <Text style={styles.sectionTitle}>Ngoại hình</Text>
                             </View>
                             {stringAttributes.map((attribute) => {
                                 const percent = attribute.Percent ?? 0;

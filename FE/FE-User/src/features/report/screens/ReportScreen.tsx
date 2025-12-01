@@ -25,12 +25,12 @@ interface ReportReason {
 }
 
 const REPORT_REASONS: ReportReason[] = [
-  { id: "spam", label: "Spam or Advertising", icon: "megaphone-outline" },
-  { id: "inappropriate", label: "Inappropriate Content", icon: "warning-outline" },
-  { id: "fake", label: "Fake Profile", icon: "person-remove-outline" },
-  { id: "harassment", label: "Harassment or Bullying", icon: "sad-outline" },
-  { id: "scam", label: "Scam or Fraud", icon: "shield-outline" },
-  { id: "other", label: "Other", icon: "ellipsis-horizontal-outline" },
+  { id: "spam", label: "Spam hoặc Quảng cáo", icon: "megaphone-outline" },
+  { id: "inappropriate", label: "Nội dung không phù hợp", icon: "warning-outline" },
+  { id: "fake", label: "Hồ sơ giả mạo", icon: "person-remove-outline" },
+  { id: "harassment", label: "Quấy rối hoặc Bắt nạt", icon: "sad-outline" },
+  { id: "scam", label: "Lừa đảo", icon: "shield-outline" },
+  { id: "other", label: "Khác", icon: "ellipsis-horizontal-outline" },
 ];
 
 const ReportScreen = ({ navigation, route }: Props) => {
@@ -42,13 +42,21 @@ const ReportScreen = ({ navigation, route }: Props) => {
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleSubmit = async () => {
+    // Validation: Kiểm tra đã chọn lý do
     if (!selectedReason) {
-      showAlert({ type: 'warning', title: "Chọn lý do", message: "Vui lòng chọn lý do báo cáo người dùng này." });
+      showAlert({ type: 'warning', title: "Thiếu thông tin", message: "Vui lòng chọn lý do báo cáo" });
       return;
     }
 
+    // Validation: Kiểm tra mô tả trống
     if (!description.trim()) {
-      showAlert({ type: 'warning', title: "Thêm chi tiết", message: "Vui lòng cung cấp thêm thông tin về vấn đề." });
+      showAlert({ type: 'warning', title: "Thiếu thông tin", message: "Vui lòng cung cấp thêm chi tiết về vấn đề" });
+      return;
+    }
+
+    // Validation: Kiểm tra độ dài mô tả
+    if (description.trim().length < 10) {
+      showAlert({ type: 'error', title: "Mô tả quá ngắn", message: "Vui lòng nhập ít nhất 10 ký tự để mô tả vấn đề" });
       return;
     }
 
@@ -81,7 +89,7 @@ const ReportScreen = ({ navigation, route }: Props) => {
           >
             <Icon name="close" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Report User</Text>
+          <Text style={styles.headerTitle}>Báo cáo người dùng</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -94,18 +102,18 @@ const ReportScreen = ({ navigation, route }: Props) => {
           <View style={styles.userInfo}>
             <Icon name="flag" size={48} color="#FF9800" />
             <Text style={styles.userInfoTitle}>
-              Report {userName || "this user"}
+              Báo cáo {userName || "người dùng này"}
             </Text>
             <Text style={styles.userInfoSubtitle}>
-              Your report is anonymous. We'll review it and take appropriate action.
+              Báo cáo của bạn sẽ được giữ bí mật. Chúng tôi sẽ xem xét và xử lý phù hợp.
             </Text>
           </View>
 
           {/* Report Reasons */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Why are you reporting?</Text>
+            <Text style={styles.sectionTitle}>Tại sao bạn báo cáo?</Text>
             <Text style={styles.sectionSubtitle}>
-              Select the reason that best describes the issue
+              Chọn lý do mô tả đúng nhất vấn đề
             </Text>
 
             <View style={styles.reasonsList}>
@@ -154,7 +162,7 @@ const ReportScreen = ({ navigation, route }: Props) => {
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Details</Text>
+            <Text style={styles.sectionTitle}>Chi tiết bổ sung</Text>
             <Text style={styles.sectionSubtitle}>
               Please provide more information about what happened
             </Text>
@@ -162,7 +170,7 @@ const ReportScreen = ({ navigation, route }: Props) => {
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Describe the issue in detail..."
+                placeholder="Mô tả chi tiết vấn đề..."
                 placeholderTextColor={colors.textLabel}
                 value={description}
                 onChangeText={setDescription}
@@ -181,7 +189,7 @@ const ReportScreen = ({ navigation, route }: Props) => {
           <View style={styles.tipsCard}>
             <View style={styles.tipsHeader}>
               <Icon name="shield-checkmark" size={24} color={colors.primary} />
-              <Text style={styles.tipsTitle}>Safety Tips</Text>
+              <Text style={styles.tipsTitle}>Mẹo an toàn</Text>
             </View>
             <Text style={styles.tipsText}>
               • Your report is completely anonymous{"\n"}
@@ -210,11 +218,11 @@ const ReportScreen = ({ navigation, route }: Props) => {
               style={styles.submitGradient}
             >
               {isSubmitting ? (
-                <Text style={styles.submitText}>Submitting...</Text>
+                <Text style={styles.submitText}>Đang gửi...</Text>
               ) : (
                 <>
                   <Icon name="flag" size={20} color={colors.white} />
-                  <Text style={styles.submitText}>Submit Report</Text>
+                  <Text style={styles.submitText}>Gửi báo cáo</Text>
                 </>
               )}
             </LinearGradient>

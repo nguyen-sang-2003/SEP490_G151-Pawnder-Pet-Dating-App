@@ -32,77 +32,125 @@ const SignUpScreen = ({ navigation }: Props) => {
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const handleSignUp = async () => {
-    // Validation
+    // Validation: Kiểm tra họ tên
     if (!fullName.trim()) {
       showAlert({
         type: 'warning',
         title: 'Thiếu thông tin',
-        message: 'Vui lòng nhập họ tên của bạn 👤',
+        message: 'Vui lòng nhập họ tên của bạn',
       });
       return;
     }
 
+    // Validation: Kiểm tra độ dài họ tên
+    if (fullName.trim().length < 2) {
+      showAlert({
+        type: 'error',
+        title: 'Họ tên không hợp lệ',
+        message: 'Họ tên phải có ít nhất 2 ký tự',
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra giới tính
     if (!gender) {
       showAlert({
         type: 'warning',
         title: 'Thiếu thông tin',
-        message: 'Vui lòng chọn giới tính 👫',
+        message: 'Vui lòng chọn giới tính',
       });
       return;
     }
 
+    // Validation: Kiểm tra email trống
     if (!email.trim()) {
       showAlert({
         type: 'warning',
         title: 'Thiếu thông tin',
-        message: 'Vui lòng nhập email 📧',
+        message: 'Vui lòng nhập email',
       });
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    // Validation: Kiểm tra định dạng email
+    if (!/\S+@\S+\.\S+/.test(email.trim())) {
       showAlert({
         type: 'error',
         title: 'Email không hợp lệ',
-        message: 'Vui lòng nhập đúng định dạng email 📧',
+        message: 'Vui lòng nhập đúng định dạng email (ví dụ: example@email.com)',
       });
       return;
     }
 
+    // Validation: Kiểm tra mật khẩu trống
     if (!pass) {
       showAlert({
         type: 'warning',
         title: 'Thiếu mật khẩu',
-        message: 'Vui lòng nhập mật khẩu 🔒',
+        message: 'Vui lòng nhập mật khẩu',
       });
       return;
     }
 
-    if (pass.length < 6) {
+    // Validation: Kiểm tra độ dài tối thiểu 8 ký tự
+    if (pass.length < 8) {
       showAlert({
         type: 'error',
         title: 'Mật khẩu quá ngắn',
-        message: 'Mật khẩu phải có ít nhất 6 ký tự 🔐',
+        message: 'Mật khẩu phải có ít nhất 8 ký tự',
       });
       return;
     }
 
+    // Validation: Kiểm tra có chứa số
+    if (!/\d/.test(pass)) {
+      showAlert({
+        type: 'error',
+        title: 'Mật khẩu không hợp lệ',
+        message: 'Mật khẩu phải chứa ít nhất 1 chữ số',
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra có ký tự đặc biệt
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) {
+      showAlert({
+        type: 'error',
+        title: 'Mật khẩu không hợp lệ',
+        message: 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)',
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra xác nhận mật khẩu trống
+    if (!confirm) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu xác nhận mật khẩu',
+        message: 'Vui lòng nhập lại mật khẩu để xác nhận',
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra mật khẩu khớp
     if (pass !== confirm) {
       showAlert({
         type: 'error',
         title: 'Mật khẩu không khớp',
-        message: 'Mật khẩu xác nhận không giống mật khẩu đã nhập 🔑',
+        message: 'Mật khẩu xác nhận không giống mật khẩu đã nhập',
       });
       return;
     }
 
+    // Validation: Kiểm tra đồng ý điều khoản
     if (!agree) {
       showAlert({
         type: 'warning',
         title: 'Chưa đồng ý điều khoản',
-        message: 'Vui lòng đồng ý với điều khoản và chính sách để tiếp tục 📋',
+        message: 'Vui lòng đồng ý với điều khoản và chính sách để tiếp tục',
       });
       return;
     }
@@ -122,7 +170,7 @@ const SignUpScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Kiểm tra email! 📧',
+        title: 'Kiểm tra email',
         message: 'Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và nhập mã xác thực.',
         confirmText: 'Xác thực ngay',
         onClose: () => navigation.navigate("OTPVerification", { 
@@ -131,15 +179,37 @@ const SignUpScreen = ({ navigation }: Props) => {
         }),
       });
     } catch (error: any) {
-      let errorMessage = "Không thể gửi mã OTP. Vui lòng thử lại.";
+      // Xử lý các loại lỗi cụ thể
+      let errorTitle = 'Đăng ký thất bại';
+      let errorMessage = 'Không thể gửi mã OTP. Vui lòng thử lại.';
       
       if (error.message) {
-        errorMessage = error.message;
+        const msg = error.message.toLowerCase();
+        
+        // Email đã tồn tại
+        if (msg.includes('exist') || msg.includes('already') || msg.includes('duplicate')) {
+          errorTitle = 'Email đã được sử dụng';
+          errorMessage = 'Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập';
+        }
+        // Lỗi gửi OTP
+        else if (msg.includes('otp') || msg.includes('email')) {
+          errorTitle = 'Không thể gửi mã xác thực';
+          errorMessage = 'Không thể gửi mã OTP đến email. Vui lòng kiểm tra email và thử lại';
+        }
+        // Lỗi mạng
+        else if (msg.includes('network') || msg.includes('timeout') || msg.includes('connection')) {
+          errorTitle = 'Lỗi kết nối';
+          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng';
+        }
+        // Lỗi khác từ server
+        else {
+          errorMessage = error.message;
+        }
       }
       
       showAlert({
         type: 'error',
-        title: 'Đăng ký thất bại 😿',
+        title: errorTitle,
         message: errorMessage,
       });
     } finally {
@@ -181,10 +251,10 @@ const SignUpScreen = ({ navigation }: Props) => {
 
       {/* Form */}
       <View style={styles.form}>
-        <Text style={styles.title}>Sign Up</Text>
+        <Text style={styles.title}>Đăng ký</Text>
 
         <TextInput
-          placeholder="Full Name"
+          placeholder="Họ và tên"
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           value={fullName}
@@ -211,7 +281,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 gender === "Male" && styles.genderTextActive,
               ]}
             >
-              Male
+              Nam
             </Text>
           </TouchableOpacity>
 
@@ -233,7 +303,7 @@ const SignUpScreen = ({ navigation }: Props) => {
                 gender === "Female" && styles.genderTextActive,
               ]}
             >
-              Female
+              Nữ
             </Text>
           </TouchableOpacity>
         </View>
@@ -247,25 +317,75 @@ const SignUpScreen = ({ navigation }: Props) => {
           keyboardType="email-address"
         />
         <TextInput
-          placeholder="Password"
+          placeholder="Mật khẩu"
           style={styles.input}
           placeholderTextColor="#6B6B6B"
           secureTextEntry
           value={pass}
           onChangeText={setPass}
+          onFocus={() => setIsPasswordFocused(true)}
+          onBlur={() => setIsPasswordFocused(false)}
         />
-        <TextInput
-          placeholder="Confirm Password"
-          style={styles.input}
-          placeholderTextColor="#6B6B6B"
-          secureTextEntry
-          value={confirm}
-          onChangeText={setConfirm}
-        />
+
+        {/* Password Requirements - Only show when focused */}
+        {isPasswordFocused && pass.length > 0 && (
+          <View style={styles.requirementsContainer}>
+            <View style={styles.requirement}>
+              <Icon
+                name={pass.length >= 8 ? "check-circle" : "radio-button-unchecked"}
+                size={14}
+                color={pass.length >= 8 ? "#4CAF50" : "#999"}
+              />
+              <Text style={[styles.requirementText, pass.length >= 8 && styles.requirementMet]}>
+                Ít nhất 8 ký tự
+              </Text>
+            </View>
+            <View style={styles.requirement}>
+              <Icon
+                name={/\d/.test(pass) ? "check-circle" : "radio-button-unchecked"}
+                size={14}
+                color={/\d/.test(pass) ? "#4CAF50" : "#999"}
+              />
+              <Text style={[styles.requirementText, /\d/.test(pass) && styles.requirementMet]}>
+                Chứa ít nhất 1 chữ số
+              </Text>
+            </View>
+            <View style={styles.requirement}>
+              <Icon
+                name={/[!@#$%^&*(),.?":{}|<>]/.test(pass) ? "check-circle" : "radio-button-unchecked"}
+                size={14}
+                color={/[!@#$%^&*(),.?":{}|<>]/.test(pass) ? "#4CAF50" : "#999"}
+              />
+              <Text style={[styles.requirementText, /[!@#$%^&*(),.?":{}|<>]/.test(pass) && styles.requirementMet]}>
+                Chứa ít nhất 1 ký tự đặc biệt
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.passwordInputContainer}>
+          <TextInput
+            placeholder="Xác nhận mật khẩu"
+            style={styles.input}
+            placeholderTextColor="#6B6B6B"
+            secureTextEntry
+            value={confirm}
+            onChangeText={setConfirm}
+          />
+          {/* Show checkmark if passwords match, X if not match */}
+          {confirm && pass && (
+            <Icon
+              name={confirm === pass ? "check-circle" : "cancel"}
+              size={20}
+              color={confirm === pass ? "#4CAF50" : "#FF5252"}
+              style={styles.checkIcon}
+            />
+          )}
+        </View>
 
         <Pressable style={styles.checkRow} onPress={() => setAgree((v) => !v)}>
           <View style={[styles.checkbox, agree && styles.checkboxOn]} />
-          <Text style={styles.checkText}>I accept the terms and policy</Text>
+          <Text style={styles.checkText}>Tôi đồng ý với điều khoản và chính sách</Text>
         </Pressable>
 
         <TouchableOpacity 
@@ -283,18 +403,18 @@ const SignUpScreen = ({ navigation }: Props) => {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
+              <Text style={styles.buttonText}>Đăng ký</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
 
         <Text style={styles.footer}>
-          Already a member?{" "}
+          Đã có tài khoản?{" "}
           <Text
             style={styles.link}
             onPress={() => navigation.navigate("SignIn")}
           >
-            sign in
+            Đăng nhập
           </Text>
         </Text>
       </View>
@@ -370,6 +490,38 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
+  },
+  passwordInputContainer: {
+    width: "100%",
+    position: "relative",
+  },
+  checkIcon: {
+    position: "absolute",
+    right: 16,
+    top: 14,
+  },
+
+  // Password Requirements
+  requirementsContainer: {
+    width: "100%",
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    gap: 6,
+  },
+  requirement: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  requirementText: {
+    fontSize: 12,
+    color: "#999",
+  },
+  requirementMet: {
+    color: "#4CAF50",
+    fontWeight: "600",
   },
 
   // Gender

@@ -196,16 +196,12 @@ const UserProfileScreen = ({ navigation }: Props) => {
     if (ageChar) {
       const value = ageChar.value || ageChar.optionValue;
       if (value) {
-        // If numeric value, format as "X years"
-        if (typeof value === 'number') {
-          return `${value} year${value !== 1 ? 's' : ''}`;
-        }
-        // If already a string, return as is
-        return value.toString().includes('year') ? value.toString() : `${value} years`;
+        // Return raw value, UI will format it
+        return value.toString();
       }
     }
 
-    return 'Unknown';
+    return '';
   };
 
   // Convert active pet to display format
@@ -227,20 +223,20 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
     return {
       id: (activePet.PetId || activePet.petId || 0).toString(),
-      name: activePet.Name || activePet.name || 'Unknown',
-      breed: activePet.Breed || activePet.breed || 'Unknown breed',
+      name: activePet.Name || activePet.name || '',
+      breed: activePet.Breed || activePet.breed || '',
       age: getAgeFromCharacteristics(characteristics), // Get from characteristics instead of pet model
       gender: (activePet.Gender || activePet.gender || 'male').toLowerCase() as "male" | "female",
-      bio: activePet.Description || activePet.description || "No description available",
+      bio: activePet.Description || activePet.description || "Chưa có mô tả",
       photos,
     };
   })() : {
     id: "0",
-    name: "No Pet",
-    breed: "Unknown",
-    age: "0 years",
+    name: "",
+    breed: "",
+    age: "0",
     gender: "male" as "male" | "female",
-    bio: "Please add a pet",
+    bio: "",
     photos: [require("../../../assets/cat_avatar.png")],
   };
 
@@ -260,14 +256,14 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
   // Owner Info
   const owner = {
-    name: userData?.FullName || userData?.fullName || "Unknown User",
-    location: shortLocation || 'No location set',
+    name: userData?.FullName || userData?.fullName || "",
+    location: shortLocation || 'Chưa đặt vị trí',
     fullAddress: fullAddress,
     isPremium: isVip, // Use actual VIP status
     email: userData?.Email || userData?.email || "",
     memberSince: userData?.CreatedAt
-      ? new Date(userData.CreatedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-      : (userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : "Unknown"),
+      ? new Date(userData.CreatedAt).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })
+      : (userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' }) : ""),
   };
 
   // My Pets List (convert from PetResponse[] to PetItem[])
@@ -277,13 +273,13 @@ const UserProfileScreen = ({ navigation }: Props) => {
     const isThisActive = pet.IsActive === true || pet.isActive === true;
     return {
       id: (pet.PetId || pet.petId || 0).toString(),
-      name: pet.Name || pet.name || 'Unknown',
-      breed: pet.Breed || pet.breed || 'Unknown',
+      name: pet.Name || pet.name || '',
+      breed: pet.Breed || pet.breed || '',
       age: isThisActive
         ? getAgeFromCharacteristics(characteristics) // Get from characteristics if active
         : pet.Age
-          ? `${pet.Age} years`
-          : (pet.age ? `${pet.age} years` : 'Tap to view'), // Fallback message
+          ? pet.Age.toString()
+          : (pet.age ? pet.age.toString() : ''), // Return raw value
       gender: (pet.Gender || pet.gender || 'male').toLowerCase() as "male" | "female",
       image: pet.UrlImageAvatar || pet.urlImageAvatar
         ? { uri: pet.UrlImageAvatar || pet.urlImageAvatar }
@@ -312,9 +308,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
     // Confirmation alert
     showAlert({
       type: 'warning',
-      title: 'Delete Pet? 🗑️',
-      message: `Are you sure you want to delete ${petName}? This action will remove all data related to this pet (photos, characteristics, matches).`,
-      confirmText: 'Delete',
+      title: 'Xóa thú cưng? 🗑️',
+      message: `Bạn có chắc muốn xóa ${petName}? Hành động này sẽ xóa tất cả dữ liệu liên quan đến thú cưng này (ảnh, đặc điểm, ghép đôi).`,
+      confirmText: 'Xóa',
       cancelText: 'Cancel',
       onConfirm: async () => {
         try {
@@ -322,8 +318,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
           showAlert({
             type: 'success',
-            title: 'Deleted! 👋',
-            message: `${petName} has been deleted successfully.`,
+            title: 'Đã xóa! 👋',
+            message: `${petName} đã được xóa thành công.`,
             confirmText: 'OK',
             onClose: () => {
               // Reload pets list
@@ -334,8 +330,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
           showAlert({
             type: 'error',
-            title: 'Error',
-            message: error.response?.data?.Message || 'Failed to delete pet. Please try again.',
+            title: 'Lỗi',
+            message: error.response?.data?.Message || 'Không thể xóa thú cưng. Vui lòng thử lại.',
             confirmText: 'OK'
           });
         }
@@ -353,8 +349,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
     if (pet.IsActive === true || pet.isActive === true) {
       showAlert({
         type: 'info',
-        title: 'Already Active 🐾',
-        message: `${pet.Name || pet.name} is already your active pet for matching!`,
+        title: 'Đã kích hoạt',
+        message: `${pet.Name || pet.name} đã là thú cưng đang hoạt động của bạn!`,
         confirmText: 'Got it'
       });
       return;
@@ -364,7 +360,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
 
     showAlert({
       type: 'info',
-      title: '🐾 Đặt pet hoạt động',
+      title: 'Đặt pet hoạt động',
       message: `Bạn muốn đặt ${petName} làm pet hoạt động để matching?`,
       showCancel: true,
       confirmText: 'Đồng ý',
@@ -397,14 +393,14 @@ const UserProfileScreen = ({ navigation }: Props) => {
           // Show success message
           showAlert({
             type: 'success',
-            title: 'Thành công! 🎉',
+            title: 'Thành công',
             message: `${petName} giờ là pet hoạt động của bạn!`,
           });
         } catch (error: any) {
 
           showAlert({
             type: 'error',
-            title: 'Lỗi 😿',
+            title: 'Lỗi',
             message: 'Không thể đặt pet hoạt động. Vui lòng thử lại.',
           });
         }
@@ -434,7 +430,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading profile...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>Đang tải hồ sơ...</Text>
       </View>
     );
   }
@@ -453,7 +449,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
           >
             <Icon name="person" size={20} color={colors.white} />
           </LinearGradient>
-          <Text style={styles.topHeaderTitle}>My Profile</Text>
+          <Text style={styles.topHeaderTitle}>Hồ sơ của tôi</Text>
         </View>
         <TouchableOpacity
           style={styles.settingsButton}
@@ -546,15 +542,15 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            <Text style={styles.breedText}>{myCat.breed} • {myCat.age}</Text>
+            <Text style={styles.breedText}>{myCat.breed || 'Không rõ giống'} • {myCat.age ? `${myCat.age} tuổi` : 'Không rõ'}</Text>
           </View>
         </View>
 
         {/* About My Cat */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About {myCat.name}</Text>
+          <Text style={styles.sectionTitle}>Về {myCat.name || 'thú cưng'}</Text>
           <View style={styles.bioCard}>
-            <Text style={styles.bioText}>{myCat.bio}</Text>
+            <Text style={styles.bioText}>{myCat.bio || 'Chưa có mô tả'}</Text>
           </View>
         </View>
 
@@ -562,8 +558,8 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {characteristics.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Characteristics</Text>
-              <Text style={styles.sectionSubtitle}>{characteristics.length} attributes</Text>
+              <Text style={styles.sectionTitle}>Đặc điểm</Text>
+              <Text style={styles.sectionSubtitle}>{characteristics.length} thuộc tính</Text>
             </View>
             <View style={styles.characteristicsGrid}>
               {(showAllCharacteristics ? characteristics : characteristics.slice(0, 6)).map((char, index) => (
@@ -578,7 +574,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                       size={18}
                       color={colors.primary}
                     />
-                    <Text style={styles.characteristicName}>{char.name || 'Unknown'}</Text>
+                    <Text style={styles.characteristicName}>{char.name || 'Không rõ'}</Text>
                   </View>
                   <View style={styles.characteristicValueContainer}>
                     {char.optionValue ? (
@@ -588,7 +584,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                         {char.value} {char.unit || ''}
                       </Text>
                     ) : (
-                      <Text style={styles.characteristicValueEmpty}>Not set</Text>
+                      <Text style={styles.characteristicValueEmpty}>Chưa đặt</Text>
                     )}
                   </View>
                 </View>
@@ -602,7 +598,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 onPress={() => setShowAllCharacteristics(!showAllCharacteristics)}
               >
                 <Text style={styles.showMoreText}>
-                  {showAllCharacteristics ? 'Show Less' : `Show ${characteristics.length - 6} More`}
+                  {showAllCharacteristics ? 'Thu gọn' : `Xem thêm ${characteristics.length - 6}`}
                 </Text>
                 <Icon
                   name={showAllCharacteristics ? 'chevron-up' : 'chevron-down'}
@@ -618,9 +614,9 @@ const UserProfileScreen = ({ navigation }: Props) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>My Pets ({myPets.length})</Text>
+              <Text style={styles.sectionTitle}>Thú cưng của tôi ({myPets.length})</Text>
               <Text style={styles.sectionSubtitle}>
-                Tap to set active pet for matching
+                Nhấn để đặt thú cưng hoạt động để ghép đôi
               </Text>
             </View>
             <TouchableOpacity
@@ -632,7 +628,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                 style={styles.addPetGradient}
               >
                 <Icon name="add" size={18} color="#fff" />
-                <Text style={styles.addPetText}>Add Pet</Text>
+                <Text style={styles.addPetText}>Thêm thú cưng</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -662,20 +658,20 @@ const UserProfileScreen = ({ navigation }: Props) => {
                         style={styles.activeBadgeGradient}
                       >
                         <Icon name="checkmark-circle" size={14} color="#fff" />
-                        <Text style={styles.activeBadgeText}>Active</Text>
+                        <Text style={styles.activeBadgeText}>Hoạt động</Text>
                       </LinearGradient>
                     </View>
                   )}
 
                   <View style={styles.petInfo}>
                     <Text style={styles.petName}>
-                      {pet.name}{" "}
+                      {pet.name || 'Không rõ'}{" "}
                       <Text style={pet.gender === "male" ? styles.male : styles.female}>
                         {pet.gender === "male" ? "♂" : "♀"}
                       </Text>
                     </Text>
-                    <Text style={styles.petBreed}>{pet.breed}</Text>
-                    <Text style={styles.petAge}>{pet.age}</Text>
+                    <Text style={styles.petBreed}>{pet.breed || 'Không rõ giống'}</Text>
+                    <Text style={styles.petAge}>{pet.age ? `${pet.age} tuổi` : 'Không rõ'}</Text>
                   </View>
 
                   {/* Edit Button */}
@@ -708,7 +704,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     onPress={() => handleSetActivePet(pet.id)}
                   >
                     <Icon name="radio-button-off" size={18} color={colors.textMedium} />
-                    <Text style={styles.setActiveText}>Set Active</Text>
+                    <Text style={styles.setActiveText}>Đặt hoạt động</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -719,13 +715,13 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {/* Owner Info - SIMPLE */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Owner Information</Text>
+            <Text style={styles.sectionTitle}>Thông tin chủ sở hữu</Text>
             <TouchableOpacity
               style={styles.editOwnerButton}
               onPress={handleEditProfile}
             >
               <Icon name="pencil" size={18} color={colors.primary} />
-              <Text style={styles.editOwnerText}>Edit</Text>
+              <Text style={styles.editOwnerText}>Sửa</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.ownerCard}>
@@ -741,7 +737,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     </View>
                   )}
                 </View>
-                <Text style={styles.ownerSubtext}>Member since {owner.memberSince}</Text>
+                <Text style={styles.ownerSubtext}>Thành viên từ {owner.memberSince}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -753,7 +749,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
             <View style={styles.ownerRow}>
               <Icon name="location-outline" size={20} color={colors.textMedium} />
               <View style={{ flex: 1 }}>
-                {owner.location && owner.location !== 'No location set' ? (
+                {owner.location && owner.location !== 'Chưa đặt vị trí' ? (
                   <>
                     <Text style={styles.ownerText}>{owner.location}</Text>
                     {owner.fullAddress && (
@@ -764,7 +760,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                   </>
                 ) : (
                   <Text style={[styles.ownerText, { color: '#999', fontStyle: 'italic' }]}>
-                    No location set
+                    Chưa đặt vị trí
                   </Text>
                 )}
               </View>

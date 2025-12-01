@@ -30,6 +30,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const handleResetPassword = async () => {
     if (!otp.trim()) {
@@ -42,8 +43,21 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải có ít nhất 6 ký tự" });
+    // Kiểm tra độ dài tối thiểu 8 ký tự
+    if (newPassword.length < 8) {
+      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải có ít nhất 8 ký tự" });
+      return;
+    }
+
+    // Kiểm tra có chứa số
+    if (!/\d/.test(newPassword)) {
+      showAlert({ type: 'error', title: "Lỗi", message: "Mật khẩu phải chứa ít nhất 1 chữ số" });
+      return;
+    }
+
+    // Kiểm tra có ký tự đặc biệt
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      showAlert({ type: 'error', title: "Lỗi", message: "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)" });
       return;
     }
 
@@ -109,11 +123,11 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.title}>Đặt lại mật khẩu</Text>
           <Text style={styles.subtitle}>
-            Enter the code sent to{" "}
-            <Text style={styles.email}>{email}</Text> and create a new
-            password
+            Nhập mã đã gửi đến{" "}
+            <Text style={styles.email}>{email}</Text> và tạo mật khẩu
+            mới
           </Text>
 
           {/* OTP Input */}
@@ -126,7 +140,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Enter OTP Code"
+              placeholder="Nhập mã OTP"
               placeholderTextColor={colors.textLabel}
               value={otp}
               onChangeText={setOtp}
@@ -145,7 +159,7 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="New Password"
+              placeholder="Mật khẩu mới"
               placeholderTextColor={colors.textLabel}
               value={newPassword}
               onChangeText={setNewPassword}
@@ -173,13 +187,22 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Confirm New Password"
+              placeholder="Xác nhận mật khẩu mới"
               placeholderTextColor={colors.textLabel}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
             />
+            {/* Show checkmark if passwords match, X if not match */}
+            {confirmPassword && newPassword && (
+              <Icon
+                name={confirmPassword === newPassword ? "checkmark-circle" : "close-circle"}
+                size={20}
+                color={confirmPassword === newPassword ? "#4CAF50" : "#FF5252"}
+                style={{ marginRight: 8 }}
+              />
+            )}
             <TouchableOpacity
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}
             >
@@ -191,30 +214,81 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             </TouchableOpacity>
           </View>
 
-          {/* Password Requirements */}
+          {/* Password Requirements - Only show when focused */}
+          {isPasswordFocused && (
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Password must:</Text>
+            <Text style={styles.requirementsTitle}>Mật khẩu phải:</Text>
+            
+            {/* Ít nhất 8 ký tự */}
             <View style={styles.requirement}>
               <Icon
                 name={
-                  newPassword.length >= 6
+                  newPassword.length >= 8
                     ? "checkmark-circle"
                     : "ellipse-outline"
                 }
                 size={16}
                 color={
-                  newPassword.length >= 6 ? colors.success : colors.textLabel
+                  newPassword.length >= 8 ? colors.success : colors.textLabel
                 }
               />
               <Text
                 style={[
                   styles.requirementText,
-                  newPassword.length >= 6 && styles.requirementMet,
+                  newPassword.length >= 8 && styles.requirementMet,
                 ]}
               >
-                Be at least 6 characters
+                Có ít nhất 8 ký tự
               </Text>
             </View>
+
+            {/* Chứa số */}
+            <View style={styles.requirement}>
+              <Icon
+                name={
+                  /\d/.test(newPassword)
+                    ? "checkmark-circle"
+                    : "ellipse-outline"
+                }
+                size={16}
+                color={
+                  /\d/.test(newPassword) ? colors.success : colors.textLabel
+                }
+              />
+              <Text
+                style={[
+                  styles.requirementText,
+                  /\d/.test(newPassword) && styles.requirementMet,
+                ]}
+              >
+                Chứa ít nhất 1 chữ số
+              </Text>
+            </View>
+
+            {/* Chứa ký tự đặc biệt */}
+            <View style={styles.requirement}>
+              <Icon
+                name={
+                  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword)
+                    ? "checkmark-circle"
+                    : "ellipse-outline"
+                }
+                size={16}
+                color={
+                  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) ? colors.success : colors.textLabel
+                }
+              />
+              <Text
+                style={[
+                  styles.requirementText,
+                  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) && styles.requirementMet,
+                ]}
+              >
+                Chứa ít nhất 1 ký tự đặc biệt
+              </Text>
+            </View>
+
+            {/* Mật khẩu khớp */}
             <View style={styles.requirement}>
               <Icon
                 name={
@@ -235,10 +309,11 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                   newPassword && newPassword === confirmPassword ? styles.requirementMet : null,
                 ]}
               >
-                Match confirmation password
+                Khớp với mật khẩu xác nhận
               </Text>
             </View>
           </View>
+          )}
 
           {/* Reset Button */}
           <TouchableOpacity
@@ -251,9 +326,9 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
               style={styles.resetGradient}
             >
               {loading ? (
-                <Text style={styles.resetText}>Resetting...</Text>
+                <Text style={styles.resetText}>Đang đặt lại...</Text>
               ) : (
-                <Text style={styles.resetText}>Reset Password</Text>
+                <Text style={styles.resetText}>Đặt lại mật khẩu</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>

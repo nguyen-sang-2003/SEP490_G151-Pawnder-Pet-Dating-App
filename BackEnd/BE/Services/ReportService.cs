@@ -10,11 +10,16 @@ namespace BE.Services
     {
         private readonly IReportRepository _reportRepository;
         private readonly PawnderDatabaseContext _context;
+        private readonly INotificationService _notificationService;
 
-        public ReportService(IReportRepository reportRepository, PawnderDatabaseContext context)
+        public ReportService(
+            IReportRepository reportRepository,
+            PawnderDatabaseContext context,
+            INotificationService notificationService)
         {
             _reportRepository = reportRepository;
             _context = context;
+            _notificationService = notificationService;
         }
 
         public async Task<IEnumerable<ReportDto>> GetAllReportsAsync(CancellationToken ct = default)
@@ -147,10 +152,54 @@ namespace BE.Services
 
             await _reportRepository.UpdateAsync(report, ct);
 
-            // Get updated report with includes
+            // Get updated report with includes (bao gồm thông tin user gửi báo cáo)
             var updatedReport = await _reportRepository.GetReportByIdAsync(reportId, ct);
             if (updatedReport == null)
                 throw new KeyNotFoundException($"Report with ID {reportId} not found after update.");
+
+            // Sau khi admin xử lý/từ chối, gửi thông báo cho người dùng đã gửi báo cáo
+            try
+            {
+                if (updatedReport.UserReport != null)
+                {
+                    var userId = updatedReport.UserReport.UserId;
+                    var normalizedStatus = (report.Status ?? string.Empty).ToLower();
+
+                    string title;
+                    string message;
+
+                    if (normalizedStatus == "resolved" || normalizedStatus == "đã xử lý")
+                    {
+                        title = "Báo cáo của bạn đã được xử lý";
+                        message = report.Resolution ?? "Báo cáo của bạn đã được admin xử lý. Cảm ơn bạn đã gửi phản hồi.";
+                    }
+                    else if (normalizedStatus == "rejected" || normalizedStatus == "từ chối")
+                    {
+                        title = "Báo cáo của bạn đã bị từ chối";
+                        message = report.Resolution ?? "Admin đã xem xét và từ chối báo cáo của bạn.";
+                    }
+                    else
+                    {
+                        title = "Báo cáo của bạn đã được cập nhật";
+                        message = report.Resolution ?? $"Trạng thái mới của báo cáo: {report.Status}.";
+                    }
+
+                    var notificationDto = new NotificationDto_1
+                    {
+                        UserId = userId,
+                        Title = title,
+                        Message = message,
+                        Type = "report"
+                    };
+
+                    await _notificationService.CreateNotificationAsync(notificationDto, ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Không chặn luồng chính nếu gửi thông báo lỗi
+                Console.WriteLine($"[ReportService] Failed to create notification for report {reportId}: {ex.Message}");
+            }
 
             return updatedReport;
         }

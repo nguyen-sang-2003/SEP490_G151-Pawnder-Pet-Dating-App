@@ -124,7 +124,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
   };
 
   const handleSkip = () => {
-    // Skip directly to Home without saving preferences
+    // Bỏ qua trực tiếp đến Home mà không lưu sở thích
     navigation.replace("Home");
   };
 
@@ -175,7 +175,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Hoàn tất! 🎉',
+        title: 'Hoàn tất',
         message: preferences.length > 0
           ? `Đã lưu ${preferences.length} sở thích. Sẵn sàng tìm bạn đồng hành!`
           : 'Bạn có thể cập nhật sở thích sau. Sẵn sàng khám phá!',

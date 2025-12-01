@@ -417,13 +417,20 @@ const ExpertNotifications = () => {
   }, [loadNotifications]);
 
   const filteredNotifications = useMemo(() => {
+    const sortByCreatedDesc = (list) =>
+      [...list].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+
     if (filterStatus === 'pending') {
-      return notifications.filter((n) => n.status === 'pending');
+      return sortByCreatedDesc(notifications.filter((n) => n.status === 'pending'));
     }
     if (filterStatus === 'all') {
-      return notifications.filter((n) => n.status === 'confirmed');
+      return sortByCreatedDesc(notifications.filter((n) => n.status === 'confirmed'));
     }
-    return notifications.filter((n) => n.status === 'confirmed');
+    return sortByCreatedDesc(notifications.filter((n) => n.status === 'confirmed'));
   }, [filterStatus, notifications]);
 
   const totalPages = Math.max(
@@ -760,7 +767,7 @@ const ExpertNotifications = () => {
             <div className="modal-body">
               <div className="modal-body-content">
                 <div className="modal-left-panel">
-                  <div className="notification-detail">
+                    <div className="notification-detail">
                     <div className="detail-section">
                       <h3>Thông tin thông báo</h3>
                       <div className="detail-row">
@@ -776,6 +783,19 @@ const ExpertNotifications = () => {
                       <div className="detail-row">
                         <span className="detail-label">Trạng thái:</span>
                         <span className="detail-value">{getStatusBadge(selectedNotification.status)}</span>
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h3>Câu hỏi người dùng</h3>
+                      <div className="detail-row">
+                        <span className="detail-label">Nội dung câu hỏi:</span>
+                        <span className="detail-value">
+                          {selectedNotification.UserQuestion ||
+                            selectedNotification.aiQuestion ||
+                            selectedNotification.requestMessage ||
+                            'Không có'}
+                        </span>
                       </div>
                     </div>
 

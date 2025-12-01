@@ -41,33 +41,38 @@ const SignInScreen = ({ navigation }: Props) => {
   };
 
   const handleSignIn = async () => {
-    // Validation
+    // Validation: Kiểm tra email trống
     if (!email.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Oops!',
-        message: 'Vui lòng nhập email của bạn 📧',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng nhập email của bạn',
       });
       return;
     }
 
-    if (!pass.trim()) {
-      showAlert({
-        type: 'warning',
-        title: 'Oops!',
-        message: 'Vui lòng nhập mật khẩu 🔒',
-      });
-      return;
-    }
-
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    // Validation: Kiểm tra định dạng email
+    if (!/\S+@\S+\.\S+/.test(email.trim())) {
       showAlert({
         type: 'error',
         title: 'Email không hợp lệ',
-        message: 'Vui lòng nhập đúng định dạng email 📧',
+        message: 'Vui lòng nhập đúng định dạng email (ví dụ: example@email.com)',
       });
       return;
     }
+
+    // Validation: Kiểm tra mật khẩu trống
+    if (!pass.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu mật khẩu',
+        message: 'Vui lòng nhập mật khẩu',
+      });
+      return;
+    }
+
+    // Note: Không validate độ dài mật khẩu khi đăng nhập
+    // vì mật khẩu cũ trong DB có thể ngắn hơn quy định mới
 
     setLoading(true);
     try {
@@ -92,16 +97,45 @@ const SignInScreen = ({ navigation }: Props) => {
         showAlert({
           type: 'info',
           title: 'Hoàn thành hồ sơ',
-          message: 'Hãy hoàn thành thông tin thú cưng để sử dụng ứng dụng!',
+          message: 'Hãy hoàn thành thông tin thú cưng để sử dụng ứng dụng',
           confirmText: 'Tiếp tục',
           onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
         });
       }
     } catch (error: any) {
+      // Xử lý các loại lỗi cụ thể
+      let errorTitle = 'Đăng nhập thất bại';
+      let errorMessage = 'Có lỗi xảy ra. Vui lòng thử lại.';
+
+      if (error.message) {
+        const msg = error.message.toLowerCase();
+        
+        // Sai email hoặc mật khẩu
+        if (msg.includes('invalid') || msg.includes('incorrect') || msg.includes('wrong') || 
+            msg.includes('not found') || msg.includes('unauthorized')) {
+          errorTitle = 'Sai thông tin đăng nhập';
+          errorMessage = 'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại';
+        }
+        // Tài khoản bị khóa
+        else if (msg.includes('banned') || msg.includes('blocked') || msg.includes('suspended')) {
+          errorTitle = 'Tài khoản bị khóa';
+          errorMessage = 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ';
+        }
+        // Lỗi mạng
+        else if (msg.includes('network') || msg.includes('timeout') || msg.includes('connection')) {
+          errorTitle = 'Lỗi kết nối';
+          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng';
+        }
+        // Lỗi khác từ server
+        else {
+          errorMessage = error.message;
+        }
+      }
+
       showAlert({
         type: 'error',
-        title: 'Đăng nhập thất bại ',
-        message: error.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+        title: errorTitle,
+        message: errorMessage,
       });
     } finally {
       setLoading(false);
@@ -129,7 +163,7 @@ const SignInScreen = ({ navigation }: Props) => {
 
       {/* Form */}
       <View style={styles.form}>
-        <Text style={styles.title}>Sign in</Text>
+        <Text style={styles.title}>Đăng nhập</Text>
 
         <TextInput
           placeholder="Email"
@@ -139,7 +173,7 @@ const SignInScreen = ({ navigation }: Props) => {
           onChangeText={setEmail}
         />
         <TextInput
-          placeholder="Password"
+          placeholder="Mật khẩu"
           style={styles.input}
           placeholderTextColor="#999"
           secureTextEntry
@@ -163,7 +197,7 @@ const SignInScreen = ({ navigation }: Props) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign in →</Text>
+                <Text style={styles.buttonText}>Đăng nhập →</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -174,13 +208,13 @@ const SignInScreen = ({ navigation }: Props) => {
             style={styles.link}
             onPress={() => navigation.navigate("SignUp")}
           >
-            Register Now!
+            Đăng ký ngay!
           </Text>{" "}
           / <Text
             style={[styles.link, { color: "#666" }]}
             onPress={() => navigation.navigate("ForgotPassword")}
           >
-            Forgot password
+            Quên mật khẩu
           </Text>
         </Text>
       </View>

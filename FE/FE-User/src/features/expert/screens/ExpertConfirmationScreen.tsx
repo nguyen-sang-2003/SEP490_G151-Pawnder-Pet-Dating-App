@@ -31,3 +31,4 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const [creatingChat, setCreatingChat] = useState(false);
   const { visible: alertVisible, alertConfig, showAlert, hideAlert } = useCustomAlert();
 
+}

@@ -149,15 +149,15 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
   const getStatusLabel = (status: string) => {
     switch (status?.toLowerCase()) {
       case "pending":
-        return "Đang chờ";
+        return "pending";
       case "answered":
       case "approved":
       case "confirmed":
-        return "Đã trả lời";
+        return "answered";
       case "rejected":
-        return "Bị từ chối";
+        return "rejected";
       default:
-        return status || "Không rõ";
+        return status || "";
     }
   };
 
@@ -217,7 +217,10 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
             color={getStatusColor(item.status)}
           />
           <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status)}
+            {getStatusLabel(item.status) === 'pending' ? 'Đang chờ' : 
+             getStatusLabel(item.status) === 'answered' ? 'Đã trả lời' : 
+             getStatusLabel(item.status) === 'rejected' ? 'Bị từ chối' : 
+             getStatusLabel(item.status) || 'Không rõ'}
           </Text>
         </View>
       </View>
