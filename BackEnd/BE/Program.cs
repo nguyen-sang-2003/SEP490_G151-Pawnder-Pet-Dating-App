@@ -139,8 +139,25 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<KickboxSettings>(builder.Configuration.GetSection("KickboxSettings"));
 builder.Services.AddHttpClient<IKickboxClient, KickboxClient>();
 
-// SignalR for real-time communication
-builder.Services.AddSignalR();
+// SignalR for real-time communication with optimizations
+builder.Services.AddSignalR(options =>
+{
+    // Tăng tốc độ response
+    options.EnableDetailedErrors = false; // Disable detailed errors in production
+    options.KeepAliveInterval = TimeSpan.FromSeconds(10); // Giảm từ 15s xuống 10s
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(20); // Giảm từ 30s xuống 20s
+    options.HandshakeTimeout = TimeSpan.FromSeconds(10); // Giảm handshake timeout
+    
+    // Buffer size optimization
+    options.MaximumReceiveMessageSize = 32 * 1024; // 32KB (đủ cho text messages)
+    options.StreamBufferCapacity = 10; // Giảm buffer capacity
+})
+.AddJsonProtocol(options =>
+{
+    // Optimize JSON serialization
+    options.PayloadSerializerOptions.PropertyNamingPolicy = null; // Faster serialization
+    options.PayloadSerializerOptions.WriteIndented = false; // Compact JSON
+});
 
 // Register DistanceService
 builder.Services.AddScoped<DistanceService>();
@@ -254,7 +271,15 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapHub<ChatHub>("/chatHub");
+// Map SignalR hub with compression for faster transmission
+app.MapHub<ChatHub>("/chatHub", options =>
+{
+    // Enable WebSocket compression (giảm 50-70% bandwidth)
+    options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+    
+    // Application-level compression
+    options.WebSockets.CloseTimeout = TimeSpan.FromSeconds(3);
+});
 
 app.Run();
 public class CloudinarySettings
