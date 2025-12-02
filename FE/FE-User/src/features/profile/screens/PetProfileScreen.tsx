@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -25,6 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getUserPetAvatar } from "../../../utils/petAvatar";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width, height } = Dimensions.get("window");
 const IMAGE_HEIGHT = height * 0.55;
@@ -374,9 +374,10 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
           {/* Hero Image with Wrapper */}
           <View style={styles.heroImageWrapper}>
-            <Image
+            <OptimizedImage
               source={pet.photos?.[activePhotoIndex] || pet.avatar}
               style={styles.heroImage}
+              imageSize="full"
               resizeMode="cover"
             />
 
@@ -529,7 +530,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           <Text style={styles.sectionTitleModern}>{t('profile.petProfile.owner.title')}</Text>
 
           <View style={styles.ownerCardModern}>
-            <Image source={pet.owner.avatar} style={styles.ownerAvatarModern} />
+            <OptimizedImage source={pet.owner.avatar} style={styles.ownerAvatarModern} imageSize="thumbnail" />
             <View style={styles.ownerInfoContainer}>
               <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>
               <Text style={styles.ownerStatusModern}>{pet.owner.status}</Text>

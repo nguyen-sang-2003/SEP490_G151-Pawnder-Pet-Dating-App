@@ -1,9 +1,10 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { colors, gradients, radius, shadows } from "../../../theme";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 interface PetCardProps {
   id: string;
@@ -34,7 +35,7 @@ const PetCard: React.FC<PetCardProps> = ({
             colors={gradients.primary}
             style={styles.petAvatarGradient}
           >
-            <Image source={image} style={styles.petAvatar} />
+            <OptimizedImage source={image} style={styles.petAvatar} imageSize="thumbnail" />
           </LinearGradient>
         </View>
         <View>

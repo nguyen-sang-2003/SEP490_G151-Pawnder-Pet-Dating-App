@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, ViewStyle, ImageStyle, Image, ImageResizeMode } from 'react-native';
 import { colors } from '../theme';
-import { optimizeImageSource } from '../utils/imageOptimization';
+import { getProxyImageUrl } from '../utils/imageOptimization';
 
 // Try to import FastImage, fallback to regular Image if not available
 let FastImage: any;
@@ -17,6 +17,12 @@ try {
   FastImage = null;
 }
 
+// Global flag - once we know Cloudinary is blocked, use proxy for all
+let cloudinaryBlocked = false;
+
+// Timeout in milliseconds before switching to proxy (3 seconds)
+const CLOUDINARY_TIMEOUT = 1500;
+
 interface OptimizedImageProps {
   source: any; // Can be { uri: string } or require()
   style?: ImageStyle | ViewStyle;
@@ -27,13 +33,12 @@ interface OptimizedImageProps {
 }
 
 /**
- * Optimized Image Component using react-native-fast-image
+ * Optimized Image Component with Auto-Proxy Detection
  * Features:
+ * - Auto-detect if Cloudinary is blocked (with 3s timeout)
+ * - Automatically fallback to proxy when blocked
  * - Better caching (memory + disk)
- * - Blur placeholder while loading
  * - Loading indicator
- * - Automatic resize optimization
- * - Image URL optimization with resize parameters
  */
 const OptimizedImage: React.FC<OptimizedImageProps> = ({
   source,
@@ -46,47 +51,144 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [useProxy, setUseProxy] = useState(cloudinaryBlocked);
+  const retryCount = useRef(0);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadedRef = useRef(false);
+  const maxRetries = 1;
 
-  // Convert source to FastImage format with optimization
-  const getFastImageSource = () => {
+  // Get the original URI from source
+  const getOriginalUri = (): string | null => {
+    if (!source) return null;
+    if (typeof source === 'object' && source.uri) {
+      return source.uri;
+    }
+    return null;
+  };
+
+  // Check if URL is from Cloudinary
+  const isCloudinaryUrl = (url: string | null): boolean => {
+    if (!url) return false;
+    return url.includes('cloudinary.com') || url.includes('res.cloudinary.com');
+  };
+
+  const originalUri = getOriginalUri();
+  const isCloudinary = isCloudinaryUrl(originalUri);
+
+  // Switch to proxy
+  const switchToProxy = () => {
+    if (!useProxy && retryCount.current < maxRetries && isCloudinary) {
+      console.log('🔄 Switching to proxy (timeout/error):', originalUri?.substring(0, 50));
+      cloudinaryBlocked = true;
+      retryCount.current += 1;
+      loadedRef.current = false;
+      setUseProxy(true);
+    } else if (!loadedRef.current) {
+      setLoading(false);
+      setError(true);
+    }
+  };
+
+  // Get the image source (direct or proxied)
+  const getImageSource = () => {
     if (!source) {
       return require('../assets/cat_avatar.png');
     }
 
-    // Optimize image source with resize parameters
-    const optimizedSource = optimizeImageSource(source, imageSize);
-
-    // If it's a URI object
-    if (typeof optimizedSource === 'object' && optimizedSource.uri) {
+    // If it's a Cloudinary URL and we need proxy
+    if (originalUri && isCloudinary && useProxy) {
+      const proxyUri = getProxyImageUrl(originalUri);
       return {
-        uri: optimizedSource.uri,
-        priority: FastImage.priority.normal,
-        cache: FastImage.cacheControl.immutable,
+        uri: proxyUri,
+        priority: FastImage?.priority?.normal,
+        cache: FastImage?.cacheControl?.web,
       };
     }
 
-    // If it's a require() (local asset)
-    return optimizedSource;
+    // Direct URL
+    if (typeof source === 'object' && source.uri) {
+      return {
+        uri: source.uri,
+        priority: FastImage?.priority?.normal,
+        cache: FastImage?.cacheControl?.immutable,
+      };
+    }
+
+    // Local asset (require())
+    return source;
   };
 
   const handleLoadStart = () => {
     setLoading(true);
     setError(false);
+    loadedRef.current = false;
+
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Set timeout for Cloudinary URLs (only when not using proxy)
+    if (isCloudinary && !useProxy) {
+      timeoutRef.current = setTimeout(() => {
+        if (!loadedRef.current) {
+          console.log('⏱️ Cloudinary timeout, switching to proxy');
+          switchToProxy();
+        }
+      }, CLOUDINARY_TIMEOUT);
+    }
   };
 
   const handleLoadEnd = () => {
+    loadedRef.current = true;
     setLoading(false);
+    
+    // Clear timeout on successful load
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   };
 
   const handleError = () => {
-    setLoading(false);
-    setError(true);
+    // Clear timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    switchToProxy();
   };
+
+  // Reset when source changes
+  useEffect(() => {
+    retryCount.current = 0;
+    loadedRef.current = false;
+    setUseProxy(cloudinaryBlocked);
+    setError(false);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [source?.uri]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const ImageComponent = FastImage || Image;
 
   return (
     <View style={[styles.container, style]}>
-      <FastImage
-        source={getFastImageSource()}
+      <ImageComponent
+        source={getImageSource()}
         style={[StyleSheet.absoluteFill, style]}
         resizeMode={resizeMode}
         onLoadStart={handleLoadStart}
@@ -95,7 +197,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
         {...props}
       />
       
-      {/* Loading indicator with blur effect */}
+      {/* Loading indicator */}
       {loading && showLoader && (
         <View style={styles.loadingOverlay}>
           <View style={styles.blurPlaceholder}>
@@ -106,7 +208,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
       {/* Error fallback */}
       {error && (
-        <FastImage
+        <ImageComponent
           source={require('../assets/cat_avatar.png')}
           style={[StyleSheet.absoluteFill, style]}
           resizeMode={resizeMode}

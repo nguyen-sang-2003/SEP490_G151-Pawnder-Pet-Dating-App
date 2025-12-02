@@ -21,6 +21,7 @@ import { colors, gradients } from "../../../theme";
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width } = Dimensions.get("window");
 const PHOTO_SIZE = (width - 80) / 3;
@@ -455,10 +456,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                 style={styles.photoItem}
               >
                 <View style={styles.photoImageContainer}>
-                  <Image
+                  <OptimizedImage
                     source={{ uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url }}
                     style={styles.photoImage}
                     resizeMode="cover"
+                    imageSize="thumbnail"
                   />
                 </View>
 

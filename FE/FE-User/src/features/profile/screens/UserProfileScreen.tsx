@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   Dimensions,
@@ -28,6 +27,7 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getVipStatus } from "../../payment/api/paymentApi";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { invalidateCache } from "../../../services/cache";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width } = Dimensions.get("window");
 
@@ -482,9 +482,10 @@ const UserProfileScreen = ({ navigation }: Props) => {
           />
 
           <View style={styles.photoWrapper}>
-            <Image
+            <OptimizedImage
               source={myCat.photos[activePhotoIndex]}
               style={styles.mainPhoto}
+              imageSize="full"
             />
           </View>
 
@@ -649,7 +650,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
                   onPress={() => navigation.navigate("PetProfile", { petId: pet.id })}
                   onLongPress={() => handleSetActivePet(pet.id)}
                 >
-                  <Image source={pet.image} style={styles.petImage} />
+                  <OptimizedImage source={pet.image} style={styles.petImage} imageSize="thumbnail" />
 
                   {/* Active Badge */}
                   {pet.isActive && (

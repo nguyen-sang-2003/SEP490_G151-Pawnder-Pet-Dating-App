@@ -6,13 +6,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { colors, shadows } from '../../../theme';
+import OptimizedImage from '../../../components/OptimizedImage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -65,11 +65,11 @@ const MatchModal: React.FC<MatchModalProps> = ({
 
           {petPhotoUrl && petPhotoUrl !== "null" && petPhotoUrl !== "" && (
             <View style={styles.matchPetContainer}>
-              <Image 
+              <OptimizedImage 
                 source={{ uri: petPhotoUrl }} 
                 style={styles.matchPetImage}
                 resizeMode="cover"
-                onError={(e) => console.log('❌ Failed to load pet image:', petPhotoUrl, e.nativeEvent.error)}
+                imageSize="card"
               />
               {petName && (
                 <Text style={styles.matchPetName}>{petName}</Text>
