@@ -15,7 +15,11 @@ namespace BE.Repositories
         {
             return await _dbSet
                 .Include(r => r.UserReport)
-                .Include(r => r.Content)
+                .Include(r => r.Content!)
+                    .ThenInclude(c => c.FromUser)
+                .Include(r => r.Content!)
+                    .ThenInclude(c => c.FromPet!)
+                        .ThenInclude(p => p.User)
                 .Select(r => new ReportDto
                 {
                     ReportId = r.ReportId,
@@ -29,7 +33,25 @@ namespace BE.Repositories
                         UserId = r.UserReport.UserId,
                         FullName = r.UserReport.FullName,
                         Email = r.UserReport.Email
-                    } : null
+                    } : null,
+                    // Người bị báo cáo: ưu tiên FromUser, fallback FromPet.User
+                    ReportedUser = r.Content != null
+                        ? (r.Content.FromUser != null
+                            ? new UserReportDto
+                            {
+                                UserId = r.Content.FromUser.UserId,
+                                FullName = r.Content.FromUser.FullName,
+                                Email = r.Content.FromUser.Email
+                            }
+                            : (r.Content.FromPet != null && r.Content.FromPet.User != null
+                                ? new UserReportDto
+                                {
+                                    UserId = r.Content.FromPet.User.UserId,
+                                    FullName = r.Content.FromPet.User.FullName,
+                                    Email = r.Content.FromPet.User.Email
+                                }
+                                : null))
+                        : null
                 })
                 .ToListAsync(ct);
         }
@@ -38,7 +60,11 @@ namespace BE.Repositories
         {
             return await _dbSet
                 .Include(r => r.UserReport)
-                .Include(r => r.Content)
+                .Include(r => r.Content!)
+                    .ThenInclude(c => c.FromUser)
+                .Include(r => r.Content!)
+                    .ThenInclude(c => c.FromPet!)
+                        .ThenInclude(p => p.User)
                 .Where(r => r.ReportId == reportId)
                 .Select(r => new ReportDto
                 {
@@ -53,7 +79,24 @@ namespace BE.Repositories
                         UserId = r.UserReport.UserId,
                         FullName = r.UserReport.FullName,
                         Email = r.UserReport.Email
-                    } : null
+                    } : null,
+                    ReportedUser = r.Content != null
+                        ? (r.Content.FromUser != null
+                            ? new UserReportDto
+                            {
+                                UserId = r.Content.FromUser.UserId,
+                                FullName = r.Content.FromUser.FullName,
+                                Email = r.Content.FromUser.Email
+                            }
+                            : (r.Content.FromPet != null && r.Content.FromPet.User != null
+                                ? new UserReportDto
+                                {
+                                    UserId = r.Content.FromPet.User.UserId,
+                                    FullName = r.Content.FromPet.User.FullName,
+                                    Email = r.Content.FromPet.User.Email
+                                }
+                                : null))
+                        : null
                 })
                 .FirstOrDefaultAsync(ct);
         }
