@@ -337,21 +337,9 @@ body:not(.dark-theme) .stat-label {
   min-width: 300px;
 }
 
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input-wrapper svg {
-  position: absolute;
-  left: 1rem;
-  color: rgba(248, 250, 252, 0.5);
-}
-
 .search-input {
   width: 100%;
-  padding: 0.85rem 1.2rem 0.85rem 2.75rem;
+  padding: 0.85rem 1.2rem;
   border: 1px solid rgba(248, 250, 252, 0.15);
   border-radius: 18px;
   font-size: 0.95rem;
@@ -369,10 +357,6 @@ body:not(.dark-theme) .stat-label {
   outline: none;
   border-color: #38f2b8;
   box-shadow: 0 0 0 4px rgba(56, 242, 184, 0.2);
-}
-
-body:not(.dark-theme) .search-input-wrapper svg {
-  color: #94a3b8;
 }
 
 body:not(.dark-theme) .search-input {

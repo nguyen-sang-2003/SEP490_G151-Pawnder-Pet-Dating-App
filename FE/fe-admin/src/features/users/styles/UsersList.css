@@ -48,22 +48,9 @@ body.dark-theme .page-header p {
   max-width: 500px;
 }
 
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input-wrapper svg {
-  position: absolute;
-  left: 1rem;
-  color: #666;
-  z-index: 1;
-}
-
 .search-input {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 3rem;
+  padding: 0.75rem 1rem;
   border: 2px solid rgba(255, 182, 193, 0.3);
   border-radius: 12px;
   font-size: 1rem;
@@ -116,10 +103,6 @@ body.dark-theme .search-input:focus {
   background: rgba(30, 30, 30, 0.95);
   border-color: #f72585;
   box-shadow: 0 0 0 3px rgba(247, 37, 133, 0.2);
-}
-
-body.dark-theme .search-input-wrapper svg {
-  color: #999;
 }
 
 body.dark-theme .filter-select {
