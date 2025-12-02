@@ -60,9 +60,10 @@ const ReportsList = () => {
         
         const reportsResponse = await reportService.getReports();
         
-        // Backend returns: { success, message, data: ReportDto[] }
-        // reportService.getReports() already unwraps response?.data || response
-        const reportsData = Array.isArray(reportsResponse) ? reportsResponse : [];
+        // Backend returns: ReportDto[] hoặc { success, data }
+        const reportsData = Array.isArray(reportsResponse)
+          ? reportsResponse
+          : (reportsResponse?.data || []);
         
         // Fetch user info for all unique user IDs in parallel
         const userIds = new Set();
@@ -70,8 +71,7 @@ const ReportsList = () => {
           if (report.UserReport?.UserId) {
             userIds.add(report.UserReport.UserId);
           }
-          // Note: Backend doesn't return Content/FromUserId in ReportDto
-          // So we can't get reported user info from backend currently
+          // reporters đã có trong ReportDto.UserReport
         });
         
         // Fetch user details for all reporters
@@ -98,7 +98,38 @@ const ReportsList = () => {
           const reporterUserId = report.UserReport?.UserId || report.userReport?.userId;
           const reporterUser = userMap.get(reporterUserId);
           const reasonRaw = report.Reason || report.reason || 'N/A';
-          const { cleanReason, reportedUser } = extractReportedUserFromReason(reasonRaw);
+
+          // Ưu tiên lấy người bị báo cáo từ backend (ReportedUser), nếu không có thì fallback parse từ Reason
+          let cleanReason = reasonRaw;
+          let reportedUser;
+
+          const backendReported = report.ReportedUser || report.reportedUser;
+          if (backendReported) {
+            const reportedFullName =
+              backendReported.FullName ||
+              backendReported.fullName ||
+              'Unknown User';
+            const reportedEmail =
+              backendReported.Email ||
+              backendReported.email ||
+              'unknown@email.com';
+            const nameParts = reportedFullName.split(' ');
+            reportedUser = {
+              userId: backendReported.UserId || backendReported.userId || null,
+              fullName: reportedFullName,
+              firstName: nameParts[0] || reportedFullName,
+              lastName: nameParts.slice(1).join(' ') || '',
+              email: reportedEmail,
+              username: reportedEmail.split('@')[0] || 'unknown',
+              phone: null,
+              avatar: null,
+            };
+            cleanReason = reasonRaw || 'N/A';
+          } else {
+            const extracted = extractReportedUserFromReason(reasonRaw);
+            cleanReason = extracted.cleanReason;
+            reportedUser = extracted.reportedUser;
+          }
           
           const fullName = reporterUser 
             ? (reporterUser.FullName || reporterUser.fullName || reporterUser.Email?.split('@')[0] || 'Unknown')
@@ -110,7 +141,7 @@ const ReportsList = () => {
           return {
             id: report.ReportId || report.reportId,
             reporterId: reporterUserId,
-            reportedUserId: null,
+            reportedUserId: reportedUser.userId,
             reason: cleanReason,
             status: report.Status || report.status || 'Pending',
             resolution: report.Resolution || report.resolution || null,
