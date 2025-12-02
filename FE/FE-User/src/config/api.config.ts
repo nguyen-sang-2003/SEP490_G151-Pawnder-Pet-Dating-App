@@ -5,8 +5,8 @@
 
 export const API_CONFIG = {
   // Development URLs
-  ANDROID_EMULATOR: 'http://10.0.2.2:5297',
-  // ANDROID_EMULATOR: 'https://nonenigmatical-catarrhally-elvie.ngrok-free.dev',
+  // ANDROID_EMULATOR: 'http://10.0.2.2:5297',
+  ANDROID_EMULATOR: 'https://nonenigmatical-catarrhally-elvie.ngrok-free.dev',
   IOS_SIMULATOR: 'http://localhost:5297',
   
   // Production URL - Azure Backend
@@ -16,7 +16,7 @@ export const API_CONFIG = {
   // For testing on real device, use your computer's IP
   // Find your IP:
   // - Windows: Run 'ipconfig' in CMD
-  // - Mac/Linux: Run 'ifconfig' or 'ip addr'
+  // - Mac/Linux: Run 'ifconfig' or 'ip addr's
   LOCAL_NETWORK: 'http://192.168.1.100:5297', // Update with your IP
   
   // Timeout settings

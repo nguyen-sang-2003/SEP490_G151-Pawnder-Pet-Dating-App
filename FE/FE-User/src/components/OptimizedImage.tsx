@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, ViewStyle, ImageStyle, Image, ImageResizeMode } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme';
 import { getProxyImageUrl } from '../utils/imageOptimization';
 
@@ -19,9 +20,59 @@ try {
 
 // Global flag - once we know Cloudinary is blocked, use proxy for all
 let cloudinaryBlocked = false;
+let cloudinaryBlockedInitialized = false;
 
-// Timeout in milliseconds before switching to proxy (3 seconds)
-const CLOUDINARY_TIMEOUT = 1500;
+// Initialize cloudinaryBlocked from AsyncStorage
+const initCloudinaryBlockedStatus = async () => {
+  if (cloudinaryBlockedInitialized) return;
+  try {
+    const status = await AsyncStorage.getItem('cloudinaryBlocked');
+    if (status === 'true') {
+      cloudinaryBlocked = true;
+      console.log('🔒 Cloudinary blocked status loaded from storage: true');
+    }
+    cloudinaryBlockedInitialized = true;
+  } catch (e) {
+    console.warn('Failed to load cloudinaryBlocked status');
+  }
+};
+
+// Call on module load
+initCloudinaryBlockedStatus();
+
+// Save cloudinary blocked status
+const saveCloudinaryBlockedStatus = async (blocked: boolean) => {
+  try {
+    await AsyncStorage.setItem('cloudinaryBlocked', blocked ? 'true' : 'false');
+  } catch (e) {
+    // Ignore
+  }
+};
+
+// Timeout in milliseconds before switching to proxy (increased for initial load)
+const CLOUDINARY_TIMEOUT = 3000;
+
+// Preload images using FastImage
+export const preloadImages = (urls: string[]) => {
+  if (!FastImage || !urls || urls.length === 0) return;
+  
+  try {
+    const sources = urls
+      .filter(url => url && typeof url === 'string')
+      .slice(0, 5) // Only preload first 5 images
+      .map(url => ({
+        uri: cloudinaryBlocked ? getProxyImageUrl(url) : url,
+        priority: FastImage.priority?.high,
+      }));
+    
+    if (sources.length > 0) {
+      console.log(`🖼️ Preloading ${sources.length} images...`);
+      FastImage.preload(sources);
+    }
+  } catch (e) {
+    console.warn('Failed to preload images:', e);
+  }
+};
 
 interface OptimizedImageProps {
   source: any; // Can be { uri: string } or require()
@@ -56,6 +107,13 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const loadedRef = useRef(false);
   const maxRetries = 1;
+  
+  // Sync with global cloudinaryBlocked state on mount
+  useEffect(() => {
+    if (cloudinaryBlocked && !useProxy) {
+      setUseProxy(true);
+    }
+  }, []);
 
   // Get the original URI from source
   const getOriginalUri = (): string | null => {
@@ -80,6 +138,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     if (!useProxy && retryCount.current < maxRetries && isCloudinary) {
       console.log('🔄 Switching to proxy (timeout/error):', originalUri?.substring(0, 50));
       cloudinaryBlocked = true;
+      saveCloudinaryBlockedStatus(true); // Persist for next app launch
       retryCount.current += 1;
       loadedRef.current = false;
       setUseProxy(true);
@@ -100,17 +159,17 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       const proxyUri = getProxyImageUrl(originalUri);
       return {
         uri: proxyUri,
-        priority: FastImage?.priority?.normal,
-        cache: FastImage?.cacheControl?.web,
+        priority: FastImage?.priority?.high, // Higher priority for faster loading
+        cache: FastImage?.cacheControl?.immutable, // Cache aggressively
       };
     }
 
-    // Direct URL
+    // Direct URL - use high priority and aggressive caching
     if (typeof source === 'object' && source.uri) {
       return {
         uri: source.uri,
-        priority: FastImage?.priority?.normal,
-        cache: FastImage?.cacheControl?.immutable,
+        priority: FastImage?.priority?.high,
+        cache: FastImage?.cacheControl?.immutable, // Changed from web to immutable for better caching
       };
     }
 

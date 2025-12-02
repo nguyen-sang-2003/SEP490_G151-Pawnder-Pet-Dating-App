@@ -1,6 +1,17 @@
 import { apiClient } from '../../../api/axiosClient';
 
 // Types
+export interface Expert {
+  userId: number;
+  fullName: string;
+  email: string;
+  phone?: string;
+  avatarUrl?: string;
+  address?: string;
+  specialty?: string;
+  isOnline?: boolean;
+}
+
 export interface ExpertChatResponse {
   chatExpertId: number;
   expertId: number;
@@ -139,6 +150,50 @@ export const sendExpertChatMessage = async (
       throw new Error(error.response.data.message);
     }
     throw new Error('Không thể gửi tin nhắn.');
+  }
+};
+
+/**
+ * Get all available experts (roleId = 2)
+ * GET /user?roleId=2
+ */
+export const getAvailableExperts = async (): Promise<Expert[]> => {
+  try {
+    console.log('🔄 Getting available experts...');
+    const response = await apiClient.get('/user', {
+      params: {
+        roleId: 2, // Expert role
+        page: 1,
+        pageSize: 50,
+        includeDeleted: false
+      }
+    });
+    
+    console.log('📦 Raw response:', JSON.stringify(response.data));
+    
+    // Backend returns PagedResult with "items" property (not "data")
+    const items = response.data?.items || response.data?.Items || response.data?.data || [];
+    
+    // Transform backend response to Expert interface
+    const experts = items.map((user: any) => ({
+      userId: user.userId || user.UserId,
+      fullName: user.fullName || user.FullName || 'Chuyên gia',
+      email: user.email || user.Email,
+      phone: user.phone || user.Phone,
+      avatarUrl: user.avatarUrl || user.AvatarUrl,
+      address: user.address || user.Address,
+      specialty: 'Chuyên gia thú y',
+      isOnline: false,
+    }));
+    
+    console.log('✅ Available experts:', experts.length);
+    return experts;
+  } catch (error: any) {
+    console.error('❌ Error getting experts:', error);
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Không thể tải danh sách chuyên gia.');
   }
 };
 
