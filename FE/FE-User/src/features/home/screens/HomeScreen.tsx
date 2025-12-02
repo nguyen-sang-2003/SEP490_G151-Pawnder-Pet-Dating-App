@@ -34,7 +34,7 @@ import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getItem, removeItem } from "../../../services/storage";
-import OptimizedImage from "../../../components/OptimizedImage";
+import OptimizedImage, { preloadImages } from "../../../components/OptimizedImage";
 import PetCardSkeleton from "../../../components/PetCardSkeleton";
 import ReactNativeHapticFeedback from "react-native-haptic-feedback";
 
@@ -520,6 +520,12 @@ const HomeScreen = ({ navigation }: Props) => {
                 ...pet,
                 ownerIsVip: vipStatuses[pet.ownerId] || false,
             }));
+
+            // 🚀 OPTIMIZATION: Preload first few pet images for faster display
+            const imageUrls = petsWithVip
+                .slice(0, 5)
+                .flatMap(pet => pet.images.filter((img: any) => img.uri).map((img: any) => img.uri));
+            preloadImages(imageUrls);
 
             setPets(petsWithVip);
             setCurrentIndex(0);

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, ViewStyle, ImageStyle, Image, ImageResizeMode } from 'react-native';
 import { colors } from '../theme';
-import { getProxyImageUrl } from '../utils/imageOptimization';
 
 // Try to import FastImage, fallback to regular Image if not available
 let FastImage: any;
@@ -17,11 +16,35 @@ try {
   FastImage = null;
 }
 
-// Global flag - once we know Cloudinary is blocked, use proxy for all
-let cloudinaryBlocked = false;
+// DISABLED: Proxy feature - backend doesn't have proxy endpoint
+// Images load directly from Cloudinary
+let cloudinaryBlocked = false; // Keep false - don't use proxy
 
-// Timeout in milliseconds before switching to proxy (3 seconds)
-const CLOUDINARY_TIMEOUT = 1500;
+// Timeout in milliseconds (not used when proxy is disabled)
+const CLOUDINARY_TIMEOUT = 5000;
+
+// Preload images using FastImage
+export const preloadImages = (urls: string[]) => {
+  if (!FastImage || !urls || urls.length === 0) return;
+  
+  try {
+    const sources = urls
+      .filter(url => url && typeof url === 'string')
+      .slice(0, 5) // Only preload first 5 images
+      .map(url => ({
+        uri: url, // Load directly from Cloudinary
+        priority: FastImage.priority?.high,
+        cache: FastImage.cacheControl?.immutable,
+      }));
+    
+    if (sources.length > 0) {
+      console.log(`🖼️ Preloading ${sources.length} images...`);
+      FastImage.preload(sources);
+    }
+  } catch (e) {
+    console.warn('Failed to preload images:', e);
+  }
+};
 
 interface OptimizedImageProps {
   source: any; // Can be { uri: string } or require()
@@ -51,11 +74,10 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [useProxy, setUseProxy] = useState(cloudinaryBlocked);
   const retryCount = useRef(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const loadedRef = useRef(false);
-  const maxRetries = 1;
+  const maxRetries = 2; // Allow 2 retries before showing error
 
   // Get the original URI from source
   const getOriginalUri = (): string | null => {
@@ -66,50 +88,29 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     return null;
   };
 
-  // Check if URL is from Cloudinary
-  const isCloudinaryUrl = (url: string | null): boolean => {
-    if (!url) return false;
-    return url.includes('cloudinary.com') || url.includes('res.cloudinary.com');
-  };
-
   const originalUri = getOriginalUri();
-  const isCloudinary = isCloudinaryUrl(originalUri);
 
-  // Switch to proxy
-  const switchToProxy = () => {
-    if (!useProxy && retryCount.current < maxRetries && isCloudinary) {
-      console.log('🔄 Switching to proxy (timeout/error):', originalUri?.substring(0, 50));
-      cloudinaryBlocked = true;
-      retryCount.current += 1;
-      loadedRef.current = false;
-      setUseProxy(true);
-    } else if (!loadedRef.current) {
+  // Handle load failure - show error state (proxy disabled)
+  const handleLoadFailure = () => {
+    console.log('❌ Image load failed:', originalUri?.substring(0, 50));
+    retryCount.current += 1;
+    if (retryCount.current >= maxRetries) {
       setLoading(false);
       setError(true);
     }
   };
 
-  // Get the image source (direct or proxied)
+  // Get the image source (direct loading, no proxy)
   const getImageSource = () => {
     if (!source) {
       return require('../assets/cat_avatar.png');
     }
 
-    // If it's a Cloudinary URL and we need proxy
-    if (originalUri && isCloudinary && useProxy) {
-      const proxyUri = getProxyImageUrl(originalUri);
-      return {
-        uri: proxyUri,
-        priority: FastImage?.priority?.normal,
-        cache: FastImage?.cacheControl?.web,
-      };
-    }
-
-    // Direct URL
+    // Direct URL - use high priority and aggressive caching
     if (typeof source === 'object' && source.uri) {
       return {
         uri: source.uri,
-        priority: FastImage?.priority?.normal,
+        priority: FastImage?.priority?.high,
         cache: FastImage?.cacheControl?.immutable,
       };
     }
@@ -128,15 +129,13 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       clearTimeout(timeoutRef.current);
     }
 
-    // Set timeout for Cloudinary URLs (only when not using proxy)
-    if (isCloudinary && !useProxy) {
-      timeoutRef.current = setTimeout(() => {
-        if (!loadedRef.current) {
-          console.log('⏱️ Cloudinary timeout, switching to proxy');
-          switchToProxy();
-        }
-      }, CLOUDINARY_TIMEOUT);
-    }
+    // Set timeout for slow loading images
+    timeoutRef.current = setTimeout(() => {
+      if (!loadedRef.current) {
+        console.log('⏱️ Image load timeout:', originalUri?.substring(0, 50));
+        // Don't show error yet, let it continue loading
+      }
+    }, CLOUDINARY_TIMEOUT);
   };
 
   const handleLoadEnd = () => {
@@ -157,15 +156,15 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       timeoutRef.current = null;
     }
 
-    switchToProxy();
+    handleLoadFailure();
   };
 
   // Reset when source changes
   useEffect(() => {
     retryCount.current = 0;
     loadedRef.current = false;
-    setUseProxy(cloudinaryBlocked);
     setError(false);
+    setLoading(true);
 
     return () => {
       if (timeoutRef.current) {
