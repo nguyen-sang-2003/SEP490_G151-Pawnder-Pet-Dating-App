@@ -10,11 +10,12 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { getUserById, updateUser, getAddressById, createAddressForUser, updateAddress } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 import { colors } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -23,6 +24,7 @@ import { requestLocationAndGetCoordinates } from "../../../services/location.ser
 type Props = NativeStackScreenProps<RootStackParamList, "EditProfile">;
 
 const EditUserProfileScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<number | undefined>(undefined);
@@ -51,7 +53,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         }
 
         if (!uid) {
-          showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy người dùng', onClose: () => navigation.goBack() });
+          showAlert({ type: 'error', title: t('common.error'), message: t('profile.userNotFound'), onClose: () => navigation.goBack() });
           return;
         }
 
@@ -84,23 +86,30 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
       } catch (error: any) {
 
-        showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin người dùng' });
+        showAlert({ type: 'error', title: t('common.error'), message: error.response?.data?.message || t('profile.loadError') });
       } finally {
         setLoading(false);
       }
     };
 
     loadUserData();
-  }, [route.params?.userId]);
+  }, [route.params?.userId, t]);
 
   const handleSave = async () => {
     if (!userId) {
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy ID người dùng' });
+      showAlert({ type: 'error', title: t('common.error'), message: t('profile.userNotFound') });
       return;
     }
 
+    // Validation: Kiểm tra tên trống
     if (!name.trim()) {
-      showAlert({ type: 'warning', title: 'Lỗi nhập liệu', message: 'Tên không được để trống' });
+      showAlert({ type: 'warning', title: t('profile.edit.validation.missingInfo'), message: t('profile.edit.validation.enterName') });
+      return;
+    }
+
+    // Validation: Kiểm tra độ dài tên
+    if (name.trim().length < 2) {
+      showAlert({ type: 'error', title: t('profile.edit.validation.invalidName'), message: t('profile.edit.validation.nameMinLength') });
       return;
     }
 
@@ -117,10 +126,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       });
 
       console.log('✅ User updated successfully');
-      showAlert({ type: 'success', title: 'Thành công', message: 'Đã cập nhật thông tin!', onClose: () => navigation.goBack() });
+      showAlert({ type: 'success', title: t('common.success'), message: t('profile.edit.saveSuccess'), onClose: () => navigation.goBack() });
     } catch (error: any) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể lưu thông tin' });
+      showAlert({ type: 'error', title: t('common.error'), message: error.response?.data?.message || t('profile.edit.saveError') });
     } finally {
       setSaving(false);
     }
@@ -147,8 +156,8 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       if (!coordinates) {
         showAlert({
           type: 'warning',
-          title: 'Không thể lấy vị trí',
-          message: 'Bạn đã từ chối quyền truy cập vị trí. Vui lòng bật GPS trong cài đặt.',
+          title: t('common.error'),
+          message: t('profile.edit.locationDenied'),
         });
         return;
       }
@@ -184,15 +193,15 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
         showAlert({
           type: 'success',
-          title: 'Thành công! 📍',
-          message: 'Đã cập nhật vị trí từ GPS.',
+          title: t('common.success'),
+          message: t('profile.edit.locationSuccess'),
         });
       }
     } catch (error: any) {
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.message || 'Không thể lấy vị trí GPS. Vui lòng thử lại.',
+        title: t('common.error'),
+        message: error.message || t('profile.edit.locationError'),
       });
     } finally {
       setGettingLocation(false);
@@ -210,7 +219,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         end={{ x: 1, y: 1 }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>{t('common.loading')}</Text>
       </LinearGradient>
     );
   }
@@ -231,40 +240,40 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Icon name="arrow-back" size={26} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <Text style={styles.headerTitle}>{t('profile.edit.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
         {/* Form */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>{t('profile.edit.personalInfo')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>{t('profile.edit.fullName')}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter your name"
+              placeholder={t('profile.edit.fullNamePlaceholder')}
               placeholderTextColor="#999"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('profile.edit.email')}</Text>
             <TextInput
               style={[styles.input, styles.inputDisabled]}
               value={email}
-              placeholder="Enter your email"
+              placeholder={t('profile.edit.emailPlaceholder')}
               placeholderTextColor="#999"
               keyboardType="email-address"
               editable={false}
             />
-            <Text style={styles.helperText}>Email cannot be changed</Text>
+            <Text style={styles.helperText}>{t('profile.edit.emailCannotChange')}</Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Gender</Text>
+            <Text style={styles.label}>{t('profile.edit.gender')}</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
                 style={[
@@ -279,7 +288,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                     gender === "Male" && styles.genderTextActive,
                   ]}
                 >
-                  Male
+                  {t('profile.edit.male')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -295,35 +304,19 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
                     gender === "Female" && styles.genderTextActive,
                   ]}
                 >
-                  Female
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.genderButton,
-                  gender === "Other" && styles.genderButtonActive,
-                ]}
-                onPress={() => setGender("Other")}
-              >
-                <Text
-                  style={[
-                    styles.genderText,
-                    gender === "Other" && styles.genderTextActive,
-                  ]}
-                >
-                  Other
+                  {t('profile.edit.female')}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Location - GPS Only */}
-          <Text style={styles.sectionTitle}>Location (GPS)</Text>
+          <Text style={styles.sectionTitle}>{t('profile.edit.location')}</Text>
 
           <View style={styles.gpsInfoBox}>
             <Icon name="information-circle" size={20} color={colors.primary} />
             <Text style={styles.gpsInfoText}>
-              Nhấn nút bên dưới để tự động lấy vị trí từ GPS của bạn
+              {t('profile.edit.gpsInfo')}
             </Text>
           </View>
 
@@ -341,12 +334,12 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
               {gettingLocation ? (
                 <>
                   <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.gpsButtonText}>Đang lấy vị trí...</Text>
+                  <Text style={styles.gpsButtonText}>{t('profile.edit.gettingLocation')}</Text>
                 </>
               ) : (
                 <>
                   <Icon name="navigate" size={20} color="#fff" />
-                  <Text style={styles.gpsButtonText}>Lấy vị trí GPS</Text>
+                  <Text style={styles.gpsButtonText}>{t('profile.edit.getGpsLocation')}</Text>
                 </>
               )}
             </LinearGradient>
@@ -357,9 +350,9 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             <View style={styles.currentLocationBox}>
               <Icon name="location" size={18} color={colors.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.currentLocationLabel}>Vị trí hiện tại:</Text>
+                <Text style={styles.currentLocationLabel}>{t('profile.edit.currentLocation')}</Text>
                 <Text style={styles.currentLocationText}>
-                  {[ward, district, city].filter(Boolean).join(', ') || 'Chưa có'}
+                  {[ward, district, city].filter(Boolean).join(', ') || t('profile.edit.noCurrentLocation')}
                 </Text>
               </View>
             </View>
@@ -382,10 +375,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             {saving ? (
               <>
                 <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.saveButtonText}>Saving...</Text>
+                <Text style={styles.saveButtonText}>{t('profile.edit.saving')}</Text>
               </>
             ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
+              <Text style={styles.saveButtonText}>{t('profile.edit.saveChanges')}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>

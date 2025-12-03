@@ -14,6 +14,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -25,10 +26,10 @@ import { getUserPetAvatar, getPetAvatar } from "../../../utils/petAvatar";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUnreadChats, selectActivePetId, selectExpertChatBadge, selectTotalChatBadge } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
-import { getVipStatus } from "../../../api/payment";
-import { getPetsByUserId } from "../../../api/pet";
-import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
-import { ChatSkeleton } from "../../../components/ChatSkeleton";
+import { getVipStatus } from "../../payment/api/paymentApi";
+import { getPetsByUserId } from "../../pet/api/petApi";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
+import { ChatSkeleton } from "../components/ChatSkeleton";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -46,6 +47,7 @@ interface ChatItem {
 }
 
 const ChatScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const unreadChats = useSelector(selectUnreadChats); // Get list of unread matchIds
   const expertChatBadge = useSelector(selectExpertChatBadge); // Get expert chat badge count
@@ -83,8 +85,22 @@ const ChatScreen = ({ navigation }: Props) => {
       loadChats();
       refreshOnlineUsers();
 
-      // Don't refresh badges here - they are managed by useBadgeNotifications hook
-      // and ChatDetailScreen marks chats as read locally
+      // ✅ FORCE badge refresh to ensure all badges are up-to-date
+      const refreshBadges = async () => {
+        try {
+          const userIdStr = await AsyncStorage.getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr);
+            console.log('🔄 [ChatScreen] Force refreshing all badges on focus');
+            await refreshBadgesForActivePet(userId, true);
+          }
+        } catch (error) {
+          console.error('❌ [ChatScreen] Failed to refresh badges:', error);
+        }
+      };
+      
+      refreshBadges();
+      // ChatDetailScreen marks chats as read locally
     }, [])
   );
 
@@ -104,6 +120,7 @@ const ChatScreen = ({ navigation }: Props) => {
       signalRService.on('UserOnline', handleUserOnline);
       signalRService.on('UserOffline', handleUserOffline);
       signalRService.on('ReceiveMessage', handleNewMessage);
+      signalRService.on('MatchDeleted', handleMatchDeleted);
 
       // Get initial online users
       const online = await signalRService.getOnlineUsers();
@@ -128,11 +145,87 @@ const ChatScreen = ({ navigation }: Props) => {
   };
 
   const handleNewMessage = (data: any) => {
-    // 🚀 OPTIMIZATION: Invalidate cache and reload
+    console.log('💬 [ChatScreen] New message received via SignalR:', data);
+    
+    const matchId = data.MatchId || data.matchId;
+    const message = data.Message || data.message;
+    const fromUserId = data.FromUserId || data.fromUserId;
+    const createdAt = data.CreatedAt || data.createdAt || new Date().toISOString();
+    
+    if (!matchId) {
+      console.log('⚠️ No matchId in message data');
+      return;
+    }
+
+    // ✅ Optimistic update: Update chat item immediately
+    setChatData(prevChats => {
+      const chatIndex = prevChats.findIndex(chat => chat.matchId === matchId);
+      
+      if (chatIndex === -1) {
+        // Chat not in list (new match) - reload to get it
+        console.log('🆕 New chat detected, reloading...');
+        loadChats(true);
+        return prevChats;
+      }
+      
+      // ✅ Update existing chat
+      const updatedChats = [...prevChats];
+      const chat = updatedChats[chatIndex];
+      
+      // Format time
+      const formatTime = (dateString: string): string => {
+        let dateStr = dateString;
+        if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+          dateStr = dateStr + 'Z';
+        }
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Now';
+        if (diffMins < 60) return `${diffMins}m`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h`;
+        return `${Math.floor(diffHours / 24)}d`;
+      };
+      
+      // Update last message and timestamp
+      updatedChats[chatIndex] = {
+        ...chat,
+        lastMessage: message || 'New message',
+        time: formatTime(createdAt),
+        // Only increment unread if message is FROM other user
+        unread: fromUserId !== currentUserId ? (chat.unread || 0) + 1 : chat.unread,
+      };
+      
+      // ✅ Move to top of list (like Messenger)
+      const updatedChat = updatedChats.splice(chatIndex, 1)[0];
+      updatedChats.unshift(updatedChat);
+      
+      console.log('✅ Updated chat in list and moved to top');
+      return updatedChats;
+    });
+
+    // Invalidate cache for next reload
     if (currentUserId) {
       invalidateCache.chats(currentUserId);
     }
-    loadChats(true); // Force refresh
+  };
+
+  const handleMatchDeleted = (data: any) => {
+    console.log('💔 [ChatScreen] Match deleted:', data);
+    const matchId = data.matchId || data.MatchId;
+    
+    if (matchId) {
+      // ✅ Remove from UI immediately
+      setChatData(prevChats => prevChats.filter(chat => chat.matchId !== matchId));
+      console.log('✅ Removed matchId from ChatScreen:', matchId);
+      
+      // Also invalidate cache
+      if (currentUserId) {
+        invalidateCache.chats(currentUserId);
+      }
+    }
   };
 
   const refreshOnlineUsers = async () => {
@@ -234,7 +327,7 @@ const ChatScreen = ({ navigation }: Props) => {
             }
 
             // Get last message
-            let lastMessage = "Start chatting!";
+            let lastMessage = t('chat.startConversation');
             let lastMessageTime = chat.createdAt;
 
             try {
@@ -252,7 +345,7 @@ const ChatScreen = ({ navigation }: Props) => {
               id: chat.matchId.toString(),
               matchId: chat.matchId,
               otherUserId: otherUserId,
-              name: otherUser.fullName || 'Unknown',
+              name: otherUser.fullName || t('fallback.unknown'),
               lastMessage: lastMessage,
               time: formatTime(lastMessageTime),
               unread: 0, // Unread count requires DB changes - keep simple for now
@@ -296,19 +389,19 @@ const ChatScreen = ({ navigation }: Props) => {
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffDays > 0) {
-      return diffDays === 1 ? 'Hôm qua' : `${diffDays} ngày`;
+      return diffDays === 1 ? t('chat.time.yesterday') : t('chat.time.daysAgo', { count: diffDays });
     }
 
     if (diffHours > 0) {
-      return `${diffHours} giờ`;
+      return t('chat.time.hoursAgo', { count: diffHours });
     }
 
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins > 0) {
-      return `${diffMins} phút`;
+      return t('chat.time.minutesAgo', { count: diffMins });
     }
 
-    return 'Vừa xong';
+    return t('chat.time.justNow');
   };
 
   const filteredChats = chatData
@@ -402,7 +495,7 @@ const ChatScreen = ({ navigation }: Props) => {
           >
             <Icon name="chatbubbles" size={22} color={colors.white} />
           </LinearGradient>
-          <Text style={styles.headerTitle}>Messages</Text>
+          <Text style={styles.headerTitle}>{t('chat.title')}</Text>
         </View>
       </View>
 
@@ -411,7 +504,7 @@ const ChatScreen = ({ navigation }: Props) => {
         <Icon name="search" size={20} color={colors.textMedium} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search conversations..."
+          placeholder={t('chat.searchPlaceholder')}
           placeholderTextColor={colors.textLabel}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -440,8 +533,8 @@ const ChatScreen = ({ navigation }: Props) => {
             <View style={styles.specialChatIconContainer}>
               <Icon name="sparkles" size={24} color={colors.white} />
             </View>
-            <Text style={styles.specialChatTitle}>AI Assistant</Text>
-            <Text style={styles.specialChatSubtitle}>Instant advice</Text>
+            <Text style={styles.specialChatTitle}>{t('chat.specialChat.aiTitle')}</Text>
+            <Text style={styles.specialChatSubtitle}>{t('chat.specialChat.aiSubtitle')}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -460,8 +553,8 @@ const ChatScreen = ({ navigation }: Props) => {
             <View style={styles.specialChatIconContainer}>
               <Icon name="medical" size={24} color={colors.white} />
             </View>
-            <Text style={styles.specialChatTitle}>Chuyên gia</Text>
-            <Text style={styles.specialChatSubtitle}>Tư vấn chuyên sâu</Text>
+            <Text style={styles.specialChatTitle}>{t('chat.specialChat.expertTitle')}</Text>
+            <Text style={styles.specialChatSubtitle}>{t('chat.specialChat.expertSubtitle')}</Text>
             {expertChatBadge > 0 && (
               <View style={{
                 position: 'absolute',
@@ -496,7 +589,7 @@ const ChatScreen = ({ navigation }: Props) => {
           activeOpacity={0.7}
         >
           <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
-            All Chats
+            {t('chat.filter.all')}
           </Text>
           {totalChatBadge > 0 && (
             <View style={[styles.filterBadge, activeFilter === 'all' && styles.filterBadgeActive]}>
@@ -513,7 +606,7 @@ const ChatScreen = ({ navigation }: Props) => {
           activeOpacity={0.7}
         >
           <Text style={[styles.filterText, activeFilter === 'unread' && styles.filterTextActive]}>
-            Unread
+            {t('chat.filter.unread')}
           </Text>
           {unreadChats.length > 0 && (
             <View style={[styles.filterBadge, activeFilter === 'unread' && styles.filterBadgeActive]}>
@@ -541,17 +634,17 @@ const ChatScreen = ({ navigation }: Props) => {
               {searchQuery.length > 0 ? (
                 <>
                   <Icon name="search-outline" size={64} color={colors.textLabel} />
-                  <Text style={styles.emptyTitle}>No results found</Text>
+                  <Text style={styles.emptyTitle}>{t('chat.noSearchResults')}</Text>
                   <Text style={styles.emptyText}>
-                    Try searching for a different name or message
+                    {t('chat.noSearchResultsDesc')}
                   </Text>
                 </>
               ) : (
                 <>
                   <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
-                  <Text style={styles.emptyTitle}>No chats yet</Text>
+                  <Text style={styles.emptyTitle}>{t('chat.noChats')}</Text>
                   <Text style={styles.emptyText}>
-                    Match with other pet owners to start chatting!
+                    {t('chat.noChatsDesc')}
                   </Text>
                 </>
               )}

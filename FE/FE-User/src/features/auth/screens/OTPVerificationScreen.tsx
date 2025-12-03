@@ -13,25 +13,27 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { sendOtp, verifyOtp, register, createAddressForUser, login } from "../../../api";
 import { requestLocationAndGetCoordinates } from "../../../services/location.service";
-import { setItem } from "../../../utils/storage";
+import { setItem } from "../../../services/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "OTPVerification">;
 
 const OTPVerificationScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { email, userData } = route.params;
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otpValue, setOtpValue] = useState(""); // Một string thay vì array
   const [resendTimer, setResendTimer] = useState(60);
   const [otpValidTimer, setOtpValidTimer] = useState(300); // 5 minutes
   const [canResend, setCanResend] = useState(false);
   const [isOtpExpired, setIsOtpExpired] = useState(false);
   const [loading, setLoading] = useState(false);
-  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const hiddenInputRef = useRef<TextInput | null>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Resend timer (60s)
@@ -67,39 +69,40 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
     if (isOtpExpired) {
       showAlert({
         type: 'warning',
-        title: 'OTP đã hết hạn ⏰',
-        message: 'Mã OTP đã hết hiệu lực. Vui lòng nhấn "Gửi lại mã" để nhận mã mới.',
+        title: t('auth.otp.otpExpired'),
+        message: t('auth.otp.otpExpiredAlert'),
       });
     }
   }, [isOtpExpired]);
 
-  const handleOtpChange = (value: string, index: number) => {
-    if (!/^\d*$/.test(value)) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Auto focus next input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
+  // Xử lý thay đổi OTP - dùng một input ẩn
+  const handleOtpChange = (value: string) => {
+    // Chỉ lấy số và giới hạn 6 ký tự
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    setOtpValue(digits);
   };
 
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+  // Lấy array 6 phần tử để hiển thị
+  const getOtpDigits = () => {
+    const digits = otpValue.split('');
+    while (digits.length < 6) {
+      digits.push('');
     }
+    return digits;
+  };
+
+  // Focus vào input ẩn khi bấm vào ô nào đó
+  const handleBoxPress = () => {
+    hiddenInputRef.current?.focus();
   };
 
   const handleVerify = async () => {
-    const otpCode = otp.join("");
-
-    if (otpCode.length !== 6) {
+    // Validation: Kiểm tra OTP đầy đủ 6 số
+    if (otpValue.length !== 6) {
       showAlert({
         type: 'warning',
-        title: 'OTP chưa đầy đủ',
-        message: 'Vui lòng nhập đủ 6 số 🔢',
+        title: t('auth.otp.otpIncomplete'),
+        message: t('auth.otp.enterFullOtp'),
       });
       return;
     }
@@ -107,8 +110,8 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
     if (isOtpExpired) {
       showAlert({
         type: 'error',
-        title: 'OTP đã hết hạn ⏰',
-        message: 'Mã OTP đã hết hiệu lực. Vui lòng gửi lại mã mới.',
+        title: t('auth.otp.otpExpired'),
+        message: t('auth.otp.otpExpiredMessage'),
       });
       return;
     }
@@ -117,15 +120,15 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
     try {
       // Step 1: Verify OTP with backend
       console.log('🔐 Verifying OTP...');
-      await verifyOtp(email, otpCode);
+      await verifyOtp(email, otpValue);
       console.log('✅ OTP verified successfully');
 
       // Show OTP success message first
       showAlert({
         type: 'success',
-        title: 'OTP đúng! ✅',
-        message: 'Mã xác thực chính xác. Tiếp tục tạo tài khoản...',
-        confirmText: 'Tiếp tục',
+        title: t('auth.otp.otpCorrect'),
+        message: t('auth.otp.otpCorrectMessage'),
+        confirmText: t('common.continue'),
         onClose: async () => {
           // Step 2: Create account in database
           if (userData) {
@@ -162,9 +165,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               // Step 3: Request location permission and get GPS
               showAlert({
                 type: 'info',
-                title: 'Cấp quyền vị trí 📍',
-                message: 'Để tìm thú cưng gần bạn, vui lòng cho phép Pawnder truy cập vị trí của bạn.',
-                confirmText: 'Đồng ý',
+                title: t('auth.otp.locationPermission'),
+                message: t('auth.otp.locationPermissionMessage'),
+                confirmText: t('auth.otp.agree'),
                 onClose: () => {
                   // Request location in background
                   handleLocationSetup(newUserId);
@@ -174,13 +177,13 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               setLoading(false);
 
 
-              let errorTitle = 'Tạo tài khoản thất bại';
-              let errorMessage = error.message || 'Có lỗi xảy ra. Vui lòng thử lại.';
+              let errorTitle = t('auth.otp.createAccountFailed');
+              let errorMessage = error.message || t('auth.signIn.genericError');
 
               // Check if error is from registration
               if (error.message?.includes('Email') || error.message?.includes('đã tồn tại')) {
-                errorTitle = 'Email đã được sử dụng';
-                errorMessage = 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc sử dụng email khác.';
+                errorTitle = t('auth.signUp.emailExists');
+                errorMessage = t('auth.signUp.emailExistsMessage');
               }
 
               showAlert({
@@ -194,9 +197,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
             setLoading(false);
             showAlert({
               type: 'success',
-              title: 'Xác thực thành công! ✅',
-              message: 'Email đã được xác thực.',
-              confirmText: 'Tiếp tục',
+              title: t('auth.otp.verifySuccess'),
+              message: t('auth.otp.emailVerified'),
+              confirmText: t('common.continue'),
               onClose: () => navigation.replace("Home"),
             });
           }
@@ -207,8 +210,8 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Xác thực thất bại',
-        message: error.message || 'Mã OTP không chính xác. Vui lòng thử lại.',
+        title: t('auth.otp.verifyFailed'),
+        message: error.message || t('auth.otp.wrongOtp'),
       });
     } finally {
       setLoading(false);
@@ -228,9 +231,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
         console.warn('Location permission denied');
         showAlert({
           type: 'warning',
-          title: 'Bỏ qua vị trí',
-          message: 'Bạn có thể cập nhật vị trí sau trong cài đặt. Tiếp tục thêm thông tin thú cưng!',
-          confirmText: 'Tiếp tục',
+          title: t('auth.otp.locationSkipped'),
+          message: t('auth.otp.locationSkippedMessage'),
+          confirmText: t('common.continue'),
           onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
         });
         return;
@@ -242,9 +245,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Đăng ký hoàn tất! 🎉',
-        message: 'Vị trí đã được lưu. Bây giờ hãy thêm thông tin thú cưng của bạn!',
-        confirmText: 'Tiếp tục',
+        title: t('auth.otp.registrationComplete'),
+        message: t('auth.otp.locationSaved'),
+        confirmText: t('common.continue'),
         onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
       });
     } catch (error: any) {
@@ -253,9 +256,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
       // Show error but allow user to continue
       showAlert({
         type: 'warning',
-        title: 'Không thể lưu vị trí',
-        message: error.message + ' Bạn có thể cập nhật sau. Tiếp tục thêm thông tin thú cưng!',
-        confirmText: 'Tiếp tục',
+        title: t('auth.otp.locationSaveFailed'),
+        message: error.message + ' ' + t('auth.otp.locationSaveFailedMessage'),
+        confirmText: t('common.continue'),
         onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
       });
     } finally {
@@ -275,19 +278,19 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
       setOtpValidTimer(300); // Reset to 5 minutes
       setCanResend(false);
       setIsOtpExpired(false);
-      setOtp(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
+      setOtpValue("");
+      hiddenInputRef.current?.focus();
 
       showAlert({
         type: 'success',
-        title: 'Đã gửi lại! 📧',
-        message: 'Mã OTP mới đã được gửi đến email của bạn.',
+        title: t('auth.otp.resendSuccess'),
+        message: t('auth.otp.resendSuccessMessage'),
       });
     } catch (error: any) {
       showAlert({
         type: 'error',
-        title: 'Lỗi gửi OTP',
-        message: error.message || 'Không thể gửi lại OTP. Vui lòng thử lại.',
+        title: t('auth.otp.resendFailed'),
+        message: error.message || t('auth.otp.resendFailedMessage'),
       });
     } finally {
       setLoading(false);
@@ -325,9 +328,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Verify Your Email</Text>
+          <Text style={styles.title}>{t('auth.otp.title')}</Text>
           <Text style={styles.subtitle}>
-            We've sent a 6-digit code to{"\n"}
+            {t('auth.otp.subtitle')}{"\n"}
             <Text style={styles.email}>{email}</Text>
           </Text>
 
@@ -344,29 +347,44 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               otpValidTimer <= 60 && !isOtpExpired && styles.warningText,
             ]}>
               {isOtpExpired
-                ? "Mã đã hết hạn! Vui lòng gửi lại"
-                : `Mã có hiệu lực: ${Math.floor(otpValidTimer / 60)}:${String(otpValidTimer % 60).padStart(2, '0')}`}
+                ? t('auth.otp.codeExpired')
+                : t('auth.otp.codeValidity', { minutes: Math.floor(otpValidTimer / 60), seconds: String(otpValidTimer % 60).padStart(2, '0') })}
             </Text>
           </View>
 
-          {/* OTP Input */}
-          <View style={styles.otpContainer}>
-            {otp.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
-                style={[
-                  styles.otpInput,
-                  digit ? styles.otpInputFilled : null,
-                ]}
-                value={digit}
-                onChangeText={(value) => handleOtpChange(value, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-              />
-            ))}
+          {/* OTP Input - Hidden input + Visual boxes */}
+          <View style={styles.otpWrapper}>
+            {/* Hidden TextInput để nhận input */}
+            <TextInput
+              ref={hiddenInputRef}
+              style={styles.hiddenInput}
+              value={otpValue}
+              onChangeText={handleOtpChange}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+              caretHidden
+            />
+            
+            {/* Visual OTP boxes */}
+            <TouchableOpacity 
+              style={styles.otpContainer} 
+              onPress={handleBoxPress}
+              activeOpacity={1}
+            >
+              {getOtpDigits().map((digit, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.otpInput,
+                    digit ? styles.otpInputFilled : null,
+                    index === otpValue.length && styles.otpInputFocused,
+                  ]}
+                >
+                  <Text style={styles.otpDigitText}>{digit}</Text>
+                </View>
+              ))}
+            </TouchableOpacity>
           </View>
 
           {/* Verify Button */}
@@ -382,7 +400,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               {loading ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={styles.verifyText}>Verify Email</Text>
+                <Text style={styles.verifyText}>{t('auth.otp.verifyButton')}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -392,13 +410,13 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
             {canResend ? (
               <TouchableOpacity onPress={handleResend} disabled={loading}>
                 <Text style={styles.resendText}>
-                  Không nhận được mã?{" "}
-                  <Text style={styles.resendLink}>Gửi lại</Text>
+                  {t('auth.otp.noCode')}{" "}
+                  <Text style={styles.resendLink}>{t('auth.otp.resend')}</Text>
                 </Text>
               </TouchableOpacity>
             ) : (
               <Text style={styles.timerText}>
-                Gửi lại sau <Text style={styles.timerNumber}>{resendTimer}s</Text>
+                {t('auth.otp.resendIn', { seconds: resendTimer })}
               </Text>
             )}
           </View>
@@ -497,11 +515,20 @@ const styles = StyleSheet.create({
   expiredText: {
     color: colors.error,
   },
+  otpWrapper: {
+    position: "relative",
+    marginBottom: 40,
+  },
+  hiddenInput: {
+    position: "absolute",
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
   otpContainer: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 12,
-    marginBottom: 40,
   },
   otpInput: {
     width: 50,
@@ -510,15 +537,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.whiteWarm,
     borderWidth: 2,
     borderColor: colors.cardBackgroundLight,
-    fontSize: 24,
-    fontWeight: "bold",
-    color: colors.textDark,
-    textAlign: "center",
+    justifyContent: "center",
+    alignItems: "center",
     ...shadows.small,
   },
   otpInputFilled: {
     borderColor: colors.primary,
     backgroundColor: colors.cardBackground,
+  },
+  otpInputFocused: {
+    borderColor: colors.primary,
+    borderWidth: 3,
+  },
+  otpDigitText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: colors.textDark,
   },
   verifyButton: {
     width: "100%",

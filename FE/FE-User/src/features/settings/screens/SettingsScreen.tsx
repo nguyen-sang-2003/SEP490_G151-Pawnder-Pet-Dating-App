@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -12,13 +12,14 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { logout } from "../../../api/auth";
-import { getItem } from "../../../utils/storage";
+import { logout } from "../../auth/api/authApi";
+import { getItem } from "../../../services/storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { getVipStatus, VipStatusResponse } from "../../../api/payment";
+import { getVipStatus, VipStatusResponse } from "../../payment/api/paymentApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -32,6 +33,7 @@ interface SettingsItem {
 }
 
 const SettingsScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
   const [loadingVip, setLoadingVip] = useState(true);
@@ -62,20 +64,20 @@ const SettingsScreen = ({ navigation }: Props) => {
   const accountSettings: SettingsItem[] = [
     {
       icon: "person-outline",
-      title: "Edit Profile",
-      subtitle: "Update your personal information",
+      title: t('settings.account.editProfile'),
+      subtitle: t('settings.account.editProfileDesc'),
       onPress: () => navigation.navigate("EditProfile", {}),
     },
     {
       icon: "paw-outline",
-      title: "My Pets",
-      subtitle: "Manage your pet profiles",
+      title: t('settings.account.myPets'),
+      subtitle: t('settings.account.myPetsDesc'),
       onPress: () => navigation.navigate("Profile"),
     },
     {
       icon: "key-outline",
-      title: "Change Password",
-      subtitle: "Update your password",
+      title: t('settings.account.changePassword'),
+      subtitle: t('settings.account.changePasswordDesc'),
       onPress: () => navigation.navigate("ChangePassword"),
     },
   ];
@@ -83,26 +85,26 @@ const SettingsScreen = ({ navigation }: Props) => {
   const appSettings: SettingsItem[] = [
     {
       icon: "shield-checkmark-outline",
-      title: "Privacy & Safety",
-      subtitle: "Control your privacy settings",
-      onPress: () => navigation.navigate("PrivacyAndSafety"),
+      title: t('settings.appSettings.expertConfirmation'),
+      subtitle: t('settings.appSettings.expertConfirmationDesc'),
+      onPress: () => navigation.navigate("ExpertConfirmation"),
     },
     {
       icon: "ban-outline",
-      title: "Blocked Users",
-      subtitle: "Manage blocked accounts",
+      title: t('settings.appSettings.blockedUsers'),
+      subtitle: t('settings.appSettings.blockedUsersDesc'),
       onPress: () => navigation.navigate("BlockedUsers"),
     },
     {
       icon: "flag-outline",
-      title: "My Reports",
-      subtitle: "View your reported content",
+      title: t('settings.appSettings.myReports'),
+      subtitle: t('settings.appSettings.myReportsDesc'),
       onPress: () => navigation.navigate("MyReports"),
     },
     {
       icon: "notifications-outline",
-      title: "Notifications",
-      subtitle: "View your notifications",
+      title: t('settings.appSettings.notifications'),
+      subtitle: t('settings.appSettings.notificationsDesc'),
       onPress: () => navigation.navigate("Notification"),
     },
   ];
@@ -110,20 +112,20 @@ const SettingsScreen = ({ navigation }: Props) => {
   const supportSettings: SettingsItem[] = [
     {
       icon: "help-circle-outline",
-      title: "Help & Support",
-      subtitle: "Get help and contact support",
+      title: t('settings.supportSection.helpSupport'),
+      subtitle: t('settings.supportSection.helpSupportDesc'),
       onPress: () => navigation.navigate("HelpAndSupport"),
     },
     {
       icon: "document-text-outline",
-      title: "Terms & Conditions",
-      subtitle: "Read our terms of service",
+      title: t('settings.supportSection.terms'),
+      subtitle: t('settings.supportSection.termsDesc'),
       onPress: () => navigation.navigate("ResourceDetail", { type: "terms" }),
     },
     {
       icon: "shield-outline",
-      title: "Privacy Policy",
-      subtitle: "Read our privacy policy",
+      title: t('settings.supportSection.privacy'),
+      subtitle: t('settings.supportSection.privacyDesc'),
       onPress: () => navigation.navigate("ResourceDetail", { type: "privacy" }),
     },
   ];
@@ -131,15 +133,15 @@ const SettingsScreen = ({ navigation }: Props) => {
   const premiumSettings: SettingsItem[] = [
     {
       icon: "diamond-outline",
-      title: "Pawnder Premium",
-      subtitle: "Unlock exclusive features",
+      title: t('settings.premiumSection.pawnderPremium'),
+      subtitle: t('settings.premiumSection.pawnderPremiumDesc'),
       onPress: () => navigation.navigate("Premium"),
       iconColor: colors.primary,
     },
     {
       icon: "receipt-outline",
-      title: "Payment History",
-      subtitle: "View your transaction history",
+      title: t('settings.premiumSection.paymentHistory'),
+      subtitle: t('settings.premiumSection.paymentHistoryDesc'),
       onPress: () => navigation.navigate("PaymentHistory"),
     },
   ];
@@ -169,14 +171,14 @@ const SettingsScreen = ({ navigation }: Props) => {
   const dangerSettings: SettingsItem[] = [
     {
       icon: "log-out-outline",
-      title: "Sign Out",
+      title: t('settings.danger.logout'),
       onPress: () => {
         showAlert({
           type: 'warning',
-          title: "Sign Out",
-          message: "Are you sure you want to sign out?",
+          title: t('settings.danger.logoutTitle'),
+          message: t('settings.danger.logoutConfirm'),
           showCancel: true,
-          confirmText: "Sign Out",
+          confirmText: t('settings.danger.logout'),
           onConfirm: handleLogout,
         });
       },
@@ -184,14 +186,14 @@ const SettingsScreen = ({ navigation }: Props) => {
     },
     {
       icon: "trash-outline",
-      title: "Delete Account",
+      title: t('settings.danger.deleteAccount'),
       onPress: () => {
         showAlert({
           type: 'error',
-          title: "Delete Account",
-          message: "This action cannot be undone. All your data will be permanently deleted.",
+          title: t('settings.danger.deleteAccountTitle'),
+          message: t('settings.danger.deleteAccountConfirm'),
           showCancel: true,
-          confirmText: "Delete",
+          confirmText: t('common.delete'),
           onConfirm: () => console.log("Delete account"),
         });
       },
@@ -287,14 +289,14 @@ const SettingsScreen = ({ navigation }: Props) => {
             {/* VIP Info */}
             <View style={styles.vipInfo}>
               <View style={styles.vipTitleRow}>
-                <Text style={styles.vipTitle}>Pawnder Premium</Text>
+                <Text style={styles.vipTitle}>{t('settings.premiumSection.pawnderPremium')}</Text>
                 <View style={styles.vipBadge}>
                   <Icon name="checkmark-circle" size={16} color="#FFF" />
-                  <Text style={styles.vipBadgeText}>ACTIVE</Text>
+                  <Text style={styles.vipBadgeText}>{t('settings.vip.active')}</Text>
                 </View>
               </View>
               <Text style={styles.vipSubtitle}>
-                Expires on {formattedDate} • {daysRemaining} days left
+                {t('settings.vip.expireDate', { date: formattedDate, days: daysRemaining })}
               </Text>
             </View>
 
@@ -325,15 +327,15 @@ const SettingsScreen = ({ navigation }: Props) => {
 
           {/* Call to Action */}
           <View style={styles.vipInfo}>
-            <Text style={styles.vipTitle}>Unlock Pawnder Premium</Text>
+            <Text style={styles.vipTitle}>{t('settings.vip.unlockPremium')}</Text>
             <Text style={styles.vipSubtitle}>
-              Unlimited matches, AI confirms & more! ✨
+              {t('settings.vip.unlockDesc')}
             </Text>
           </View>
 
           {/* Upgrade Button */}
           <View style={styles.upgradeButton}>
-            <Text style={styles.upgradeButtonText}>Upgrade</Text>
+            <Text style={styles.upgradeButtonText}>{t('settings.vip.upgrade')}</Text>
             <Icon name="arrow-forward" size={16} color="#F5576C" />
           </View>
         </LinearGradient>
@@ -356,7 +358,7 @@ const SettingsScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -369,14 +371,14 @@ const SettingsScreen = ({ navigation }: Props) => {
         {/* VIP Status Card */}
         {renderVipStatusCard()}
 
-        {renderSection("Account", accountSettings)}
-        {renderSection("App Settings", appSettings)}
-        {renderSection("Premium & Billing", premiumSettings)}
-        {renderSection("Support", supportSettings)}
-        {renderSection("Danger Zone", dangerSettings)}
+        {renderSection(t('settings.sections.account'), accountSettings)}
+        {renderSection(t('settings.sections.appSettings'), appSettings)}
+        {renderSection(t('settings.sections.premium'), premiumSettings)}
+        {renderSection(t('settings.sections.support'), supportSettings)}
+        {renderSection(t('settings.sections.dangerZone'), dangerSettings)}
 
         {/* Version */}
-        <Text style={styles.version}>Version 1.0.0</Text>
+        <Text style={styles.version}>{t('settings.version', { version: '1.0.0' })}</Text>
       </ScrollView>
 
       {/* Custom Alert */}

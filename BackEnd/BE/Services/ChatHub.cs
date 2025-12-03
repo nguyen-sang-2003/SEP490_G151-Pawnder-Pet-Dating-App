@@ -329,6 +329,36 @@ namespace BE.Services
         }
 
         /// <summary>
+        /// Send notification when a match is deleted/unmatched (STATIC for use in services)
+        /// </summary>
+        public static async Task SendMatchDeletedNotification(IHubContext<ChatHub> hubContext, int toUserId, int matchId)
+        {
+            Console.WriteLine($"[ChatHub] Sending MatchDeleted notification to user {toUserId} for matchId {matchId}");
+            
+            if (UserConnections.TryGetValue(toUserId, out var connections))
+            {
+                var payload = new
+                {
+                    MatchId = matchId,
+                    Timestamp = DateTime.UtcNow
+                };
+                
+                Console.WriteLine($"✅ [ChatHub] User {toUserId} is ONLINE with {connections.Count} connection(s)");
+                
+                foreach (var connectionId in connections)
+                {
+                    await hubContext.Clients.Client(connectionId).SendAsync("MatchDeleted", payload);
+                }
+                
+                Console.WriteLine($"✅ [ChatHub] MatchDeleted notification sent successfully to user {toUserId}");
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ [ChatHub] User {toUserId} is offline, badge will be cleared on next badge refresh");
+            }
+        }
+
+        /// <summary>
         /// Send notification with additional metadata (expertId, chatId) - for expert confirmations
         /// </summary>
         public static async Task SendNotificationWithMetadata(

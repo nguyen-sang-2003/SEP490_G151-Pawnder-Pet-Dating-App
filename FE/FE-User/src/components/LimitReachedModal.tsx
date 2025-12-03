@@ -14,6 +14,7 @@ import { colors, radius, shadows } from '../theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -29,10 +30,11 @@ interface LimitReachedModalProps {
 export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
   visible,
   onClose,
-  title = 'Oops! Out of Limit',
-  message = 'Bạn đã hết lượt sử dụng hôm nay!',
+  title,
+  message,
   actionType = 'match',
 }) => {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // 🚀 OPTIMIZATION: Memoize feature icon calculation
@@ -53,19 +55,19 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
 
   // 🚀 OPTIMIZATION: Memoize feature title calculation
   const featureTitle = useMemo(() => {
-    switch (actionType) {
-      case 'match':
-        return 'Oops! Out of Likes';
-      case 'ai_chat':
-        return 'Oops! Out of AI Questions';
-      case 'expert_confirm':
-        return 'Oops! Out of Expert Confirmations';
-      case 'filter':
-        return 'Oops! Out of Filter Searches';
-      default:
-        return title;
+    const titleKey = `limitModal.titles.${actionType}`;
+    const translatedTitle = t(titleKey);
+    // If translation exists for this action type, use it; otherwise use custom title or default
+    if (translatedTitle !== titleKey) {
+      return translatedTitle;
     }
-  }, [actionType, title]);
+    return title || t('limitModal.defaultTitle');
+  }, [actionType, title, t]);
+
+  // Get the display message
+  const displayMessage = useMemo(() => {
+    return message || t('limitModal.defaultMessage');
+  }, [message, t]);
 
   // 🚀 OPTIMIZATION: Memoize handleUpgrade with useCallback
   const handleUpgrade = useCallback(() => {
@@ -95,25 +97,25 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
             <Text style={styles.title}>{featureTitle}</Text>
 
             {/* Message */}
-            <Text style={styles.message}>{message}</Text>
+            <Text style={styles.message}>{displayMessage}</Text>
 
             {/* Premium Features */}
             <View style={styles.featuresBox}>
               <View style={styles.featureRow}>
                 <Icon name="infinite" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>Unlimited likes</Text>
+                <Text style={styles.featureText}>{t('limitModal.features.unlimitedLikes')}</Text>
               </View>
               <View style={styles.featureRow}>
                 <Icon name="chatbubbles" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>Unlimited AI chat</Text>
+                <Text style={styles.featureText}>{t('limitModal.features.unlimitedAI')}</Text>
               </View>
               <View style={styles.featureRow}>
                 <Icon name="people" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>Unlimited expert confirms</Text>
+                <Text style={styles.featureText}>{t('limitModal.features.unlimitedExpert')}</Text>
               </View>
               <View style={styles.featureRow}>
                 <Icon name="star" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>VIP badge & priority</Text>
+                <Text style={styles.featureText}>{t('limitModal.features.vipBadge')}</Text>
               </View>
             </View>
 
@@ -129,7 +131,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
                 end={{ x: 1, y: 0 }}
               >
                 <Icon name="diamond" size={20} color="#000" />
-                <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+                <Text style={styles.upgradeButtonText}>{t('limitModal.upgradePremium')}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -138,7 +140,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
               style={styles.closeButton}
               onPress={onClose}
             >
-              <Text style={styles.closeText}>Maybe Later</Text>
+              <Text style={styles.closeText}>{t('limitModal.later')}</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>

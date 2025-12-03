@@ -18,12 +18,12 @@ namespace BE.Services
             _secret = config["Jwt:Secret"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Secret is required");
             _issuer = config["Jwt:Issuer"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Issuer is required");
             _audience = config["Jwt:Audience"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Audience is required");
-            _accessTokenExpirationMinutes = int.Parse(config["Jwt:AccessTokenExpirationMinutes"] ?? "30");
-            _refreshTokenExpirationDays = int.Parse(config["Jwt:RefreshTokenExpirationDays"] ?? "7");
+            _accessTokenExpirationMinutes = int.Parse(config["Jwt:AccessTokenExpirationMinutes"] ?? "1");
+            _refreshTokenExpirationDays = int.Parse(config["Jwt:RefreshTokenExpirationDays"] ?? "30");
         }
 
         /// <summary>
-        /// Tạo Access Token (JWT) - ngắn hạn (30 phút mặc định)
+        /// Tạo Access Token (JWT) - ngắn hạn (1 phút mặc định)
         /// </summary>
         public string GenerateAccessToken(int userId, string role)
         {
@@ -48,7 +48,7 @@ namespace BE.Services
         }
 
         /// <summary>
-        /// Tạo Refresh Token (JWT) - dài hạn (7 ngày mặc định), lưu vào TokenJwt
+        /// Tạo Refresh Token (JWT) - dài hạn (30 ngày mặc định), lưu vào TokenJwt
         /// </summary>
         public string GenerateRefreshToken(int userId, string role)
         {

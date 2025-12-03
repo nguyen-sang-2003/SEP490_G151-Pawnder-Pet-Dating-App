@@ -12,16 +12,18 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
 import { createPet } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetBasicInfo">;
 
 const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const [petName, setPetName] = useState("");
   const [breed, setBreed] = useState("");
   const [description, setDescription] = useState("");
@@ -31,12 +33,22 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
   const isFromProfile = route.params?.isFromProfile || false;
 
   const handleContinue = async () => {
-    // Validate
+    // Validation: Kiểm tra tên thú cưng trống
     if (!petName.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Name Required',
-        message: 'Please enter your pet\'s name to continue.',
+        title: t('auth.addPet.basicInfo.missingInfo'),
+        message: t('auth.addPet.basicInfo.enterPetName'),
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra độ dài tên
+    if (petName.trim().length < 2) {
+      showAlert({
+        type: 'error',
+        title: t('auth.addPet.basicInfo.invalidName'),
+        message: t('auth.addPet.basicInfo.nameMinLength'),
       });
       return;
     }
@@ -49,8 +61,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       if (!userIdStr) {
         showAlert({
           type: 'error',
-          title: 'Error',
-          message: 'User information not found. Please login again.',
+          title: t('auth.addPet.basicInfo.error'),
+          message: t('auth.addPet.basicInfo.userNotFound'),
         });
         return;
       }
@@ -83,9 +95,9 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Success!',
-        message: `${petName}'s profile created. Let's add some photos!`,
-        confirmText: 'Continue',
+        title: t('auth.addPet.basicInfo.success'),
+        message: t('auth.addPet.basicInfo.petCreated', { name: petName }),
+        confirmText: t('common.continue'),
         onClose: () => {
           navigation.navigate("AddPetPhotos", { petId, isFromProfile });
         },
@@ -94,8 +106,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Error',
-        message: error.message || 'Failed to create pet profile. Please try again.',
+        title: t('auth.addPet.basicInfo.error'),
+        message: error.message || t('auth.addPet.basicInfo.createFailed'),
       });
     } finally {
       setLoading(false);
@@ -108,8 +120,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     } else {
       showAlert({
         type: 'warning',
-        title: 'Complete Profile',
-        message: 'You need to create at least one pet profile to continue.',
+        title: t('auth.addPet.basicInfo.completeProfile'),
+        message: t('auth.addPet.basicInfo.needPetProfile'),
       });
     }
   };
@@ -135,12 +147,12 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
               <View style={[styles.stepBar, styles.stepBarInactive]} />
               <View style={[styles.stepBar, styles.stepBarInactive]} />
             </View>
-            <Text style={styles.stepText}>Step 1 of 3</Text>
+            <Text style={styles.stepText}>{t('auth.addPet.basicInfo.step')}</Text>
           </View>
 
-          <Text style={styles.title}>Pet Profile</Text>
+          <Text style={styles.title}>{t('auth.addPet.basicInfo.title')}</Text>
           <Text style={styles.subtitle}>
-            Tell us about your furry friend
+            {t('auth.addPet.basicInfo.subtitle')}
           </Text>
         </View>
 
@@ -148,10 +160,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         <View style={styles.form}>
           {/* Pet Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>{t('auth.addPet.basicInfo.name')}</Text>
             <View style={styles.inputContainer}>
               <TextInput
-                placeholder="What's your pet's name?"
+                placeholder={t('auth.addPet.basicInfo.namePlaceholder')}
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={petName}
@@ -166,10 +178,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
           {/* Breed */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Breed</Text>
+            <Text style={styles.label}>{t('auth.addPet.basicInfo.breed')}</Text>
             <View style={styles.inputContainer}>
               <TextInput
-                placeholder="e.g., Persian, British Shorthair"
+                placeholder={t('auth.addPet.basicInfo.breedPlaceholder')}
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={breed}
@@ -177,15 +189,15 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 autoCapitalize="words"
               />
             </View>
-            <Text style={styles.helperText}>Optional</Text>
+            <Text style={styles.helperText}>{t('auth.addPet.basicInfo.optional')}</Text>
           </View>
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>About</Text>
+            <Text style={styles.label}>{t('auth.addPet.basicInfo.description')}</Text>
             <View style={styles.inputContainer}>
               <TextInput
-                placeholder="Describe your pet's personality and traits..."
+                placeholder={t('auth.addPet.basicInfo.descriptionPlaceholder')}
                 style={[styles.input, styles.textArea]}
                 placeholderTextColor={colors.textLabel}
                 value={description}
@@ -197,7 +209,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
               />
             </View>
             <View style={styles.charCount}>
-              <Text style={styles.helperText}>Optional • {description.length}/200</Text>
+              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length })}</Text>
             </View>
           </View>
 
@@ -217,7 +229,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>Continue</Text>
+                  <Text style={styles.buttonText}>{t('auth.addPet.basicInfo.continueButton')}</Text>
                   <Icon name="arrow-forward" size={22} color={colors.white} />
                 </>
               )}

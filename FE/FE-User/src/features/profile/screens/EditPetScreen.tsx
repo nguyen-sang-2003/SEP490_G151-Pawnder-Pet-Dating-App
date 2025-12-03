@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
@@ -20,6 +21,7 @@ import { colors, gradients } from "../../../theme";
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width } = Dimensions.get("window");
 const PHOTO_SIZE = (width - 80) / 3;
@@ -27,6 +29,7 @@ const PHOTO_SIZE = (width - 80) / 3;
 type Props = NativeStackScreenProps<RootStackParamList, "EditPet">;
 
 const EditPetScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const petIdStr = route.params?.petId || "0";
   const petId = parseInt(petIdStr, 10);
 
@@ -58,8 +61,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         if (!petId) {
           showAlert({
             type: 'error',
-            title: 'Lỗi',
-            message: 'Không tìm thấy thông tin pet',
+            title: t('common.error'),
+            message: t('profile.editPet.loadError'),
             onClose: () => navigation.goBack(),
           });
           return;
@@ -116,8 +119,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: error.response?.data?.message || 'Không thể tải thông tin pet',
+          title: t('common.error'),
+          message: error.response?.data?.message || t('profile.editPet.loadError'),
         });
       } finally {
         setLoading(false);
@@ -125,23 +128,53 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     };
 
     loadPetData();
-  }, [petId]);
+  }, [petId, t]);
 
   const handleSave = async () => {
     if (!petId) {
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không tìm thấy thông tin pet',
+        title: t('common.error'),
+        message: t('profile.editPet.loadError'),
       });
       return;
     }
 
+    // Validation: Kiểm tra tên pet trống
     if (!name.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Thiếu thông tin',
-        message: 'Vui lòng nhập tên pet',
+        title: t('profile.editPet.validation.missingInfo'),
+        message: t('profile.editPet.validation.enterPetName'),
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra độ dài tên pet
+    if (name.trim().length < 2) {
+      showAlert({
+        type: 'error',
+        title: t('profile.editPet.validation.invalidName'),
+        message: t('profile.editPet.validation.nameMinLength'),
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra tuổi hợp lệ
+    if (age && parseInt(age) < 0) {
+      showAlert({
+        type: 'error',
+        title: t('profile.editPet.validation.invalidAge'),
+        message: t('profile.editPet.validation.ageNegative'),
+      });
+      return;
+    }
+
+    if (age && parseInt(age) > 30) {
+      showAlert({
+        type: 'error',
+        title: t('profile.editPet.validation.invalidAge'),
+        message: t('profile.editPet.validation.ageMax'),
       });
       return;
     }
@@ -162,16 +195,16 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       console.log('✅ Pet updated successfully');
       showAlert({
         type: 'success',
-        title: 'Thành công',
-        message: 'Đã cập nhật thông tin pet!',
+        title: t('common.success'),
+        message: t('profile.editPet.saveSuccess'),
         onClose: () => navigation.goBack(),
       });
     } catch (error: any) {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.response?.data?.message || 'Không thể lưu thông tin pet',
+        title: t('common.error'),
+        message: error.response?.data?.message || t('profile.editPet.saveError'),
       });
     } finally {
       setSaving(false);
@@ -186,8 +219,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     if (photos.length >= maxPhotos) {
       showAlert({
         type: 'warning',
-        title: 'Giới hạn ảnh',
-        message: `Chỉ có thể thêm tối đa ${maxPhotos} ảnh`,
+        title: t('profile.editPet.photos.limitTitle'),
+        message: t('profile.editPet.photos.limitMessage', { max: maxPhotos }),
       });
       return;
     }
@@ -208,8 +241,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: 'Không thể chọn ảnh. Vui lòng thử lại.',
+          title: t('common.error'),
+          message: t('profile.editPet.photos.uploadError'),
         });
         return;
       }
@@ -234,16 +267,16 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
         showAlert({
           type: 'success',
-          title: 'Thành công',
-          message: 'Đã thêm ảnh mới!',
+          title: t('common.success'),
+          message: t('profile.editPet.photos.uploadSuccess'),
         });
       }
     } catch (error: any) {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không thể upload ảnh. Vui lòng thử lại.',
+        title: t('common.error'),
+        message: t('profile.editPet.photos.uploadError'),
       });
     } finally {
       setUploading(false);
@@ -284,8 +317,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không thể sắp xếp lại ảnh. Vui lòng thử lại.'
+        title: t('common.error'),
+        message: t('profile.editPet.photos.reorderError')
       });
     }
   };
@@ -297,18 +330,18 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     if (photos.length <= 1) {
       showAlert({
         type: 'warning',
-        title: 'Không thể xóa',
-        message: 'Phải có ít nhất 1 ảnh cho pet.',
+        title: t('profile.editPet.photos.cannotDelete'),
+        message: t('profile.editPet.photos.minPhotosRequired'),
       });
       return;
     }
 
     showAlert({
       type: 'warning',
-      title: 'Xóa ảnh',
-      message: 'Bạn có chắc muốn xóa ảnh này?',
+      title: t('profile.editPet.photos.deleteTitle'),
+      message: t('profile.editPet.photos.deleteMessage'),
       showCancel: true,
-      confirmText: 'Xóa',
+      confirmText: t('profile.editPet.photos.deleteConfirm'),
       onConfirm: async () => {
         try {
           console.log('🗑️ Deleting photo:', photoId);
@@ -322,15 +355,15 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
           showAlert({
             type: 'success',
-            title: 'Thành công',
-            message: 'Đã xóa ảnh!',
+            title: t('common.success'),
+            message: t('profile.editPet.photos.deleteSuccess'),
           });
         } catch (error: any) {
 
           showAlert({
             type: 'error',
-            title: 'Lỗi',
-            message: 'Không thể xóa ảnh. Vui lòng thử lại.',
+            title: t('common.error'),
+            message: t('profile.editPet.photos.deleteError'),
           });
         }
       },
@@ -347,7 +380,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         end={{ x: 1, y: 1 }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>{t('profile.editPet.loading')}</Text>
       </LinearGradient>
     );
   }
@@ -368,7 +401,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Icon name="arrow-back" size={26} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Pet Profile</Text>
+          <Text style={styles.headerTitle}>{t('profile.editPet.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -396,13 +429,13 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-          <Text style={styles.changePhotoText}>Change pet photo</Text>
+          <Text style={styles.changePhotoText}>{t('profile.editPet.changePhoto')}</Text>
         </View>
 
         {/* Photos Grid */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pet Photos ({photos.length}/{maxPhotos})</Text>
+            <Text style={styles.sectionTitle}>{t('profile.editPet.photos.count', { current: photos.length, max: maxPhotos })}</Text>
             <TouchableOpacity
               onPress={handleAddPhoto}
               disabled={uploading || photos.length >= maxPhotos}
@@ -423,10 +456,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                 style={styles.photoItem}
               >
                 <View style={styles.photoImageContainer}>
-                  <Image
+                  <OptimizedImage
                     source={{ uri: photo.ImageUrl || photo.imageUrl || photo.Url || photo.url }}
                     style={styles.photoImage}
                     resizeMode="cover"
+                    imageSize="thumbnail"
                   />
                 </View>
 
@@ -479,44 +513,44 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
         {/* Form */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pet Information</Text>
+          <Text style={styles.sectionTitle}>{t('profile.editPet.form.title')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Pet Name</Text>
+            <Text style={styles.label}>{t('profile.editPet.form.name')}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter pet name"
+              placeholder={t('profile.editPet.form.namePlaceholder')}
               placeholderTextColor="#999"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Breed</Text>
+            <Text style={styles.label}>{t('profile.editPet.form.breed')}</Text>
             <TextInput
               style={styles.input}
               value={breed}
               onChangeText={setBreed}
-              placeholder="Enter breed"
+              placeholder={t('profile.editPet.form.breedPlaceholder')}
               placeholderTextColor="#999"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Age (years)</Text>
+            <Text style={styles.label}>{t('profile.editPet.form.age')}</Text>
             <TextInput
               style={styles.input}
               value={age}
               onChangeText={setAge}
-              placeholder="Enter age in years"
+              placeholder={t('profile.editPet.form.agePlaceholder')}
               placeholderTextColor="#999"
               keyboardType="numeric"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Gender</Text>
+            <Text style={styles.label}>{t('profile.editPet.form.gender')}</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
                 style={[
@@ -531,7 +565,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                     gender === "Male" && styles.genderTextActive,
                   ]}
                 >
-                  Male
+                  {t('profile.editPet.form.male')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -547,19 +581,19 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                     gender === "Female" && styles.genderTextActive,
                   ]}
                 >
-                  Female
+                  {t('profile.editPet.form.female')}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>{t('profile.editPet.form.description')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Describe your pet"
+              placeholder={t('profile.editPet.form.descriptionPlaceholder')}
               placeholderTextColor="#999"
               multiline
               numberOfLines={3}
@@ -577,18 +611,18 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               style={styles.editCharacteristicsBtnGradient}
             >
               <Icon name="create-outline" size={20} color="#FFF" />
-              <Text style={styles.editCharacteristicsBtnText}>Edit Characteristics</Text>
+              <Text style={styles.editCharacteristicsBtnText}>{t('profile.editPet.editCharacteristics')}</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           {/* Owner's Location (Read-only) */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Owner's Location</Text>
+            <Text style={styles.label}>{t('profile.editPet.ownerLocation.title')}</Text>
 
             <View style={styles.readOnlyField}>
               <Icon name="location-outline" size={16} color="#666" />
               <Text style={styles.readOnlyText}>
-                {[ward, district, city].filter(Boolean).join(', ') || 'No location set'}
+                {[ward, district, city].filter(Boolean).join(', ') || t('profile.editPet.ownerLocation.noLocation')}
               </Text>
             </View>
           </View>
@@ -597,7 +631,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           <View style={styles.noteCard}>
             <Icon name="information-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.noteText}>
-              Pet location is inherited from your account. Update your location in your profile settings.
+              {t('profile.editPet.ownerLocation.note')}
             </Text>
           </View>
         </View>
@@ -618,10 +652,10 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             {saving ? (
               <>
                 <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.saveButtonText}>Saving...</Text>
+                <Text style={styles.saveButtonText}>{t('profile.editPet.saving')}</Text>
               </>
             ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
+              <Text style={styles.saveButtonText}>{t('profile.editPet.saveChanges')}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>

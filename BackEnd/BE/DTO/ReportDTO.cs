@@ -9,6 +9,7 @@
 		public DateTime? CreatedAt { get; set; }
 		public DateTime? UpdatedAt { get; set; }
 		public UserReportDto? UserReport { get; set; }
+		public UserReportDto? ReportedUser { get; set; }
 	}
 
 	public class UserReportDto

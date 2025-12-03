@@ -18,22 +18,23 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../../api/pet";
-import { sendLike } from "../../../api/match";
+import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../pet/api/petApi";
+import { sendLike } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppSelector } from "../../../app/hooks";
 import { selectNotificationBadge } from "../../badge/badgeSlice";
-import { getVipStatus } from "../../../api/payment";
+import { getVipStatus } from "../../payment/api/paymentApi";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
 import signalRService from "../../../services/signalr.service";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { getItem, removeItem } from "../../../utils/storage";
-import OptimizedImage from "../../../components/OptimizedImage";
+import { getItem, removeItem } from "../../../services/storage";
+import OptimizedImage, { preloadImages } from "../../../components/OptimizedImage";
 import PetCardSkeleton from "../../../components/PetCardSkeleton";
 import ReactNativeHapticFeedback from "react-native-haptic-feedback";
 
@@ -62,14 +63,13 @@ interface PetProfile {
 }
 
 const HomeScreen = ({ navigation }: Props) => {
+    const { t } = useTranslation();
     const notificationBadge = useAppSelector(selectNotificationBadge);
     const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [pets, setPets] = useState<PetProfile[]>([]);
     const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
     const [loading, setLoading] = useState(true);
-    const [showMatchModal, setShowMatchModal] = useState(false);
-    const [matchedPet, setMatchedPet] = useState<PetProfile | null>(null);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [activePetId, setActivePetId] = useState<number | null>(null); // User's active pet ID
     const [showMatchLimitModal, setShowMatchLimitModal] = useState(false);
@@ -194,33 +194,7 @@ const HomeScreen = ({ navigation }: Props) => {
         // Match success handler
         const handleMatchSuccess = (data: any) => {
             console.log('🎉 Match notification received:', data);
-
-            // Create a temporary PetProfile for the matched pet
-            const matchedPetData: PetProfile = {
-                id: data.MatchId?.toString() || '0',
-                name: data.PetName || 'Unknown Pet',
-                age: '',
-                breed: '',
-                gender: 'male',
-                distance: '',
-                bio: '',
-                image: data.PetPhotoUrl ? { uri: data.PetPhotoUrl } : require("../../../assets/cat_avatar.png"),
-                images: data.PetPhotoUrl ? [{ uri: data.PetPhotoUrl }] : [require("../../../assets/cat_avatar.png")],
-                personality: [],
-                owner: data.OtherUserName || 'Someone',
-                ownerId: data.OtherUserId || 0,
-                matchPercent: 100,
-            };
-
-            // Show match modal
-            setMatchedPet(matchedPetData);
-            setShowMatchModal(true);
-
-            // Auto hide after 4 seconds
-            setTimeout(() => {
-                setShowMatchModal(false);
-                setMatchedPet(null);
-            }, 4000);
+            // Match modal is handled globally in App.tsx
         };
 
         // Setup SignalR (NewNotification listener is in AppNavigator globally)
@@ -426,21 +400,12 @@ const HomeScreen = ({ navigation }: Props) => {
 
                 console.log("✅ Like sent successfully:", response);
 
-                // Check if it's a match
-                if (response.isMatch) {
-                    setMatchedPet(currentPet);
-                    setShowMatchModal(true);
-                    // Auto hide after 4 seconds
-                    setTimeout(() => {
-                        setShowMatchModal(false);
-                        setMatchedPet(null);
-                    }, 4000);
-                }
+                // Match modal is handled globally in App.tsx via SignalR
             } catch (error: any) {
                 // Check if it's a 429 limit error
                 if (error.response?.status === 429) {
                     const errorData = error.response?.data;
-                    setLimitMessage(errorData?.message || "Bạn đã hết lượt gửi match hôm nay!");
+                    setLimitMessage(errorData?.message || t('home.matchLimit'));
                     setShowMatchLimitModal(true);
 
                     // Reset card position
@@ -517,15 +482,15 @@ const HomeScreen = ({ navigation }: Props) => {
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
-                        age: pet.age ? `${pet.age} years` : 'N/A',
-                        breed: pet.breed || 'Unknown',
+                        age: pet.age ? t('home.petAge', { age: pet.age }) : 'N/A',
+                        breed: pet.breed || t('home.unknownBreed'),
                         gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
                         distance: pet.distanceKm ? `${pet.distanceKm} km` : (pet.owner?.address ? `${pet.owner.address.city || pet.owner.address.district || ''}` : 'N/A'),
-                        bio: pet.description || 'No description',
+                        bio: pet.description || t('home.noDescription'),
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || 'Unknown',
+                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: matchPercent,
                     };
@@ -555,6 +520,12 @@ const HomeScreen = ({ navigation }: Props) => {
                 ...pet,
                 ownerIsVip: vipStatuses[pet.ownerId] || false,
             }));
+
+            // 🚀 OPTIMIZATION: Preload first few pet images for faster display
+            const imageUrls = petsWithVip
+                .slice(0, 5)
+                .flatMap(pet => pet.images.filter((img: any) => img.uri).map((img: any) => img.uri));
+            preloadImages(imageUrls);
 
             setPets(petsWithVip);
             setCurrentIndex(0);
@@ -587,15 +558,15 @@ const HomeScreen = ({ navigation }: Props) => {
                     return {
                         id: pet.petId.toString(),
                         name: pet.name,
-                        age: pet.age ? `${pet.age} years` : 'N/A',
-                        breed: pet.breed || 'Unknown',
+                        age: pet.age ? t('home.petAge', { age: pet.age }) : 'N/A',
+                        breed: pet.breed || t('home.unknownBreed'),
                         gender: pet.gender?.toLowerCase() === 'male' ? 'male' : 'female',
                         distance: pet.distanceKm ? `${pet.distanceKm} km` : (pet.owner?.address ? `${pet.owner.address.city || pet.owner.address.district || ''}` : 'N/A'),
-                        bio: pet.description || 'No description',
+                        bio: pet.description || t('home.noDescription'),
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || 'Unknown',
+                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: pet.matchPercent ?? 0,
                         ownerIsVip: false, // Will be updated later if needed
@@ -614,6 +585,23 @@ const HomeScreen = ({ navigation }: Props) => {
     useFocusEffect(
         useCallback(() => {
             loadPets();
+            
+            // ✅ FORCE badge refresh when entering HomeScreen
+            // This ensures badges are always up-to-date, especially after login/restart
+            const refreshBadges = async () => {
+                try {
+                    const userIdStr = await AsyncStorage.getItem('userId');
+                    if (userIdStr) {
+                        const userId = parseInt(userIdStr);
+                        console.log('🔄 [HomeScreen] Force refreshing badges on focus');
+                        await refreshBadgesForActivePet(userId, true); // immediate=true
+                    }
+                } catch (error) {
+                    console.error('❌ [HomeScreen] Failed to refresh badges:', error);
+                }
+            };
+            
+            refreshBadges();
             // Badges are refreshed automatically when activePetId changes (useEffect above)
 
             // Check if should show login success alert
@@ -625,8 +613,8 @@ const HomeScreen = ({ navigation }: Props) => {
                     setTimeout(() => {
                         showAlert({
                             type: 'success',
-                            title: 'Chào mừng! 🎉',
-                            message: 'Đăng nhập thành công',
+                            title: t('home.welcome'),
+                            message: t('home.loginSuccess'),
                         });
                     }, 500); // Small delay to let screen render first
                 }
@@ -709,8 +697,8 @@ const HomeScreen = ({ navigation }: Props) => {
 
             showAlert({
                 type: 'error',
-                title: 'Lỗi',
-                message: 'Không thể tải lại danh sách pets. Vui lòng thử lại.',
+                title: t('common.error'),
+                message: t('home.loadError'),
             });
         } finally {
             setRefreshing(false);
@@ -832,7 +820,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                     style={styles.labelGradient}
                                 >
                                     <Icon name="heart" size={40} color={colors.white} />
-                                    <Text style={styles.labelText}>LIKE</Text>
+                                    <Text style={styles.labelText}>{t('home.like')}</Text>
                                 </LinearGradient>
                             </Animated.View>
 
@@ -844,7 +832,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                     style={styles.labelGradient}
                                 >
                                     <Icon name="close" size={40} color={colors.white} />
-                                    <Text style={styles.labelText}>NOPE</Text>
+                                    <Text style={styles.labelText}>{t('home.pass')}</Text>
                                 </LinearGradient>
                             </Animated.View>
                         </>
@@ -894,7 +882,7 @@ const HomeScreen = ({ navigation }: Props) => {
 
                             <View style={styles.ownerInfo}>
                                 <Icon name="person-outline" size={14} color={colors.white} />
-                                <Text style={styles.ownerText}>Owner: {pet.owner}</Text>
+                                <Text style={styles.ownerText}>{t('home.owner', { name: pet.owner })}</Text>
                                 {pet.ownerIsVip && (
                                     <View style={styles.vipBadgeSmall}>
                                         <Icon name="diamond" size={12} color="#FFD700" />
@@ -1023,12 +1011,12 @@ const HomeScreen = ({ navigation }: Props) => {
                             <Icon name="paw" size={60} color={colors.white} />
                         </LinearGradient>
                     </Animated.View>
-                    <Text style={styles.noMoreTitle}>No More Pets!</Text>
+                    <Text style={styles.noMoreTitle}>{t('home.noMorePets')}</Text>
                     <Text style={styles.noMoreText}>
-                        Check back later for more adorable matches
+                        {t('home.noMorePetsDesc')}
                     </Text>
                     <Text style={styles.noMoreSubtitle}>
-                        Or adjust your filters to see more pets
+                        {t('home.noMorePetsSubtitle')}
                     </Text>
                     <View style={styles.emptyStateButtons}>
                         <TouchableOpacity
@@ -1043,7 +1031,7 @@ const HomeScreen = ({ navigation }: Props) => {
                                 style={styles.resetGradient}
                             >
                                 <Icon name="refresh" size={24} color={colors.white} />
-                                <Text style={styles.resetText}>Reload Pets</Text>
+                                <Text style={styles.resetText}>{t('home.reload')}</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -1051,7 +1039,7 @@ const HomeScreen = ({ navigation }: Props) => {
                             onPress={() => (navigation as any).navigate("FilterScreen")}
                         >
                             <Icon name="options-outline" size={24} color={colors.primary} />
-                            <Text style={styles.adjustFiltersText}>Adjust Filters</Text>
+                            <Text style={styles.adjustFiltersText}>{t('home.adjustFilters')}</Text>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>
@@ -1179,41 +1167,6 @@ const HomeScreen = ({ navigation }: Props) => {
                     </View>
                 </View>
             </LinearGradient>
-
-            {/* Match Modal */}
-            {showMatchModal && matchedPet && (
-                <View style={styles.matchModal}>
-                    <LinearGradient
-                        colors={["rgba(255,110,167,0.95)", "rgba(255,155,192,0.95)"]}
-                        style={styles.matchGradient}
-                    >
-                        <Icon name="heart" size={80} color={colors.white} />
-                        <Text style={styles.matchTitle}>It's a Match! 🎉</Text>
-                        <Text style={styles.matchText}>
-                            You and {matchedPet.owner}'s pet {matchedPet.name} liked each other!
-                        </Text>
-                        <TouchableOpacity
-                            style={styles.sendMessageButton}
-                            onPress={() => {
-                                setShowMatchModal(false);
-                                setMatchedPet(null);
-                                navigation.navigate("Chat", {});
-                            }}
-                        >
-                            <Text style={styles.sendMessageText}>Send Message</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.keepSwipingButton}
-                            onPress={() => {
-                                setShowMatchModal(false);
-                                setMatchedPet(null);
-                            }}
-                        >
-                            <Text style={styles.keepSwipingText}>Keep Swiping</Text>
-                        </TouchableOpacity>
-                    </LinearGradient>
-                </View>
-            )}
 
             {/* Match Limit Modal */}
             <LimitReachedModal
@@ -1694,56 +1647,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: colors.primary,
-    },
-
-    // Match Modal
-    matchModal: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
-    },
-    matchGradient: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        paddingHorizontal: 40,
-    },
-    matchTitle: {
-        fontSize: 36,
-        fontWeight: "bold",
-        color: colors.white,
-        marginTop: 20,
-    },
-    matchText: {
-        fontSize: 18,
-        color: colors.white,
-        textAlign: "center",
-        marginTop: 12,
-    },
-    sendMessageButton: {
-        backgroundColor: colors.white,
-        paddingHorizontal: 48,
-        paddingVertical: 16,
-        borderRadius: radius.lg,
-        marginTop: 30,
-        ...shadows.large,
-    },
-    sendMessageText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.primary,
-    },
-    keepSwipingButton: {
-        marginTop: 16,
-        paddingVertical: 12,
-    },
-    keepSwipingText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: colors.white,
     },
 
     // Match Badge

@@ -6,6 +6,7 @@
 export const API_CONFIG = {
   // Development URLs
   ANDROID_EMULATOR: 'http://10.0.2.2:5297',
+  // ANDROID_EMULATOR: 'https://sep490g151-pawnder-pet-dating-app-production.up.railway.app',
   IOS_SIMULATOR: 'http://localhost:5297',
   
   // Production URL - Azure Backend
@@ -15,7 +16,7 @@ export const API_CONFIG = {
   // For testing on real device, use your computer's IP
   // Find your IP:
   // - Windows: Run 'ipconfig' in CMD
-  // - Mac/Linux: Run 'ifconfig' or 'ip addr'
+  // - Mac/Linux: Run 'ifconfig' or 'ip addr's
   LOCAL_NETWORK: 'http://192.168.1.100:5297', // Update with your IP
   
   // Timeout settings
@@ -36,7 +37,7 @@ export type Environment = 'android' | 'ios' | 'local_network' | 'production';
  * - Use 'android' if BE runs on SAME machine as emulator (localhost)
  * - Use 'local_network' if BE runs on DIFFERENT machine (use IP address)
  */
-const CURRENT_ENVIRONMENT: Environment = 'android'; // Changed back to 'android' to use local backend
+const CURRENT_ENVIRONMENT: Environment = 'android'; // Use local backend via 10.0.2.2
 
 /**
  * Get the appropriate base URL based on platform and environment

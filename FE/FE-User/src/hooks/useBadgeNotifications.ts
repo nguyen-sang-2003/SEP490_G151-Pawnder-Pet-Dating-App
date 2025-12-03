@@ -8,7 +8,9 @@ import {
   incrementFavoriteBadge,
   incrementNotificationBadge,
   showMatchModal,
-  selectActivePetId
+  selectActivePetId,
+  selectActiveViewingChatId,
+  markChatAsRead
 } from '../features/badge/badgeSlice';
 import signalRService from '../services/signalr.service';
 import { refreshBadgesForActivePet } from '../utils/badgeRefresh';
@@ -23,28 +25,39 @@ export const useBadgeNotifications = (userId: number | null) => {
 
   useEffect(() => {
     if (!userId) {
+      console.log('⏸️ [useBadgeNotifications] No userId, skipping initialization');
       return;
     }
+
+    console.log('🚀 [useBadgeNotifications] Initializing for userId:', userId);
 
     // Flag to prevent state updates after unmount
     let isMounted = true;
 
-    // ✅ Fetch initial badge counts WITH active pet filtering
+    // ✅ Fetch initial badge counts WITH active pet filtering (IMMEDIATE mode)
     const initializeBadges = async () => {
       try {
         if (!isMounted) return;
-        await refreshBadgesForActivePet(userId);
+        
+        console.log('⚡ [useBadgeNotifications] Starting immediate badge refresh...');
+        
+        // ⚡ Use immediate=true to skip debounce on app startup
+        await refreshBadgesForActivePet(userId, true);
+        
         if (isMounted) {
-          console.log('✅ Initial badges loaded for active pet');
+          console.log('✅ [useBadgeNotifications] Initial badges loaded successfully');
         }
       } catch (error) {
         if (isMounted) {
-          console.error('❌ Failed to initialize badges:', error);
+          console.error('❌ [useBadgeNotifications] Failed to initialize badges:', error);
         }
       }
     };
 
-    initializeBadges();
+    // Wait a bit for SignalR to connect before loading badges
+    const timer = setTimeout(() => {
+      initializeBadges();
+    }, 100); // Small delay to ensure SignalR is connected
 
     // Setup SignalR listeners for real-time badge updates
     const handleNewMessageBadge = (data: any) => {
@@ -66,6 +79,14 @@ export const useBadgeNotifications = (userId: number | null) => {
 
       // ONLY show badge if the RECIPIENT is the active pet
       if (activePetId && toPetId === activePetId) {
+        // ✅ Check if user is currently viewing this chat
+        const activeViewingChatId = selectActiveViewingChatId(currentState);
+        
+        if (activeViewingChatId === matchId) {
+          console.log(`👀 [NewMessageBadge] User is viewing chat ${matchId}, skipping badge`);
+          return; // Don't add badge, user is already reading this chat
+        }
+        
         console.log(`📬 [NewMessageBadge] Message TO active pet ${activePetId}, showing badge`);
         dispatch(addUnreadChat(matchId));
       } else if (activePetId && fromPetId === activePetId) {
@@ -122,15 +143,31 @@ export const useBadgeNotifications = (userId: number | null) => {
       dispatch(incrementNotificationBadge());
     };
 
+    const handleMatchDeleted = (data: any) => {
+      console.log('💔 [MatchDeleted] Received:', data);
+      const matchId = data.matchId || data.MatchId;
+      
+      if (matchId) {
+        console.log(`🗑️ [MatchDeleted] Removing badge for matchId ${matchId}`);
+        dispatch(markChatAsRead(matchId));
+      }
+    };
+
     signalRService.on('NewMessageBadge', handleNewMessageBadge);
     signalRService.on('NewLikeBadge', handleNewLikeBadge);
     signalRService.on('MatchSuccess', handleMatchSuccess);
     signalRService.on('NewExpertMessageBadge', handleNewExpertMessageBadge);
     signalRService.on('NewNotification', handleNewNotification);
+    signalRService.on('MatchDeleted', handleMatchDeleted);
 
     return () => {
       // Set unmount flag to prevent state updates
       isMounted = false;
+      
+      // Clear timer
+      clearTimeout(timer);
+      
+      console.log('🧹 [useBadgeNotifications] Cleaning up listeners');
       
       // Clean up SignalR listeners
       signalRService.off('NewMessageBadge', handleNewMessageBadge);
@@ -138,6 +175,7 @@ export const useBadgeNotifications = (userId: number | null) => {
       signalRService.off('MatchSuccess', handleMatchSuccess);
       signalRService.off('NewExpertMessageBadge', handleNewExpertMessageBadge);
       signalRService.off('NewNotification', handleNewNotification);
+      signalRService.off('MatchDeleted', handleMatchDeleted);
     };
   }, [userId, dispatch]);
 };

@@ -11,17 +11,19 @@ import {
 import LinearGradient from "react-native-linear-gradient";
 import * as Animatable from "react-native-animatable";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import HeartsBackground from "../components/HeartsBackground";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { login } from "../../../api";
-import { setItem } from "../../../utils/storage";
+import { setItem } from "../../../services/storage";
 import { gradients } from "../../../theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SignIn">;
 
 const SignInScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,33 +43,38 @@ const SignInScreen = ({ navigation }: Props) => {
   };
 
   const handleSignIn = async () => {
-    // Validation
+    // Validation: Kiểm tra email trống
     if (!email.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Oops!',
-        message: 'Vui lòng nhập email của bạn 📧',
+        title: t('auth.signIn.missingInfo'),
+        message: t('auth.signIn.enterEmail'),
       });
       return;
     }
 
+    // Validation: Kiểm tra định dạng email
+    if (!/\S+@\S+\.\S+/.test(email.trim())) {
+      showAlert({
+        type: 'error',
+        title: t('auth.signIn.invalidEmail'),
+        message: t('auth.signIn.invalidEmailFormat'),
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra mật khẩu trống
     if (!pass.trim()) {
       showAlert({
         type: 'warning',
-        title: 'Oops!',
-        message: 'Vui lòng nhập mật khẩu 🔒',
+        title: t('auth.signIn.missingPassword'),
+        message: t('auth.signIn.enterPassword'),
       });
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      showAlert({
-        type: 'error',
-        title: 'Email không hợp lệ',
-        message: 'Vui lòng nhập đúng định dạng email 📧',
-      });
-      return;
-    }
+    // Note: Không validate độ dài mật khẩu khi đăng nhập
+    // vì mật khẩu cũ trong DB có thể ngắn hơn quy định mới
 
     setLoading(true);
     try {
@@ -91,17 +98,37 @@ const SignInScreen = ({ navigation }: Props) => {
         // Profile incomplete -> Continue onboarding
         showAlert({
           type: 'info',
-          title: 'Hoàn thành hồ sơ',
-          message: 'Hãy hoàn thành thông tin thú cưng để sử dụng ứng dụng!',
-          confirmText: 'Tiếp tục',
+          title: t('auth.signIn.completeProfile'),
+          message: t('auth.signIn.completeProfileMessage'),
+          confirmText: t('common.continue'),
           onClose: () => navigation.replace("AddPetBasicInfo", { isFromProfile: false }),
         });
       }
     } catch (error: any) {
+      // Xử lý các loại lỗi cụ thể
+      let errorTitle = t('auth.signIn.wrongCredentials');
+      let errorMessage = t('auth.signIn.wrongCredentialsMessage');
+
+      if (error.message) {
+        const msg = error.message.toLowerCase();
+        
+        // Tài khoản bị khóa
+        if (msg.includes('banned') || msg.includes('blocked') || msg.includes('suspended') || msg.includes('khóa')) {
+          errorTitle = t('auth.signIn.accountBanned');
+          errorMessage = t('auth.signIn.accountBannedMessage');
+        }
+        // Lỗi mạng
+        else if (msg.includes('network') || msg.includes('timeout') || msg.includes('connection')) {
+          errorTitle = t('auth.signIn.connectionError');
+          errorMessage = t('auth.signIn.connectionErrorMessage');
+        }
+        // Mặc định: Sai email hoặc mật khẩu (không cần check keyword)
+      }
+
       showAlert({
         type: 'error',
-        title: 'Đăng nhập thất bại ',
-        message: error.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+        title: errorTitle,
+        message: errorMessage,
       });
     } finally {
       setLoading(false);
@@ -129,17 +156,17 @@ const SignInScreen = ({ navigation }: Props) => {
 
       {/* Form */}
       <View style={styles.form}>
-        <Text style={styles.title}>Sign in</Text>
+        <Text style={styles.title}>{t('auth.signIn.title')}</Text>
 
         <TextInput
-          placeholder="Email"
+          placeholder={t('auth.signIn.email')}
           style={styles.input}
           placeholderTextColor="#999"
           value={email}
           onChangeText={setEmail}
         />
         <TextInput
-          placeholder="Password"
+          placeholder={t('auth.signIn.password')}
           style={styles.input}
           placeholderTextColor="#999"
           secureTextEntry
@@ -163,7 +190,7 @@ const SignInScreen = ({ navigation }: Props) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign in →</Text>
+                <Text style={styles.buttonText}>{t('auth.signIn.button')}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -174,13 +201,13 @@ const SignInScreen = ({ navigation }: Props) => {
             style={styles.link}
             onPress={() => navigation.navigate("SignUp")}
           >
-            Register Now!
+            {t('auth.signIn.signUpLink')}
           </Text>{" "}
           / <Text
             style={[styles.link, { color: "#666" }]}
             onPress={() => navigation.navigate("ForgotPassword")}
           >
-            Forgot password
+            {t('auth.signIn.forgotPassword')}
           </Text>
         </Text>
       </View>

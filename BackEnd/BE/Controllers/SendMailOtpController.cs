@@ -17,13 +17,13 @@ namespace BE.Controllers
             _otpService = otpService;
         }
 
-        // GET /send-mail-otp
+        // GET /send-mail-otp?email=xxx&purpose=register|forgot-password
         [HttpGet("send-mail-otp")]
-        public async Task<IActionResult> SendOtp([FromQuery] string email, CancellationToken ct = default)
+        public async Task<IActionResult> SendOtp([FromQuery] string email, [FromQuery] string purpose = "register", CancellationToken ct = default)
         {
             try
             {
-                var result = await _otpService.SendOtpAsync(email, ct);
+                var result = await _otpService.SendOtpAsync(email, purpose, ct);
                 return Ok(result);
             }
             catch (ArgumentException ex)

@@ -16,11 +16,12 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, radius, shadows } from "../../../theme";
-import { getExpertChatMessages, sendExpertChatMessage, ExpertChatMessage } from "../../../api/expert-chat";
+import { getExpertChatMessages, sendExpertChatMessage, ExpertChatMessage } from "../api/expertChatApi";
 import signalRService from "../../../services/signalr.service";
 import { markExpertChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
@@ -36,6 +37,7 @@ interface Message {
 }
 
 const ExpertChatScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { chatExpertId, expertId, expertName } = route.params || {};
   const dispatch = useDispatch<AppDispatch>();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -56,7 +58,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
   const loadMessages = useCallback(async () => {
     if (!chatExpertId) {
 
-      Alert.alert('Lỗi', 'Không tìm thấy cuộc trò chuyện');
+      Alert.alert(t('alerts.error'), t('expert.chat.errors.chatNotFound'));
       setLoading(false);
       return;
     }
@@ -69,7 +71,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
 
       if (!userId) {
 
-        Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+        Alert.alert(t('alerts.error'), t('expert.chat.errors.userNotFound'));
         setLoading(false);
         return;
       }
@@ -98,11 +100,11 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       console.log('✅ Loaded', transformedMessages.length, 'messages');
     } catch (error: any) {
 
-      Alert.alert('Lỗi', error.message || 'Không thể tải tin nhắn');
+      Alert.alert(t('alerts.error'), error.message || t('expert.chat.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [chatExpertId]);
+  }, [chatExpertId, t]);
 
   // Setup SignalR for real-time messages
   useEffect(() => {
@@ -278,7 +280,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         )
       );
 
-      Alert.alert('Lỗi', error.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.');
+      Alert.alert(t('alerts.error'), error.message || t('expert.chat.errors.sendFailed'));
     } finally {
       setSending(false);
     }
@@ -324,7 +326,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
           {item.isExpert && (
             <View style={styles.expertBadge}>
               <Icon name="shield-checkmark" size={12} color="#4CAF50" />
-              <Text style={styles.expertBadgeText}>Chuyên gia</Text>
+              <Text style={styles.expertBadgeText}>{t('expert.chat.expertBadge')}</Text>
             </View>
           )}
           <Text
@@ -368,7 +370,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.emptyText}>Đang tải tin nhắn...</Text>
+          <Text style={styles.emptyText}>{t('expert.chat.loading')}</Text>
         </View>
       );
     }
@@ -376,9 +378,9 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
     return (
       <View style={styles.centerContainer}>
         <Icon name="chatbubbles-outline" size={64} color={colors.textLabel} />
-        <Text style={styles.emptyTitle}>Bắt đầu cuộc trò chuyện</Text>
+        <Text style={styles.emptyTitle}>{t('expert.chat.empty.title')}</Text>
         <Text style={styles.emptyText}>
-          Hãy gửi tin nhắn đầu tiên cho chuyên gia
+          {t('expert.chat.empty.message')}
         </Text>
       </View>
     );
@@ -415,11 +417,11 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
             </View>
             <View style={styles.headerText}>
               <Text style={styles.headerName}>
-                {expertName || "Chuyên gia thú y"}
+                {expertName || t('expert.chat.title')}
               </Text>
               <View style={styles.expertStatusBadge}>
                 <Icon name="shield-checkmark" size={12} color="#E8F5E9" />
-                <Text style={styles.expertStatusText}>Chuyên gia xác nhận</Text>
+                <Text style={styles.expertStatusText}>{t('expert.chat.verifiedExpert')}</Text>
               </View>
             </View>
           </View>
@@ -453,7 +455,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
-              placeholder="Nhắn tin với chuyên gia..."
+              placeholder={t('expert.chat.inputPlaceholder')}
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={setInputText}

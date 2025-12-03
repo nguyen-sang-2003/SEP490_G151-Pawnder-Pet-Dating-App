@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -33,6 +34,7 @@ interface Photo {
 }
 
 const AddPetPhotosScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { petId, isFromProfile } = route.params;
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -42,7 +44,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
   const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
-      showAlert({ type: 'warning', title: "Photo Limit", message: `Maximum ${maxPhotos} photos allowed` });
+      showAlert({ type: 'warning', title: t('auth.addPet.photos.photoLimit'), message: t('auth.addPet.photos.maxPhotos', { max: maxPhotos }) });
       return;
     }
 
@@ -60,7 +62,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
       if (result.errorCode) {
 
-        showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
+        showAlert({ type: 'error', title: t('common.error'), message: t('auth.addPet.photos.selectError') });
         return;
       }
 
@@ -76,27 +78,28 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       }
     } catch (error) {
 
-      showAlert({ type: 'error', title: 'Error', message: 'Unable to select photo. Please try again.' });
+      showAlert({ type: 'error', title: t('common.error'), message: t('auth.addPet.photos.selectError') });
     }
   };
 
   const handleRemovePhoto = (id: string) => {
     showAlert({
       type: 'warning',
-      title: "Remove Photo",
-      message: "Are you sure you want to remove this photo?",
+      title: t('auth.addPet.photos.removePhoto'),
+      message: t('auth.addPet.photos.removeConfirm'),
       showCancel: true,
-      confirmText: "Remove",
+      confirmText: t('auth.addPet.photos.removeButton'),
       onConfirm: () => setPhotos((prev) => prev.filter((photo) => photo.id !== id)),
     });
   };
 
   const handleNext = async () => {
+    // Validation: Kiểm tra số lượng ảnh tối thiểu
     if (photos.length < 3) {
       showAlert({
         type: 'warning',
-        title: 'More Photos Needed',
-        message: `Please add at least 3 photos! (Current: ${photos.length}/3)`,
+        title: t('auth.addPet.photos.needMorePhotos'),
+        message: t('auth.addPet.photos.minPhotosMessage', { current: photos.length }),
       });
       return;
     }
@@ -123,9 +126,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
           showAlert({
             type: 'success',
-            title: 'AI Analysis Complete! 🤖',
-            message: `Found ${aiResults.length} characteristics. You can review and edit them next.`,
-            confirmText: 'Continue',
+            title: t('auth.addPet.photos.aiAnalysisComplete'),
+            message: t('auth.addPet.photos.aiAnalysisMessage', { count: aiResults.length }),
+            confirmText: t('common.continue'),
             onClose: () => {
               navigation.navigate("AddPetCharacteristics", {
                 petId,
@@ -143,9 +146,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         // AI failed, but still allow user to continue manually
         showAlert({
           type: 'info',
-          title: 'Photos Uploaded!',
-          message: 'AI analysis unavailable. You can add characteristics manually.',
-          confirmText: 'Continue',
+          title: t('auth.addPet.photos.aiAnalysisFailed'),
+          message: t('auth.addPet.photos.aiAnalysisFailedMessage'),
+          confirmText: t('common.continue'),
           onClose: () => {
             navigation.navigate("AddPetCharacteristics", {
               petId,
@@ -159,8 +162,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Error',
-        message: error.message || 'Unable to upload photos. Please try again.',
+        title: t('common.error'),
+        message: error.message || t('auth.addPet.photos.uploadFailed'),
       });
     } finally {
       setUploading(false);
@@ -174,8 +177,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     } else {
       showAlert({
         type: 'warning',
-        title: 'Complete Profile',
-        message: 'You need to complete your pet profile to continue.',
+        title: t('auth.addPet.photos.completeProfile'),
+        message: t('auth.addPet.photos.needComplete'),
       });
     }
   };
@@ -205,14 +208,14 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               <View style={[styles.stepBar, styles.stepBarActive]} />
               <View style={[styles.stepBar, styles.stepBarInactive]} />
             </View>
-            <Text style={styles.stepText}>Step 2 of 3</Text>
+            <Text style={styles.stepText}>{t('auth.addPet.photos.step')}</Text>
           </View>
 
           <Text style={styles.title}>
-            {isFromProfile ? 'Pet Photos' : 'Add Photos'}
+            {isFromProfile ? t('auth.addPet.photos.editTitle') : t('auth.addPet.photos.title')}
           </Text>
           <Text style={styles.subtitle}>
-            Add at least 3 photos to showcase your pet
+            {t('auth.addPet.photos.subtitle')}
           </Text>
         </View>
         {/* Photos Grid */}
@@ -241,7 +244,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               >
                 <View style={styles.addPhotoContent}>
                   <Icon name="add" size={36} color={colors.primary} />
-                  <Text style={styles.addPhotoText}>Add Photo</Text>
+                  <Text style={styles.addPhotoText}>{t('auth.addPet.photos.addPhoto')}</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -262,7 +265,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                 styles.counterText,
                 photos.length >= 3 && styles.counterTextComplete
               ]}>
-                {photos.length}/{maxPhotos} photos{photos.length >= 3 ? ' (Ready!)' : ` (${3 - photos.length} more needed)`}
+                {photos.length >= 3 
+                  ? t('auth.addPet.photos.photoCountReady', { count: photos.length, max: maxPhotos })
+                  : t('auth.addPet.photos.photoCountNeed', { count: photos.length, max: maxPhotos, need: 3 - photos.length })}
               </Text>
             </View>
           </View>
@@ -273,19 +278,19 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           <View style={styles.tipsIcon}>
             <Icon name="bulb" size={20} color={colors.primary} />
           </View>
-          <Text style={styles.tipsTitle}>Photo Tips</Text>
+          <Text style={styles.tipsTitle}>{t('auth.addPet.photos.tips.title')}</Text>
           <View style={styles.tipsList}>
             <View style={styles.tipItem}>
               <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Use clear, well-lit photos</Text>
+              <Text style={styles.tipText}>{t('auth.addPet.photos.tips.clearPhoto')}</Text>
             </View>
             <View style={styles.tipItem}>
               <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Show your pet's personality</Text>
+              <Text style={styles.tipText}>{t('auth.addPet.photos.tips.showPersonality')}</Text>
             </View>
             <View style={styles.tipItem}>
               <View style={styles.tipDot} />
-              <Text style={styles.tipText}>Include full body and close-up shots</Text>
+              <Text style={styles.tipText}>{t('auth.addPet.photos.tips.includeVariety')}</Text>
             </View>
           </View>
         </View>
@@ -307,16 +312,16 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             {uploading ? (
               <>
                 <ActivityIndicator color={colors.white} />
-                <Text style={[styles.buttonText, { marginLeft: 8 }]}>Uploading...</Text>
+                <Text style={[styles.buttonText, { marginLeft: 8 }]}>{t('auth.addPet.photos.uploading')}</Text>
               </>
             ) : analyzingAI ? (
               <>
                 <ActivityIndicator color={colors.white} />
-                <Text style={[styles.buttonText, { marginLeft: 8 }]}>AI Analyzing...</Text>
+                <Text style={[styles.buttonText, { marginLeft: 8 }]}>{t('auth.addPet.photos.analyzing')}</Text>
               </>
             ) : (
               <>
-                <Text style={styles.buttonText}>Continue with AI</Text>
+                <Text style={styles.buttonText}>{t('auth.addPet.photos.continueWithAI')}</Text>
                 <Icon name="sparkles" size={22} color={colors.white} />
               </>
             )}

@@ -14,21 +14,23 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, Notification } from "../../../api/notification";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, Notification } from "../api/notificationApi";
 import { useFocusEffect } from "@react-navigation/native";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import signalRService from "../../../services/signalr.service";
-import { createOrGetExpertChat } from "../../../api/expert-chat";
-import { getUserExpertConfirmations } from "../../../api/expert-confirmation";
+import { createOrGetExpertChat } from "../../expert/api/expertChatApi";
+import { getUserExpertConfirmations } from "../../expert/api/expertConfirmationApi";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Notification">;
 
 const NotificationScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,10 +47,10 @@ const NotificationScreen = ({ navigation }: Props) => {
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (seconds < 60) return "Just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+    if (seconds < 60) return t('notification.time.justNow');
+    if (seconds < 3600) return t('notification.time.minutesAgo', { count: Math.floor(seconds / 60) });
+    if (seconds < 86400) return t('notification.time.hoursAgo', { count: Math.floor(seconds / 3600) });
+    if (seconds < 604800) return t('notification.time.daysAgo', { count: Math.floor(seconds / 86400) });
     return date.toLocaleDateString();
   };
 
@@ -130,48 +132,82 @@ const NotificationScreen = ({ navigation }: Props) => {
 
         // Listen for new notifications
         const handleNewNotification = (data: any) => {
-          console.log('🔔 New notification received via SignalR:', data);
+          console.log('🔔 [NotificationScreen] New notification received via SignalR:', data);
 
-          // Reload notifications first to get NotificationId from DB
-          loadNotifications().then(async () => {
-            console.log('✅ Notifications reloaded from API after realtime notification');
+          // ✅ Create notification object from SignalR data
+          const newNotification: Notification = {
+            notificationId: 0, // Temporary, will be replaced on next full reload
+            title: data.Title || data.title || t('notification.title'),
+            message: data.Message || data.message || '',
+            type: data.Type || data.type || 'system',
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            expertId: data.ExpertId || data.expertId,
+            chatId: data.ChatId || data.chatId,
+          };
 
-            // After reload, if we have expertId in SignalR data, store it with the newest notification
-            if (data.ExpertId && data.Type === 'expert_confirmation') {
-              try {
-                const notifications = await getNotifications(userId);
-                // Find the newest expert_confirmation notification (just created)
-                const newestExpertNotif = notifications
-                  .filter(n => n.type === 'expert_confirmation')
-                  .sort((a, b) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                    return dateB - dateA;
-                  })[0];
-
-                if (newestExpertNotif) {
-                  // Store mapping: notificationId -> expertId
-                  const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
-                  const mappingData = {
-                    expertId: data.ExpertId,
-                    chatId: data.ChatId,
-                    timestamp: Date.now()
-                  };
-                  await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
-                  console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
-                }
-              } catch (err) {
-
-              }
+          // ✅ Add to list immediately (optimistic update)
+          setNotifications(prev => {
+            // Check if notification already exists (avoid duplicates)
+            const exists = prev.some(n => {
+              const createdAt = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+              return n.title === newNotification.title && 
+                n.message === newNotification.message &&
+                createdAt > Date.now() - 5000; // Within 5 seconds
+            });
+            
+            if (exists) {
+              console.log('⚠️ Notification already in list, skipping duplicate');
+              return prev;
             }
-          }).catch(err => {
 
+            console.log('✅ Adding new notification to list (optimistic update)');
+            return [newNotification, ...prev]; // Add to top
           });
 
-          // Refresh badge count if userId is available
+          // ⏳ Background: Reload to get real notificationId from DB
+          // This will replace the temporary notification with real data
+          setTimeout(() => {
+            loadNotifications().then(async () => {
+              console.log('✅ Notifications synced from API after realtime event');
+
+              // After reload, store expertId mapping if available
+              if (data.ExpertId && (data.Type === 'expert_confirmation' || data.Type === 'expert_reply')) {
+                try {
+                  const notifications = await getNotifications(userId);
+                  // Find the newest expert notification (just created)
+                  const newestExpertNotif = notifications
+                    .filter(n => n.type === 'expert_confirmation' || n.type === 'expert_reply')
+                    .sort((a, b) => {
+                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                      return dateB - dateA;
+                    })[0];
+
+                  if (newestExpertNotif) {
+                    // Store mapping: notificationId -> expertId
+                    const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
+                    const mappingData = {
+                      expertId: data.ExpertId,
+                      chatId: data.ChatId,
+                      timestamp: Date.now()
+                    };
+                    await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
+                    console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
+                  }
+                } catch (err) {
+                  console.error('Error storing expert mapping:', err);
+                }
+              }
+            }).catch(err => {
+              console.error('Error reloading notifications:', err);
+            });
+          }, 1000); // Delay 1s to let backend save notification first
+
+          // Refresh badge count (handled by useBadgeNotifications hook, but ensure it's synced)
           if (userId) {
             refreshBadgesForActivePet(userId).catch(err => {
-
+              console.error('Error refreshing badges:', err);
             });
           }
         };
@@ -184,7 +220,7 @@ const NotificationScreen = ({ navigation }: Props) => {
           signalRService.off('NewNotification', handleNewNotification);
         };
       } catch (error) {
-
+        console.error('Error setting up SignalR for notifications:', error);
       }
     };
 
@@ -273,8 +309,8 @@ const NotificationScreen = ({ navigation }: Props) => {
     if (!selectedNotification || !currentUserId) {
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: 'Không thể tạo chat với chuyên gia'
+        title: t('alerts.error'),
+        message: t('notification.errors.createChatFailed')
       });
       return;
     }
@@ -340,8 +376,8 @@ const NotificationScreen = ({ navigation }: Props) => {
       if (!expertId) {
         showAlert({
           type: 'error',
-          title: 'Lỗi',
-          message: 'Không tìm thấy thông tin chuyên gia. Vui lòng thử lại sau hoặc liên hệ admin.'
+          title: t('alerts.error'),
+          message: t('notification.errors.createChatFailed')
         });
 
         return;
@@ -366,8 +402,8 @@ const NotificationScreen = ({ navigation }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Lỗi',
-        message: error.message || 'Không thể tạo chat với chuyên gia'
+        title: t('alerts.error'),
+        message: error.message || t('notification.errors.createChatFailed')
       });
     } finally {
       setCreatingChat(false);
@@ -406,12 +442,12 @@ const NotificationScreen = ({ navigation }: Props) => {
         <View style={styles.notificationContent}>
           <View style={styles.notificationHeader}>
             <Text style={styles.notificationTitle} numberOfLines={1}>
-              {item.title || 'Notification'}
+              {item.title || t('notification.title')}
             </Text>
             {type === "expert_reply" || type === "expert" ? (
               <View style={styles.expertBadge}>
                 <Icon name="shield-checkmark" size={12} color="#FF6EA7" />
-                <Text style={styles.expertBadgeText}>Expert</Text>
+                <Text style={styles.expertBadgeText}>{t('badges.expert')}</Text>
               </View>
             ) : null}
           </View>
@@ -422,7 +458,7 @@ const NotificationScreen = ({ navigation }: Props) => {
             ]}
             numberOfLines={3}
           >
-            {item.message || 'No message'}
+            {item.message || t('common.noData')}
           </Text>
           <View style={styles.notificationFooter}>
             <Icon name="time-outline" size={14} color={colors.textLabel} />
@@ -452,11 +488,11 @@ const NotificationScreen = ({ navigation }: Props) => {
 
   // 🚀 OPTIMIZATION: Memoize filter tabs configuration
   const filterTabs = useMemo(() => [
-    { id: "all", label: "All", icon: "apps" },
-    { id: "unread", label: "Unread", icon: "mail-unread", badge: unreadCount },
-    { id: "system", label: "System", icon: "notifications" },
-    { id: "expert", label: "Expert", icon: "medical" },
-  ], [unreadCount]);
+    { id: "all", label: t('notification.filter.all'), icon: "apps" },
+    { id: "unread", label: t('notification.filter.unread'), icon: "mail-unread", badge: unreadCount },
+    { id: "system", label: t('notification.filter.system'), icon: "notifications" },
+    { id: "expert", label: t('notification.filter.expert'), icon: "medical" },
+  ], [unreadCount, t]);
 
   // Show loading state
   if (loading) {
@@ -469,7 +505,7 @@ const NotificationScreen = ({ navigation }: Props) => {
       >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading notifications...</Text>
+          <Text style={styles.loadingText}>{t('notification.loading')}</Text>
         </View>
       </LinearGradient>
     );
@@ -492,10 +528,10 @@ const NotificationScreen = ({ navigation }: Props) => {
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
           <View>
-            <Text style={styles.headerTitle}>Notifications</Text>
+            <Text style={styles.headerTitle}>{t('notification.title')}</Text>
             {unreadCount > 0 && (
               <Text style={styles.headerSubtitle}>
-                {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}
+                {unreadCount} {t('notification.filter.unread').toLowerCase()}
               </Text>
             )}
           </View>
@@ -587,22 +623,10 @@ const NotificationScreen = ({ navigation }: Props) => {
             />
           </LinearGradient>
           <Text style={styles.emptyText}>
-            {filterType === "all"
-              ? "No notifications yet"
-              : filterType === "unread"
-                ? "All caught up!"
-                : `No ${filterType} notifications`
-            }
+            {t(`notification.empty.${filterType}.title`)}
           </Text>
           <Text style={styles.emptySubtext}>
-            {filterType === "all"
-              ? "You'll see system and expert notifications here"
-              : filterType === "unread"
-                ? "You have no unread notifications"
-                : filterType === "system"
-                  ? "System notifications will appear here"
-                  : "Expert reply notifications will appear here"
-            }
+            {t(`notification.empty.${filterType}.message`)}
           </Text>
         </View>
       )}
@@ -658,12 +682,12 @@ const NotificationScreen = ({ navigation }: Props) => {
               {/* Title */}
               <View style={styles.modalTitleContainer}>
                 <Text style={styles.modalTitle}>
-                  {selectedNotification?.title || 'Notification'}
+                  {selectedNotification?.title || t('notification.title')}
                 </Text>
                 {(selectedNotification?.type === "expert_reply" || selectedNotification?.type === "expert") && (
                   <View style={styles.modalExpertBadge}>
                     <Icon name="shield-checkmark" size={14} color="#FF6EA7" />
-                    <Text style={styles.modalExpertBadgeText}>Expert</Text>
+                    <Text style={styles.modalExpertBadgeText}>{t('badges.expert')}</Text>
                   </View>
                 )}
               </View>
@@ -675,12 +699,12 @@ const NotificationScreen = ({ navigation }: Props) => {
                   <View style={styles.questionSection}>
                     <View style={styles.sectionHeader}>
                       <Icon name="help-circle" size={18} color={colors.primary} />
-                      <Text style={styles.sectionTitle}>Câu hỏi của bạn</Text>
+                      <Text style={styles.sectionTitle}>{t('notification.modal.yourQuestion')}</Text>
                     </View>
                     <View style={styles.questionBox}>
                       <Text style={styles.questionText}>
                         {/* TODO: Replace with actual question from API */}
-                        Mèo của tôi bị chảy nước mắt và hắt hơi liên tục. Có phải mèo bị cảm không? Tôi cần làm gì?
+                        {t('notification.modal.yourQuestion')}
                       </Text>
                     </View>
                   </View>
@@ -689,11 +713,11 @@ const NotificationScreen = ({ navigation }: Props) => {
                   <View style={styles.answerSection}>
                     <View style={styles.sectionHeader}>
                       <Icon name="medical" size={18} color="#FF6EA7" />
-                      <Text style={styles.sectionTitle}>Câu trả lời từ chuyên gia</Text>
+                      <Text style={styles.sectionTitle}>{t('notification.modal.expertAnswer')}</Text>
                     </View>
                     <View style={styles.answerBox}>
                       <Text style={styles.answerText}>
-                        {selectedNotification?.message || 'No answer available'}
+                        {selectedNotification?.message || t('fallback.noAnswer')}
                       </Text>
                     </View>
                   </View>
@@ -708,10 +732,10 @@ const NotificationScreen = ({ navigation }: Props) => {
                     >
                       <Icon name="chatbubbles" size={24} color={colors.primary} />
                       <Text style={styles.ctaTitle}>
-                        Bạn có hài lòng với câu trả lời?
+                        {t('notification.modal.satisfaction')}
                       </Text>
                       <Text style={styles.ctaSubtitle}>
-                        Muốn thảo luận thêm với chuyên gia không?
+                        {t('notification.modal.discussMore')}
                       </Text>
                     </LinearGradient>
                   </View>
@@ -720,7 +744,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                 <>
                   {/* Regular Message */}
                   <Text style={styles.modalMessage}>
-                    {selectedNotification?.message || 'No message'}
+                    {selectedNotification?.message || t('common.noData')}
                   </Text>
                 </>
               )}
@@ -756,7 +780,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                       ) : (
                         <>
                           <Icon name="chatbubbles" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                          <Text style={styles.modalButtonText}>Nhắn tin với chuyên gia</Text>
+                          <Text style={styles.modalButtonText}>{t('notification.modal.chatWithExpert')}</Text>
                         </>
                       )}
                     </LinearGradient>
@@ -765,7 +789,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                     style={styles.modalSecondaryButton}
                     onPress={closeModal}
                   >
-                    <Text style={styles.modalSecondaryButtonText}>Đóng</Text>
+                    <Text style={styles.modalSecondaryButtonText}>{t('notification.modal.close')}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -779,7 +803,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Text style={styles.modalButtonText}>Đã hiểu</Text>
+                    <Text style={styles.modalButtonText}>{t('notification.modal.close')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}

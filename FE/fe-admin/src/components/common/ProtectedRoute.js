@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { STORAGE_KEYS, USER_ROLES } from '../../constants';
+import { useAuth } from '../../shared/context/AuthContext';
+import { STORAGE_KEYS, USER_ROLES } from '../../shared/constants';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { isAuthenticated, user, isLoading } = useAuth();

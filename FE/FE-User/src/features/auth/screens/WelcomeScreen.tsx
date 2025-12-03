@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import * as Animatable from "react-native-animatable";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import HeartsBackground from "../components/HeartsBackground";
 import { gradients } from "../../../theme/colors";
@@ -10,6 +11,8 @@ import { gradients } from "../../../theme/colors";
 type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
 const WelcomeScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
+
   return (
     <LinearGradient
       colors={gradients.auth.welcome}
@@ -39,7 +42,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
 
       {/* Tagline */}
       <Animatable.Text animation="fadeInUp" delay={600} style={styles.tagline}>
-        Find your pet’s perfect match 🐾💖
+        {t('auth.welcome.tagline')}
       </Animatable.Text>
 
       {/* Nút welcome */}
@@ -60,7 +63,7 @@ const WelcomeScreen = ({ navigation }: Props) => {
             end={{ x: 1, y: 1 }}
             style={styles.button}
           >
-            <Text style={styles.buttonText}>WELCOME</Text>
+            <Text style={styles.buttonText}>{t('auth.welcome.button')}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animatable.View>

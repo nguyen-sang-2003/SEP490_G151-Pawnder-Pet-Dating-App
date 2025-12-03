@@ -17,8 +17,9 @@ namespace BE.Services
         
         private readonly Dictionary<string, (int FreeQuota, int VipLimit)> _actionLimits = new()
         {
-            { "request_match", (10, 50) },          // Request match: 3 free/ngày, VIP 50
-            { "expert_confirm", (2, 10) }          // Expert confirm: 2 free/ngày, VIP 10
+            { "request_match", (10, 30) },          // Request match: 10 free/ngày, VIP 50
+            { "expert_confirm", (2, 10) },         // Expert confirm: 2 free/ngày, VIP 10
+            { "expert_chat", (5, 15) }             // Expert chat: 5 tin nhắn free/ngày, VIP unlimited (-1)
             // ai_chat_question: Xử lý riêng bằng FREE_TOKENS_PER_DAY
         };
 
@@ -122,6 +123,12 @@ namespace BE.Services
             
             // Lấy limit cho action này
             int limit = await GetLimitForActionAsync(userId, actionType);
+
+            // Nếu limit là -1 (unlimited) thì luôn cho phép
+            if (limit == -1)
+            {
+                return true;
+            }
 
             // Tìm record limit của user cho action này trong ngày hôm nay
             var dailyLimit = await _context.DailyLimits

@@ -12,6 +12,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
@@ -59,6 +60,7 @@ const faqs: FAQ[] = [
 ];
 
 const HelpAndSupportScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
@@ -71,7 +73,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
     if (message.trim()) {
       console.log("Support message:", message);
       setMessage("");
-      showAlert({ type: 'success', title: "Thành công", message: "Tin nhắn đã được gửi! Chúng tôi sẽ phản hồi sớm." });
+      showAlert({ type: 'success', title: t('common.success'), message: t('settings.helpAndSupport.messageSent') });
     }
   };
 
@@ -98,7 +100,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
         >
           <Icon name="arrow-back" size={24} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Help & Support</Text>
+        <Text style={styles.headerTitle}>{t('settings.helpAndSupport.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -108,7 +110,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
       >
         {/* Quick Contact */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Us</Text>
+          <Text style={styles.sectionTitle}>{t('settings.helpAndSupport.contactUs')}</Text>
 
           <View style={styles.contactRow}>
             <TouchableOpacity
@@ -123,7 +125,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                   <Icon name="mail" size={24} color="#fff" />
                 </LinearGradient>
               </View>
-              <Text style={styles.contactText}>Email</Text>
+              <Text style={styles.contactText}>{t('settings.helpAndSupport.email')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -138,7 +140,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                   <Icon name="call" size={24} color="#fff" />
                 </LinearGradient>
               </View>
-              <Text style={styles.contactText}>Call</Text>
+              <Text style={styles.contactText}>{t('settings.helpAndSupport.call')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.contactCard}>
@@ -150,14 +152,14 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                   <Icon name="chatbubbles" size={24} color="#fff" />
                 </LinearGradient>
               </View>
-              <Text style={styles.contactText}>Live Chat</Text>
+              <Text style={styles.contactText}>{t('settings.helpAndSupport.liveChat')}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* FAQs */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+          <Text style={styles.sectionTitle}>{t('settings.helpAndSupport.faq')}</Text>
 
           <View style={styles.faqContainer}>
             {faqs.map((faq) => (
@@ -194,12 +196,12 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
 
         {/* Send Message */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Send us a message</Text>
+          <Text style={styles.sectionTitle}>{t('settings.helpAndSupport.sendMessage')}</Text>
 
           <View style={styles.messageCard}>
             <TextInput
               style={styles.messageInput}
-              placeholder="Describe your issue or question..."
+              placeholder={t('settings.helpAndSupport.messagePlaceholder')}
               placeholderTextColor={colors.textLabel}
               multiline
               numberOfLines={5}
@@ -215,7 +217,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 colors={gradients.primary}
                 style={styles.sendGradient}
               >
-                <Text style={styles.sendText}>Send Message</Text>
+                <Text style={styles.sendText}>{t('settings.helpAndSupport.sendButton')}</Text>
                 <Icon name="send" size={18} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
@@ -224,7 +226,7 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
 
         {/* Resources */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Resources & Policies</Text>
+          <Text style={styles.sectionTitle}>{t('settings.helpAndSupport.resources')}</Text>
 
           <View style={styles.resourcesGrid}>
             {/* Terms of Service */}
@@ -241,9 +243,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="document-text" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Terms of Service</Text>
+                <Text style={styles.resourceTitleNew}>{t('settings.resources.termsOfService')}</Text>
                 <Text style={styles.resourceDescNew}>
-                  Read our terms and conditions
+                  {t('settings.resources.termsDesc')}
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -265,9 +267,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="shield-checkmark" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Privacy Policy</Text>
+                <Text style={styles.resourceTitleNew}>{t('settings.resources.privacyPolicy')}</Text>
                 <Text style={styles.resourceDescNew}>
-                  How we protect your data
+                  {t('settings.resources.privacyDesc')}
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -289,9 +291,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="people" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Community Guidelines</Text>
+                <Text style={styles.resourceTitleNew}>{t('settings.resources.communityGuidelines')}</Text>
                 <Text style={styles.resourceDescNew}>
-                  Rules for respectful interaction
+                  {t('settings.resources.communityDesc')}
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -313,9 +315,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="book" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>User Guide</Text>
+                <Text style={styles.resourceTitleNew}>{t('settings.resources.userGuide')}</Text>
                 <Text style={styles.resourceDescNew}>
-                  Learn how to use Pawnder
+                  {t('settings.resources.userGuideDesc')}
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -337,9 +339,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="bulb" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>Safety Tips</Text>
+                <Text style={styles.resourceTitleNew}>{t('settings.resources.safetyTips')}</Text>
                 <Text style={styles.resourceDescNew}>
-                  Stay safe on Pawnder
+                  {t('settings.resources.safetyDesc')}
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />
@@ -361,9 +363,9 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
                 <View style={styles.resourceIconBox}>
                   <Icon name="information-circle" size={32} color="#fff" />
                 </View>
-                <Text style={styles.resourceTitleNew}>About Pawnder</Text>
+                <Text style={styles.resourceTitleNew}>{t('settings.resources.aboutPawnder')}</Text>
                 <Text style={styles.resourceDescNew}>
-                  Our mission and story
+                  {t('settings.resources.aboutDesc')}
                 </Text>
                 <View style={styles.resourceArrow}>
                   <Icon name="arrow-forward" size={20} color="#fff" />

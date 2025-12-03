@@ -10,6 +10,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useTranslation } from 'react-i18next';
 
 interface CustomAlertProps {
   visible: boolean;
@@ -29,11 +30,16 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   title,
   message,
   onClose,
-  confirmText = 'OK',
+  confirmText,
   onConfirm,
-  cancelText = 'Hủy',
+  cancelText,
   showCancel = false,
 }) => {
+  const { t } = useTranslation();
+  
+  // Use translated defaults if not provided
+  const resolvedConfirmText = confirmText ?? t('common.ok');
+  const resolvedCancelText = cancelText ?? t('common.cancel');
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -118,7 +124,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
                 onPress={onClose}
                 style={[styles.buttonShadow, styles.cancelButtonShadow]}>
                 <View style={styles.cancelButton}>
-                  <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                  <Text style={styles.cancelButtonText}>{resolvedCancelText}</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -137,7 +143,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.button}>
-                <Text style={styles.buttonText}>{confirmText}</Text>
+                <Text style={styles.buttonText}>{resolvedConfirmText}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

@@ -17,19 +17,20 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
-import { getLikesReceived, respondToLike } from "../../../api/match";
-import type { LikeReceivedItem } from "../../../api/match";
+import { getLikesReceived, respondToLike, type LikeReceivedItem } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch, useSelector } from "react-redux";
-import { resetFavoriteBadge, showMatchModal, selectActivePetId } from "../../badge/badgeSlice";
+import { resetFavoriteBadge, showMatchModal, selectActivePetId, markChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
-import { getPetsByUserId } from "../../../api/pet";
+import { getPetsByUserId } from "../../pet/api/petApi";
 import OptimizedImage from "../../../components/OptimizedImage";
-import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../utils/cache";
+import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
+import signalRService from "../../../services/signalr.service";
 
 const { width, height } = Dimensions.get("window");
 const CARD_PADDING = 16;
@@ -52,6 +53,7 @@ interface LikeCat {
 }
 
 const FavoriteScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const activePetId = useSelector(selectActivePetId); // Get current active pet ID
   const [pets, setPets] = useState<LikeCat[]>([]);
@@ -59,6 +61,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
   const [activeTab, setActiveTab] = useState<'likes' | 'matches'>('likes');
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [reloadTrigger, setReloadTrigger] = useState(0); // Trigger for reload
 
   // ✅ Reload likes when activePetId changes
   useEffect(() => {
@@ -67,6 +70,52 @@ const FavoriteScreen = ({ navigation }: Props) => {
       loadLikes(true); // Force refresh
     }
   }, [activePetId]);
+
+  // ✅ Setup realtime listeners for instant UI updates
+  useEffect(() => {
+    const handleMatchSuccess = (data: any) => {
+      console.log('🎉 [FavoriteScreen] Match success received:', data);
+      // Trigger reload
+      setReloadTrigger(prev => prev + 1);
+    };
+
+    const handleNewLike = (data: any) => {
+      console.log('💗 [FavoriteScreen] New like received:', data);
+      // Trigger reload
+      setReloadTrigger(prev => prev + 1);
+    };
+
+    const handleMatchDeleted = (data: any) => {
+      console.log('💔 [FavoriteScreen] Match deleted:', data);
+      const matchId = data.matchId || data.MatchId;
+      
+      if (matchId) {
+        // ✅ Remove from UI immediately without full reload
+        setPets(prevPets => prevPets.filter(pet => pet.id !== matchId.toString()));
+        console.log('✅ Removed matchId from FavoriteScreen:', matchId);
+      }
+    };
+
+    // Listen to SignalR events
+    signalRService.on('MatchSuccess', handleMatchSuccess);
+    signalRService.on('NewLikeBadge', handleNewLike);
+    signalRService.on('MatchDeleted', handleMatchDeleted);
+
+    return () => {
+      // Cleanup listeners
+      signalRService.off('MatchSuccess', handleMatchSuccess);
+      signalRService.off('NewLikeBadge', handleNewLike);
+      signalRService.off('MatchDeleted', handleMatchDeleted);
+    };
+  }, []); // Empty deps - listeners stay consistent
+
+  // ✅ Reload when reloadTrigger changes
+  useEffect(() => {
+    if (reloadTrigger > 0) {
+      console.log('🔄 Reload triggered by realtime event');
+      loadLikes(true);
+    }
+  }, [reloadTrigger]);
 
   // Reload likes when screen comes into focus
   useFocusEffect(
@@ -79,7 +128,21 @@ const FavoriteScreen = ({ navigation }: Props) => {
       // 🚀 FORCE REFRESH: Always fetch fresh data when entering screen
       loadLikes(true); // Force refresh = true
 
-      // Don't refresh badges here - they are managed by useBadgeNotifications hook
+      // ✅ FORCE badge refresh to ensure all badges are up-to-date
+      const refreshBadges = async () => {
+        try {
+          const userIdStr = await AsyncStorage.getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr);
+            console.log('🔄 [FavoriteScreen] Force refreshing all badges on focus');
+            await refreshBadgesForActivePet(userId, true);
+          }
+        } catch (error) {
+          console.error('❌ [FavoriteScreen] Failed to refresh badges:', error);
+        }
+      };
+      
+      refreshBadges();
     }, [dispatch])
   );
 
@@ -165,11 +228,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
           id: item.matchId.toString(),                      // matchId for match/unmatch actions
           petId: item.pet?.petId?.toString() || '0',        // actual petId for navigation
           ownerId: item.owner?.userId || item.fromUserId,   // owner userId for chat
-          catName: item.pet?.name || 'Unknown',
-          ownerName: item.owner?.fullName || 'Unknown',
+          catName: item.pet?.name || '',
+          ownerName: item.owner?.fullName || '',
           gender: item.pet?.gender?.toLowerCase() === 'male' ? 'male' : 'female',
-          age: item.pet?.age ? `${item.pet.age} years` : 'N/A',
-          breed: item.pet?.breed || 'Unknown',
+          age: item.pet?.age ? item.pet.age.toString() : '',
+          breed: item.pet?.breed || '',
           image: photos[0],              // First image for backward compatibility
           images: photos,                // All images for carousel
           likedAt: getTimeAgo(item.createdAt),
@@ -198,10 +261,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 60) return `${diffMins} minutes ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    if (diffDays === 1) return 'Yesterday';
-    return `${diffDays} days ago`;
+    if (diffMins < 60) return `${diffMins} phút trước`;
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffDays === 1) return 'Hôm qua';
+    return `${diffDays} ngày trước`;
   };
 
   // 🚀 OPTIMIZATION 2: Memoize filtered pets by tab
@@ -294,6 +357,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
         action: 'pass'
       });
 
+      // ✅ Remove badge for this chat immediately
+      const matchId = parseInt(petId);
+      dispatch(markChatAsRead(matchId));
+      console.log('✅ Removed badge for matchId:', matchId);
+
       // Remove from list immediately
       setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
 
@@ -309,7 +377,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
     } catch (error) {
 
     }
-  }, []);
+  }, [dispatch]);
 
   const handleChat = useCallback((matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
     console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
@@ -393,7 +461,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     end={{ x: 1, y: 1 }}
                   >
                     <Icon name="heart" size={14} color={colors.white} />
-                    <Text style={styles.matchBadgeText}>Match!</Text>
+                    <Text style={styles.matchBadgeText}>{t('favorite.card.matched')}</Text>
                   </LinearGradient>
                 </View>
               )}
@@ -422,7 +490,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 </View>
                 <View style={styles.metaRow}>
                   <Icon name="paw" size={16} color={colors.white} />
-                  <Text style={styles.metaText}>{item.age} • {item.breed}</Text>
+                  <Text style={styles.metaText}>{item.age ? t('favorite.card.age', { age: item.age }) : t('favorite.card.unknownAge')} • {item.breed || t('favorite.card.unknownBreed')}</Text>
                 </View>
                 <View style={styles.ownerRow}>
                   <Icon name="person-outline" size={16} color={colors.white} />
@@ -452,7 +520,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                     end={{ x: 1, y: 1 }}
                   >
                     <Icon name="chatbubble" size={25} color={colors.white} />
-                    <Text style={styles.actionTextWhite}>Send Message</Text>
+                    <Text style={styles.actionTextWhite}>{t('favorite.actions.sendMessage')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -465,7 +533,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   activeOpacity={0.8}
                 >
                   <Icon name="close-circle" size={20} color="#FF6B6B" />
-                  <Text style={styles.actionTextDanger}>Unmatch</Text>
+                  <Text style={styles.actionTextDanger}>{t('favorite.actions.unmatch')}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -525,15 +593,15 @@ const FavoriteScreen = ({ navigation }: Props) => {
             >
               <Icon name="heart" size={22} color={colors.white} />
             </LinearGradient>
-            <View>
-              <Text style={styles.headerTitle}>Favorites</Text>
-              <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>{t('favorite.title')}</Text>
+              <Text style={styles.headerSubtitle}>{t('favorite.subtitle')}</Text>
             </View>
           </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#EF476F" />
-          <Text style={styles.loadingText}>Loading likes...</Text>
+          <Text style={styles.loadingText}>{t('favorite.loading')}</Text>
         </View>
         <BottomNav active="Favorite" />
       </View>
@@ -561,8 +629,8 @@ const FavoriteScreen = ({ navigation }: Props) => {
               <Icon name="heart" size={24} color={colors.white} />
             </LinearGradient>
             <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>Favorites</Text>
-              <Text style={styles.headerSubtitle}>Pets who liked you</Text>
+              <Text style={styles.headerTitle}>{t('favorite.title')}</Text>
+              <Text style={styles.headerSubtitle}>{t('favorite.subtitle')}</Text>
             </View>
           </View>
         </View>
@@ -587,7 +655,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 styles.tabText,
                 activeTab === 'likes' && styles.tabTextActive
               ]}>
-                Likes ({pets.filter(p => !p.isMatch).length})
+                {t('favorite.tabs.likesCount', { count: pets.filter(p => !p.isMatch).length })}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -610,7 +678,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 styles.tabText,
                 activeTab === 'matches' && styles.tabTextActive
               ]}>
-                Matches ({pets.filter(p => p.isMatch).length})
+                {t('favorite.tabs.matchesCount', { count: pets.filter(p => p.isMatch).length })}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -637,12 +705,12 @@ const FavoriteScreen = ({ navigation }: Props) => {
                 />
               </LinearGradient>
               <Text style={styles.emptyTitle}>
-                {activeTab === 'likes' ? 'No Likes Yet' : 'No Matches Yet'}
+                {activeTab === 'likes' ? t('favorite.empty.likes.title') : t('favorite.empty.matches.title')}
               </Text>
               <Text style={styles.emptyText}>
                 {activeTab === 'likes'
-                  ? "When other pets like you, they'll appear here.\nKeep swiping to find your perfect match!"
-                  : "When you match with someone, they'll appear here.\nStart liking pets to create matches!"
+                  ? t('favorite.empty.likes.message')
+                  : t('favorite.empty.matches.message')
                 }
               </Text>
               <TouchableOpacity
@@ -655,7 +723,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   style={styles.emptyButtonGradient}
                 >
                   <Icon name="paw" size={20} color={colors.white} />
-                  <Text style={styles.emptyButtonText}>Start Swiping</Text>
+                  <Text style={styles.emptyButtonText}>{t('favorite.startSwiping')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View >

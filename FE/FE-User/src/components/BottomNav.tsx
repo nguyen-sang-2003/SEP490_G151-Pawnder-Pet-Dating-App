@@ -5,6 +5,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { colors, gradients, shadows } from "../theme";
 import { useAppSelector } from "../app/hooks";
@@ -22,6 +23,7 @@ interface BottomNavProps {
 
 // 🚀 OPTIMIZATION: Memoize BottomNav to prevent unnecessary re-renders
 const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   
   // Get badge counts from Redux
@@ -44,6 +46,7 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
   const navItems = useMemo(() => [
     { 
       key: "Home" as Tab, 
+      labelKey: "navigation.home",
       icon: "paw", 
       iconOutline: "paw-outline",
       gradient: gradients.home,
@@ -52,6 +55,7 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
     },
     { 
       key: "Chat" as Tab, 
+      labelKey: "navigation.chat",
       icon: "chatbubbles", 
       iconOutline: "chatbubbles-outline",
       gradient: gradients.chat,
@@ -60,6 +64,7 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
     },
     { 
       key: "Favorite" as Tab, 
+      labelKey: "navigation.favorite",
       icon: "heart", 
       iconOutline: "heart-outline",
       gradient: gradients.favorite,
@@ -68,6 +73,7 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
     },
     { 
       key: "Profile" as Tab, 
+      labelKey: "navigation.profile",
       icon: "person", 
       iconOutline: "person-outline",
       gradient: gradients.profile,
@@ -95,6 +101,8 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
               style={styles.navItem}
               onPress={() => handlePress(item.key)}
               activeOpacity={0.7}
+              accessibilityLabel={t(item.labelKey)}
+              accessibilityRole="button"
             >
               <View>
                 {isActive ? (

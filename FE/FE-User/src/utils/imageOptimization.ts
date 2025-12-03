@@ -1,11 +1,83 @@
+import { API_BASE_URL } from '../config/api.config';
+
 /**
- * Image Optimization Utilities
+ * Image Optimization Utilities with Auto-Proxy Support
  * 
  * Provides helper functions for optimizing image loading:
  * - Add resize parameters to image URLs
  * - Generate thumbnail URLs
  * - Optimize image quality
+ * - Auto-proxy for blocked Cloudinary (used by OptimizedImage component)
  */
+
+/**
+ * Simple base64 encode for React Native (without external dependencies)
+ */
+const base64Encode = (str: string): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+  let output = '';
+  
+  // Convert string to UTF-8 bytes
+  const utf8Bytes: number[] = [];
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+    if (charCode < 0x80) {
+      utf8Bytes.push(charCode);
+    } else if (charCode < 0x800) {
+      utf8Bytes.push(0xc0 | (charCode >> 6));
+      utf8Bytes.push(0x80 | (charCode & 0x3f));
+    } else {
+      utf8Bytes.push(0xe0 | (charCode >> 12));
+      utf8Bytes.push(0x80 | ((charCode >> 6) & 0x3f));
+      utf8Bytes.push(0x80 | (charCode & 0x3f));
+    }
+  }
+  
+  // Encode to base64
+  for (let i = 0; i < utf8Bytes.length; i += 3) {
+    const byte1 = utf8Bytes[i];
+    const byte2 = utf8Bytes[i + 1];
+    const byte3 = utf8Bytes[i + 2];
+    
+    const enc1 = byte1 >> 2;
+    const enc2 = ((byte1 & 3) << 4) | (byte2 >> 4);
+    const enc3 = byte2 !== undefined ? ((byte2 & 15) << 2) | (byte3 >> 6) : 64;
+    const enc4 = byte3 !== undefined ? byte3 & 63 : 64;
+    
+    output += chars.charAt(enc1) + chars.charAt(enc2) + chars.charAt(enc3) + chars.charAt(enc4);
+  }
+  
+  return output;
+};
+
+/**
+ * Convert Cloudinary URL to proxy URL through backend
+ * Used when direct access to Cloudinary is blocked
+ */
+export const getProxyImageUrl = (imageUrl: string): string => {
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    return imageUrl;
+  }
+
+  // Only proxy Cloudinary URLs
+  if (!imageUrl.includes('cloudinary.com') && !imageUrl.includes('res.cloudinary.com')) {
+    return imageUrl;
+  }
+
+  // Don't proxy local assets
+  if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+
+  try {
+    // Encode URL to base64 for safe transmission
+    const encodedUrl = base64Encode(imageUrl);
+    return `${API_BASE_URL}/api/petphoto/proxy?url=${encodeURIComponent(encodedUrl)}`;
+  } catch (error) {
+    console.warn('Failed to create proxy URL:', error);
+    return imageUrl;
+  }
+};
 
 export interface ImageResizeOptions {
   width?: number;

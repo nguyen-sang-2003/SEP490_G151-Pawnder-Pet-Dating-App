@@ -3,28 +3,28 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   Dimensions,
-  Animated,
   StatusBar,
   Pressable,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser, getPetsByUserId } from "../../../api";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getUserPetAvatar } from "../../../utils/petAvatar";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width, height } = Dimensions.get("window");
 const IMAGE_HEIGHT = height * 0.55;
@@ -32,6 +32,7 @@ const IMAGE_HEIGHT = height * 0.55;
 type Props = NativeStackScreenProps<RootStackParamList, "PetProfile">;
 
 const PetProfileScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const petIdStr = route.params?.petId || "0";
   const petId = parseInt(petIdStr, 10);
   const fromFavorite = route.params?.fromFavorite || false;
@@ -53,7 +54,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       setLoading(true);
 
       if (!petId) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin pet', onClose: () => navigation.goBack() });
+        showAlert({ type: 'error', title: t('common.error'), message: t('profile.petProfile.loadError'), onClose: () => navigation.goBack() });
         return;
       }
 
@@ -130,7 +131,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
     } catch (error: any) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: error.response?.data?.message || 'Không thể tải thông tin pet' });
+      showAlert({ type: 'error', title: t('common.error'), message: error.response?.data?.message || t('profile.petProfile.loadError') });
     } finally {
       setLoading(false);
     }
@@ -158,8 +159,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
   const location = addressData
     ? (isMyPet
-      ? [ward, district, city].filter(Boolean).join(', ') || 'Unknown location'
-      : city || 'Unknown location')
+      ? [ward, district, city].filter(Boolean).join(', ') || t('profile.petProfile.unknownLocation')
+      : city || t('profile.petProfile.unknownLocation'))
     : null;
 
   const fullAddress = addressData?.FullAddress || addressData?.fullAddress;
@@ -183,18 +184,18 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   // Mock pet data for fallback
   const pet = petData ? {
     id: petIdStr,
-    name: petData.Name || petData.name || 'Unknown',
-    breed: petData.Breed || petData.breed || 'Unknown breed',
-    age: petData.Age ? `${petData.Age} years` : (petData.age ? `${petData.age} years` : 'Unknown'),
-    gender: petData.Gender || petData.gender || 'Unknown',
-    description: petData.Description || petData.description || 'No description available',
+    name: petData.Name || petData.name || t('fallback.unknown'),
+    breed: petData.Breed || petData.breed || t('fallback.unknownBreed'),
+    age: petData.Age ? petData.Age.toString() : (petData.age ? petData.age.toString() : ''),
+    gender: petData.Gender || petData.gender || t('fallback.unknown'),
+    description: petData.Description || petData.description || t('fallback.noDescription'),
     avatar: photos[0], // Use first photo as avatar
     photos, // All photos for swipe
     location,
     fullAddress,
     owner: {
       userId: ownerData?.UserId || ownerData?.userId,
-      name: ownerData?.FullName || ownerData?.fullName || "Unknown Owner",
+      name: ownerData?.FullName || ownerData?.fullName || t('fallback.unknown'),
       email: ownerData?.Email || ownerData?.email,
       gender: ownerData?.Gender || ownerData?.gender,
       status: "Member", // TODO: Premium status
@@ -202,7 +203,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     },
   } : {
     id: petIdStr,
-    name: "Loading...",
+    name: t('common.loading'),
     breed: "...",
     age: "...",
     gender: "...",
@@ -244,35 +245,35 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
     try {
       const currentUserIdStr = await AsyncStorage.getItem('userId');
       if (!currentUserIdStr) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin người dùng' });
+        showAlert({ type: 'error', title: t('common.error'), message: t('profile.userNotFound') });
         return;
       }
       const currentUserId = parseInt(currentUserIdStr, 10);
 
       showAlert({
         type: 'warning',
-        title: "Chặn người dùng",
-        message: `Bạn có chắc muốn chặn ${pet.owner.name}? Bạn sẽ không thấy thú cưng của họ nữa.`,
+        title: t('profile.petProfile.block.title'),
+        message: t('profile.petProfile.block.message', { name: pet.owner.name }),
         showCancel: true,
-        confirmText: "Chặn",
+        confirmText: t('profile.petProfile.block.confirmText'),
         onConfirm: async () => {
           try {
             await blockUser(currentUserId, pet.owner.userId);
             showAlert({
               type: 'success',
-              title: "Đã chặn",
-              message: `${pet.owner.name} đã bị chặn.`,
+              title: t('profile.petProfile.block.success'),
+              message: t('profile.petProfile.block.successMessage', { name: pet.owner.name }),
               onClose: () => navigation.navigate('Home'),
             });
           } catch (error: any) {
 
-            showAlert({ type: 'error', title: 'Lỗi', message: error.message || 'Không thể chặn người dùng' });
+            showAlert({ type: 'error', title: t('common.error'), message: error.message || t('profile.petProfile.block.error') });
           }
         },
       });
     } catch (error) {
 
-      showAlert({ type: 'error', title: 'Lỗi', message: 'Đã xảy ra lỗi' });
+      showAlert({ type: 'error', title: t('common.error'), message: t('errors.unknown') });
     }
   };
 
@@ -284,7 +285,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Vui lòng đăng nhập trước' });
+        showAlert({ type: 'error', title: t('common.error'), message: t('profile.userNotFound') });
         return;
       }
 
@@ -292,12 +293,12 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       const ownerUserId = petData?.Owner?.UserId || petData?.Owner?.userId || ownerData?.UserId || ownerData?.userId;
 
       if (!ownerUserId) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Không tìm thấy thông tin chủ pet' });
+        showAlert({ type: 'error', title: t('common.error'), message: t('profile.petProfile.match.ownerNotFound') });
         return;
       }
 
       if (!activePetId) {
-        showAlert({ type: 'error', title: 'Lỗi', message: 'Bạn cần có một pet đang hoạt động để gửi like' });
+        showAlert({ type: 'error', title: t('common.error'), message: t('profile.petProfile.match.needActivePet') });
         return;
       }
 
@@ -313,23 +314,23 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       if (response.isMatch) {
         showAlert({
           type: 'success',
-          title: "It's a Match! 🎉",
-          message: `You matched with ${pet.owner.name}! You can now chat with them.`,
-          confirmText: 'Go to Chat',
+          title: t('profile.petProfile.match.successTitle'),
+          message: t('profile.petProfile.match.successMessage', { name: pet.owner.name }),
+          confirmText: t('profile.petProfile.match.goToChat'),
           onConfirm: () => navigation.navigate('Chat', {}),
         });
       } else {
         showAlert({
           type: 'success',
-          title: 'Match Request Sent! 💌',
-          message: `Your match request has been sent to ${pet.owner.name}. They will see it in their Favorites.`,
+          title: t('profile.petProfile.match.requestSentTitle'),
+          message: t('profile.petProfile.match.requestSentMessage', { name: pet.owner.name }),
           onClose: () => navigation.goBack(),
         });
       }
     } catch (error: any) {
 
-      const errorMsg = error.response?.data?.message || error.message || 'Failed to send match request';
-      showAlert({ type: 'error', title: 'Lỗi', message: errorMsg });
+      const errorMsg = error.response?.data?.message || error.message || t('errors.unknown');
+      showAlert({ type: 'error', title: t('common.error'), message: errorMsg });
     } finally {
       setSendingMatchRequest(false);
     }
@@ -341,7 +342,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 16, color: colors.textMedium }}>Loading pet profile...</Text>
+        <Text style={{ marginTop: 16, color: colors.textMedium }}>{t('profile.petProfile.loading')}</Text>
       </View>
     );
   }
@@ -373,9 +374,10 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
           {/* Hero Image with Wrapper */}
           <View style={styles.heroImageWrapper}>
-            <Image
+            <OptimizedImage
               source={pet.photos?.[activePhotoIndex] || pet.avatar}
               style={styles.heroImage}
+              imageSize="full"
               resizeMode="cover"
             />
 
@@ -425,7 +427,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               </View>
               <View style={styles.heroMetaRow}>
                 <Icon name="paw" size={16} color="#fff" />
-                <Text style={styles.heroMeta}>{pet.breed} • {pet.age}</Text>
+                <Text style={styles.heroMeta}>{pet.breed || t('profile.petProfile.unknownBreed')} • {pet.age ? t('profile.ageYears', { age: pet.age }) : t('profile.unknownAge')}</Text>
               </View>
               {pet.location && (
                 <View style={styles.heroLocationRow}>
@@ -447,15 +449,15 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 <Icon name="paw" size={20} color={colors.primary} />
               </View>
               <Text style={styles.quickStatValue}>{pet.breed}</Text>
-              <Text style={styles.quickStatLabel}>Breed</Text>
+              <Text style={styles.quickStatLabel}>{t('profile.petProfile.quickStats.breed')}</Text>
             </View>
 
             <View style={styles.quickStatCard}>
               <View style={styles.quickStatIconBg}>
                 <Icon name="calendar-outline" size={20} color={colors.primary} />
               </View>
-              <Text style={styles.quickStatValue}>{pet.age}</Text>
-              <Text style={styles.quickStatLabel}>Age</Text>
+              <Text style={styles.quickStatValue}>{pet.age ? t('profile.ageYears', { age: pet.age }) : t('profile.unknownAge')}</Text>
+              <Text style={styles.quickStatLabel}>{t('profile.petProfile.quickStats.age')}</Text>
             </View>
 
             <View style={styles.quickStatCard}>
@@ -467,14 +469,14 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 />
               </View>
               <Text style={styles.quickStatValue}>{pet.gender}</Text>
-              <Text style={styles.quickStatLabel}>Gender</Text>
+              <Text style={styles.quickStatLabel}>{t('profile.petProfile.quickStats.gender')}</Text>
             </View>
           </View>
 
           {/* About Section */}
-          {pet.description && pet.description !== 'No description available' && (
+          {pet.description && pet.description !== t('fallback.noDescription') && (
             <View style={styles.aboutSection}>
-              <Text style={styles.sectionTitleModern}>About {pet.name}</Text>
+              <Text style={styles.sectionTitleModern}>{t('profile.about', { name: pet.name })}</Text>
               <View style={styles.aboutCard}>
                 <Text style={styles.aboutText}>{pet.description}</Text>
               </View>
@@ -486,7 +488,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         {characteristics.length > 0 && (
           <View style={styles.contentContainer}>
             <View style={styles.sectionHeaderModern}>
-              <Text style={styles.sectionTitleModern}>Characteristics</Text>
+              <Text style={styles.sectionTitleModern}>{t('profile.characteristics')}</Text>
               <View style={styles.badgeCount}>
                 <Text style={styles.badgeCountText}>{characteristics.length}</Text>
               </View>
@@ -505,7 +507,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                       color={colors.white}
                     />
                   </View>
-                  <Text style={styles.charName}>{char.name || 'Unknown'}</Text>
+                  <Text style={styles.charName}>{char.name || t('profile.unknownAge')}</Text>
                   <View style={styles.charValueContainer}>
                     {char.optionValue ? (
                       <Text style={styles.charValue}>{char.optionValue}</Text>
@@ -514,7 +516,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                         {char.value} {char.unit || ''}
                       </Text>
                     ) : (
-                      <Text style={styles.charValueEmpty}>Not set</Text>
+                      <Text style={styles.charValueEmpty}>{t('profile.notSet')}</Text>
                     )}
                   </View>
                 </View>
@@ -525,10 +527,10 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
         {/* Owner Section */}
         <View style={styles.contentContainer}>
-          <Text style={styles.sectionTitleModern}>Owner</Text>
+          <Text style={styles.sectionTitleModern}>{t('profile.petProfile.owner.title')}</Text>
 
           <View style={styles.ownerCardModern}>
-            <Image source={pet.owner.avatar} style={styles.ownerAvatarModern} />
+            <OptimizedImage source={pet.owner.avatar} style={styles.ownerAvatarModern} imageSize="thumbnail" />
             <View style={styles.ownerInfoContainer}>
               <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>
               <Text style={styles.ownerStatusModern}>{pet.owner.status}</Text>
@@ -567,7 +569,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             <View style={styles.addressCardModern}>
               <Icon name="map" size={20} color={colors.primary} />
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.addressTitleModern}>Full Address</Text>
+                <Text style={styles.addressTitleModern}>{t('profile.petProfile.owner.fullAddress')}</Text>
                 <Text style={styles.addressTextModern}>{pet.fullAddress}</Text>
               </View>
             </View>
@@ -596,7 +598,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                   <Icon name="heart" size={24} color="#fff" />
                 )}
                 <Text style={styles.matchButtonText}>
-                  {sendingMatchRequest ? 'Sending...' : 'Send Match Request'}
+                  {sendingMatchRequest ? t('profile.petProfile.actions.sending') : t('profile.petProfile.actions.sendMatchRequest')}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -611,7 +613,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                 <View style={styles.safetyIconBg}>
                   <Icon name="ban" size={18} color="#E94D6B" />
                 </View>
-                <Text style={styles.safetyButtonText}>Chặn</Text>
+                <Text style={styles.safetyButtonText}>{t('profile.petProfile.actions.block')}</Text>
               </TouchableOpacity>
             </View>
           </View>

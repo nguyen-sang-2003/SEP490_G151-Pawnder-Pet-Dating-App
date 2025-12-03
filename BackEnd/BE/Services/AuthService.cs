@@ -181,18 +181,65 @@ namespace BE.Services
             if (!user.RoleId.HasValue || !validRoleIds.Contains(user.RoleId.Value))
                 throw new UnauthorizedAccessException("Tài khoản không có quyền truy cập hệ thống");
 
+            // Business logic: Check ban status
+            var now = DateTime.Now;
+            var activeBan = await _context.UserBanHistories
+                .AsNoTracking()
+                .Where(b => b.UserId == user.UserId && b.IsActive == true)
+                .OrderByDescending(b => b.BanStart)
+                .FirstOrDefaultAsync(ct);
+
+            if (activeBan != null)
+            {
+                var stillBanned = !activeBan.BanEnd.HasValue || activeBan.BanEnd.Value > now;
+                if (stillBanned)
+                {
+                    var message = activeBan.BanEnd.HasValue
+                        ? "Tài khoản đang bị khóa tạm thời"
+                        : "Tài khoản đã bị khóa vĩnh viễn";
+                    throw new InvalidOperationException($"{message}. BanStart: {activeBan.BanStart}, BanEnd: {activeBan.BanEnd}, Reason: {activeBan.BanReason}");
+                }
+                else
+                {
+                    // Business logic: Auto-deactivate expired ban
+                    var banToDeactivate = await _context.UserBanHistories
+                        .FirstOrDefaultAsync(b => b.BanId == activeBan.BanId, ct);
+                    if (banToDeactivate != null && banToDeactivate.IsActive == true)
+                    {
+                        banToDeactivate.IsActive = false;
+                        banToDeactivate.UpdatedAt = now;
+
+                        // Business logic: Set user status based on payment history
+                        var hasPaymentHistory = await _context.PaymentHistories
+                            .AsNoTracking()
+                            .AnyAsync(ph => ph.UserId == user.UserId, ct);
+                        var targetStatusName = hasPaymentHistory ? "Tài khoản VIP" : "Tài khoản thường";
+                        var targetStatus = await _context.UserStatuses
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, targetStatusName), ct);
+                        if (targetStatus != null)
+                        {
+                            user.UserStatusId = targetStatus.UserStatusId;
+                            user.UpdatedAt = now;
+                        }
+                        await _context.SaveChangesAsync(ct);
+                    }
+                }
+            }
+
             // Business logic: Generate new tokens
             var newAccessToken = _tokenService.GenerateAccessToken(user.UserId, user.Role?.RoleName ?? "User");
             var newRefreshToken = _tokenService.GenerateRefreshToken(user.UserId, user.Role?.RoleName ?? "User");
 
             user.TokenJwt = newRefreshToken;
-            user.UpdatedAt = DateTime.Now;
+            user.UpdatedAt = now;
             await _userRepository.UpdateAsync(user, ct);
 
             return new
             {
                 Message = "Làm mới token thành công",
-                AccessToken = newAccessToken
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken // ✅ Fix: Trả về RefreshToken mới
             };
         }
 

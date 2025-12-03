@@ -10,6 +10,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 
@@ -242,8 +243,22 @@ const resourceContent = {
 };
 
 const ResourceDetailScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { type } = route.params;
   const resource = resourceContent[type as keyof typeof resourceContent];
+
+  // Map resource types to translation keys
+  const getTitleTranslation = (resourceType: string): string => {
+    const titleMap: Record<string, string> = {
+      terms: t('settings.resources.termsOfService'),
+      privacy: t('settings.resources.privacyPolicy'),
+      community: t('settings.resources.communityGuidelines'),
+      guide: t('settings.resources.userGuide'),
+      safety: t('settings.resources.safetyTips'),
+      about: t('settings.resources.aboutPawnder'),
+    };
+    return titleMap[resourceType] || resource?.title || '';
+  };
 
   if (!resource) {
     return null;
@@ -274,7 +289,7 @@ const ResourceDetailScreen = ({ navigation, route }: Props) => {
           <View style={styles.iconBox}>
             <Icon name={resource.icon} size={40} color="#fff" />
           </View>
-          <Text style={styles.headerTitle}>{resource.title}</Text>
+          <Text style={styles.headerTitle}>{getTitleTranslation(type)}</Text>
         </View>
       </LinearGradient>
 

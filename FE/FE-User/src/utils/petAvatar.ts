@@ -1,4 +1,4 @@
-import { getPetsByUserId, getPetPhotos, getPetById } from '../api/pet';
+import { getPetsByUserId, getPetPhotos, getPetById } from '../features/pet/api/petApi';
 
 /**
  * Get pet photo by petId

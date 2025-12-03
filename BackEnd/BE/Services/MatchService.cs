@@ -494,12 +494,33 @@ namespace BE.Services
             }
             else if (request.Action.ToLower() == "pass")
             {
+                // Business logic: Load pets to get user IDs before soft delete
+                await _context.Entry(chatUser)
+                    .Reference(c => c.FromPet)
+                    .LoadAsync(ct);
+                await _context.Entry(chatUser)
+                    .Reference(c => c.ToPet)
+                    .LoadAsync(ct);
+
+                var fromUserId = chatUser.FromPet?.UserId;
+                var toUserId = chatUser.ToPet?.UserId;
+
                 // Business logic: Reject/Unmatch - soft delete to keep data for review
                 chatUser.IsDeleted = true;
                 chatUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
                 await _chatUserRepository.UpdateAsync(chatUser, ct);
 
-                // DO NOT notify the other user when unmatched
+                // ✅ Send real-time notification to the OTHER user when unmatched
+                // Only send if it was an accepted match (Status == "Accepted")
+                if (chatUser.Status == "Accepted" && fromUserId.HasValue && toUserId.HasValue)
+                {
+                    // Determine which user is the "other" user (the one being unmatched)
+                    // We don't know who initiated the unmatch, so notify both users
+                    await ChatHub.SendMatchDeletedNotification(_hubContext, fromUserId.Value, chatUser.MatchId);
+                    await ChatHub.SendMatchDeletedNotification(_hubContext, toUserId.Value, chatUser.MatchId);
+                    Console.WriteLine($"✅ [MatchService] Sent MatchDeleted notification to both users for matchId {chatUser.MatchId}");
+                }
+
                 return new { message = chatUser.Status == "Accepted" ? "Unmatched" : "Passed" };
             }
             else

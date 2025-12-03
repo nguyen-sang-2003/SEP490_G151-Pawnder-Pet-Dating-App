@@ -16,6 +16,7 @@ import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -32,6 +33,7 @@ interface ChatSession {
 }
 
 const AIChatListScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -82,7 +84,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
 
   const handleCreateNewChat = async () => {
     if (!currentUserId) {
-      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+      Alert.alert(t('common.error'), t('chat.aiList.userNotFound'));
       return;
     }
 
@@ -98,8 +100,8 @@ const AIChatListScreen = ({ navigation }: Props) => {
       // Show user-friendly alert (401 already handled by interceptor)
       if (error.response?.status !== 401) {
         Alert.alert(
-          'Không thể tạo chat',
-          error.message || 'Vui lòng thử lại sau',
+          t('chat.aiList.createError'),
+          error.message || t('chat.aiList.createErrorMessage'),
           [{ text: 'OK' }]
         );
       }
@@ -117,7 +119,17 @@ const AIChatListScreen = ({ navigation }: Props) => {
   };
 
   const handleSaveRename = async () => {
-    if (!selectedChat || !newTitle.trim()) return;
+    // Validation: Kiểm tra tên trống
+    if (!selectedChat || !newTitle.trim()) {
+      Alert.alert(t('auth.signUp.missingInfo'), t('chat.aiList.renameEmpty'));
+      return;
+    }
+
+    // Validation: Kiểm tra độ dài tên
+    if (newTitle.trim().length < 2) {
+      Alert.alert(t('auth.addPet.basicInfo.invalidName'), t('chat.aiList.renameMinLength'));
+      return;
+    }
 
     try {
       await updateChatAITitle(parseInt(selectedChat.id), newTitle.trim());
@@ -130,19 +142,18 @@ const AIChatListScreen = ({ navigation }: Props) => {
       setSelectedChat(null);
       setNewTitle("");
     } catch (error: any) {
-
-      Alert.alert('Lỗi', error.message || 'Không thể đổi tên cuộc trò chuyện');
+      Alert.alert(t('common.error'), error.message || t('chat.aiList.renameError'));
     }
   };
 
   const handleDeleteChat = (chatId: string, title: string) => {
     Alert.alert(
-      "Delete Conversation",
-      `Delete "${title}"? This cannot be undone.`,
+      t('chat.aiList.deleteTitle'),
+      t('chat.aiList.deleteMessage', { title }),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t('common.cancel'), style: "cancel" },
         {
-          text: "Delete",
+          text: t('common.delete'),
           style: "destructive",
           onPress: async () => {
             try {
@@ -150,7 +161,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
               setChatSessions(prev => prev.filter(chat => chat.id !== chatId));
             } catch (error: any) {
 
-              Alert.alert('Lỗi', error.message || 'Không thể xóa cuộc trò chuyện');
+              Alert.alert(t('common.error'), error.message || t('chat.aiList.deleteError'));
             }
           },
         },
@@ -167,12 +178,12 @@ const AIChatListScreen = ({ navigation }: Props) => {
       const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
       if (diffHours === 0) {
         const diffMins = Math.floor(diffTime / (1000 * 60));
-        return `${diffMins}m ago`;
+        return t('chat.aiList.timeAgo.minutes', { count: diffMins });
       }
-      return `${diffHours}h ago`;
+      return t('chat.aiList.timeAgo.hours', { count: diffHours });
     }
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays === 1) return t('chat.aiList.timeAgo.yesterday');
+    if (diffDays < 7) return t('chat.aiList.timeAgo.days', { count: diffDays });
     return date.toLocaleDateString();
   };
 
@@ -199,10 +210,10 @@ const AIChatListScreen = ({ navigation }: Props) => {
           <Text style={styles.chatTime}>{formatTime(item.timestamp)}</Text>
         </View>
         <Text style={styles.chatLastMessage} numberOfLines={1}>
-          {item.lastMessage || "Start a conversation..."}
+          {item.lastMessage || t('chat.aiList.startChat')}
         </Text>
         <Text style={styles.chatMessageCount}>
-          {item.messageCount} message{item.messageCount !== 1 ? "s" : ""}
+          {t('chat.aiList.messageCount', { count: item.messageCount })}
         </Text>
       </View>
 
@@ -239,12 +250,12 @@ const AIChatListScreen = ({ navigation }: Props) => {
               >
                 <Icon name="sparkles" size={24} color={colors.white} />
               </LinearGradient>
-              <Text style={styles.headerTitle}>AI Pet Assistant</Text>
+              <Text style={styles.headerTitle}>{t('chat.ai.listTitle')}</Text>
             </View>
           </View>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.aiPrimary} />
-            <Text style={styles.loadingText}>Loading chats...</Text>
+            <Text style={styles.loadingText}>{t('chat.ai.loading')}</Text>
           </View>
         </LinearGradient>
       </View>
@@ -269,7 +280,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
             >
               <Icon name="sparkles" size={24} color={colors.white} />
             </LinearGradient>
-            <Text style={styles.headerTitle}>AI Pet Assistant</Text>
+            <Text style={styles.headerTitle}>{t('chat.ai.listTitle')}</Text>
           </View>
           <TouchableOpacity
             style={styles.expertButton}
@@ -293,7 +304,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
             <Icon name="information-circle" size={18} color={colors.white} />
           </LinearGradient>
           <Text style={styles.infoBannerText}>
-            Get instant pet care advice from AI. Ask an expert for confirmation!
+            {t('chat.aiList.infoBanner')}
           </Text>
         </View>
 
@@ -306,15 +317,15 @@ const AIChatListScreen = ({ navigation }: Props) => {
             end={{ x: 1, y: 0 }}
           >
             <Icon name="add-circle-outline" size={24} color={colors.white} />
-            <Text style={styles.newChatText}>New Conversation</Text>
+            <Text style={styles.newChatText}>{t('chat.aiList.newChat')}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         {/* Chat Sessions List */}
         <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Your Conversations</Text>
+          <Text style={styles.listTitle}>{t('chat.aiList.yourChats')}</Text>
           <Text style={styles.listSubtitle}>
-            {chatSessions.length} conversation{chatSessions.length !== 1 ? "s" : ""}
+            {t('chat.aiList.chatCount', { count: chatSessions.length })}
           </Text>
         </View>
 
@@ -334,9 +345,9 @@ const AIChatListScreen = ({ navigation }: Props) => {
             >
               <Icon name="chatbubbles-outline" size={60} color={colors.white} />
             </LinearGradient>
-            <Text style={styles.emptyTitle}>No Conversations Yet</Text>
+            <Text style={styles.emptyTitle}>{t('chat.aiList.noChats')}</Text>
             <Text style={styles.emptyText}>
-              Start a new conversation to get pet care advice from AI
+              {t('chat.aiList.noChatsDesc')}
             </Text>
           </View>
         )}
@@ -355,14 +366,14 @@ const AIChatListScreen = ({ navigation }: Props) => {
             <Pressable style={styles.renameModal} onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
                 <Icon name="create-outline" size={24} color={colors.aiPrimary} />
-                <Text style={styles.modalTitle}>Đổi tên cuộc trò chuyện</Text>
+                <Text style={styles.modalTitle}>{t('chat.aiList.renameTitle')}</Text>
               </View>
 
               <TextInput
                 style={styles.modalInput}
                 value={newTitle}
                 onChangeText={setNewTitle}
-                placeholder="Nhập tên mới..."
+                placeholder={t('chat.aiList.renamePlaceholder')}
                 placeholderTextColor={colors.textLabel}
                 autoFocus
                 maxLength={50}
@@ -373,7 +384,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
                   style={styles.modalButton}
                   onPress={() => setShowRenameModal(false)}
                 >
-                  <Text style={styles.modalCancelText}>Hủy</Text>
+                  <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -385,7 +396,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
                     colors={newTitle.trim() ? gradients.ai : ["#E0E0E0", "#BDBDBD"]}
                     style={styles.modalSaveGradient}
                   >
-                    <Text style={styles.modalSaveText}>Lưu</Text>
+                    <Text style={styles.modalSaveText}>{t('common.save')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

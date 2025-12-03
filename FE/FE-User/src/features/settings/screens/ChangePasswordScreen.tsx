@@ -13,6 +13,7 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
@@ -21,6 +22,7 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 type Props = NativeStackScreenProps<RootStackParamList, "ChangePassword">;
 
 const ChangePasswordScreen = ({ navigation }: Props) => {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,30 +31,44 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const validatePassword = () => {
     if (!currentPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu hiện tại" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.enterCurrentPassword') });
       return false;
     }
 
     if (!newPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Vui lòng nhập mật khẩu mới" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.enterNewPassword') });
       return false;
     }
 
-    if (newPassword.length < 6) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu phải có ít nhất 6 ký tự" });
+    // Kiểm tra độ dài tối thiểu 8 ký tự
+    if (newPassword.length < 8) {
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordMinLength') });
+      return false;
+    }
+
+    // Kiểm tra có chứa số
+    if (!/\d/.test(newPassword)) {
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordNeedsNumber') });
+      return false;
+    }
+
+    // Kiểm tra có ký tự đặc biệt
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordNeedsSpecial') });
       return false;
     }
 
     if (newPassword === currentPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu mới phải khác mật khẩu hiện tại" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordSameAsCurrent') });
       return false;
     }
 
     if (newPassword !== confirmPassword) {
-      showAlert({ type: 'warning', title: "Lỗi", message: "Mật khẩu không khớp" });
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordMismatch') });
       return false;
     }
 
@@ -65,20 +81,14 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
     setLoading(true);
 
     try {
-      // TODO: API call to change password
-      console.log("Changing password");
-
-      // Mock delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
+      // TODO: Implement API call to change password
       showAlert({
-        type: 'success',
-        title: "Thành công",
-        message: "Đã thay đổi mật khẩu thành công!",
-        onClose: () => navigation.goBack(),
+        type: 'warning',
+        title: t('alerts.info'),
+        message: t('settings.changePassword.featureInDevelopment'),
       });
     } catch (error) {
-      showAlert({ type: 'error', title: "Lỗi", message: "Không thể thay đổi mật khẩu. Vui lòng thử lại." });
+      showAlert({ type: 'error', title: t('common.error'), message: t('settings.changePassword.errors.changeFailed') });
     } finally {
       setLoading(false);
     }
@@ -103,7 +113,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
           >
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Change Password</Text>
+          <Text style={styles.headerTitle}>{t('settings.changePassword.title')}</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -123,7 +133,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            Make sure your new password is strong and secure
+            {t('settings.changePassword.subtitle')}
           </Text>
 
           {/* Current Password */}
@@ -136,7 +146,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Current Password"
+              placeholder={t('settings.changePassword.currentPassword')}
               placeholderTextColor={colors.textLabel}
               value={currentPassword}
               onChangeText={setCurrentPassword}
@@ -162,12 +172,14 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="New Password"
+              placeholder={t('settings.changePassword.newPassword')}
               placeholderTextColor={colors.textLabel}
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry={!showNew}
               autoCapitalize="none"
+              onFocus={() => setIsPasswordFocused(true)}
+              onBlur={() => setIsPasswordFocused(false)}
             />
             <TouchableOpacity onPress={() => setShowNew(!showNew)}>
               <Icon
@@ -188,13 +200,22 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Confirm New Password"
+              placeholder={t('settings.changePassword.confirmPassword')}
               placeholderTextColor={colors.textLabel}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirm}
               autoCapitalize="none"
             />
+            {/* Show checkmark if passwords match, X if not match */}
+            {confirmPassword && newPassword && (
+              <Icon
+                name={confirmPassword === newPassword ? "checkmark-circle" : "close-circle"}
+                size={20}
+                color={confirmPassword === newPassword ? "#4CAF50" : "#FF5252"}
+                style={{ marginRight: 8 }}
+              />
+            )}
             <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
               <Icon
                 name={showConfirm ? "eye-outline" : "eye-off-outline"}
@@ -204,30 +225,80 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
           </View>
 
-          {/* Password Requirements */}
+          {/* Password Requirements - Only show when focused */}
+          {isPasswordFocused && (
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Password requirements:</Text>
+            <Text style={styles.requirementsTitle}>{t('settings.changePassword.requirements.title')}</Text>
+            {/* Ít nhất 8 ký tự */}
             <View style={styles.requirement}>
               <Icon
                 name={
-                  newPassword.length >= 6
+                  newPassword.length >= 8
                     ? "checkmark-circle"
                     : "ellipse-outline"
                 }
                 size={16}
                 color={
-                  newPassword.length >= 6 ? colors.success : colors.textLabel
+                  newPassword.length >= 8 ? colors.success : colors.textLabel
                 }
               />
               <Text
                 style={[
                   styles.requirementText,
-                  newPassword.length >= 6 && styles.requirementMet,
+                  newPassword.length >= 8 && styles.requirementMet,
                 ]}
               >
-                At least 6 characters
+                {t('settings.changePassword.requirements.minLength')}
               </Text>
             </View>
+
+            {/* Chứa ít nhất 1 số */}
+            <View style={styles.requirement}>
+              <Icon
+                name={
+                  /\d/.test(newPassword)
+                    ? "checkmark-circle"
+                    : "ellipse-outline"
+                }
+                size={16}
+                color={
+                  /\d/.test(newPassword) ? colors.success : colors.textLabel
+                }
+              />
+              <Text
+                style={[
+                  styles.requirementText,
+                  /\d/.test(newPassword) && styles.requirementMet,
+                ]}
+              >
+                {t('settings.changePassword.requirements.hasNumber')}
+              </Text>
+            </View>
+
+            {/* Chứa ký tự đặc biệt */}
+            <View style={styles.requirement}>
+              <Icon
+                name={
+                  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword)
+                    ? "checkmark-circle"
+                    : "ellipse-outline"
+                }
+                size={16}
+                color={
+                  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) ? colors.success : colors.textLabel
+                }
+              />
+              <Text
+                style={[
+                  styles.requirementText,
+                  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) && styles.requirementMet,
+                ]}
+              >
+                {t('settings.changePassword.requirements.hasSpecial')}
+              </Text>
+            </View>
+
+            {/* Khác mật khẩu hiện tại */}
             <View style={styles.requirement}>
               <Icon
                 name={
@@ -245,41 +316,16 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
               <Text
                 style={[
                   styles.requirementText,
-                  newPassword &&
-                    newPassword !== currentPassword &&
-                    styles.requirementMet,
+                  newPassword && newPassword !== currentPassword
+                    ? styles.requirementMet
+                    : null,
                 ]}
               >
-                Different from current password
-              </Text>
-            </View>
-            <View style={styles.requirement}>
-              <Icon
-                name={
-                  newPassword && confirmPassword && newPassword === confirmPassword
-                    ? "checkmark-circle"
-                    : "ellipse-outline"
-                }
-                size={16}
-                color={
-                  newPassword && confirmPassword && newPassword === confirmPassword
-                    ? colors.success
-                    : colors.textLabel
-                }
-              />
-              <Text
-                style={[
-                  styles.requirementText,
-                  newPassword &&
-                    confirmPassword &&
-                    newPassword === confirmPassword &&
-                    styles.requirementMet,
-                ]}
-              >
-                Passwords match
+                {t('settings.changePassword.requirements.differentFromCurrent')}
               </Text>
             </View>
           </View>
+          )}
 
           {/* Change Password Button */}
           <TouchableOpacity
@@ -292,9 +338,9 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
               style={styles.changeGradient}
             >
               {loading ? (
-                <Text style={styles.changeText}>Changing...</Text>
+                <Text style={styles.changeText}>{t('settings.changePassword.changingButton')}</Text>
               ) : (
-                <Text style={styles.changeText}>Change Password</Text>
+                <Text style={styles.changeText}>{t('settings.changePassword.changeButton')}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -304,7 +350,7 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
             style={styles.forgotLink}
             onPress={() => navigation.navigate("ForgotPassword")}
           >
-            <Text style={styles.forgotText}>Forgot your current password?</Text>
+            <Text style={styles.forgotText}>{t('settings.changePassword.forgotPassword')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

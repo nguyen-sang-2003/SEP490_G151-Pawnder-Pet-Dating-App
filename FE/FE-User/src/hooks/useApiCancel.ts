@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { apiCancel } from '../utils/apiCancel';
+import { apiCancel } from '../services/apiCancel';
 import { CancelTokenSource } from 'axios';
 
 /**

@@ -19,13 +19,17 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatAIHistory, sendMessageToAI, createExpertConfirmation, getTokenUsage } from "../../../api";
+import { getChatAIHistory, sendMessageToAI, getTokenUsage } from "../api/chataiApi";
+import { createExpertConfirmation } from "../../expert/api/expertConfirmationApi";
+import { getAvailableExperts, Expert } from "../../expert/api/expertChatApi";
 import CustomAlert from "../../../components/CustomAlert";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
 import { TokenLimitModal } from "../../../components/TokenLimitModal";
+import OptimizedImage from "../../../components/OptimizedImage";
 
 const { width } = Dimensions.get("window");
 
@@ -41,6 +45,7 @@ interface Message {
 
 
 const AIChatScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const chatId = route.params?.chatId || "new";
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -75,6 +80,12 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   // Track which messages have been sent to expert
   const [sentToExpertIds, setSentToExpertIds] = useState<Set<string>>(new Set());
 
+  // Expert selection states
+  const [experts, setExperts] = useState<Expert[]>([]);
+  const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
+  const [loadingExperts, setLoadingExperts] = useState(false);
+  const [expertSelectionStep, setExpertSelectionStep] = useState<'select' | 'question'>('select');
+
   // Load chat history and token usage on mount
   useEffect(() => {
     loadTokenUsage(); // Load token usage first
@@ -86,14 +97,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setMessages([
         {
           id: "welcome",
-          text: "Hi there! 👋 I'm your AI Pet Care Assistant. I'm here to help you with any questions about your cat! How can I assist you today?",
+          text: t('chat.ai.welcome'),
           isAI: true,
           timestamp: new Date(),
           suggestions: [
-            "Pet care tips",
-            "Health advice",
-            "Training tips",
-            "Nutrition guide",
+            t('chat.ai.suggestions.careTips'),
+            t('chat.ai.suggestions.healthAdvice'),
+            t('chat.ai.suggestions.trainingTips'),
+            t('chat.ai.suggestions.nutritionGuide'),
           ],
         },
       ]);
@@ -143,7 +154,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       setMessages(formattedMessages);
     } catch (error: any) {
 
-      Alert.alert('Lỗi', error.message || 'Không thể tải lịch sử chat');
+      Alert.alert(t('common.error'), error.message || t('chat.ai.loadError'));
     } finally {
       setLoading(false);
     }
@@ -155,7 +166,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     if (!messageText) return;
 
     if (chatId === "new") {
-      Alert.alert('Lỗi', 'Vui lòng tạo cuộc trò chuyện mới trước');
+      Alert.alert(t('common.error'), t('chat.ai.createChatFirst'));
       return;
     }
 
@@ -238,36 +249,68 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         // Timeout error
         Alert.alert(
-          'AI đang quá tải',
-          'AI đang mất nhiều thời gian để xử lý. Vui lòng thử lại sau vài giây.'
+          t('chat.ai.aiOverloaded'),
+          t('chat.ai.aiOverloadedMessage')
         );
       } else if (error.response?.status === 500) {
         // Backend error with custom message
-        const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra với AI. Vui lòng thử lại.';
-        Alert.alert('Lỗi', errorMsg);
+        const errorMsg = error.response?.data?.message || t('chat.ai.sendError');
+        Alert.alert(t('common.error'), errorMsg);
       } else {
         // Generic error
 
-        const errorMsg = error.response?.data?.message || error.message || 'Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối.';
-        Alert.alert('Lỗi', errorMsg);
+        const errorMsg = error.response?.data?.message || error.message || t('chat.ai.sendError');
+        Alert.alert(t('common.error'), errorMsg);
       }
     } finally {
       setIsTyping(false);
     }
   };
 
-  const handleAskExpert = (message: Message) => {
+  const handleAskExpert = async (message: Message) => {
     setUserQuestion(""); // Reset to empty - user must type their own question
     setSelectedMessage(message);
+    setSelectedExpert(null);
+    setExpertSelectionStep('select');
     setShowQuestionModal(true);
+    
+    // Load experts list
+    try {
+      setLoadingExperts(true);
+      const expertsList = await getAvailableExperts();
+      setExperts(expertsList);
+    } catch (error) {
+      console.error('Error loading experts:', error);
+      setErrorMessage('Không thể tải danh sách chuyên gia');
+      setShowErrorAlert(true);
+    } finally {
+      setLoadingExperts(false);
+    }
+  };
+
+  const handleSelectExpert = (expert: Expert) => {
+    setSelectedExpert(expert);
+    setExpertSelectionStep('question');
+  };
+
+  const handleBackToExpertSelection = () => {
+    setExpertSelectionStep('select');
+    setSelectedExpert(null);
   };
 
   const handleConfirmExpertRequest = async () => {
     if (!selectedMessage) return;
     
+    // Validate selected expert
+    if (!selectedExpert) {
+      setErrorMessage('Vui lòng chọn một chuyên gia');
+      setShowErrorAlert(true);
+      return;
+    }
+    
     // Validate user question
     if (!userQuestion.trim()) {
-      setErrorMessage('Vui lòng nhập câu hỏi của bạn');
+      setErrorMessage(t('chat.expert.emptyQuestion'));
       setShowErrorAlert(true);
       return;
     }
@@ -275,7 +318,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     try {
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        setErrorMessage('Không tìm thấy thông tin người dùng');
+        setErrorMessage(t('chat.aiList.userNotFound'));
         setShowErrorAlert(true);
         return;
       }
@@ -285,7 +328,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       // Get current chatId from route or state
       const currentChatId = route.params?.chatId;
       if (!currentChatId || currentChatId === 'new') {
-        setErrorMessage('Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia');
+        setErrorMessage(t('chat.expert.saveChatFirst'));
         setShowErrorAlert(true);
         return;
       }
@@ -297,12 +340,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       console.log('📤 Requesting expert confirmation:', {
         userId,
         chatAiId,
+        expertId: selectedExpert.userId,
         question: userQuestion.trim(),
         aiResponse: selectedMessage.text
       });
 
-      // Create expert confirmation request (expert will be auto-assigned by backend)
+      // Create expert confirmation request with selected expert
       await createExpertConfirmation(userId, chatAiId, {
+        expertId: selectedExpert.userId,
         userQuestion: userQuestion.trim(),
         message: undefined  // Message will be filled by expert when they respond
       });
@@ -313,6 +358,8 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       // Close modal and reset
       setShowQuestionModal(false);
       setUserQuestion("");
+      setSelectedExpert(null);
+      setExpertSelectionStep('select');
       
       // Show success
       setShowSuccessAlert(true);
@@ -327,11 +374,11 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       } else if (error.response?.status === 400) {
         // Show error message from backend
         const errorMsg = error.response?.data?.Message || error.response?.data?.message || '';
-        setErrorMessage(errorMsg || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setErrorMessage(errorMsg || t('chat.expert.submitError'));
         setShowErrorAlert(true);
       } else {
 
-        setErrorMessage(error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+        setErrorMessage(error.message || t('chat.expert.submitError'));
         setShowErrorAlert(true);
       }
     } finally {
@@ -378,7 +425,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           {item.isAI ? (
             <View style={styles.aiContent}>
               <View style={styles.aiHeader}>
-                <Text style={styles.aiLabel}>AI Assistant</Text>
+                <Text style={styles.aiLabel}>{t('chat.ai.aiLabel')}</Text>
                 <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
               </View>
               <Text style={styles.aiMessageText}>{item.text}</Text>
@@ -394,7 +441,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                     style={styles.askExpertGradient}
                   >
                     <Icon name="shield-checkmark" size={16} color={colors.white} />
-                    <Text style={styles.askExpertText}>Ask Expert to Confirm</Text>
+                    <Text style={styles.askExpertText}>{t('chat.expert.askExpert')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}
@@ -403,7 +450,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               {item.id !== "welcome" && sentToExpertIds.has(item.id) && (
                 <View style={styles.sentToExpertBadge}>
                   <Icon name="checkmark-circle" size={16} color={colors.success} />
-                  <Text style={styles.sentToExpertText}>Sent to Expert</Text>
+                  <Text style={styles.sentToExpertText}>{t('chat.expert.sentToExpert')}</Text>
                 </View>
               )}
             </View>
@@ -464,13 +511,13 @@ const AIChatScreen = ({ navigation, route }: Props) => {
             </LinearGradient>
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{chatTitle}</Text>
-              <Text style={styles.headerStatus}>Loading...</Text>
+              <Text style={styles.headerStatus}>{t('chat.ai.loading')}</Text>
             </View>
           </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.aiPrimary} />
-          <Text style={styles.loadingText}>Loading chat...</Text>
+          <Text style={styles.loadingText}>{t('chat.ai.loadingChat')}</Text>
         </View>
       </LinearGradient>
     );
@@ -499,12 +546,12 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               <Icon name="sparkles" size={24} color={colors.white} />
             </LinearGradient>
             <View style={styles.headerInfo}>
-              <Text style={styles.headerName}>AI Pet Assistant</Text>
+              <Text style={styles.headerName}>{t('chat.ai.title')}</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? "typing..." : tokenUsage
+                {isTyping ? t('chat.ai.typing') : tokenUsage
                   ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota
-                    ? "Limit reached (100%)"
-                    : `${tokenUsage.tokensUsed.toLocaleString()}/${tokenUsage.dailyQuota.toLocaleString()} tokens`)
+                    ? t('chat.ai.limitReached')
+                    : t('chat.ai.tokenUsage', { used: tokenUsage.tokensUsed.toLocaleString(), total: tokenUsage.dailyQuota.toLocaleString() }))
                   : "0/10,000 tokens"}
               </Text>
             </View>
@@ -567,7 +614,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
 
             <TextInput
               style={styles.input}
-              placeholder="Ask me anything about cat care..."
+              placeholder={t('chat.ai.inputPlaceholder')}
               placeholderTextColor={colors.textLabel}
               value={inputText}
               onChangeText={setInputText}
@@ -630,84 +677,197 @@ const AIChatScreen = ({ navigation, route }: Props) => {
               </TouchableOpacity>
             </View>
 
-            {/* Modal Body */}
-            <ScrollView
-              style={styles.modalBody}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.modalTitle}>Yêu cầu chuyên gia xác nhận</Text>
-              <Text style={styles.modalDescription}>
-                Nhập câu hỏi của bạn để chuyên gia thú y có thể hiểu rõ vấn đề và đưa ra lời khuyên chính xác nhất.
-              </Text>
+            {/* Step 1: Select Expert */}
+            {expertSelectionStep === 'select' && (
+              <View style={styles.modalBody}>
+                <Text style={styles.modalTitle}>Chọn chuyên gia</Text>
+                <Text style={styles.modalDescription}>
+                  Chọn một bác sĩ/chuyên gia để gửi câu hỏi xác nhận
+                </Text>
 
-              {/* AI Response - Full Display */}
-              <View style={styles.aiResponseSection}>
-                <View style={styles.aiResponseHeader}>
-                  <Icon name="sparkles" size={18} color={colors.aiPrimary} />
-                  <Text style={styles.aiResponseHeaderText}>Câu trả lời của AI</Text>
+                {loadingExperts ? (
+                  <View style={styles.expertLoadingContainer}>
+                    <ActivityIndicator size="large" color={colors.success} />
+                    <Text style={styles.expertLoadingText}>Đang tải danh sách chuyên gia...</Text>
+                  </View>
+                ) : experts.length === 0 ? (
+                  <View style={styles.noExpertsContainer}>
+                    <Icon name="people-outline" size={48} color={colors.textLabel} />
+                    <Text style={styles.noExpertsText}>Chưa có chuyên gia nào</Text>
+                  </View>
+                ) : (
+                  <ScrollView style={styles.expertListContainer} showsVerticalScrollIndicator={false}>
+                    {experts.map((expert) => (
+                      <TouchableOpacity
+                        key={expert.userId}
+                        style={[
+                          styles.expertCard,
+                          selectedExpert?.userId === expert.userId && styles.expertCardSelected
+                        ]}
+                        onPress={() => handleSelectExpert(expert)}
+                      >
+                        <View style={styles.expertAvatarContainer}>
+                          {expert.avatarUrl ? (
+                            <OptimizedImage
+                              source={{ uri: expert.avatarUrl }}
+                              style={styles.expertAvatar}
+                            />
+                          ) : (
+                            <LinearGradient
+                              colors={["#4CAF50", "#81C784"]}
+                              style={styles.expertAvatarPlaceholder}
+                            >
+                              <Icon name="person" size={24} color={colors.white} />
+                            </LinearGradient>
+                          )}
+                          {expert.isOnline && <View style={styles.onlineIndicator} />}
+                        </View>
+                        <View style={styles.expertInfo}>
+                          <Text style={styles.expertName}>{expert.fullName}</Text>
+                          <Text style={styles.expertSpecialty}>{expert.specialty || 'Chuyên gia thú y'}</Text>
+                        </View>
+                        <Icon 
+                          name={selectedExpert?.userId === expert.userId ? "checkmark-circle" : "chevron-forward"} 
+                          size={24} 
+                          color={selectedExpert?.userId === expert.userId ? colors.success : colors.textLabel} 
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
+            {/* Step 2: Enter Question */}
+            {expertSelectionStep === 'question' && selectedExpert && (
+              <ScrollView
+                style={styles.modalBody}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Selected Expert Info */}
+                <View style={styles.selectedExpertBanner}>
+                  <View style={styles.selectedExpertInfo}>
+                    {selectedExpert.avatarUrl ? (
+                      <OptimizedImage
+                        source={{ uri: selectedExpert.avatarUrl }}
+                        style={styles.selectedExpertAvatar}
+                      />
+                    ) : (
+                      <LinearGradient
+                        colors={["#4CAF50", "#81C784"]}
+                        style={styles.selectedExpertAvatarPlaceholder}
+                      >
+                        <Icon name="person" size={16} color={colors.white} />
+                      </LinearGradient>
+                    )}
+                    <View style={styles.selectedExpertText}>
+                      <Text style={styles.selectedExpertLabel}>Gửi đến chuyên gia</Text>
+                      <Text style={styles.selectedExpertName}>{selectedExpert.fullName}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={handleBackToExpertSelection}>
+                    <Text style={styles.changeExpertText}>Thay đổi</Text>
+                  </TouchableOpacity>
                 </View>
-                <ScrollView style={styles.aiResponseScrollView} nestedScrollEnabled>
-                  <Text style={styles.aiResponseFullText}>
-                    {selectedMessage?.text}
+
+                <Text style={styles.modalTitle}>{t('chat.expert.modalTitle')}</Text>
+                <Text style={styles.modalDescription}>
+                  {t('chat.expert.modalDescription')}
+                </Text>
+
+                {/* AI Response - Full Display */}
+                <View style={styles.aiResponseSection}>
+                  <View style={styles.aiResponseHeader}>
+                    <Icon name="sparkles" size={18} color={colors.aiPrimary} />
+                    <Text style={styles.aiResponseHeaderText}>{t('chat.expert.aiResponseHeader')}</Text>
+                  </View>
+                  <ScrollView style={styles.aiResponseScrollView} nestedScrollEnabled>
+                    <Text style={styles.aiResponseFullText}>
+                      {selectedMessage?.text}
+                    </Text>
+                  </ScrollView>
+                </View>
+
+                {/* Question Input */}
+                <View style={styles.questionInputContainer}>
+                  <Text style={styles.questionLabel}>
+                    {t('chat.expert.questionLabel')} <Text style={styles.required}>{t('chat.expert.required')}</Text>
                   </Text>
-                </ScrollView>
-              </View>
+                  <Text style={styles.questionHint}>
+                    {t('chat.expert.questionHint')}
+                  </Text>
+                  <TextInput
+                    style={styles.questionInput}
+                    placeholder={t('chat.expert.questionPlaceholder')}
+                    placeholderTextColor={colors.textLabel}
+                    value={userQuestion}
+                    onChangeText={setUserQuestion}
+                    multiline
+                    numberOfLines={5}
+                    maxLength={500}
+                    textAlignVertical="top"
+                  />
+                  <Text style={styles.characterCount}>
+                    {t('chat.expert.charCount', { count: userQuestion.length })}
+                  </Text>
+                </View>
 
-              {/* Question Input */}
-              <View style={styles.questionInputContainer}>
-                <Text style={styles.questionLabel}>
-                  Câu hỏi/thắc mắc của bạn về câu trả lời này <Text style={styles.required}>*</Text>
-                </Text>
-                <Text style={styles.questionHint}>
-                  Hãy mô tả chi tiết vấn đề hoặc thắc mắc của bạn để chuyên gia có thể tư vấn chính xác
-                </Text>
-                <TextInput
-                  style={styles.questionInput}
-                  placeholder="Ví dụ: Mèo của tôi bị chảy nước mắt và hắt hơi liên tục. Có phải mèo bị cảm không? Tôi cần làm gì?"
-                  placeholderTextColor={colors.textLabel}
-                  value={userQuestion}
-                  onChangeText={setUserQuestion}
-                  multiline
-                  numberOfLines={5}
-                  maxLength={500}
-                  textAlignVertical="top"
-                />
-                <Text style={styles.characterCount}>
-                  {userQuestion.length}/500
-                </Text>
-              </View>
-
-              <View style={styles.infoBox}>
-                <Icon name="information-circle" size={20} color="#4CAF50" />
-                <Text style={styles.infoText}>
-                  Chuyên gia sẽ xem xét câu hỏi và câu trả lời của AI, sau đó gửi phản hồi cho bạn qua thông báo.
-                </Text>
-              </View>
-            </ScrollView>
+                <View style={styles.infoBox}>
+                  <Icon name="information-circle" size={20} color="#4CAF50" />
+                  <Text style={styles.infoText}>
+                    {t('chat.expert.infoText')}
+                  </Text>
+                </View>
+              </ScrollView>
+            )}
 
             {/* Modal Actions */}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.modalCancelButton}
-                onPress={() => setShowQuestionModal(false)}
+                onPress={() => {
+                  if (expertSelectionStep === 'question') {
+                    handleBackToExpertSelection();
+                  } else {
+                    setShowQuestionModal(false);
+                  }
+                }}
               >
-                <Text style={styles.modalCancelButtonText}>Hủy</Text>
+                <Text style={styles.modalCancelButtonText}>
+                  {expertSelectionStep === 'question' ? 'Quay lại' : t('common.cancel')}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalConfirmButton, submittingExpert && styles.modalButtonDisabled]}
-                onPress={handleConfirmExpertRequest}
-                disabled={submittingExpert || !userQuestion.trim()}
+                style={[
+                  styles.modalConfirmButton, 
+                  (submittingExpert || (expertSelectionStep === 'question' && !userQuestion.trim())) && styles.modalButtonDisabled
+                ]}
+                onPress={expertSelectionStep === 'select' ? () => selectedExpert && setExpertSelectionStep('question') : handleConfirmExpertRequest}
+                disabled={
+                  expertSelectionStep === 'select' 
+                    ? !selectedExpert 
+                    : (submittingExpert || !userQuestion.trim())
+                }
               >
                 <LinearGradient
-                  colors={userQuestion.trim() && !submittingExpert ? ["#4CAF50", "#81C784"] : ["#E0E0E0", "#BDBDBD"]}
+                  colors={
+                    (expertSelectionStep === 'select' ? selectedExpert : userQuestion.trim()) && !submittingExpert 
+                      ? ["#4CAF50", "#81C784"] 
+                      : ["#E0E0E0", "#BDBDBD"]
+                  }
                   style={styles.modalConfirmGradient}
                 >
                   {submittingExpert ? (
                     <ActivityIndicator size="small" color={colors.white} />
+                  ) : expertSelectionStep === 'select' ? (
+                    <>
+                      <Text style={styles.modalConfirmButtonText}>Tiếp tục</Text>
+                      <Icon name="arrow-forward" size={18} color={colors.white} />
+                    </>
                   ) : (
                     <>
                       <Icon name="send" size={18} color={colors.white} />
-                      <Text style={styles.modalConfirmButtonText}>Gửi yêu cầu</Text>
+                      <Text style={styles.modalConfirmButtonText}>{t('chat.expert.submitButton')}</Text>
                     </>
                   )}
                 </LinearGradient>
@@ -721,9 +881,9 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       <CustomAlert
         visible={showSuccessAlert}
         type="success"
-        title="Đã gửi yêu cầu!"
-        message="Yêu cầu của bạn đã được gửi đến chuyên gia. Bạn sẽ nhận được thông báo khi họ phản hồi."
-        confirmText="Xem yêu cầu của tôi"
+        title={t('chat.expert.successTitle')}
+        message={t('chat.expert.successMessage')}
+        confirmText={t('chat.expert.viewRequests')}
         onClose={() => setShowSuccessAlert(false)}
         onConfirm={() => {
           setShowSuccessAlert(false);
@@ -735,9 +895,9 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       <CustomAlert
         visible={showErrorAlert}
         type="error"
-        title="Lỗi"
+        title={t('common.error')}
         message={errorMessage}
-        confirmText="Đóng"
+        confirmText={t('common.close')}
         onClose={() => setShowErrorAlert(false)}
       />
 
@@ -1263,6 +1423,131 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: colors.white,
+  },
+
+  // Expert Selection Styles
+  expertLoadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  expertLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textMedium,
+  },
+  noExpertsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  noExpertsText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.textLabel,
+  },
+  expertListContainer: {
+    maxHeight: 350,
+  },
+  expertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    backgroundColor: colors.whiteWarm,
+    borderRadius: radius.md,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  expertCardSelected: {
+    borderColor: colors.success,
+    backgroundColor: '#E8F5E9',
+  },
+  expertAvatarContainer: {
+    position: 'relative',
+  },
+  expertAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  expertAvatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.success,
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  expertInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  expertName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textDark,
+  },
+  expertSpecialty: {
+    fontSize: 13,
+    color: colors.textMedium,
+    marginTop: 2,
+  },
+
+  // Selected Expert Banner
+  selectedExpertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: radius.md,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  selectedExpertInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectedExpertAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  selectedExpertAvatarPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedExpertText: {
+    marginLeft: 10,
+  },
+  selectedExpertLabel: {
+    fontSize: 11,
+    color: colors.textMedium,
+  },
+  selectedExpertName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  changeExpertText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
 

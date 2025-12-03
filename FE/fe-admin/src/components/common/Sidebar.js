@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import './Sidebar.css';
+import './styles/Sidebar.css';
 
 const Sidebar = () => {
   const menuItems = [
@@ -14,7 +14,7 @@ const Sidebar = () => {
           <rect x="3" y="14" width="7" height="7"/>
         </svg>
       ),
-      label: 'Dashboard',
+      label: 'Bảng điều khiển',
       exact: true
     },
     {
@@ -77,7 +77,8 @@ const Sidebar = () => {
           <path d="M6 20v-1a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v1"/>
         </svg>
       ),
-      label: 'Quản lý Expert'
+      label: 'Quản lý Expert',
+      exact: true
     },
     {
       path: '/experts/create',
@@ -113,19 +114,6 @@ const Sidebar = () => {
           ))}
         </ul>
       </nav>
-      
-      <div className="sidebar-footer">
-        <div className="sidebar-stats">
-          <div className="stat-item">
-            <span className="stat-number">1,234</span>
-            <span className="stat-label">Người dùng</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">2,456</span>
-            <span className="stat-label">Thú cưng</span>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 };

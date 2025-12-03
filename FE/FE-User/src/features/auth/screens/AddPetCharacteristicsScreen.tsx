@@ -12,16 +12,18 @@ import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
 import { getAttributes, getAttributeOptions, createPetCharacteristic, updatePetCharacteristic, getPetCharacteristics, completeUserProfile, Attribute, AttributeOption, AIAttributeResult } from "../../../api";
-import { getItem } from "../../../utils/storage";
+import { getItem } from "../../../services/storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetCharacteristics">;
 
 const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
+  const { t } = useTranslation();
   const { petId, isFromProfile, aiResults } = route.params;
 
   console.log('AddPetCharacteristicsScreen - petId:', petId, 'isFromProfile:', isFromProfile);
@@ -44,8 +46,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Error',
-        message: 'Pet information not found. Please try again.',
+        title: t('auth.addPet.characteristics.error'),
+        message: t('auth.addPet.characteristics.petNotFound'),
         onClose: () => navigation.goBack(),
       });
       return;
@@ -154,8 +156,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Error',
-        message: 'Failed to load characteristics. Please try again.',
+        title: t('auth.addPet.characteristics.error'),
+        message: t('auth.addPet.characteristics.loadFailed'),
       });
     } finally {
       setLoading(false);
@@ -229,9 +231,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'success',
-        title: 'Success!',
-        message: 'Your pet profile has been created successfully!',
-        confirmText: isFromProfile ? 'Go to Profile' : 'Continue',
+        title: t('auth.addPet.characteristics.success'),
+        message: t('auth.addPet.characteristics.profileCreated'),
+        confirmText: isFromProfile ? t('auth.addPet.characteristics.backToProfile') : t('common.continue'),
         onClose: () => {
           if (isFromProfile) {
             navigation.navigate("Profile");
@@ -243,7 +245,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     } catch (error: any) {
 
 
-      let errorMessage = 'Failed to save characteristics. Please try again.';
+      let errorMessage = t('auth.addPet.characteristics.saveFailed');
 
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -253,7 +255,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       showAlert({
         type: 'error',
-        title: 'Error',
+        title: t('auth.addPet.characteristics.error'),
         message: errorMessage,
       });
     } finally {
@@ -267,8 +269,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     } else {
       showAlert({
         type: 'warning',
-        title: 'Complete Profile',
-        message: 'You need to complete your pet profile to continue.',
+        title: t('auth.addPet.characteristics.completeProfile'),
+        message: t('auth.addPet.characteristics.needComplete'),
       });
     }
   };
@@ -282,7 +284,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         end={{ x: 1, y: 1 }}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading attributes...</Text>
+        <Text style={styles.loadingText}>{t('auth.addPet.characteristics.loading')}</Text>
       </LinearGradient>
     );
   }
@@ -308,14 +310,14 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
               <View style={[styles.stepBar, styles.stepBarActive]} />
               <View style={[styles.stepBar, styles.stepBarActive]} />
             </View>
-            <Text style={styles.stepText}>Step 3 of 3</Text>
+            <Text style={styles.stepText}>{t('auth.addPet.characteristics.step')}</Text>
           </View>
 
           <Text style={styles.title}>
-            {isFromProfile ? 'Edit Characteristics' : 'Pet Characteristics'}
+            {isFromProfile ? t('auth.addPet.characteristics.editTitle') : t('auth.addPet.characteristics.title')}
           </Text>
           <Text style={styles.subtitle}>
-            {isFromProfile ? 'Update your pet\'s details' : 'Help others get to know your pet better'}
+            {isFromProfile ? t('auth.addPet.characteristics.editSubtitle') : t('auth.addPet.characteristics.subtitle')}
           </Text>
         </View>
 
@@ -328,9 +330,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 <Icon name="sparkles" size={20} color={colors.primary} />
               </View>
               <View style={styles.aiBannerContent}>
-                <Text style={styles.aiBannerTitle}>AI Analysis Complete!</Text>
+                <Text style={styles.aiBannerTitle}>{t('auth.addPet.characteristics.aiBanner.title')}</Text>
                 <Text style={styles.aiBannerText}>
-                  {aiResults.length} characteristics detected. Review and edit as needed.
+                  {t('auth.addPet.characteristics.aiBanner.message', { count: aiResults.length })}
                 </Text>
               </View>
             </View>
@@ -347,13 +349,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
               <View key={`attr-${attr.AttributeId}`} style={styles.inputGroup}>
                 <View style={styles.labelContainer}>
                   <Text style={styles.label}>
-                    {attr.Name || 'Unknown'}
+                    {attr.Name || t('fallback.unknown')}
                     {attr.Unit ? ` (${attr.Unit})` : ''}
                   </Text>
                   {aiFilledAttributes.has(attr.AttributeId!) && (
                     <View style={styles.aiBadge}>
                       <Icon name="sparkles" size={12} color={colors.white} />
-                      <Text style={styles.aiBadgeText}>AI</Text>
+                      <Text style={styles.aiBadgeText}>{t('auth.addPet.characteristics.aiBadge')}</Text>
                     </View>
                   )}
                 </View>
@@ -363,7 +365,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                   <View style={styles.inputContainer}>
                     <TextInput
                       style={styles.numericInput}
-                      placeholder={`Enter ${attr.Name?.toLowerCase() || 'value'}`}
+                      placeholder={t('auth.addPet.characteristics.enterValue', { name: attr.Name?.toLowerCase() || '' })}
                       placeholderTextColor={colors.textLabel}
                       keyboardType="decimal-pad"
                       value={numericValues[attr.AttributeId!] || ''}
@@ -407,7 +409,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                               isSelected && styles.optionTextActive,
                             ]}
                           >
-                            {option.Name || 'Unknown'}
+                            {option.Name || t('fallback.unknown')}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -424,7 +426,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
               <Icon name="bulb" size={20} color={colors.primary} />
             </View>
             <Text style={styles.infoText}>
-              These details help us find the perfect matches for your pet. You can update anytime.
+              {t('auth.addPet.characteristics.infoCard')}
             </Text>
           </View>
 
@@ -444,7 +446,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>{isFromProfile ? 'Save Changes' : 'Continue'}</Text>
+                  <Text style={styles.buttonText}>{isFromProfile ? t('auth.addPet.characteristics.saveButton') : t('auth.addPet.characteristics.continueButton')}</Text>
                   <Icon name="arrow-forward" size={22} color={colors.white} />
                 </>
               )}

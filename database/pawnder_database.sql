@@ -13,7 +13,7 @@ CREATE TABLE "Role" (
 );
 
 -- ===========================
--- TABLE: UserStatuss
+-- TABLE: UserStatus
 -- ===========================
 CREATE TABLE "UserStatus" (
     "UserStatusId" SERIAL PRIMARY KEY,
@@ -59,7 +59,7 @@ ALTER TABLE "User"
   ADD COLUMN "IsProfileComplete" BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- ===========================
--- TABLE: Attribute
+-- TABLE: UserBanHistory
 -- ===========================
 CREATE TABLE "UserBanHistory" (
     "BanId" SERIAL PRIMARY KEY,
@@ -462,6 +462,14 @@ INSERT INTO "AttributeOption" ("AttributeId", "Name") VALUES
 ((SELECT "AttributeId" FROM "Attribute" WHERE "Name" = 'Giới tính'), 'Cái');
 
 -- ===========================
+-- BẢNG Address
+-- ===========================
+INSERT INTO "Address" ("Latitude", "Longitude", "FullAddress", "City", "District", "Ward")
+VALUES
+(10.762622, 106.660172, '268 Lý Thường Kiệt, Phường 14, Quận 10', 'Hồ Chí Minh', 'Quận 10', 'Phường 14'),
+(10.030695, 105.768738, '3/2 Street, Xuân Khánh, Ninh Kiều', 'Cần Thơ', 'Ninh Kiều', 'Xuân Khánh');
+
+-- ===========================
 -- BẢNG User
 -- ===========================
 INSERT INTO "User" (
@@ -589,47 +597,53 @@ VALUES
 -- ===========================
 -- BẢNG ExpertConfirmation
 -- ===========================
-INSERT INTO "ExpertConfirmation" ("ExpertId", "UserId", "ChatAIId", "Status", "Message")
+INSERT INTO "ExpertConfirmation" ("ExpertId", "UserId", "ChatAIId", "UserQuestion", "Status", "Message")
 VALUES
 ((SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
  (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
  (SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Tư vấn giống chó phù hợp'),
-'Pending', 'Người dùng cần xác nhận chuyên gia cho câu trả lời AI về giống chó.'),
+ 'Tôi muốn xác nhận lại thông tin này với chuyên gia để chắc chắn. Bạn có thể kết nối tôi với chuyên gia không?',
+ 'Pending', 'Người dùng cần xác nhận chuyên gia cho câu trả lời AI về giống chó.'),
 ((SELECT "UserId" FROM "User" WHERE "Email"='expert@pawnder.com'),
  (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
  (SELECT "ChatAIId" FROM "ChatAI" WHERE "Title"='Phân tích gen thú cưng'),
-'Confirmed', 'Chuyên gia đã kiểm tra và đồng ý với câu trả lời.');
+ 'Con này có thể phối với giống nào tốt?',
+ 'Confirmed', 'Chuyên gia đã kiểm tra và đồng ý với câu trả lời.');
 
 -- ===========================
 -- BẢNG ChatUser
 -- ===========================
-INSERT INTO "ChatUser" ("FromPetId", "ToPetId", "Status")
+INSERT INTO "ChatUser" ("FromPetId", "ToPetId", "FromUserId", "ToUserId", "Status")
 VALUES
 ((SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
  (SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
  'Accepted');
 
 -- ===========================
 -- BẢNG ChatUserContent
 -- ===========================
-INSERT INTO "ChatUserContent" ("MatchId", "FromPetId", "Message")
+INSERT INTO "ChatUserContent" ("MatchId", "FromUserId", "FromPetId", "Message")
 VALUES
 ((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
  (SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
  'Chào bạn, tôi muốn nhờ bạn tư vấn cho thú cưng của tôi!'),
 ((SELECT "MatchId" FROM "ChatUser" WHERE "Status"='Accepted'),
+ (SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
  (SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
  'Chào bạn, tôi rất sẵn lòng giúp!');
 
 -- ===========================
 -- BẢNG Notification
 -- ===========================
-INSERT INTO "Notification" ("UserId", "Title", "Message")
+INSERT INTO "Notification" ("UserId", "Title", "Message", "Type")
 VALUES
 ((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'),
- 'Chào mừng bạn đến với Pawnder!', 'Bạn đã đăng ký tài khoản thành công.'),
+ 'Chào mừng bạn đến với Pawnder!', 'Bạn đã đăng ký tài khoản thành công.', 'WELCOME'),
 ((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'),
- 'Có yêu cầu tư vấn mới', 'Người dùng đã gửi yêu cầu tư vấn AI.');
+ 'Có yêu cầu tư vấn mới', 'Người dùng đã gửi yêu cầu tư vấn AI.', 'AI_CONSULTATION');
 
 -- ===========================
 -- BẢNG ChatExpert
