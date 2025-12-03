@@ -352,13 +352,13 @@ const PremiumScreen = ({ navigation }: Props) => {
               style={styles.vipActiveCard}
             >
               <View style={styles.vipActiveIconContainer}>
-                <Icon name="diamond" size={40} color="#FFF" />
+                <Icon name="diamond" size={32} color="#FFF" />
               </View>
               <View style={styles.vipActiveInfo}>
                 <View style={styles.vipActiveTitleRow}>
                   <Text style={styles.vipActiveTitle}>{t("payment.premium.vipActive.title")}</Text>
                   <View style={styles.vipActiveBadge}>
-                    <Icon name="checkmark-circle" size={16} color="#FFF" />
+                    <Icon name="checkmark-circle" size={12} color="#FFF" />
                     <Text style={styles.vipActiveBadgeText}>{t("payment.premium.vipActive.active")}</Text>
                   </View>
                 </View>
@@ -832,13 +832,13 @@ const styles = StyleSheet.create({
     ...shadows.large,
   },
   vipActiveIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "rgba(255, 255, 255, 0.25)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 12,
   },
   vipActiveInfo: {
     flex: 1,
@@ -846,25 +846,26 @@ const styles = StyleSheet.create({
   vipActiveTitleRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     marginBottom: 8,
+    gap: 8,
   },
   vipActiveTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#FFF",
-    marginRight: 10,
   },
   vipActiveBadge: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.3)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 3,
   },
   vipActiveBadgeText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
     color: "#FFF",
   },
