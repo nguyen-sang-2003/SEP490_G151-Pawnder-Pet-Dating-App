@@ -420,18 +420,25 @@ namespace BE.Services
             };
             
             Console.WriteLine($"[ChatHub] Sending expert message to group {groupName} from user {fromId}");
+            Console.WriteLine($"[ChatHub] Connected users: [{string.Join(", ", UserConnections.Keys)}]");
             
             // Send to group (people in ExpertChat screen)
             await hubContext.Clients.Group(groupName).SendAsync("ReceiveExpertMessage", payload);
+            Console.WriteLine($"[ChatHub] Sent to group {groupName}");
             
-            // Also send directly to recipient if they're not in the group (for badge/notification)
+            // Also send directly to recipient if they're online (in case they're not in the group)
             if (toUserId.HasValue && UserConnections.TryGetValue(toUserId.Value, out var connections))
             {
+                Console.WriteLine($"[ChatHub] Recipient {toUserId.Value} is online with {connections.Count} connection(s), sending directly");
                 foreach (var connectionId in connections)
                 {
                     await hubContext.Clients.Client(connectionId).SendAsync("ReceiveExpertMessage", payload);
                 }
-                Console.WriteLine($"[ChatHub] Also sent expert message directly to user {toUserId.Value}");
+                Console.WriteLine($"[ChatHub] Sent directly to user {toUserId.Value}");
+            }
+            else if (toUserId.HasValue)
+            {
+                Console.WriteLine($"[ChatHub] Recipient {toUserId.Value} is NOT online, message only sent to group");
             }
         }
     }

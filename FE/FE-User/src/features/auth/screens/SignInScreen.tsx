@@ -106,20 +106,14 @@ const SignInScreen = ({ navigation }: Props) => {
       }
     } catch (error: any) {
       // Xử lý các loại lỗi cụ thể
-      let errorTitle = t('auth.signIn.loginFailed');
-      let errorMessage = t('auth.signIn.genericError');
+      let errorTitle = t('auth.signIn.wrongCredentials');
+      let errorMessage = t('auth.signIn.wrongCredentialsMessage');
 
       if (error.message) {
         const msg = error.message.toLowerCase();
         
-        // Sai email hoặc mật khẩu
-        if (msg.includes('invalid') || msg.includes('incorrect') || msg.includes('wrong') || 
-            msg.includes('not found') || msg.includes('unauthorized')) {
-          errorTitle = t('auth.signIn.wrongCredentials');
-          errorMessage = t('auth.signIn.wrongCredentialsMessage');
-        }
         // Tài khoản bị khóa
-        else if (msg.includes('banned') || msg.includes('blocked') || msg.includes('suspended')) {
+        if (msg.includes('banned') || msg.includes('blocked') || msg.includes('suspended') || msg.includes('khóa')) {
           errorTitle = t('auth.signIn.accountBanned');
           errorMessage = t('auth.signIn.accountBannedMessage');
         }
@@ -128,10 +122,7 @@ const SignInScreen = ({ navigation }: Props) => {
           errorTitle = t('auth.signIn.connectionError');
           errorMessage = t('auth.signIn.connectionErrorMessage');
         }
-        // Lỗi khác từ server
-        else {
-          errorMessage = error.message;
-        }
+        // Mặc định: Sai email hoặc mật khẩu (không cần check keyword)
       }
 
       showAlert({

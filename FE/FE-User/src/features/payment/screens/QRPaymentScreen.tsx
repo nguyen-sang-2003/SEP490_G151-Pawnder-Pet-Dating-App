@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
-  Alert,
   ScrollView,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
@@ -18,11 +17,14 @@ import { colors, gradients, radius, shadows } from "../../../theme";
 import { generatePaymentQR, createPaymentHistory } from "../api/paymentApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "react-i18next";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "QRPayment">;
 
 const QRPaymentScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [loading, setLoading] = useState(true);
   const [qrCodeUri, setQrCodeUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,15 +80,23 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       // Get userId from AsyncStorage
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        Alert.alert(t("payment.qr.error.title"), t("payment.qr.error.userNotFound"));
         setProcessing(false);
+        showAlert({
+          type: 'error',
+          title: t("payment.qr.error.title"),
+          message: t("payment.qr.error.userNotFound"),
+        });
         return;
       }
 
       const userId = parseInt(userIdStr);
       if (!userId || isNaN(userId)) {
-        Alert.alert(t("payment.qr.error.title"), t("payment.qr.error.invalidUser"));
         setProcessing(false);
+        showAlert({
+          type: 'error',
+          title: t("payment.qr.error.title"),
+          message: t("payment.qr.error.invalidUser"),
+        });
         return;
       }
 
@@ -99,7 +109,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       };
       const durationMonths = durationMonthsMap[planId] || 1;
 
-      // Call API to create payment history
+      // Call API to verify payment and create payment history
       const response = await createPaymentHistory({
         userId,
         durationMonths,
@@ -109,34 +119,44 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
 
       setProcessing(false);
 
-      if (response.success) {
-        // Show success alert
-        Alert.alert(
-          t("payment.qr.success.title"),
-          t("payment.qr.success.message", { planName, duration }),
-          [
-            {
-              text: t("payment.qr.success.button"),
-              onPress: () => {
-                // Navigate back to home
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: "Home" }],
-                });
-              },
-            },
-          ]
-        );
+      if (response.success && response.paid) {
+        // Payment verified successfully
+        showAlert({
+          type: 'success',
+          title: t("payment.qr.success.title"),
+          message: t("payment.qr.success.message", { planName, duration }),
+          confirmText: t("payment.qr.success.button"),
+          onConfirm: () => {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Home" }],
+            });
+          },
+        });
+      } else if (!response.paid) {
+        // Payment not found - user hasn't transferred yet
+        showAlert({
+          type: 'warning',
+          title: t("payment.qr.notFound.title"),
+          message: response.message || t("payment.qr.notFound.message"),
+          confirmText: t("payment.qr.notFound.tryAgain"),
+        });
       } else {
-        Alert.alert(t("payment.qr.error.title"), t("payment.qr.error.paymentFailed"));
+        showAlert({
+          type: 'error',
+          title: t("payment.qr.error.title"),
+          message: response.message || t("payment.qr.error.paymentFailed"),
+        });
       }
     } catch (err: any) {
       setProcessing(false);
 
-      Alert.alert(
-        t("payment.qr.error.paymentError"),
-        err.response?.data?.message || t("payment.qr.error.genericError")
-      );
+      const errorMessage = err.response?.data?.message || t("payment.qr.error.genericError");
+      showAlert({
+        type: 'error',
+        title: t("payment.qr.error.paymentError"),
+        message: errorMessage,
+      });
     }
   };
 
@@ -274,6 +294,19 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
           {t("payment.qr.disclaimer")}
         </Text>
       </ScrollView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+        />
+      )}
     </LinearGradient>
   );
 };

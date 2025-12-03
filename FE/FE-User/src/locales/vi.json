@@ -97,6 +97,7 @@
       "otpSendErrorMessage": "Không thể gửi mã OTP đến email. Vui lòng kiểm tra email và thử lại",
       "passwordRequirements": {
         "minLength": "Ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt"
       }
@@ -162,6 +163,7 @@
       "enterOtp": "Vui lòng nhập mã OTP",
       "enterNewPassword": "Vui lòng nhập mật khẩu mới",
       "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+      "passwordNeedsUppercase": "Mật khẩu phải chứa ít nhất 1 chữ hoa",
       "passwordNeedsNumber": "Mật khẩu phải chứa ít nhất 1 chữ số",
       "passwordNeedsSpecial": "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
       "passwordMismatch": "Mật khẩu không khớp",
@@ -171,6 +173,7 @@
       "requirements": {
         "title": "Mật khẩu phải:",
         "minLength": "Có ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt",
         "match": "Khớp với mật khẩu xác nhận"
@@ -744,7 +747,14 @@
         "mostPopular": "PHỔ BIẾN NHẤT"
       },
       "subscribeButton": "Nâng cấp Premium ngay",
-      "disclaimer": "Hủy bất cứ lúc nào • Thanh toán an toàn • Kích hoạt ngay lập tức"
+      "disclaimer": "Hủy bất cứ lúc nào • Thanh toán an toàn • Kích hoạt ngay lập tức",
+      "alreadyVip": "Bạn đã là thành viên VIP",
+      "alreadyVipHint": "Gói VIP của bạn đang hoạt động. Bạn có thể gia hạn khi gói hiện tại hết hạn.",
+      "vipActive": {
+        "title": "Pawnder Premium",
+        "active": "ĐANG HOẠT ĐỘNG",
+        "expireDate": "Hết hạn {{date}} • Còn {{days}} ngày"
+      }
     },
     "history": {
       "title": "Lịch sử thanh toán",
@@ -800,6 +810,11 @@
         "paymentFailed": "Không thể hoàn tất thanh toán. Vui lòng thử lại.",
         "paymentError": "Lỗi thanh toán",
         "genericError": "Đã có lỗi xảy ra. Vui lòng thử lại sau."
+      },
+      "notFound": {
+        "title": "Chưa tìm thấy giao dịch",
+        "message": "Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền và nội dung, sau đó thử lại.",
+        "tryAgain": "Thử lại"
       }
     },
     "vip": {
@@ -1249,11 +1264,24 @@
       "subtitle": "Tư vấn từ các chuyên gia thú y",
       "infoBanner": "Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất",
       "loading": "Đang tải...",
+      "loadingExperts": "Đang tải danh sách chuyên gia...",
       "empty": {
         "title": "Chưa có cuộc trò chuyện",
-        "message": "Gửi câu hỏi để được chuyên gia tư vấn"
+        "message": "Bắt đầu trò chuyện với chuyên gia thú y để được tư vấn về sức khỏe thú cưng của bạn"
       },
-      "askNewQuestion": "Đặt câu hỏi mới",
+      "startNewChat": "Bắt đầu chat mới",
+      "selectExpert": {
+        "title": "Chọn chuyên gia",
+        "subtitle": "Chọn một chuyên gia thú y để bắt đầu cuộc trò chuyện"
+      },
+      "defaultSpecialty": "Chuyên gia thú y",
+      "noExperts": "Hiện tại chưa có chuyên gia nào. Vui lòng thử lại sau.",
+      "confirmInfo": "Bạn có thể hỏi chuyên gia về sức khỏe, dinh dưỡng, hành vi của thú cưng. Chuyên gia sẽ phản hồi sớm nhất có thể.",
+      "startChat": "Bắt đầu chat",
+      "errors": {
+        "userNotFound": "Không tìm thấy thông tin người dùng",
+        "createChatFailed": "Không thể tạo cuộc trò chuyện. Vui lòng thử lại."
+      },
       "time": {
         "justNow": "Vừa xong",
         "minutesAgo": "{{count}} phút trước",

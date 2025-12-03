@@ -991,11 +991,21 @@ const HomeScreen = ({ navigation }: Props) => {
         );
     }
 
-    if (currentIndex >= pets.length) {
+    // Show empty state when no pets OR when all pets have been swiped
+    if (pets.length === 0 || currentIndex >= pets.length) {
         const translateY = bounceAnim.interpolate({
             inputRange: [0, 1],
             outputRange: [0, -10],
         });
+
+        // Trigger empty state animation when pets.length is 0
+        if (pets.length === 0 && emptyStateAnim._value === 0) {
+            Animated.timing(emptyStateAnim, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+            }).start();
+        }
 
         return (
             <View style={styles.container}>

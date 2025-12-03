@@ -51,6 +51,12 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    // Kiểm tra có chứa chữ hoa
+    if (!/[A-Z]/.test(newPassword)) {
+      showAlert({ type: 'error', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.passwordNeedsUppercase') });
+      return;
+    }
+
     // Kiểm tra có chứa số
     if (!/\d/.test(newPassword)) {
       showAlert({ type: 'error', title: t('auth.resetPassword.error'), message: t('auth.resetPassword.passwordNeedsNumber') });
@@ -165,6 +171,8 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
               onChangeText={setNewPassword}
               secureTextEntry={!showNewPassword}
               autoCapitalize="none"
+              onFocus={() => setIsPasswordFocused(true)}
+              onBlur={() => setIsPasswordFocused(false)}
             />
             <TouchableOpacity
               onPress={() => setShowNewPassword(!showNewPassword)}
@@ -214,8 +222,8 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
             </TouchableOpacity>
           </View>
 
-          {/* Password Requirements - Only show when focused */}
-          {isPasswordFocused && (
+          {/* Password Requirements - Only show when focused or has input */}
+          {(isPasswordFocused || newPassword.length > 0) && (
           <View style={styles.requirementsContainer}>
             <Text style={styles.requirementsTitle}>{t('auth.resetPassword.requirements.title')}</Text>
             
@@ -239,6 +247,29 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                 ]}
               >
                 {t('auth.resetPassword.requirements.minLength')}
+              </Text>
+            </View>
+
+            {/* Chứa chữ hoa */}
+            <View style={styles.requirement}>
+              <Icon
+                name={
+                  /[A-Z]/.test(newPassword)
+                    ? "checkmark-circle"
+                    : "ellipse-outline"
+                }
+                size={16}
+                color={
+                  /[A-Z]/.test(newPassword) ? colors.success : colors.textLabel
+                }
+              />
+              <Text
+                style={[
+                  styles.requirementText,
+                  /[A-Z]/.test(newPassword) && styles.requirementMet,
+                ]}
+              >
+                {t('auth.resetPassword.requirements.hasUppercase')}
               </Text>
             </View>
 
@@ -285,31 +316,6 @@ const ResetPasswordScreen = ({ navigation, route }: Props) => {
                 ]}
               >
                 {t('auth.resetPassword.requirements.hasSpecial')}
-              </Text>
-            </View>
-
-            {/* Mật khẩu khớp */}
-            <View style={styles.requirement}>
-              <Icon
-                name={
-                  newPassword && newPassword === confirmPassword
-                    ? "checkmark-circle"
-                    : "ellipse-outline"
-                }
-                size={16}
-                color={
-                  newPassword && newPassword === confirmPassword
-                    ? colors.success
-                    : colors.textLabel
-                }
-              />
-              <Text
-                style={[
-                  styles.requirementText,
-                  newPassword && newPassword === confirmPassword ? styles.requirementMet : null,
-                ]}
-              >
-                {t('auth.resetPassword.requirements.match')}
               </Text>
             </View>
           </View>

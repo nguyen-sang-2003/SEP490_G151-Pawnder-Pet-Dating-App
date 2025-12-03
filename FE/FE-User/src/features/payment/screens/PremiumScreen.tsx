@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,14 +6,18 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useTranslation } from "react-i18next";
+import { getVipStatus, VipStatusResponse } from "../api/paymentApi";
+import { getItem } from "../../../services/storage";
 
 const { width } = Dimensions.get("window");
 
@@ -73,9 +77,34 @@ const getPricingPlans = (t: any) => [
 const PremiumScreen = ({ navigation }: Props) => {
   const { t } = useTranslation();
   const [selectedPlan, setSelectedPlan] = useState("1month");
+  const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
+  const [loadingVip, setLoadingVip] = useState(true);
   
   const features = getFeatures(t);
   const pricingPlans = getPricingPlans(t);
+
+  // Load VIP status when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadVipStatus();
+    }, [])
+  );
+
+  const loadVipStatus = async () => {
+    try {
+      setLoadingVip(true);
+      const userIdStr = await getItem('userId');
+      if (userIdStr) {
+        const userId = parseInt(userIdStr);
+        const status = await getVipStatus(userId);
+        setVipStatus(status);
+      }
+    } catch (error) {
+      console.log('Error loading VIP status:', error);
+    } finally {
+      setLoadingVip(false);
+    }
+  };
 
   const handleSubscribe = () => {
     const plan = pricingPlans.find((p) => p.id === selectedPlan);
@@ -313,78 +342,140 @@ const PremiumScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
-        {/* Pricing Plans */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t("payment.premium.sectionChoosePlan")}</Text>
-
-          {pricingPlans.map((plan) => (
-            <TouchableOpacity
-              key={plan.id}
-              style={[
-                styles.pricingCard,
-                selectedPlan === plan.id && styles.pricingCardSelected,
-              ]}
-              onPress={() => setSelectedPlan(plan.id)}
-            >
-              {plan.popular && (
-                <View style={styles.popularBadge}>
-                  <LinearGradient
-                    colors={["#667eea", "#764ba2"]}
-                    style={styles.popularGradient}
-                  >
-                    <Text style={styles.popularText}>{t("payment.premium.plans.mostPopular")}</Text>
-                  </LinearGradient>
-                </View>
-              )}
-
-              <View style={styles.pricingContent}>
-                <View style={styles.pricingLeft}>
-                  <View style={styles.radioButton}>
-                    {selectedPlan === plan.id && (
-                      <View style={styles.radioInner} />
-                    )}
-                  </View>
-                  <View style={styles.pricingInfo}>
-                    <Text style={styles.pricingDuration}>
-                      {plan.duration}
-                    </Text>
-                    <Text style={styles.pricingPerMonth}>
-                      {plan.pricePerMonth}
-                    </Text>
-                    {plan.savings && (
-                      <Text style={styles.pricingSavings}>
-                        {plan.savings}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-                <Text style={styles.pricingTotal}>{plan.price}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Subscribe Button */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.subscribeButton}
-            onPress={handleSubscribe}
-            activeOpacity={0.9}
-          >
+        {/* VIP Status Card - Show when user is VIP */}
+        {vipStatus?.isVip && vipStatus.subscription && (
+          <View style={styles.section}>
             <LinearGradient
-              colors={["#667eea", "#764ba2"]}
-              style={styles.subscribeGradient}
+              colors={['#FFD700', '#FFA500', '#FF8C00']}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.vipActiveCard}
             >
-              <Icon name="diamond" size={24} color="#fff" />
-              <Text style={styles.subscribeText}>{t("payment.premium.subscribeButton")}</Text>
+              <View style={styles.vipActiveIconContainer}>
+                <Icon name="diamond" size={32} color="#FFF" />
+              </View>
+              <View style={styles.vipActiveInfo}>
+                <View style={styles.vipActiveTitleRow}>
+                  <Text style={styles.vipActiveTitle}>{t("payment.premium.vipActive.title")}</Text>
+                  <View style={styles.vipActiveBadge}>
+                    <Icon name="checkmark-circle" size={12} color="#FFF" />
+                    <Text style={styles.vipActiveBadgeText}>{t("payment.premium.vipActive.active")}</Text>
+                  </View>
+                </View>
+                <Text style={styles.vipActiveExpiry}>
+                  {t("payment.premium.vipActive.expireDate", {
+                    date: new Date(vipStatus.subscription.endDate).toLocaleDateString('vi-VN', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    }),
+                    days: vipStatus.subscription.daysRemaining
+                  })}
+                </Text>
+              </View>
             </LinearGradient>
-          </TouchableOpacity>
+          </View>
+        )}
 
-          <Text style={styles.disclaimer}>
-            {t("payment.premium.disclaimer")}
-          </Text>
+        {/* Pricing Plans - Only show when user is NOT VIP */}
+        {!vipStatus?.isVip && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t("payment.premium.sectionChoosePlan")}</Text>
+
+            {pricingPlans.map((plan) => (
+              <TouchableOpacity
+                key={plan.id}
+                style={[
+                  styles.pricingCard,
+                  selectedPlan === plan.id && styles.pricingCardSelected,
+                ]}
+                onPress={() => setSelectedPlan(plan.id)}
+              >
+                {plan.popular && (
+                  <View style={styles.popularBadge}>
+                    <LinearGradient
+                      colors={["#667eea", "#764ba2"]}
+                      style={styles.popularGradient}
+                    >
+                      <Text style={styles.popularText}>{t("payment.premium.plans.mostPopular")}</Text>
+                    </LinearGradient>
+                  </View>
+                )}
+
+                <View style={styles.pricingContent}>
+                  <View style={styles.pricingLeft}>
+                    <View style={styles.radioButton}>
+                      {selectedPlan === plan.id && (
+                        <View style={styles.radioInner} />
+                      )}
+                    </View>
+                    <View style={styles.pricingInfo}>
+                      <Text style={styles.pricingDuration}>
+                        {plan.duration}
+                      </Text>
+                      <Text style={styles.pricingPerMonth}>
+                        {plan.pricePerMonth}
+                      </Text>
+                      {plan.savings && (
+                        <Text style={styles.pricingSavings}>
+                          {plan.savings}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <Text style={styles.pricingTotal}>{plan.price}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Subscribe Button - Only show when user is NOT VIP */}
+        <View style={styles.section}>
+          {loadingVip ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : vipStatus?.isVip ? (
+            // Show "Already VIP" message
+            <View style={styles.alreadyVipContainer}>
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.alreadyVipGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Icon name="checkmark-circle" size={24} color="#fff" />
+                <Text style={styles.alreadyVipText}>{t("payment.premium.alreadyVip")}</Text>
+              </LinearGradient>
+              <Text style={styles.alreadyVipHint}>
+                {t("payment.premium.alreadyVipHint")}
+              </Text>
+            </View>
+          ) : (
+            // Show Subscribe button
+            <>
+              <TouchableOpacity
+                style={styles.subscribeButton}
+                onPress={handleSubscribe}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={["#667eea", "#764ba2"]}
+                  style={styles.subscribeGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Icon name="diamond" size={24} color="#fff" />
+                  <Text style={styles.subscribeText}>{t("payment.premium.subscribeButton")}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <Text style={styles.disclaimer}>
+                {t("payment.premium.disclaimer")}
+              </Text>
+            </>
+          )}
         </View>
 
         <View style={{ height: 40 }} />
@@ -730,6 +821,92 @@ const styles = StyleSheet.create({
     marginTop: 16,
     lineHeight: 20,
     fontWeight: "500",
+  },
+
+  // VIP Active Card
+  vipActiveCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderRadius: radius.xl,
+    ...shadows.large,
+  },
+  vipActiveIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  vipActiveInfo: {
+    flex: 1,
+  },
+  vipActiveTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 8,
+    gap: 8,
+  },
+  vipActiveTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFF",
+  },
+  vipActiveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 3,
+  },
+  vipActiveBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFF",
+  },
+  vipActiveExpiry: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+    lineHeight: 20,
+  },
+
+  // Loading
+  loadingContainer: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+
+  // Already VIP
+  alreadyVipContainer: {
+    alignItems: "center",
+  },
+  alreadyVipGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+    borderRadius: radius.xl,
+    ...shadows.large,
+  },
+  alreadyVipText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.5,
+  },
+  alreadyVipHint: {
+    fontSize: 14,
+    color: colors.textMedium,
+    textAlign: "center",
+    marginTop: 16,
+    lineHeight: 20,
   },
 });
 
