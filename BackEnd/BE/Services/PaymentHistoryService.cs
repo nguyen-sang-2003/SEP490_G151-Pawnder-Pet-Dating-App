@@ -193,8 +193,11 @@ namespace BE.Services
                 var accountNo = _configuration["Sepay:AccountNumber"];
                 var limit = _configuration["Sepay:Limit"] ?? "20";
 
+                Console.WriteLine($"[SePay] Checking payment for userId={userId}, amount={amount}");
+
                 if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(accountNo))
                 {
+                    Console.WriteLine("[SePay] Config missing!");
                     throw new InvalidOperationException("Cấu hình SePay chưa đầy đủ. Vui lòng liên hệ admin.");
                 }
 
@@ -203,28 +206,61 @@ namespace BE.Services
 
                 // Gọi SePay API để lấy danh sách giao dịch gần đây
                 var url = $"{apiUrl}?account_number={accountNo}&limit={limit}";
+                Console.WriteLine($"[SePay] Calling API: {url}");
+                
                 var response = await client.GetAsync(url, ct);
                 var responseContent = await response.Content.ReadAsStringAsync(ct);
+                
+                Console.WriteLine($"[SePay] Response status: {response.StatusCode}");
+                Console.WriteLine($"[SePay] Response: {responseContent.Substring(0, Math.Min(500, responseContent.Length))}...");
 
                 var root = JsonDocument.Parse(responseContent).RootElement;
 
                 // SePay response format: {"status": 200, "messages": {...}, "transactions": [...]}
-                if (root.TryGetProperty("status", out var statusProp) && statusProp.GetInt32() == 200)
+                // status có thể là Number hoặc String
+                int sepayStatus = 0;
+                if (root.TryGetProperty("status", out var statusProp))
+                {
+                    if (statusProp.ValueKind == JsonValueKind.Number)
+                        sepayStatus = statusProp.GetInt32();
+                    else if (statusProp.ValueKind == JsonValueKind.String)
+                        int.TryParse(statusProp.GetString(), out sepayStatus);
+                }
+                
+                if (sepayStatus == 200)
                 {
                     if (root.TryGetProperty("transactions", out var transactions))
                     {
+                        var transactionCount = 0;
                         // Tìm giao dịch khớp với amount và description chứa userId
                         foreach (var transaction in transactions.EnumerateArray())
                         {
+                            transactionCount++;
                             decimal transAmount = 0;
+                            
                             // Thử lấy amount_in trước, nếu không có thì lấy amount
+                            // SePay có thể trả về dạng Number hoặc String
                             if (transaction.TryGetProperty("amount_in", out var amountInProp))
                             {
-                                transAmount = amountInProp.GetDecimal();
+                                if (amountInProp.ValueKind == JsonValueKind.Number)
+                                {
+                                    transAmount = amountInProp.GetDecimal();
+                                }
+                                else if (amountInProp.ValueKind == JsonValueKind.String)
+                                {
+                                    decimal.TryParse(amountInProp.GetString(), out transAmount);
+                                }
                             }
                             else if (transaction.TryGetProperty("amount", out var amountProp))
                             {
-                                transAmount = amountProp.GetDecimal();
+                                if (amountProp.ValueKind == JsonValueKind.Number)
+                                {
+                                    transAmount = amountProp.GetDecimal();
+                                }
+                                else if (amountProp.ValueKind == JsonValueKind.String)
+                                {
+                                    decimal.TryParse(amountProp.GetString(), out transAmount);
+                                }
                             }
 
                             var transDesc = "";
@@ -233,12 +269,21 @@ namespace BE.Services
                                 transDesc = contentProp.GetString() ?? "";
                             }
 
+                            Console.WriteLine($"[SePay] Transaction #{transactionCount}: amount={transAmount}, content='{transDesc}'");
+
                             // Kiểm tra amount khớp và description chứa userId
                             // Cho phép sai lệch nhỏ về amount (do làm tròn)
                             var amountMatch = Math.Abs(transAmount - amount) < 1000; // Cho phép sai lệch 1000đ
-                            var descMatch = transDesc.Contains($"userId{userId}") || 
+                            
+                            // Normalize description: remove spaces, lowercase
+                            var normalizedDesc = transDesc.Replace(" ", "").ToLower();
+                            var descMatch = normalizedDesc.Contains($"userid{userId}") || 
+                                           normalizedDesc.Contains($"userid_{userId}") ||
+                                           transDesc.Contains($"userId{userId}") ||
                                            transDesc.Contains($"userId_{userId}") ||
-                                           transDesc.ToLower().Contains($"userid{userId}".ToLower());
+                                           transDesc.Contains($"{userId}");
+
+                            Console.WriteLine($"[SePay] amountMatch={amountMatch}, descMatch={descMatch}");
 
                             if (amountMatch && descMatch)
                             {
@@ -246,20 +291,30 @@ namespace BE.Services
                                     ? dateProp.GetString() 
                                     : DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                                 
+                                Console.WriteLine($"[SePay] FOUND matching transaction!");
                                 return (true, "Đã xác nhận giao dịch thanh toán", transTime);
                             }
                         }
 
+                        Console.WriteLine($"[SePay] Checked {transactionCount} transactions, no match found");
                         // Không tìm thấy giao dịch khớp
-                        return (false, "Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền và nội dung.", null);
+                        return (false, $"Chưa phát hiện giao dịch thanh toán. Đã kiểm tra {transactionCount} giao dịch gần đây. Vui lòng đảm bảo đã chuyển khoản đúng số tiền ({amount:N0}đ) và nội dung chứa 'userId{userId}'.", null);
+                    }
+                    else
+                    {
+                        Console.WriteLine("[SePay] No 'transactions' field in response");
                     }
                 }
+                else
+                {
+                    Console.WriteLine($"[SePay] API returned non-200 status or missing status field");
+                }
 
-                return (false, "Không thể kiểm tra giao dịch. Vui lòng thử lại sau.", null);
+                return (false, "Không thể kiểm tra giao dịch từ ngân hàng. Vui lòng thử lại sau.", null);
             }
             catch (Exception ex)
             {
-                // Log error
+                Console.WriteLine($"[SePay] Exception: {ex.Message}");
                 return (false, $"Lỗi khi kiểm tra thanh toán: {ex.Message}", null);
             }
         }
@@ -467,15 +522,36 @@ namespace BE.Services
                 var root = JsonDocument.Parse(responseContent).RootElement;
 
                 // SePay response format: {"status": 200, "messages": {...}, "transactions": [...]}
-                if (root.TryGetProperty("status", out var statusProp) && statusProp.GetInt32() == 200)
+                // status có thể là Number hoặc String
+                int checkStatus = 0;
+                if (root.TryGetProperty("status", out var statusProp))
+                {
+                    if (statusProp.ValueKind == JsonValueKind.Number)
+                        checkStatus = statusProp.GetInt32();
+                    else if (statusProp.ValueKind == JsonValueKind.String)
+                        int.TryParse(statusProp.GetString(), out checkStatus);
+                }
+                
+                if (checkStatus == 200)
                 {
                     if (root.TryGetProperty("transactions", out var transactions))
                     {
                         // Tìm giao dịch khớp với amount và description
                         foreach (var transaction in transactions.EnumerateArray())
                         {
-                            var transAmount = transaction.GetProperty("amount_in").GetDecimal();
-                            var transDesc = transaction.GetProperty("transaction_content").GetString() ?? "";
+                            // Parse amount_in - có thể là Number hoặc String
+                            decimal transAmount = 0;
+                            if (transaction.TryGetProperty("amount_in", out var amtProp))
+                            {
+                                if (amtProp.ValueKind == JsonValueKind.Number)
+                                    transAmount = amtProp.GetDecimal();
+                                else if (amtProp.ValueKind == JsonValueKind.String)
+                                    decimal.TryParse(amtProp.GetString(), out transAmount);
+                            }
+                            
+                            var transDesc = "";
+                            if (transaction.TryGetProperty("transaction_content", out var contentProp))
+                                transDesc = contentProp.GetString() ?? "";
 
                             if (transAmount == amount && transDesc.Contains(description))
                             {
