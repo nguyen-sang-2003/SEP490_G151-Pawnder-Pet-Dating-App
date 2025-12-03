@@ -99,7 +99,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       };
       const durationMonths = durationMonthsMap[planId] || 1;
 
-      // Call API to create payment history
+      // Call API to verify payment and create payment history
       const response = await createPaymentHistory({
         userId,
         durationMonths,
@@ -109,8 +109,8 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
 
       setProcessing(false);
 
-      if (response.success) {
-        // Show success alert
+      if (response.success && response.paid) {
+        // Payment verified successfully
         Alert.alert(
           t("payment.qr.success.title"),
           t("payment.qr.success.message", { planName, duration }),
@@ -127,15 +127,28 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
             },
           ]
         );
+      } else if (!response.paid) {
+        // Payment not found - user hasn't transferred yet
+        Alert.alert(
+          t("payment.qr.notFound.title"),
+          response.message || t("payment.qr.notFound.message"),
+          [
+            {
+              text: t("payment.qr.notFound.tryAgain"),
+              style: "cancel",
+            },
+          ]
+        );
       } else {
-        Alert.alert(t("payment.qr.error.title"), t("payment.qr.error.paymentFailed"));
+        Alert.alert(t("payment.qr.error.title"), response.message || t("payment.qr.error.paymentFailed"));
       }
     } catch (err: any) {
       setProcessing(false);
 
+      const errorMessage = err.response?.data?.message || t("payment.qr.error.genericError");
       Alert.alert(
         t("payment.qr.error.paymentError"),
-        err.response?.data?.message || t("payment.qr.error.genericError")
+        errorMessage
       );
     }
   };

@@ -747,7 +747,14 @@
         "mostPopular": "PHỔ BIẾN NHẤT"
       },
       "subscribeButton": "Nâng cấp Premium ngay",
-      "disclaimer": "Hủy bất cứ lúc nào • Thanh toán an toàn • Kích hoạt ngay lập tức"
+      "disclaimer": "Hủy bất cứ lúc nào • Thanh toán an toàn • Kích hoạt ngay lập tức",
+      "alreadyVip": "Bạn đã là thành viên VIP",
+      "alreadyVipHint": "Gói VIP của bạn đang hoạt động. Bạn có thể gia hạn khi gói hiện tại hết hạn.",
+      "vipActive": {
+        "title": "Pawnder Premium",
+        "active": "ĐANG HOẠT ĐỘNG",
+        "expireDate": "Hết hạn {{date}} • Còn {{days}} ngày"
+      }
     },
     "history": {
       "title": "Lịch sử thanh toán",
@@ -803,6 +810,11 @@
         "paymentFailed": "Không thể hoàn tất thanh toán. Vui lòng thử lại.",
         "paymentError": "Lỗi thanh toán",
         "genericError": "Đã có lỗi xảy ra. Vui lòng thử lại sau."
+      },
+      "notFound": {
+        "title": "Chưa tìm thấy giao dịch",
+        "message": "Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền và nội dung, sau đó thử lại.",
+        "tryAgain": "Thử lại"
       }
     },
     "vip": {
