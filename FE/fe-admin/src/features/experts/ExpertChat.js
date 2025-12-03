@@ -203,8 +203,6 @@ const ExpertChat = () => {
       // Listen for new expert messages
       newConnection.on('ReceiveExpertMessage', (messageData) => {
         console.log('📨 [SignalR] Received expert message:', messageData);
-        console.log('📨 [SignalR] Message data type:', typeof messageData);
-        console.log('📨 [SignalR] Message data keys:', Object.keys(messageData));
         
         const chatExpertId = messageData.ChatExpertId || messageData.chatExpertId;
         const fromId = messageData.FromId || messageData.fromId;
@@ -213,36 +211,47 @@ const ExpertChat = () => {
         
         console.log('📨 [SignalR] Parsed:', { chatExpertId, fromId, message, createdAt });
         
-        // Add message to state
-        setMessages((prev) => {
-          console.log('📨 [SignalR] Current messages count:', prev.length);
+        // Use functional update to access latest selectedChat
+        setSelectedChat((currentSelectedChat) => {
+          console.log('📨 [SignalR] Current selected chat:', currentSelectedChat?.chatExpertId);
+          console.log('📨 [SignalR] Message for chat:', chatExpertId);
           
-          // Check if message already exists (avoid duplicates)
-          // Use more strict comparison with contentId if available
-          const exists = prev.some(m => {
-            const sameContent = m.fromId === fromId && m.message === message;
-            const sameTime = Math.abs(new Date(m.createdAt).getTime() - new Date(createdAt).getTime()) < 2000;
-            return sameContent && sameTime;
-          });
-          
-          if (exists) {
-            console.log('⚠️ [SignalR] Message already exists, skipping');
-            return prev;
+          // Only add message if it's for the currently selected chat
+          if (currentSelectedChat?.chatExpertId === chatExpertId) {
+            setMessages((prev) => {
+              // Check if message already exists (avoid duplicates)
+              const exists = prev.some(m => {
+                const sameContent = m.fromId === fromId && m.message === message;
+                const sameTime = Math.abs(new Date(m.createdAt).getTime() - new Date(createdAt).getTime()) < 2000;
+                return sameContent && sameTime;
+              });
+              
+              if (exists) {
+                console.log('⚠️ [SignalR] Message already exists, skipping');
+                return prev;
+              }
+              
+              const newMessage = {
+                contentId: Date.now(),
+                chatExpertId: chatExpertId,
+                fromId: fromId,
+                message: message,
+                createdAt: createdAt
+              };
+              
+              console.log('✅ [SignalR] Adding new message:', newMessage);
+              return [...prev, newMessage];
+            });
+            
+            setTimeout(() => scrollToBottom(), 100);
+          } else {
+            console.log('⚠️ [SignalR] Message is for different chat, ignoring for now');
+            // TODO: Could show notification or update unread count here
           }
           
-          const newMessage = {
-            contentId: Date.now(),
-            chatExpertId: chatExpertId,
-            fromId: fromId,
-            message: message,
-            createdAt: createdAt
-          };
-          
-          console.log('✅ [SignalR] Adding new message:', newMessage);
-          return [...prev, newMessage];
+          // Return unchanged to not modify selectedChat
+          return currentSelectedChat;
         });
-        
-        setTimeout(() => scrollToBottom(), 100);
       });
 
       // Start connection

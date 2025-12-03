@@ -106,13 +106,15 @@ namespace BE.Services
             try
             {
                 Console.WriteLine($"[ChatExpertContent] Sending SignalR message for chatExpertId={chatExpertId}, fromId={fromId}, toUserId={toUserId}");
+                Console.WriteLine($"[ChatExpertContent] Chat info: ExpertId={chatExpert.ExpertId}, UserId={chatExpert.UserId}");
+                
                 await ChatHub.SendExpertMessage(_hubContext, chatExpertId, fromId, message, toUserId);
                 Console.WriteLine($"[ChatExpertContent] SignalR message sent successfully");
                 
-                // Send badge notification if recipient is user (not expert)
-                if (toUserId.HasValue && toUserId.Value == chatExpert.UserId)
+                // Send badge notification to recipient (both user and expert)
+                if (toUserId.HasValue)
                 {
-                    Console.WriteLine($"[ChatExpertContent] Sending badge notification to user {toUserId.Value}");
+                    Console.WriteLine($"[ChatExpertContent] Sending badge notification to recipient {toUserId.Value}");
                     await ChatHub.SendNewExpertMessageBadge(_hubContext, toUserId.Value, chatExpertId);
                 }
             }
