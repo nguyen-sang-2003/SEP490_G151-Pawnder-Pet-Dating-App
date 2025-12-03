@@ -40,6 +40,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
   // Track which characteristics already exist (for UPDATE vs CREATE decision)
   const [existingCharacteristicIds, setExistingCharacteristicIds] = useState<Set<number>>(new Set());
+  
+  // Store existing characteristics for display (optionValue and value)
+  const [existingCharacteristics, setExistingCharacteristics] = useState<Record<number, { optionValue?: string; value?: number; unit?: string }>>({});
 
   useEffect(() => {
     if (!petId) {
@@ -98,9 +101,18 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           const existingChars = await getPetCharacteristics(petId);
           console.log('📝 Loaded existing characteristics:', existingChars);
 
+          const tempExistingChars: Record<number, { optionValue?: string; value?: number; unit?: string }> = {};
+          
           existingChars.forEach((char: any) => {
             if (char.attributeId) {
               tempExistingIds.add(char.attributeId);
+              
+              // Store existing values for display
+              tempExistingChars[char.attributeId] = {
+                optionValue: char.optionValue,
+                value: char.value,
+                unit: char.unit
+              };
             }
 
             if (char.optionValue && char.attributeId) {
@@ -115,6 +127,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
               tempNumericValues[char.attributeId] = char.value.toString();
             }
           });
+          
+          setExistingCharacteristics(tempExistingChars);
 
           console.log('📋 Existing characteristic IDs:', Array.from(tempExistingIds));
         } catch (error) {
@@ -232,7 +246,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'success',
         title: t('auth.addPet.characteristics.success'),
-        message: t('auth.addPet.characteristics.profileCreated'),
+        message: isFromProfile 
+          ? t('auth.addPet.characteristics.characteristicsUpdated')
+          : t('auth.addPet.characteristics.profileCreated'),
         confirmText: isFromProfile ? t('auth.addPet.characteristics.backToProfile') : t('common.continue'),
         onClose: () => {
           if (isFromProfile) {
@@ -245,7 +261,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     } catch (error: any) {
 
 
-      let errorMessage = t('auth.addPet.characteristics.saveFailed');
+      let errorMessage = isFromProfile 
+        ? t('auth.addPet.characteristics.updateFailed')
+        : t('auth.addPet.characteristics.saveFailed');
 
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -303,15 +321,17 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
 
-          {/* Step Indicator - Always show in Add Pet flow */}
-          <View style={styles.stepIndicatorContainer}>
-            <View style={styles.stepBarsContainer}>
-              <View style={[styles.stepBar, styles.stepBarActive]} />
-              <View style={[styles.stepBar, styles.stepBarActive]} />
-              <View style={[styles.stepBar, styles.stepBarActive]} />
+          {/* Step Indicator - Only show when adding new pet, not when editing */}
+          {!isFromProfile && (
+            <View style={styles.stepIndicatorContainer}>
+              <View style={styles.stepBarsContainer}>
+                <View style={[styles.stepBar, styles.stepBarActive]} />
+                <View style={[styles.stepBar, styles.stepBarActive]} />
+                <View style={[styles.stepBar, styles.stepBarActive]} />
+              </View>
+              <Text style={styles.stepText}>{t('auth.addPet.characteristics.step')}</Text>
             </View>
-            <Text style={styles.stepText}>{t('auth.addPet.characteristics.step')}</Text>
-          </View>
+          )}
 
           <Text style={styles.title}>
             {isFromProfile ? t('auth.addPet.characteristics.editTitle') : t('auth.addPet.characteristics.title')}
@@ -338,13 +358,34 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             </View>
           )}
 
-          {/* Dynamic Attributes */}
-          {attributes.map((attr) => {
+          {/* Dynamic Attributes - Only show attributes that have values */}
+          {attributes
+            .filter((attr) => {
+              if (!attr.AttributeId) return false;
+              
+              // When editing: only show attributes that have existing values
+              if (isFromProfile) {
+                const existingChar = existingCharacteristics[attr.AttributeId];
+                return existingChar && (existingChar.optionValue || existingChar.value != null);
+              }
+              
+              // When adding: only show attributes that have been filled (selected or numeric value)
+              const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
+              if (isNumeric) {
+                return numericValues[attr.AttributeId] && numericValues[attr.AttributeId].trim() !== '';
+              } else {
+                return selectedOptions[attr.AttributeId] != null;
+              }
+            })
+            .map((attr) => {
             if (!attr.AttributeId) return null;
 
             // Check if this is a numeric input (float/number type)
             const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
 
+            const existingChar = existingCharacteristics[attr.AttributeId!];
+            const hasExistingValue = isFromProfile && existingChar && (existingChar.optionValue || existingChar.value != null);
+            
             return (
               <View key={`attr-${attr.AttributeId}`} style={styles.inputGroup}>
                 <View style={styles.labelContainer}>
@@ -359,6 +400,19 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                     </View>
                   )}
                 </View>
+                
+                {/* Show current value when editing */}
+                {hasExistingValue && (
+                  <View style={styles.currentValueContainer}>
+                    <Icon name="checkmark-circle" size={14} color={colors.primary} />
+                    <Text style={styles.currentValueLabel}>
+                      {t('auth.addPet.characteristics.currentValue')}: 
+                    </Text>
+                    <Text style={styles.currentValueText}>
+                      {existingChar.optionValue || `${existingChar.value}${existingChar.unit ? ' ' + existingChar.unit : ''}`}
+                    </Text>
+                  </View>
+                )}
 
                 {isNumeric ? (
                   // Numeric Input
@@ -701,6 +755,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMedium,
     lineHeight: 20,
+  },
+
+  // Current Value Display (when editing)
+  currentValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,107,129,0.08)',
+    borderRadius: radius.md,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  currentValueLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  currentValueText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textDark,
   },
 
   // Buttons

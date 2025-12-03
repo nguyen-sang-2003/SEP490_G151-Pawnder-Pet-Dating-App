@@ -54,6 +54,16 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
     }
   }, [chatExpertId, dispatch]);
 
+  // Auto scroll to bottom when messages change (nhận tin nhắn hoặc gửi tin nhắn)
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]); // Watch entire messages array, not just length
+
   // Load messages
   const loadMessages = useCallback(async () => {
     if (!chatExpertId) {
@@ -182,10 +192,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
             return [...prev, newMessage];
           });
 
-          // Scroll to bottom
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+          // Scroll to bottom will be handled by useEffect when messages change
         };
 
         signalRService.on('ReceiveExpertMessage', handleNewMessage);
@@ -233,10 +240,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
     setMessages((prev) => [...prev, newMessage]);
     setInputText("");
 
-    // Scroll to bottom
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    // Scroll to bottom will be handled by useEffect when messages change
 
     try {
       setSending(true);

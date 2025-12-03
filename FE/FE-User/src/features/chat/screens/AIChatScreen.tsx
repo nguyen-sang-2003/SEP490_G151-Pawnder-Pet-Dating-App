@@ -656,10 +656,9 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           activeOpacity={1}
           onPress={() => setShowQuestionModal(false)}
         >
-          <TouchableOpacity
+          <View
             style={styles.modalContent}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
+            onStartShouldSetResponder={() => true}
           >
             {/* Modal Header */}
             <View style={styles.modalHeader}>
@@ -679,7 +678,14 @@ const AIChatScreen = ({ navigation, route }: Props) => {
 
             {/* Step 1: Select Expert */}
             {expertSelectionStep === 'select' && (
-              <View style={styles.modalBody}>
+              <ScrollView 
+                style={styles.modalBody}
+                showsVerticalScrollIndicator={true}
+                scrollEnabled={true}
+                bounces={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+              >
                 <Text style={styles.modalTitle}>Chọn chuyên gia</Text>
                 <Text style={styles.modalDescription}>
                   Chọn một bác sĩ/chuyên gia để gửi câu hỏi xác nhận
@@ -696,7 +702,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                     <Text style={styles.noExpertsText}>Chưa có chuyên gia nào</Text>
                   </View>
                 ) : (
-                  <ScrollView style={styles.expertListContainer} showsVerticalScrollIndicator={false}>
+                  <View style={styles.expertListContainer}>
                     {experts.map((expert) => (
                       <TouchableOpacity
                         key={expert.userId}
@@ -733,16 +739,21 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                         />
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
+                  </View>
                 )}
-              </View>
+              </ScrollView>
             )}
 
             {/* Step 2: Enter Question */}
             {expertSelectionStep === 'question' && selectedExpert && (
               <ScrollView
                 style={styles.modalBody}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
+                scrollEnabled={true}
+                bounces={true}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                keyboardShouldPersistTaps="handled"
               >
                 {/* Selected Expert Info */}
                 <View style={styles.selectedExpertBanner}>
@@ -873,7 +884,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
 
@@ -1260,6 +1271,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     width: "100%",
     maxHeight: "85%",
+    overflow: "hidden",
     ...shadows.large,
   },
   modalHeader: {
@@ -1286,7 +1298,7 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     paddingHorizontal: 20,
-    maxHeight: 500,
+    flexGrow: 1,
   },
   modalTitle: {
     fontSize: 22,

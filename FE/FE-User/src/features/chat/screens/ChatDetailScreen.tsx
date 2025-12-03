@@ -23,7 +23,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getChatMessages, sendMessage, deleteChat, ChatMessage } from "../api/chatApi";
+import { getChatMessages, sendMessage, deleteChat, ChatMessage, getChats, ChatUser } from "../api/chatApi";
 import { blockUser } from "../../report/api/blockApi";
 import { reportMessage } from "../../report/api/reportApi";
 import { getUserById } from "../../profile/api/userApi";
@@ -32,7 +32,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import signalRService from "../../../services/signalr.service";
-import { getUserPetAvatar } from "../../../utils/petAvatar";
+import { getUserPetAvatar, getPetAvatar } from "../../../utils/petAvatar";
 import ReportMessageModal from "../../report/components/ReportMessageModal";
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../../app/store';
@@ -80,6 +80,16 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   useEffect(() => {
     currentUserIdRef.current = currentUserId;
   }, [currentUserId]);
+
+  // Auto scroll to bottom when messages change (nhận tin nhắn hoặc gửi tin nhắn)
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]); // Watch entire messages array, not just length
 
   // Fetch user info if not provided
   useEffect(() => {
@@ -389,25 +399,82 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       console.log('👤 Current user:', userId);
       console.log('💬 Loading messages for matchId:', matchId);
 
-      // 🚀 OPTIMIZATION 1: Parallel loading - Load avatars and messages simultaneously
-      const [avatar, chatMessages] = await Promise.all([
-        getUserPetAvatar(userId),
+      // 🚀 OPTIMIZATION 1: Load match info to get pet IDs, then load avatars and messages
+      // Get all chats to find the match with this matchId
+      const [chats, chatMessages] = await Promise.all([
+        getChats(userId),
         getChatMessages(matchId)
       ]);
-
-      setMyAvatar(avatar);
-      console.log('👤 My avatar loaded');
-
-      // Load other user's avatar in background (non-blocking)
-      getUserPetAvatar(otherUserId)
-        .then(otherAvatar => {
-          setOtherUserAvatar(otherAvatar);
-          console.log('👤 Other user avatar loaded');
-        })
-        .catch(() => {
-          console.log('⚠️ Could not load other user avatar, using default');
-          setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
+      
+      const currentMatch = chats.find((chat: ChatUser) => chat.matchId === matchId);
+      
+      if (currentMatch) {
+        // Determine my pet ID and other user's pet ID from match
+        const myPetId = currentMatch.fromUserId === userId ? currentMatch.fromPetId : currentMatch.toPetId;
+        const otherPetId = currentMatch.fromUserId === userId ? currentMatch.toPetId : currentMatch.fromPetId;
+        
+        console.log('🐾 Match info:', {
+          matchId,
+          myPetId,
+          otherPetId,
+          fromUserId: currentMatch.fromUserId,
+          toUserId: currentMatch.toUserId
         });
+
+        // Load avatars using pet IDs from match (not active pet)
+        const myAvatarResult = myPetId 
+          ? await getPetAvatar(myPetId).catch(() => getUserPetAvatar(userId))
+          : await getUserPetAvatar(userId);
+        
+        setMyAvatar(myAvatarResult);
+        console.log('👤 My avatar loaded (from match pet)');
+
+        // Load other user's avatar using pet ID from match
+        if (otherPetId) {
+          getPetAvatar(otherPetId)
+            .then(otherAvatar => {
+              setOtherUserAvatar(otherAvatar);
+              console.log('👤 Other user avatar loaded (from match pet)');
+            })
+            .catch(() => {
+              console.log('⚠️ Could not load other user avatar from match pet, using active pet');
+              getUserPetAvatar(otherUserId)
+                .then(otherAvatar => {
+                  setOtherUserAvatar(otherAvatar);
+                })
+                .catch(() => {
+                  setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
+                });
+            });
+        } else {
+          // Fallback to active pet if petId not found
+          getUserPetAvatar(otherUserId)
+            .then(otherAvatar => {
+              setOtherUserAvatar(otherAvatar);
+              console.log('👤 Other user avatar loaded (fallback to active pet)');
+            })
+            .catch(() => {
+              console.log('⚠️ Could not load other user avatar, using default');
+              setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
+            });
+        }
+      } else {
+        console.log('⚠️ Match not found, using active pet avatar');
+        // Fallback to active pet if match not found
+        const avatar = await getUserPetAvatar(userId);
+        setMyAvatar(avatar);
+        
+        // Load other user's avatar
+        getUserPetAvatar(otherUserId)
+          .then(otherAvatar => {
+            setOtherUserAvatar(otherAvatar);
+            console.log('👤 Other user avatar loaded');
+          })
+          .catch(() => {
+            console.log('⚠️ Could not load other user avatar, using default');
+            setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
+          });
+      }
 
       console.log('✅ Loaded messages:', chatMessages.length);
 
@@ -473,10 +540,7 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }
     signalRService.sendTyping(matchId, currentUserId, false);
 
-    // 🚀 OPTIMIZATION 6: Use requestAnimationFrame for smoother scroll
-    requestAnimationFrame(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    });
+    // Scroll to bottom will be handled by useEffect when messages change
 
     try {
       setSending(true);
@@ -711,23 +775,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
           showAlert({ type: 'error', title: t('common.error'), message: t('chat.detail.sendError') });
         }
-      },
-    });
-  };
-
-  const handleDeleteChat = () => {
-    closeMenu();
-    showAlert({
-      type: 'warning',
-      title: t('chat.deleteChat.title'),
-      message: t('chat.deleteChat.message', { name: userName }),
-      showCancel: true,
-      confirmText: t('common.delete'),
-      onConfirm: () => {
-        // Clear messages locally (backend doesn't have delete all messages endpoint)
-        console.log("🗑️ Clearing conversation locally");
-        setMessages([]);
-        showAlert({ type: 'success', title: t('chat.deleteChat.success'), message: t('chat.deleteChat.successMessage') });
       },
     });
   };
@@ -1118,20 +1165,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 <View style={styles.menuOptionText}>
                   <Text style={[styles.menuOptionTitle, { color: "#E94D6B" }]}>{t('chat.menu.block')}</Text>
                   <Text style={styles.menuOptionDesc}>{t('chat.block.title')}</Text>
-                </View>
-                <Icon name="chevron-forward" size={20} color={colors.textMedium} />
-              </TouchableOpacity>
-
-              <View style={styles.menuDivider} />
-
-              {/* Delete Conversation */}
-              <TouchableOpacity style={styles.menuOption} onPress={handleDeleteChat}>
-                <View style={[styles.menuIconContainer, { backgroundColor: "#F5F5F5" }]}>
-                  <Icon name="trash-outline" size={22} color={colors.error} />
-                </View>
-                <View style={styles.menuOptionText}>
-                  <Text style={[styles.menuOptionTitle, { color: colors.error }]}>{t('chat.menu.deleteChat')}</Text>
-                  <Text style={styles.menuOptionDesc}>{t('chat.deleteChat.title')}</Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color={colors.textMedium} />
               </TouchableOpacity>

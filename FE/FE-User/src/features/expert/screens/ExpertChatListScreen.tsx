@@ -66,7 +66,29 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
 
       const userId = parseInt(userIdStr);
       const chats = await getUserExpertChats(userId);
-      setExpertChats(chats);
+      
+      // Sort chats: tin nhắn mới nhất lên đầu, nếu không có tin nhắn thì chat mới nhất lên đầu
+      const sortedChats = chats.sort((a, b) => {
+        // Parse timestamps from time field
+        let dateA: Date, dateB: Date;
+        
+        let dateStrA = a.time;
+        if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+          dateStrA = dateStrA + 'Z';
+        }
+        dateA = new Date(dateStrA);
+        
+        let dateStrB = b.time;
+        if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+          dateStrB = dateStrB + 'Z';
+        }
+        dateB = new Date(dateStrB);
+        
+        // Sort descending (newest first)
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      setExpertChats(sortedChats);
     } catch (error: any) {
       console.error("❌ Error loading expert chats:", error);
     } finally {
