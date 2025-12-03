@@ -271,34 +271,40 @@ namespace BE.Services
 
                             Console.WriteLine($"[SePay] Transaction #{transactionCount}: amount={transAmount}, content='{transDesc}'");
 
-                            // Kiểm tra amount khớp và description chứa userId
-                            // Cho phép sai lệch nhỏ về amount (do làm tròn)
-                            var amountMatch = Math.Abs(transAmount - amount) < 1000; // Cho phép sai lệch 1000đ
-                            
-                            // Normalize description: remove spaces, lowercase
-                            var normalizedDesc = transDesc.Replace(" ", "").ToLower();
-                            var descMatch = normalizedDesc.Contains($"userid{userId}") || 
-                                           normalizedDesc.Contains($"userid_{userId}") ||
-                                           transDesc.Contains($"userId{userId}") ||
-                                           transDesc.Contains($"userId_{userId}") ||
-                                           transDesc.Contains($"{userId}");
+                            // Kiểm tra description chứa userId - PHẢI có format "userid" + số
+                            // Dùng Regex để đảm bảo match chính xác, tránh userId1 match với userId10
+                            var normalizedDesc = transDesc.Replace(" ", "");
+                            var userIdPattern = $@"(?i)userid[_]?{userId}(?!\d)";
+                            var descMatch = System.Text.RegularExpressions.Regex.IsMatch(normalizedDesc, userIdPattern);
 
-                            Console.WriteLine($"[SePay] amountMatch={amountMatch}, descMatch={descMatch}");
+                            Console.WriteLine($"[SePay] descMatch={descMatch}, pattern={userIdPattern}");
 
-                            if (amountMatch && descMatch)
+                            // Nếu tìm thấy giao dịch có userId khớp
+                            if (descMatch)
                             {
-                                var transTime = transaction.TryGetProperty("transaction_date", out var dateProp) 
-                                    ? dateProp.GetString() 
-                                    : DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                                
-                                Console.WriteLine($"[SePay] FOUND matching transaction!");
-                                return (true, "Đã xác nhận giao dịch thanh toán", transTime);
+                                // Kiểm tra số tiền: chỉ chấp nhận nếu chuyển ĐÚNG số tiền (cho phép sai lệch 1000đ do phí)
+                                var amountDiff = Math.Abs(transAmount - amount);
+                                if (amountDiff <= 1000)
+                                {
+                                    var transTime = transaction.TryGetProperty("transaction_date", out var dateProp) 
+                                        ? dateProp.GetString() 
+                                        : DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                                    
+                                    Console.WriteLine($"[SePay] FOUND matching transaction! amount={transAmount}");
+                                    return (true, "Đã xác nhận giao dịch thanh toán", transTime);
+                                }
+                                else
+                                {
+                                    // Chuyển sai số tiền (thiếu hoặc thừa)
+                                    Console.WriteLine($"[SePay] Found transaction but amount mismatch: expected={amount}, got={transAmount}");
+                                    return (false, $"Số tiền chuyển khoản không đúng. Bạn đã chuyển {transAmount:N0}đ nhưng số tiền cần thanh toán là {amount:N0}đ. Vui lòng liên hệ hỗ trợ qua email: support@pawnder.com để được xử lý.", null);
+                                }
                             }
                         }
 
                         Console.WriteLine($"[SePay] Checked {transactionCount} transactions, no match found");
                         // Không tìm thấy giao dịch khớp
-                        return (false, $"Chưa phát hiện giao dịch thanh toán. Đã kiểm tra {transactionCount} giao dịch gần đây. Vui lòng đảm bảo đã chuyển khoản đúng số tiền ({amount:N0}đ) và nội dung chứa 'userId{userId}'.", null);
+                        return (false, $"Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền ({amount:N0}đ) và nội dung chứa 'userId{userId}'.", null);
                     }
                     else
                     {
