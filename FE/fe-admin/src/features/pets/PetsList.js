@@ -210,19 +210,13 @@ const PetsList = () => {
 
       <div className="pets-controls">
         <div className="search-section">
-          <div className="search-input-wrapper">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="M21 21l-4.35-4.35"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên, giống, chủ sở hữu..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo tên, giống, chủ sở hữu..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
         </div>
 
         {/* Species filter removed per request */}

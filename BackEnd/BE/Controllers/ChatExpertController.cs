@@ -38,6 +38,11 @@ namespace BE.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách chat của expert.
+        /// Lưu ý: Chỉ trả về các chat đã tồn tại (đã được tạo khi user chọn chat với expert).
+        /// Khi expert mới đăng nhập, nếu chưa có user nào chọn chat thì sẽ trả về danh sách rỗng [].
+        /// </summary>
         // GET /chat-expert/expert/{expertId}
         [HttpGet("expert/{expertId}")]
         [Authorize(Roles = "Expert,Admin")]
@@ -48,11 +53,13 @@ namespace BE.Controllers
                 Console.WriteLine($"📡 [ChatExpertController] GET /chat-expert/expert/{expertId}");
                 Console.WriteLine($"👤 [ChatExpertController] User claims: {string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
                 
+                // Chỉ trả về các chat đã tồn tại - không tự động tạo chat mới
                 var chats = await _chatExpertService.GetChatsByExpertIdAsync(expertId, ct);
                 
                 var chatsList = chats.ToList();
                 Console.WriteLine($"✅ [ChatExpertController] Found {chatsList.Count} chats for expert {expertId}");
                 
+                // Trả về danh sách rỗng nếu chưa có chat nào (expert mới)
                 return Ok(chatsList);
             }
             catch (KeyNotFoundException ex)
@@ -68,6 +75,11 @@ namespace BE.Controllers
             }
         }
 
+        /// <summary>
+        /// Tạo chat mới giữa expert và user.
+        /// Endpoint này chỉ được gọi khi user chọn chat với expert (không tự động tạo khi expert đăng nhập).
+        /// Nếu chat đã tồn tại thì trả về chat hiện có.
+        /// </summary>
         // POST /chat-expert/{expertId}/{userId}
         [HttpPost("{expertId}/{userId}")]
         [Authorize(Roles = "User,Expert")]
@@ -75,7 +87,9 @@ namespace BE.Controllers
         {
             try
             {
+                Console.WriteLine($"🆕 [ChatExpertController] POST /chat-expert/{expertId}/{userId} - User {userId} wants to chat with Expert {expertId}");
                 var result = await _chatExpertService.CreateChatAsync(expertId, userId, ct);
+                Console.WriteLine($"✅ [ChatExpertController] Chat created/retrieved successfully");
                 return Ok(result);
             }
             catch (InvalidOperationException ex)

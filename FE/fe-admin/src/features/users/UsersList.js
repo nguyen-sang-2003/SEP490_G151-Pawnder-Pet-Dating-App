@@ -41,6 +41,12 @@ const UsersList = () => {
   const [banReason, setBanReason] = useState('');
   const [userBans, setUserBans] = useState({}); // { userId: { banExpiresAt: timestamp, reason: string } }
   
+  // Unban modal states
+  const [showUnbanModal, setShowUnbanModal] = useState(false);
+  const [selectedUserForUnban, setSelectedUserForUnban] = useState(null);
+  const [unbanTimeRemaining, setUnbanTimeRemaining] = useState(null);
+  const unbanExpiresAtRef = useRef(null);
+  
   // Timer for countdown
   const [timeRemaining, setTimeRemaining] = useState(null);
   const intervalRef = useRef(null);
@@ -61,6 +67,9 @@ const UsersList = () => {
 
   // Check and auto-unban users when ban expires
   useEffect(() => {
+    // Define USER_STATUS constant inside useEffect to avoid dependency warning
+    const NORMAL_STATUS = 2; // USER_STATUS.NORMAL
+    
     const checkAndUnban = () => {
       const now = Date.now();
       setUserBans(prevBans => {
@@ -79,14 +88,23 @@ const UsersList = () => {
         });
 
         if (hasChanges) {
-          // Update backend for each unbanned user
+          // Update backend for each unbanned user - call unban API to update UserBanHistory
           userIdsToUnban.forEach(async (userId) => {
             try {
-              await userService.updateUserByAdmin(parseInt(userId), {
-                userStatusId: 2 // USER_STATUS.NORMAL
-              });
+              // Call unban API to update UserBanHistory (set IsActive = false, BanEnd = now)
+              // This will also update UserStatusId based on payment history
+              await userService.unbanUser(parseInt(userId));
+              console.log(`✅ Auto-unbanned user ${userId} - ban expired`);
             } catch (error) {
-              console.error(`Error unbanning user ${userId}:`, error);
+              console.error(`❌ Error auto-unbanning user ${userId}:`, error);
+              // If unban API fails, fallback to update UserStatusId directly
+              try {
+                await userService.updateUserByAdmin(parseInt(userId), {
+                  userStatusId: NORMAL_STATUS
+                });
+              } catch (fallbackError) {
+                console.error(`❌ Fallback unban also failed for user ${userId}:`, fallbackError);
+              }
             }
           });
 
@@ -96,7 +114,7 @@ const UsersList = () => {
           setUsers(prevUsers => 
             prevUsers.map(user => 
               userIdsToUnban.includes(user.id.toString())
-                ? { ...user, status: 'NORMAL', userStatusId: 2 }
+                ? { ...user, status: 'NORMAL', userStatusId: NORMAL_STATUS }
                 : user
             )
           );
@@ -119,7 +137,7 @@ const UsersList = () => {
     };
   }, []); // Empty dependency array - only run once on mount
 
-  // Update countdown timer when modal is open
+  // Update countdown timer when ban modal is open
   useEffect(() => {
     if (showBanModal && selectedUser) {
       // Get ban info once when modal opens and store banExpiresAt in ref
@@ -151,16 +169,24 @@ const UsersList = () => {
               return updatedBans;
             });
             
-            // Update backend
-            userService.updateUserByAdmin(selectedUser.id, {
-              userStatusId: 2 // USER_STATUS.NORMAL
-            }).catch(err => console.error('Error unbanning user:', err));
+            // Update backend - call unban API to update UserBanHistory
+            userService.unbanUser(selectedUser.id)
+              .then(() => {
+                console.log(`✅ Auto-unbanned user ${selectedUser.id} - ban expired`);
+              })
+              .catch(err => {
+                console.error('❌ Error auto-unbanning user:', err);
+                // Fallback: if unban API fails, try to update UserStatusId directly
+                return userService.updateUserByAdmin(selectedUser.id, {
+                  userStatusId: USER_STATUS.NORMAL
+                });
+              });
             
             // Update users state
             setUsers(prevUsers => 
               prevUsers.map(user => 
                 user.id === selectedUser.id
-                  ? { ...user, status: 'NORMAL', userStatusId: 2 }
+                  ? { ...user, status: 'NORMAL', userStatusId: USER_STATUS.NORMAL }
                   : user
               )
             );
@@ -187,6 +213,49 @@ const UsersList = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showBanModal, selectedUser?.id]); // Only depend on selectedUser.id, not userBans to prevent recalculation
+
+  // Update countdown timer for unban modal
+  useEffect(() => {
+    if (showUnbanModal && selectedUserForUnban) {
+      const ban = userBans[selectedUserForUnban.id];
+      
+      if (ban && ban.banExpiresAt) {
+        unbanExpiresAtRef.current = ban.banExpiresAt;
+        
+        const updateCountdown = () => {
+          const now = Date.now();
+          const originalBanExpiresAt = unbanExpiresAtRef.current;
+          if (!originalBanExpiresAt) return;
+          
+          const remaining = originalBanExpiresAt - now;
+          
+          if (remaining > 0) {
+            setUnbanTimeRemaining(remaining);
+          } else {
+            setUnbanTimeRemaining(0);
+          }
+        };
+
+        // Update immediately
+        updateCountdown();
+        
+        // Update every second to show countdown
+        const countdownInterval = setInterval(updateCountdown, 1000);
+
+        return () => {
+          clearInterval(countdownInterval);
+          unbanExpiresAtRef.current = null;
+        };
+      } else {
+        setUnbanTimeRemaining(null);
+        unbanExpiresAtRef.current = null;
+      }
+    } else {
+      setUnbanTimeRemaining(null);
+      unbanExpiresAtRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showUnbanModal, selectedUserForUnban?.id]);
 
   // Helper function to check if user is banned
   const isUserBanned = (userId) => {
@@ -255,48 +324,59 @@ const UsersList = () => {
     }
 
     try {
-      // Update user status to BANNED (UserStatusId = 1) in backend
-      await userService.updateUserByAdmin(selectedUser.id, {
-        userStatusId: USER_STATUS.BANNED
-      });
+      // Prepare ban data for backend API
+      const isPermanent = banDuration === 'permanent';
+      const durationDays = isPermanent ? 0 : parseInt(banDuration);
       
-      // Check if user is already banned
+      // Call backend ban API to create UserBanHistory entry
+      // Backend expects: { Reason: string, durationDays: int, isPermanent: bool }
+      const banData = {
+        Reason: banReason.trim(),
+        durationDays: durationDays,
+        isPermanent: isPermanent
+      };
+      
+      const banResponse = await userService.banUser(selectedUser.id, banData);
+      
+      // Calculate ban expiration time for frontend display
       const existingBan = userBans[selectedUser.id];
       let banExpiresAt = null;
       
       // IMPORTANT: If user is already banned, NEVER recalculate banExpiresAt
       // Keep the original banExpiresAt to ensure countdown continues correctly
-      if (existingBan && existingBan.banExpiresAt) {
+      if (existingBan && existingBan.banExpiresAt && !isPermanent) {
         // User is already banned - keep the original banExpiresAt
         banExpiresAt = existingBan.banExpiresAt;
-        // Only update if changing to permanent
-        if (banDuration === 'permanent') {
-          banExpiresAt = null;
-        }
       } else {
-        // New ban - calculate ban expiration time
-        const now = Date.now();
-        switch (banDuration) {
-          case '1': // 1 day
-            banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
-            break;
-          case '3': // 3 days
-            banExpiresAt = now + (3 * 24 * 60 * 60 * 1000);
-            break;
-          case '7': // 7 days
-            banExpiresAt = now + (7 * 24 * 60 * 60 * 1000);
-            break;
-          case '30': // 1 month
-            banExpiresAt = now + (30 * 24 * 60 * 60 * 1000);
-            break;
-          case '90': // 3 months
-            banExpiresAt = now + (90 * 24 * 60 * 60 * 1000);
-            break;
-          case 'permanent': // Permanent
-            banExpiresAt = null;
-            break;
-          default:
-            banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+        // New ban - calculate ban expiration time from backend response or calculate locally
+        if (isPermanent) {
+          banExpiresAt = null;
+        } else {
+          // Use banEnd from backend response if available, otherwise calculate
+          if (banResponse?.banEnd) {
+            banExpiresAt = new Date(banResponse.banEnd).getTime();
+          } else {
+            const now = Date.now();
+            switch (banDuration) {
+              case '1': // 1 day
+                banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+                break;
+              case '3': // 3 days
+                banExpiresAt = now + (3 * 24 * 60 * 60 * 1000);
+                break;
+              case '7': // 7 days
+                banExpiresAt = now + (7 * 24 * 60 * 60 * 1000);
+                break;
+              case '30': // 1 month
+                banExpiresAt = now + (30 * 24 * 60 * 60 * 1000);
+                break;
+              case '90': // 3 months
+                banExpiresAt = now + (90 * 24 * 60 * 60 * 1000);
+                break;
+              default:
+                banExpiresAt = now + (1 * 24 * 60 * 60 * 1000);
+            }
+          }
         }
       }
 
@@ -326,42 +406,63 @@ const UsersList = () => {
         )
       );
       
-      alert('Đã ban người dùng thành công!');
+      alert(banResponse?.message || 'Đã ban người dùng thành công!');
       handleCloseBanModal();
     } catch (error) {
       console.error('Error banning user:', error);
-      alert('Không thể ban người dùng. Vui lòng thử lại sau.');
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể ban người dùng. Vui lòng thử lại sau.';
+      alert(errorMessage);
     }
   };
 
-  // Handle unban user
-  const handleUnbanUser = async () => {
-    if (!selectedUser) return;
+  // Handle open unban modal
+  const handleOpenUnbanModal = (user) => {
+    setSelectedUserForUnban(user);
+    setShowUnbanModal(true);
+    
+    // Initialize time remaining if user is banned
+    const ban = userBans[user.id];
+    if (ban && ban.banExpiresAt) {
+      const remaining = ban.banExpiresAt - Date.now();
+      setUnbanTimeRemaining(remaining > 0 ? remaining : 0);
+    } else {
+      setUnbanTimeRemaining(null);
+    }
+  };
+
+  // Handle close unban modal
+  const handleCloseUnbanModal = () => {
+    setShowUnbanModal(false);
+    setSelectedUserForUnban(null);
+    setUnbanTimeRemaining(null);
+  };
+
+  // Handle unban user from modal
+  const handleUnbanUserDirect = async () => {
+    if (!selectedUserForUnban) return;
 
     try {
-      // Update user status to NORMAL (UserStatusId = 2) in backend
-      await userService.updateUserByAdmin(selectedUser.id, {
-        userStatusId: USER_STATUS.NORMAL
-      });
+      // Call backend unban API
+      await userService.unbanUser(selectedUserForUnban.id);
       
       // Remove from localStorage
       const updatedBans = { ...userBans };
-      delete updatedBans[selectedUser.id];
+      delete updatedBans[selectedUserForUnban.id];
 
       setUserBans(updatedBans);
       localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
       
       // Update user status in local state
       setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === selectedUser.id 
-            ? { ...user, status: 'NORMAL', userStatusId: USER_STATUS.NORMAL }
-            : user
+        prevUsers.map(u => 
+          u.id === selectedUserForUnban.id 
+            ? { ...u, status: 'NORMAL', userStatusId: USER_STATUS.NORMAL }
+            : u
         )
       );
       
       alert('Đã gỡ ban người dùng thành công!');
-      handleCloseBanModal();
+      handleCloseUnbanModal();
     } catch (error) {
       console.error('Error unbanning user:', error);
       alert('Không thể gỡ ban người dùng. Vui lòng thử lại sau.');
@@ -459,7 +560,7 @@ const UsersList = () => {
           const firstName = nameParts[0] || fullName;
           const lastName = nameParts.slice(1).join(' ') || '';
           
-          return {
+          const mappedUser = {
             id: user.UserId || user.userId,
             username: user.Email?.split('@')[0] || 'user',
             email: user.Email || user.email,
@@ -480,6 +581,13 @@ const UsersList = () => {
             lastLogin: null, // Backend doesn't have lastLogin
             totalPets: 0 // Will be updated after fetching pets count
           };
+          
+          // Debug: log users with BANNED status
+          if (mappedUser.userStatusId === USER_STATUS.BANNED || mappedUser.status === 'BANNED') {
+            console.log('Found BANNED user:', mappedUser);
+          }
+          
+          return mappedUser;
         });
 
         // Sắp xếp theo ngày tạo (mới nhất -> cũ nhất)
@@ -633,19 +741,13 @@ const UsersList = () => {
 
       <div className="users-controls">
         <div className="search-section">
-          <div className="search-input-wrapper">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="M21 21l-4.35-4.35"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên, email, username..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo tên, email, username..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
         </div>
 
         <div className="filter-section">
@@ -804,6 +906,26 @@ const UsersList = () => {
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                       </svg>
                     </button>
+                     {/* Unban button - chỉ hiển thị khi user bị banned */}
+                     {(() => {
+                       const isBanned = isUserBanned(user.id) || user.userStatusId === USER_STATUS.BANNED;
+                       return isBanned;
+                     })() && (
+                       <button 
+                         className="action-btn unban"
+                         style={{ width: '18px', minWidth: '18px', height: '28px', padding: 0 }}
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           handleOpenUnbanModal(user);
+                         }}
+                         title="Gỡ ban người dùng"
+                       >
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}>
+                           <path d="M9 12l2 2 4-4"/>
+                           <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+                         </svg>
+                       </button>
+                     )}
                   </div>
                 </td>
               </tr>
@@ -956,20 +1078,108 @@ const UsersList = () => {
               <button className="btn btn-secondary" onClick={handleCloseBanModal}>
                 Hủy
               </button>
-              {isUserBanned(selectedUser.id) && (
-                <button className="btn btn-warning" onClick={handleUnbanUser}>
-                  Gỡ ban
-                </button>
-              )}
               <button className="btn btn-primary" onClick={handleBanUser}>
                 {isUserBanned(selectedUser.id) ? 'Cập nhật ban' : 'Xác nhận ban'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+           </div>
+         </div>
+       )}
 
-export default UsersList;
+       {/* Unban User Modal */}
+       {showUnbanModal && selectedUserForUnban && (
+         <div className="modal-overlay" onClick={handleCloseUnbanModal}>
+           <div className="modal-content unban-modal" onClick={(e) => e.stopPropagation()}>
+             <div className="modal-header">
+               <h2>Gỡ ban người dùng - {selectedUserForUnban.firstName} {selectedUserForUnban.lastName}</h2>
+               <button className="modal-close" onClick={handleCloseUnbanModal}>
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                   <path d="M18 6L6 18M6 6l12 12"/>
+                 </svg>
+               </button>
+             </div>
+
+             <div className="modal-body">
+               {/* Ban information */}
+               {isUserBanned(selectedUserForUnban.id) && (
+                 <div className="ban-status-info">
+                   <h3>Thông tin ban hiện tại:</h3>
+                   <div className="ban-info-item">
+                     <span className="ban-label">Lý do ban:</span>
+                     <span className="ban-value">{getBanInfo(selectedUserForUnban.id)?.reason || 'Không có thông tin'}</span>
+                   </div>
+                   <div className="ban-info-item">
+                     <span className="ban-label">Thời gian ban còn lại:</span>
+                     <span className="ban-value time-remaining" style={{ color: '#e74c3c', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                       {(() => {
+                         const ban = getBanInfo(selectedUserForUnban.id);
+                         if (!ban) return 'Không có thông tin';
+                         if (!ban.banExpiresAt) return 'Vĩnh viễn';
+                         // Use unbanTimeRemaining if available (real-time countdown), otherwise calculate
+                         const remaining = unbanTimeRemaining !== null ? unbanTimeRemaining : (ban.banExpiresAt - Date.now());
+                         if (remaining <= 0) return 'Đã hết hạn';
+                         return formatTimeRemaining(remaining);
+                       })()}
+                     </span>
+                   </div>
+                   {getBanInfo(selectedUserForUnban.id)?.banExpiresAt && (
+                     <div className="ban-info-item">
+                       <span className="ban-label">Hết hạn vào:</span>
+                       <span className="ban-value">
+                         {new Date(getBanInfo(selectedUserForUnban.id).banExpiresAt).toLocaleString('vi-VN')}
+                       </span>
+                     </div>
+                   )}
+                   {getBanInfo(selectedUserForUnban.id)?.bannedAt && (
+                     <div className="ban-info-item">
+                       <span className="ban-label">Bị ban từ:</span>
+                       <span className="ban-value">
+                         {new Date(getBanInfo(selectedUserForUnban.id).bannedAt).toLocaleString('vi-VN')}
+                       </span>
+                     </div>
+                   )}
+                 </div>
+               )}
+
+               {!isUserBanned(selectedUserForUnban.id) && selectedUserForUnban.userStatusId === USER_STATUS.BANNED && (
+                 <div className="ban-status-info">
+                   <h3>Thông tin ban:</h3>
+                   <div className="ban-info-item">
+                     <span className="ban-label">Trạng thái:</span>
+                     <span className="ban-value" style={{ color: '#e74c3c', fontWeight: 'bold' }}>BANNED</span>
+                   </div>
+                   <p style={{ color: '#999', fontSize: '0.9rem', marginTop: '1rem' }}>
+                     Người dùng này đang bị ban. Bạn có muốn gỡ ban không?
+                   </p>
+                 </div>
+               )}
+
+               <div className="unban-warning" style={{ 
+                 marginTop: '1.5rem', 
+                 padding: '1rem', 
+                 backgroundColor: 'rgba(231, 76, 60, 0.1)', 
+                 borderRadius: '8px',
+                 border: '1px solid rgba(231, 76, 60, 0.3)'
+               }}>
+                 <p style={{ color: '#e74c3c', margin: 0, fontWeight: '500' }}>
+                   ⚠️ Bạn có chắc chắn muốn gỡ ban cho người dùng này không?
+                 </p>
+               </div>
+             </div>
+
+             <div className="modal-footer">
+               <button className="btn btn-secondary" onClick={handleCloseUnbanModal}>
+                 Hủy
+               </button>
+               <button className="btn btn-success" onClick={handleUnbanUserDirect} style={{ backgroundColor: '#27ae60', borderColor: '#27ae60' }}>
+                 Xác nhận gỡ ban
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+     </div>
+   );
+ };
+ 
+ export default UsersList;

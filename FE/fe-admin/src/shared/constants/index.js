@@ -20,6 +20,8 @@ export const API_ENDPOINTS = {
     UPDATE_BY_ADMIN: (id) => `/admin/users/${id}`, // PUT /admin/users/{id}
     CREATE_BY_ADMIN: '/admin/users', // POST /admin/users
     RESET_PASSWORD: '/user/reset-password', // PUT /user/reset-password
+    BAN: (id) => `/admin/users/${id}/ban`, // POST /admin/users/{id}/ban
+    UNBAN: (id) => `/admin/users/${id}/unban`, // POST /admin/users/{id}/unban
   },
   PETS: {
     LIST_BY_USER: (userId) => `/api/pet/user/${userId}`, // GET /api/pet/user/{userId}

@@ -93,22 +93,25 @@ class UserService {
     return response;
   }
 
-  // Ban/Unban được xử lý qua updateUserByAdmin với userStatusId
-  // async banUser(id, reason) {
-  //   // Cần xác định userStatusId nào là "banned" từ backend
-  //   const response = await apiClient.put(API_ENDPOINTS.USERS.UPDATE_BY_ADMIN(id), {
-  //     userStatusId: BANNED_STATUS_ID
-  //   });
-  //   return response;
-  // }
+  /**
+   * Ban user (admin use)
+   * Backend: POST /admin/users/{id}/ban
+   * Body: { DurationDays?: number, IsPermanent?: boolean, Reason: string }
+   */
+  async banUser(id, banData) {
+    const response = await apiClient.post(API_ENDPOINTS.USERS.BAN(id), banData);
+    return response;
+  }
 
-  // async unbanUser(id) {
-  //   // Cần xác định userStatusId nào là "normal" từ backend
-  //   const response = await apiClient.put(API_ENDPOINTS.USERS.UPDATE_BY_ADMIN(id), {
-  //     userStatusId: NORMAL_STATUS_ID
-  //   });
-  //   return response;
-  // }
+  /**
+   * Unban user (admin use)
+   * Backend: POST /admin/users/{id}/unban
+   * Body: { Reason?: string } (optional)
+   */
+  async unbanUser(id, reason = null) {
+    const response = await apiClient.post(API_ENDPOINTS.USERS.UNBAN(id), reason ? { Reason: reason } : {});
+    return response;
+  }
 }
 
 export default new UserService();
