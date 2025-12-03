@@ -42,7 +42,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
     setLoading(true);
 
     try {
-      await sendOtp(email);
+      await sendOtp(email, 'forgot-password');
 
       showAlert({
         type: 'success',

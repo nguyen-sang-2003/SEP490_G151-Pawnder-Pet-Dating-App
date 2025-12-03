@@ -7,17 +7,17 @@ export interface SendOtpResponse {
 
 /**
  * Send OTP to email
+ * @param email - Email address
+ * @param purpose - 'register' for new account, 'forgot-password' for password reset
  */
-export const sendOtp = async (email: string): Promise<SendOtpResponse> => {
+export const sendOtp = async (email: string, purpose: 'register' | 'forgot-password' = 'register'): Promise<SendOtpResponse> => {
   try {
     const response = await apiClient.get<SendOtpResponse>('/api/send-mail-otp', {
-      params: { email },
+      params: { email, purpose },
     });
-
 
     return response.data;
   } catch (error: any) {
-
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

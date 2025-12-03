@@ -107,6 +107,16 @@ const SignUpScreen = ({ navigation }: Props) => {
       return;
     }
 
+    // Validation: Kiểm tra có chứa chữ hoa
+    if (!/[A-Z]/.test(pass)) {
+      showAlert({
+        type: 'error',
+        title: t('auth.signUp.passwordInvalid'),
+        message: t('auth.signUp.passwordNeedsUppercase'),
+      });
+      return;
+    }
+
     // Validation: Kiểm tra có chứa số
     if (!/\d/.test(pass)) {
       showAlert({
@@ -183,30 +193,22 @@ const SignUpScreen = ({ navigation }: Props) => {
     } catch (error: any) {
       // Xử lý các loại lỗi cụ thể
       let errorTitle = t('auth.signUp.signUpFailed');
-      let errorMessage = t('auth.signUp.otpSendFailed');
+      let errorMessage = error.message || t('auth.signUp.otpSendFailed');
       
       if (error.message) {
         const msg = error.message.toLowerCase();
         
-        // Email đã tồn tại
-        if (msg.includes('exist') || msg.includes('already') || msg.includes('duplicate')) {
+        // Email/Tài khoản đã tồn tại
+        if (msg.includes('tồn tại') || msg.includes('exist') || msg.includes('already') || msg.includes('duplicate')) {
           errorTitle = t('auth.signUp.emailExists');
-          errorMessage = t('auth.signUp.emailExistsMessage');
-        }
-        // Lỗi gửi OTP
-        else if (msg.includes('otp') || msg.includes('email')) {
-          errorTitle = t('auth.signUp.otpSendError');
-          errorMessage = t('auth.signUp.otpSendErrorMessage');
+          errorMessage = error.message; // Hiển thị message từ server
         }
         // Lỗi mạng
         else if (msg.includes('network') || msg.includes('timeout') || msg.includes('connection')) {
           errorTitle = t('auth.signIn.connectionError');
           errorMessage = t('auth.signIn.connectionErrorMessage');
         }
-        // Lỗi khác từ server
-        else {
-          errorMessage = error.message;
-        }
+        // Lỗi khác từ server - hiển thị message gốc
       }
       
       showAlert({
@@ -330,7 +332,7 @@ const SignUpScreen = ({ navigation }: Props) => {
         />
 
         {/* Password Requirements - Only show when focused */}
-        {isPasswordFocused && pass.length > 0 && (
+        {isPasswordFocused && (
           <View style={styles.requirementsContainer}>
             <View style={styles.requirement}>
               <Icon
@@ -340,6 +342,16 @@ const SignUpScreen = ({ navigation }: Props) => {
               />
               <Text style={[styles.requirementText, pass.length >= 8 && styles.requirementMet]}>
                 {t('auth.signUp.passwordRequirements.minLength')}
+              </Text>
+            </View>
+            <View style={styles.requirement}>
+              <Icon
+                name={/[A-Z]/.test(pass) ? "check-circle" : "radio-button-unchecked"}
+                size={14}
+                color={/[A-Z]/.test(pass) ? "#4CAF50" : "#999"}
+              />
+              <Text style={[styles.requirementText, /[A-Z]/.test(pass) && styles.requirementMet]}>
+                {t('auth.signUp.passwordRequirements.hasUppercase')}
               </Text>
             </View>
             <View style={styles.requirement}>

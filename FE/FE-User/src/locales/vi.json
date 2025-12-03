@@ -97,6 +97,7 @@
       "otpSendErrorMessage": "Không thể gửi mã OTP đến email. Vui lòng kiểm tra email và thử lại",
       "passwordRequirements": {
         "minLength": "Ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt"
       }
@@ -162,6 +163,7 @@
       "enterOtp": "Vui lòng nhập mã OTP",
       "enterNewPassword": "Vui lòng nhập mật khẩu mới",
       "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+      "passwordNeedsUppercase": "Mật khẩu phải chứa ít nhất 1 chữ hoa",
       "passwordNeedsNumber": "Mật khẩu phải chứa ít nhất 1 chữ số",
       "passwordNeedsSpecial": "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
       "passwordMismatch": "Mật khẩu không khớp",
@@ -171,6 +173,7 @@
       "requirements": {
         "title": "Mật khẩu phải:",
         "minLength": "Có ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt",
         "match": "Khớp với mật khẩu xác nhận"

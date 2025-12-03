@@ -5,8 +5,8 @@
 
 export const API_CONFIG = {
   // Development URLs
-  // ANDROID_EMULATOR: 'http://10.0.2.2:5297',
-  ANDROID_EMULATOR: 'https://sep490g151-pawnder-pet-dating-app-production.up.railway.app',
+  ANDROID_EMULATOR: 'http://10.0.2.2:5297',
+  // ANDROID_EMULATOR: 'https://sep490g151-pawnder-pet-dating-app-production.up.railway.app',
   IOS_SIMULATOR: 'http://localhost:5297',
   
   // Production URL - Azure Backend

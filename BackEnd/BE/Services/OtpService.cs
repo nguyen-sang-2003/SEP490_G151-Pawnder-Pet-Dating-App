@@ -1,3 +1,4 @@
+using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -8,18 +9,21 @@ namespace BE.Services
         private readonly EmailService _emailService;
         private readonly IMemoryCache _cache;
         private readonly IKickboxClient _kickboxClient;
+        private readonly IUserRepository _userRepository;
 
         public OtpService(
             EmailService emailService,
             IMemoryCache cache,
-            IKickboxClient kickboxClient)
+            IKickboxClient kickboxClient,
+            IUserRepository userRepository)
         {
             _emailService = emailService;
             _cache = cache;
             _kickboxClient = kickboxClient;
+            _userRepository = userRepository;
         }
 
-        public async Task<object> SendOtpAsync(string email, CancellationToken ct = default)
+        public async Task<object> SendOtpAsync(string email, string purpose = "register", CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(email))
                 throw new ArgumentException("Email không được để trống.");
@@ -36,24 +40,17 @@ namespace BE.Services
                 throw new ArgumentException("Địa chỉ email không hợp lệ.");
             }
 
-            // Business logic: Validate domain exists
-            var domain = email.Split('@').Last();
-            try
+            // Business logic: Check email based on purpose
+            var emailExists = await _userRepository.EmailExistsAsync(email, ct);
+            
+            if (purpose == "register" && emailExists)
             {
-                var entry = await System.Net.Dns.GetHostEntryAsync(domain);
-                if (entry == null)
-                    throw new ArgumentException("Tên miền email không tồn tại.");
+                throw new ArgumentException("Email đã được đăng ký trong hệ thống.");
             }
-            catch
+            
+            if (purpose == "forgot-password" && !emailExists)
             {
-                throw new ArgumentException("Tên miền email không tồn tại hoặc không hợp lệ.");
-            }
-
-            // Business logic: Verify email with Kickbox
-            var verify = await _kickboxClient.VerifyEmailAsync(email);
-            if (verify.Result.Equals("undeliverable", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"Email không thể nhận thư (undeliverable): {verify.Reason}");
+                throw new ArgumentException("Email không tồn tại trong hệ thống.");
             }
 
             // Business logic: Generate OTP
