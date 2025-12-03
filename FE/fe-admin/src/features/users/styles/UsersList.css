@@ -469,6 +469,18 @@ body.dark-theme .stat-label {
   color: #e74c3c;
 }
 
+.action-btn.unban {
+  background: rgba(39, 174, 96, 0.15);
+  color: #27ae60;
+  border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+.action-btn.unban:hover {
+  background: rgba(39, 174, 96, 0.25);
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+
 .action-btn.delete:hover {
   background: rgba(231, 76, 60, 0.2);
   transform: scale(1.1);
@@ -648,6 +660,17 @@ body.dark-theme .action-btn.view {
 body.dark-theme .action-btn.view:hover {
   background: rgba(52, 152, 219, 0.3);
   box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+}
+
+body.dark-theme .action-btn.unban {
+  background: rgba(39, 174, 96, 0.2);
+  color: #52d48f;
+  border-color: rgba(39, 174, 96, 0.4);
+}
+
+body.dark-theme .action-btn.unban:hover {
+  background: rgba(39, 174, 96, 0.3);
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);
 }
 
 /* Responsive Design */
