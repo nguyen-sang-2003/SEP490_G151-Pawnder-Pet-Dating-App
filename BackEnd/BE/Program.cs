@@ -54,41 +54,16 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Connect PostgreSql với force IPv4
+// Connect PostgreSql
 var connectionString = builder.Configuration.GetConnectionString("DbContext");
 if (string.IsNullOrEmpty(connectionString))
 {
     throw new InvalidOperationException("Connection string 'DbContext' is not configured.");
 }
 
-// Resolve hostname thành IPv4 để tránh lỗi IPv6 trên Azure
-var builderConn = new NpgsqlConnectionStringBuilder(connectionString);
-var hostname = builderConn.Host;
+Console.WriteLine($"[DB] Using connection string: {connectionString.Replace(";Password=", ";Password=***")}");
 
-try
-{
-    // Resolve hostname và lấy IPv4 address đầu tiên
-    var hostEntry = Dns.GetHostEntry(hostname);
-    var ipv4Address = hostEntry.AddressList
-        .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
-    
-    if (ipv4Address != null)
-    {
-        builderConn.Host = ipv4Address.ToString();
-        connectionString = builderConn.ConnectionString;
-        Console.WriteLine($"[DB] Resolved {hostname} to IPv4: {ipv4Address}");
-    }
-    else
-    {
-        Console.WriteLine($"[DB] Warning: Could not resolve IPv4 for {hostname}, using hostname directly");
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"[DB] Warning: Could not resolve hostname {hostname}: {ex.Message}, using hostname directly");
-}
-
-// Configure DbContext với connection string đã resolve IPv4
+// Configure DbContext với connection string
 builder.Services.AddDbContext<PawnderDatabaseContext>(options =>
     options.UseNpgsql(connectionString, npgsqlOptions =>
     {

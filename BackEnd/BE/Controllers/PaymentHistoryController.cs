@@ -89,21 +89,35 @@ namespace BE.Controllers
 		{
 			try
 			{
+				Console.WriteLine($"[Callback] Received webhook from Sepay");
+				Console.WriteLine($"[Callback] Auth header: {authHeader}");
+				Console.WriteLine($"[Callback] Notification: {notification.GetRawText()}");
+
 				// Xác thực webhook từ SePay
 				var isValid = await _paymentHistoryService.ValidateWebhookAsync(authHeader, ct);
 				if (!isValid)
 				{
+					Console.WriteLine($"[Callback] Webhook validation failed");
 					return Unauthorized(new { success = false, message = "Webhook không hợp lệ", receivedAuth = authHeader });
 				}
 
+				Console.WriteLine($"[Callback] Webhook validated, processing payment...");
+				
 				// Parse thông tin từ SePay callback
 				var result = await _paymentHistoryService.ProcessPaymentCallbackAsync(notification, ct);
+				
+				Console.WriteLine($"[Callback] Payment processed successfully");
 				return Ok(result);
 			}
 			catch (Exception ex)
 			{
-				// Log lỗi nhưng vẫn trả OK cho SePay để tránh retry
-				return Ok(new { success = false, message = ex.Message });
+				// Log lỗi chi tiết
+				Console.WriteLine($"[Callback] ERROR: {ex.Message}");
+				Console.WriteLine($"[Callback] Stack trace: {ex.StackTrace}");
+				Console.WriteLine($"[Callback] Inner exception: {ex.InnerException?.Message}");
+				
+				// Trả OK cho SePay để tránh retry nhưng kèm thông tin lỗi
+				return Ok(new { success = false, message = $"Lỗi xử lý callback: {ex.Message}" });
 			}
 		}
 
