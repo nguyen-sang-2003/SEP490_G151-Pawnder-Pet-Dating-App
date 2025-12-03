@@ -1264,11 +1264,24 @@
       "subtitle": "Tư vấn từ các chuyên gia thú y",
       "infoBanner": "Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất",
       "loading": "Đang tải...",
+      "loadingExperts": "Đang tải danh sách chuyên gia...",
       "empty": {
         "title": "Chưa có cuộc trò chuyện",
-        "message": "Gửi câu hỏi để được chuyên gia tư vấn"
+        "message": "Bắt đầu trò chuyện với chuyên gia thú y để được tư vấn về sức khỏe thú cưng của bạn"
       },
-      "askNewQuestion": "Đặt câu hỏi mới",
+      "startNewChat": "Bắt đầu chat mới",
+      "selectExpert": {
+        "title": "Chọn chuyên gia",
+        "subtitle": "Chọn một chuyên gia thú y để bắt đầu cuộc trò chuyện"
+      },
+      "defaultSpecialty": "Chuyên gia thú y",
+      "noExperts": "Hiện tại chưa có chuyên gia nào. Vui lòng thử lại sau.",
+      "confirmInfo": "Bạn có thể hỏi chuyên gia về sức khỏe, dinh dưỡng, hành vi của thú cưng. Chuyên gia sẽ phản hồi sớm nhất có thể.",
+      "startChat": "Bắt đầu chat",
+      "errors": {
+        "userNotFound": "Không tìm thấy thông tin người dùng",
+        "createChatFailed": "Không thể tạo cuộc trò chuyện. Vui lòng thử lại."
+      },
       "time": {
         "justNow": "Vừa xong",
         "minutesAgo": "{{count}} phút trước",

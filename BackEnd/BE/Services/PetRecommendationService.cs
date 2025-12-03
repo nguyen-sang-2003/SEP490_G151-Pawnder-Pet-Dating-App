@@ -43,11 +43,12 @@ namespace BE.Services
                 .Select(p => p.PetId)
                 .ToListAsync(ct);
 
+            // Lấy tất cả users đã từng match (kể cả đã unmatch) để không hiển thị lại
+            // Bỏ điều kiện IsDeleted == false để loại trừ cả các match đã bị hủy
             var sentToUsers = await _context.ChatUsers
                 .Include(c => c.FromPet)
                 .Include(c => c.ToPet)
-                .Where(c => c.IsDeleted == false 
-                           && c.FromPet != null && c.ToPet != null
+                .Where(c => c.FromPet != null && c.ToPet != null
                            && userPetIds.Contains(c.FromPetId ?? -1))
                 .Select(c => c.ToPet!.UserId)
                 .Where(id => id.HasValue)
@@ -58,8 +59,7 @@ namespace BE.Services
             var receivedFromUsers = await _context.ChatUsers
                 .Include(c => c.FromPet)
                 .Include(c => c.ToPet)
-                .Where(c => c.IsDeleted == false 
-                           && c.FromPet != null && c.ToPet != null
+                .Where(c => c.FromPet != null && c.ToPet != null
                            && userPetIds.Contains(c.ToPetId ?? -1))
                 .Select(c => c.FromPet!.UserId)
                 .Where(id => id.HasValue)

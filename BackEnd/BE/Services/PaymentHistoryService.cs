@@ -193,7 +193,7 @@ namespace BE.Services
                 var accountNo = _configuration["Sepay:AccountNumber"];
                 var limit = _configuration["Sepay:Limit"] ?? "20";
 
-                Console.WriteLine($"[SePay] Checking payment for userId={userId}, amount={amount}");
+                Console.WriteLine($"[SePay] Checking payment for userId={userId}, amount={amount}, expectedDesc={expectedDescription}");
 
                 if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(accountNo))
                 {
@@ -238,6 +238,17 @@ namespace BE.Services
                             transactionCount++;
                             decimal transAmount = 0;
                             
+                            // Lấy transaction ID để kiểm tra đã sử dụng chưa
+                            string transactionId = "";
+                            if (transaction.TryGetProperty("id", out var idProp))
+                            {
+                                transactionId = idProp.ToString();
+                            }
+                            else if (transaction.TryGetProperty("reference_number", out var refProp))
+                            {
+                                transactionId = refProp.GetString() ?? "";
+                            }
+                            
                             // Thử lấy amount_in trước, nếu không có thì lấy amount
                             // SePay có thể trả về dạng Number hoặc String
                             if (transaction.TryGetProperty("amount_in", out var amountInProp))
@@ -269,29 +280,76 @@ namespace BE.Services
                                 transDesc = contentProp.GetString() ?? "";
                             }
 
-                            Console.WriteLine($"[SePay] Transaction #{transactionCount}: amount={transAmount}, content='{transDesc}'");
+                            Console.WriteLine($"[SePay] Transaction #{transactionCount}: id={transactionId}, amount={transAmount}, content='{transDesc}'");
 
-                            // Kiểm tra description chứa userId - PHẢI có format "userid" + số
-                            // Dùng Regex để đảm bảo match chính xác, tránh userId1 match với userId10
-                            var normalizedDesc = transDesc.Replace(" ", "");
-                            var userIdPattern = $@"(?i)userid[_]?{userId}(?!\d)";
-                            var descMatch = System.Text.RegularExpressions.Regex.IsMatch(normalizedDesc, userIdPattern);
+                            // Kiểm tra description chứa CHÍNH XÁC userId với format: userId_X_months_Y hoặc userIdXmonthsY
+                            // Pattern phải match chính xác userId, không được match userId3 khi tìm userId30
+                            var normalizedDesc = transDesc.Replace(" ", "").ToLower();
+                            
+                            // Sử dụng regex để match CHÍNH XÁC format:
+                            // - userid_3_months_1 hoặc userid3months1
+                            // - Đảm bảo số userId không bị match nhầm (userid3 không match userid30)
+                            // Pattern: userid[_]?{userId}[_]?months[_]?\d+ với boundary check
+                            var exactPattern = $@"userid[_]?{userId}[_]?months[_]?\d+";
+                            var descMatch = System.Text.RegularExpressions.Regex.IsMatch(normalizedDesc, exactPattern);
+                            
+                            // Double check: đảm bảo không match userId3 với userId30
+                            // Bằng cách kiểm tra ký tự sau userId phải là 'm' (months) hoặc '_'
+                            if (descMatch)
+                            {
+                                // Tìm vị trí của userId trong chuỗi và kiểm tra ký tự tiếp theo
+                                var userIdStr = userId.ToString();
+                                var patterns = new[] { $"userid_{userIdStr}_", $"userid_{userIdStr}m", $"userid{userIdStr}_", $"userid{userIdStr}m" };
+                                descMatch = patterns.Any(p => normalizedDesc.Contains(p));
+                            }
 
-                            Console.WriteLine($"[SePay] descMatch={descMatch}, pattern={userIdPattern}");
+                            Console.WriteLine($"[SePay] descMatch={descMatch}, normalizedDesc='{normalizedDesc}', checking for userId={userId}");
 
                             // Nếu tìm thấy giao dịch có userId khớp
                             if (descMatch)
                             {
+                                // Kiểm tra thời gian giao dịch - chỉ chấp nhận giao dịch trong vòng 24 giờ
+                                var transTimeStr = transaction.TryGetProperty("transaction_date", out var dateProp) 
+                                    ? dateProp.GetString() 
+                                    : null;
+                                
+                                if (!string.IsNullOrEmpty(transTimeStr))
+                                {
+                                    if (DateTime.TryParse(transTimeStr, out var transDateTime))
+                                    {
+                                        var hoursSinceTransaction = (DateTime.Now - transDateTime).TotalHours;
+                                        if (hoursSinceTransaction > 24)
+                                        {
+                                            Console.WriteLine($"[SePay] Transaction too old: {hoursSinceTransaction} hours ago");
+                                            continue; // Bỏ qua giao dịch cũ, tiếp tục tìm
+                                        }
+                                    }
+                                }
+
+                                // QUAN TRỌNG: Kiểm tra xem user này đã có payment history với cùng amount và thời gian gần đây chưa
+                                // Nếu đã có thì giao dịch này đã được sử dụng
+                                if (!string.IsNullOrEmpty(transTimeStr) && DateTime.TryParse(transTimeStr, out var parsedTransTime))
+                                {
+                                    // Kiểm tra xem đã có payment history nào được tạo sau thời điểm giao dịch này không
+                                    // Nếu có nghĩa là giao dịch này đã được xử lý
+                                    var alreadyUsed = await _context.PaymentHistories
+                                        .AnyAsync(p => p.UserId == userId 
+                                            && p.Amount == transAmount 
+                                            && p.CreatedAt >= parsedTransTime.AddMinutes(-5), ct); // Cho phép sai lệch 5 phút
+                                    
+                                    if (alreadyUsed)
+                                    {
+                                        Console.WriteLine($"[SePay] Transaction already used for userId={userId}, amount={transAmount}, time={transTimeStr}");
+                                        continue; // Giao dịch đã được sử dụng, tiếp tục tìm giao dịch khác
+                                    }
+                                }
+
                                 // Kiểm tra số tiền: chỉ chấp nhận nếu chuyển ĐÚNG số tiền (cho phép sai lệch 1000đ do phí)
                                 var amountDiff = Math.Abs(transAmount - amount);
                                 if (amountDiff <= 1000)
                                 {
-                                    var transTime = transaction.TryGetProperty("transaction_date", out var dateProp) 
-                                        ? dateProp.GetString() 
-                                        : DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                                    
-                                    Console.WriteLine($"[SePay] FOUND matching transaction! amount={transAmount}");
-                                    return (true, "Đã xác nhận giao dịch thanh toán", transTime);
+                                    Console.WriteLine($"[SePay] FOUND matching transaction! id={transactionId}, amount={transAmount}, time={transTimeStr}");
+                                    return (true, "Đã xác nhận giao dịch thanh toán", transTimeStr ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                                 }
                                 else
                                 {
@@ -302,7 +360,7 @@ namespace BE.Services
                             }
                         }
 
-                        Console.WriteLine($"[SePay] Checked {transactionCount} transactions, no match found");
+                        Console.WriteLine($"[SePay] Checked {transactionCount} transactions, no match found for userId={userId}");
                         // Không tìm thấy giao dịch khớp
                         return (false, $"Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền ({amount:N0}đ) và nội dung chứa 'userId{userId}'.", null);
                     }
