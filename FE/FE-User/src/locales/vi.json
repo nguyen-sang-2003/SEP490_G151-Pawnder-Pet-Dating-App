@@ -1251,6 +1251,7 @@
       "expertBadge": "Chuyên gia",
       "inputPlaceholder": "Nhắn tin với chuyên gia...",
       "loading": "Đang tải tin nhắn...",
+      "pullToRefresh": "Kéo để làm mới tin nhắn",
       "empty": {
         "title": "Bắt đầu cuộc trò chuyện",
         "message": "Hãy gửi tin nhắn đầu tiên cho chuyên gia"
@@ -1268,6 +1269,7 @@
       "infoBanner": "Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất",
       "loading": "Đang tải...",
       "loadingExperts": "Đang tải danh sách chuyên gia...",
+      "pullToRefresh": "Kéo để làm mới danh sách",
       "empty": {
         "title": "Chưa có cuộc trò chuyện",
         "message": "Bắt đầu trò chuyện với chuyên gia thú y để được tư vấn về sức khỏe thú cưng của bạn"
