@@ -256,8 +256,24 @@ namespace BE.Services
             if (request.isDelete.HasValue)
                 entity.IsDeleted = request.isDelete.Value;
 
-            if (request.userStatusId.HasValue)
+            // Business logic: Nếu đang update RoleId thành Expert (2), đảm bảo UserStatusId = 2 (NORMAL)
+            if (request.RoleId.HasValue && request.RoleId.Value == 2)
+            {
+                // Khi chuyển thành Expert, luôn set trạng thái NORMAL
+                entity.RoleId = 2;
+                entity.UserStatusId = 2;
+            }
+            else if (request.RoleId.HasValue)
+            {
+                // Các role khác, chỉ update RoleId
+                entity.RoleId = request.RoleId.Value;
+            }
+
+            // Business logic: Update UserStatusId (nhưng không áp dụng nếu đang chuyển thành Expert)
+            if (request.userStatusId.HasValue && !(request.RoleId.HasValue && request.RoleId.Value == 2))
+            {
                 entity.UserStatusId = request.userStatusId.Value;
+            }
 
             entity.UpdatedAt = DateTime.Now;
             await _userRepository.UpdateAsync(entity, ct);
@@ -276,11 +292,19 @@ namespace BE.Services
             var hashed = _passwordService.HashPassword(req.Password);
 
             var now = DateTime.Now;
-            var desiredStatusId = req.UserStatusId;
-            if (!desiredStatusId.HasValue)
+            
+            // Business logic: Expert (RoleId = 2) luôn có trạng thái NORMAL (UserStatusId = 2)
+            // Bất kể giá trị UserStatusId nào được truyền vào
+            int? desiredStatusId;
+            if (req.RoleId == 2) // Expert role
             {
-                // Default to "Tài khoản thường" (2) when not provided
+                // Expert mới tạo luôn có trạng thái NORMAL (statusId = 2)
                 desiredStatusId = 2;
+            }
+            else
+            {
+                // Các role khác sử dụng UserStatusId được truyền vào hoặc default = 2
+                desiredStatusId = req.UserStatusId ?? 2;
             }
 
             var entity = new User

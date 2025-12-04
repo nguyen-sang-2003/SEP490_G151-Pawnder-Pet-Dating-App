@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace BE.Services
 {
@@ -233,25 +234,43 @@ namespace BE.Services
                     {
                         var addr = osmResult.address;
                         
-                        // City (Thành phố): Cấp thành phố/tỉnh - cấp hành chính lớn nhất
-                        // Theo LocationIQ: city, state, town, region, country
-                        // Ưu tiên: city > state > town > region > country
-                        // Tất cả các trường này đều optional, chỉ lấy giá trị đầu tiên có sẵn
-                        string? rawCity = addr.city ?? addr.state ?? addr.town ?? addr.region ?? addr.country;
+                        // Check if city field actually contains a district (has "Ward" or similar)
+                        bool cityIsActuallyDistrict = !string.IsNullOrEmpty(addr.city) && 
+                            (addr.city.Contains("Ward", StringComparison.OrdinalIgnoreCase) ||
+                             addr.city.Contains("District", StringComparison.OrdinalIgnoreCase) ||
+                             addr.city.Contains("Commune", StringComparison.OrdinalIgnoreCase));
+                        
+                        // City (Thành phố/Tỉnh): Cấp thành phố/tỉnh - cấp hành chính lớn nhất
+                        // Ưu tiên: state > province > (city nếu không phải district) > town > region
+                        // Nếu city có "Ward" thì bỏ qua, dùng state/province
+                        string? rawCity = null;
+                        if (!cityIsActuallyDistrict)
+                        {
+                            rawCity = addr.state ?? addr.province ?? addr.city ?? addr.town ?? addr.region;
+                        }
+                        else
+                        {
+                            rawCity = addr.state ?? addr.province ?? addr.town ?? addr.region;
+                        }
                         city = string.IsNullOrEmpty(rawCity) ? null : CleanVietnameseAddress(rawCity, new[] { "Thành phố", "Tỉnh" });
 
-                        // District (Quận): Cấp quận/huyện - cấp hành chính trung gian
-                        // Theo LocationIQ: city_district, state_district, county
-                        // Ưu tiên: city_district > state_district > county
-                        // Tất cả các trường này đều optional, chỉ lấy giá trị đầu tiên có sẵn
-                        string? rawDistrict = addr.city_district ?? addr.state_district ?? addr.county;
+                        // District (Quận/Huyện): Cấp quận/huyện - cấp hành chính trung gian
+                        // Nếu city có "Ward" thì đó là district, nếu không thì dùng city_district, state_district, county
+                        string? rawDistrict = null;
+                        if (cityIsActuallyDistrict)
+                        {
+                            rawDistrict = addr.city; // city field chứa district
+                        }
+                        else
+                        {
+                            rawDistrict = addr.city_district ?? addr.state_district ?? addr.county;
+                        }
                         district = string.IsNullOrEmpty(rawDistrict) ? null : CleanVietnameseAddress(rawDistrict, new[] { "Quận", "Huyện" });
 
-                        // Ward (Phường): Cấp phường/xã - cấp hành chính nhỏ nhất
-                        // Theo LocationIQ: suburb, village, neighbourhood, hamlet
-                        // Ưu tiên: suburb > village > neighbourhood > hamlet
-                        // Tất cả các trường này đều optional, chỉ lấy giá trị đầu tiên có sẵn
-                        string? rawWard = addr.suburb ?? addr.village ?? addr.neighbourhood ?? addr.hamlet;
+                        // Ward (Phường/Xã): Cấp phường/xã - cấp hành chính nhỏ nhất
+                        // Theo LocationIQ: suburb, village, neighbourhood, hamlet, quarter
+                        // Ưu tiên: suburb > village > quarter > neighbourhood > hamlet
+                        string? rawWard = addr.suburb ?? addr.village ?? addr.quarter ?? addr.neighbourhood ?? addr.hamlet;
                         ward = string.IsNullOrEmpty(rawWard) ? null : CleanVietnameseAddress(rawWard, new[] { "Phường", "Xã", "Thị trấn" });
                     }
 
@@ -272,6 +291,8 @@ namespace BE.Services
                 return null;
 
             string cleaned = rawAddress.Trim();
+            
+            // Step 1: Remove Vietnamese prefixes at the start
             foreach (var prefix in prefixes)
             {
                 if (cleaned.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -280,6 +301,35 @@ namespace BE.Services
                     break;
                 }
             }
+            
+            // Step 2: Remove English suffixes/words (Ward, District, City, Commune, Province) from anywhere
+            // These words can appear at the end, start, or middle of the string
+            var englishWords = new[] { "Ward", "ward", "District", "district", "City", "city", 
+                                      "Commune", "commune", "Province", "province", "Town", "town" };
+            
+            foreach (var word in englishWords)
+            {
+                // Remove from end
+                if (cleaned.EndsWith(word, StringComparison.OrdinalIgnoreCase))
+                {
+                    cleaned = cleaned.Substring(0, cleaned.Length - word.Length).Trim();
+                }
+                // Remove from start
+                if (cleaned.StartsWith(word, StringComparison.OrdinalIgnoreCase))
+                {
+                    cleaned = cleaned.Substring(word.Length).Trim();
+                }
+                // Remove from middle (with spaces around it)
+                cleaned = Regex.Replace(
+                    cleaned, 
+                    @"\s+" + Regex.Escape(word) + @"\s+", 
+                    " ", 
+                    RegexOptions.IgnoreCase);
+            }
+            
+            // Clean up multiple spaces
+            cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
+            
             return string.IsNullOrEmpty(cleaned) ? null : cleaned;
         }
 

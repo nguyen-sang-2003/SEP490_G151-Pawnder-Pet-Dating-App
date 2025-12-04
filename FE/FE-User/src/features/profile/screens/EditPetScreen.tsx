@@ -283,9 +283,6 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const handleChangePhoto = () => {
-    handleAddPhoto();
-  };
 
   const handleMovePhoto = async (fromIndex: number, toIndex: number) => {
     if (toIndex < 0 || toIndex >= photos.length) return;
@@ -412,22 +409,20 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               colors={["#C8A8D4", "#E8D5EE"]}
               style={styles.avatarGradient}
             >
-              <Image
-                source={require("../../../assets/cat_avatar.png")}
-                style={styles.avatar}
-              />
+              {photos.length > 0 && photos[0] ? (
+                <OptimizedImage
+                  source={{ uri: photos[0].ImageUrl || photos[0].imageUrl || photos[0].Url || photos[0].url }}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                  imageSize="medium"
+                />
+              ) : (
+                <Image
+                  source={require("../../../assets/cat_avatar.png")}
+                  style={styles.avatar}
+                />
+              )}
             </LinearGradient>
-            <TouchableOpacity
-              style={styles.editIconBtn}
-              onPress={handleChangePhoto}
-            >
-              <LinearGradient
-                colors={["#FF6EA7", "#FF9BC0"]}
-                style={styles.editIconGradient}
-              >
-                <Icon name="camera" size={18} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
           </View>
           <Text style={styles.changePhotoText}>{t('profile.editPet.changePhoto')}</Text>
         </View>
@@ -732,25 +727,6 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-  },
-  editIconBtn: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-  },
-  editIconGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFF",
-    shadowColor: "#FF6EA7",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
   },
   changePhotoText: {
     fontSize: 14,

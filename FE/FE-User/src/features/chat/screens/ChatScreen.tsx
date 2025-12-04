@@ -40,6 +40,8 @@ interface ChatItem {
   name: string;
   lastMessage: string;
   time: string;
+  lastMessageTime: string; // For sorting - timestamp of last message
+  matchCreatedAt: string; // For sorting - when match was created
   unread: number;
   avatar: any;
   isAI?: boolean;
@@ -190,19 +192,40 @@ const ChatScreen = ({ navigation }: Props) => {
       };
       
       // Update last message and timestamp
-      updatedChats[chatIndex] = {
+      const updatedChat = {
         ...chat,
         lastMessage: message || 'New message',
         time: formatTime(createdAt),
+        lastMessageTime: createdAt, // Update timestamp for sorting
         // Only increment unread if message is FROM other user
         unread: fromUserId !== currentUserId ? (chat.unread || 0) + 1 : chat.unread,
       };
       
-      // ✅ Move to top of list (like Messenger)
-      const updatedChat = updatedChats.splice(chatIndex, 1)[0];
+      // Remove from current position and add to top
+      updatedChats.splice(chatIndex, 1);
       updatedChats.unshift(updatedChat);
       
-      console.log('✅ Updated chat in list and moved to top');
+      // Sort to ensure correct order (newest first by lastMessageTime or matchCreatedAt)
+      updatedChats.sort((a, b) => {
+        const timeA = a.lastMessageTime || a.matchCreatedAt;
+        const timeB = b.lastMessageTime || b.matchCreatedAt;
+        
+        let dateStrA = timeA;
+        if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+          dateStrA = dateStrA + 'Z';
+        }
+        const dateA = new Date(dateStrA);
+        
+        let dateStrB = timeB;
+        if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+          dateStrB = dateStrB + 'Z';
+        }
+        const dateB = new Date(dateStrB);
+        
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      console.log('✅ Updated chat in list and sorted by newest message');
       return updatedChats;
     });
 
@@ -348,6 +371,8 @@ const ChatScreen = ({ navigation }: Props) => {
               name: otherUser.fullName || t('fallback.unknown'),
               lastMessage: lastMessage,
               time: formatTime(lastMessageTime),
+              lastMessageTime: lastMessageTime, // Store for sorting
+              matchCreatedAt: chat.createdAt, // Store for sorting
               unread: 0, // Unread count requires DB changes - keep simple for now
               avatar: userAvatar,
               isVip: isVip,
@@ -359,14 +384,39 @@ const ChatScreen = ({ navigation }: Props) => {
         })
       );
 
-      // Filter out null values and set state
+      // Filter out null values
       const validChats = chatItems.filter((item): item is ChatItem => item !== null);
 
+      // Sort chats: tin nhắn mới nhất lên đầu, nếu không có tin nhắn thì match mới nhất lên đầu
+      const sortedChats = validChats.sort((a, b) => {
+        // Parse timestamps
+        let dateA: Date, dateB: Date;
+        
+        // Use lastMessageTime if available, otherwise use matchCreatedAt
+        const timeA = a.lastMessageTime || a.matchCreatedAt;
+        const timeB = b.lastMessageTime || b.matchCreatedAt;
+        
+        let dateStrA = timeA;
+        if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+          dateStrA = dateStrA + 'Z';
+        }
+        dateA = new Date(dateStrA);
+        
+        let dateStrB = timeB;
+        if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+          dateStrB = dateStrB + 'Z';
+        }
+        dateB = new Date(dateStrB);
+        
+        // Sort descending (newest first)
+        return dateB.getTime() - dateA.getTime();
+      });
+
       // 🚀 OPTIMIZATION: Cache the result
-      cache.set(cacheKey, validChats);
+      cache.set(cacheKey, sortedChats);
       console.log('💾 Cached chats for future use');
 
-      setChatData(validChats);
+      setChatData(sortedChats);
 
     } catch (error: any) {
 

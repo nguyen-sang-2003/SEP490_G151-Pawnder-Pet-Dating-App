@@ -255,13 +255,16 @@
           "message": "Đã phát hiện {{count}} đặc điểm. Hãy xem xét và chỉnh sửa nếu cần."
         },
         "aiBadge": "AI",
+        "currentValue": "Giá trị hiện tại",
         "infoCard": "Những thông tin này giúp chúng tôi tìm được bạn đồng hành hoàn hảo cho thú cưng của bạn. Bạn có thể cập nhật bất cứ lúc nào.",
         "continueButton": "Tiếp tục",
         "saveButton": "Lưu thay đổi",
         "success": "Thành công!",
         "profileCreated": "Hồ sơ thú cưng của bạn đã được tạo thành công!",
+        "characteristicsUpdated": "Đã cập nhật thuộc tính thú cưng thành công!",
         "backToProfile": "Về trang cá nhân",
-        "saveFailed": "Failed to save characteristics. Please try again.",
+        "saveFailed": "Không thể lưu thuộc tính. Vui lòng thử lại.",
+        "updateFailed": "Không thể cập nhật thuộc tính. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
         "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục."
       }

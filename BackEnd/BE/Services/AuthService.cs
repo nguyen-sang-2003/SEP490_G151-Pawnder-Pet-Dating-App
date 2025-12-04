@@ -95,6 +95,7 @@ namespace BE.Services
                     if (banToDeactivate != null && banToDeactivate.IsActive == true)
                     {
                         banToDeactivate.IsActive = false;
+                        banToDeactivate.BanEnd = now; // Set BanEnd = thời điểm unban (giống unban thủ công)
                         banToDeactivate.UpdatedAt = now;
 
                         // Business logic: Set user status based on payment history
@@ -207,6 +208,7 @@ namespace BE.Services
                     if (banToDeactivate != null && banToDeactivate.IsActive == true)
                     {
                         banToDeactivate.IsActive = false;
+                        banToDeactivate.BanEnd = now; // Set BanEnd = thời điểm unban (giống unban thủ công)
                         banToDeactivate.UpdatedAt = now;
 
                         // Business logic: Set user status based on payment history

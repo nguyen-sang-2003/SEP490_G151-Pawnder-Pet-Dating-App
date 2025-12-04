@@ -245,8 +245,49 @@ const ExpertChat = () => {
             
             setTimeout(() => scrollToBottom(), 100);
           } else {
-            console.log('⚠️ [SignalR] Message is for different chat, ignoring for now');
-            // TODO: Could show notification or update unread count here
+            console.log('⚠️ [SignalR] Message is for different chat, updating chat list');
+            // Update chat list: move chat with new message to top
+            setChats((prevChats) => {
+              const chatIndex = prevChats.findIndex(c => c.chatExpertId === chatExpertId);
+              if (chatIndex === -1) {
+                // Chat not in list, reload to get it
+                console.log('🆕 New chat detected, reloading...');
+                // Could trigger reload here if needed
+                return prevChats;
+              }
+              
+              // Update chat's updatedAt to current time and move to top
+              const updatedChats = [...prevChats];
+              const updatedChat = {
+                ...updatedChats[chatIndex],
+                updatedAt: createdAt || new Date().toISOString(),
+              };
+              
+              // Remove from current position
+              updatedChats.splice(chatIndex, 1);
+              // Add to top
+              updatedChats.unshift(updatedChat);
+              
+              // Sort to ensure correct order (newest first)
+              updatedChats.sort((a, b) => {
+                let dateStrA = a.updatedAt || a.createdAt;
+                if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+                  dateStrA = dateStrA + 'Z';
+                }
+                const dateA = new Date(dateStrA);
+                
+                let dateStrB = b.updatedAt || b.createdAt;
+                if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+                  dateStrB = dateStrB + 'Z';
+                }
+                const dateB = new Date(dateStrB);
+                
+                return dateB.getTime() - dateA.getTime();
+              });
+              
+              console.log('✅ Updated chat list and sorted by newest message');
+              return updatedChats;
+            });
           }
           
           // Return unchanged to not modify selectedChat
@@ -352,12 +393,31 @@ const ExpertChat = () => {
           };
         });
 
-        console.log('✅ Chats with user info:', chatsWithUserInfo);
-        setChats(chatsWithUserInfo);
+        // Sort chats: tin nhắn mới nhất lên đầu (theo updatedAt - last message time)
+        const sortedChats = chatsWithUserInfo.sort((a, b) => {
+          // Parse updatedAt timestamps
+          let dateStrA = a.updatedAt || a.createdAt;
+          if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+            dateStrA = dateStrA + 'Z';
+          }
+          const dateA = new Date(dateStrA);
+          
+          let dateStrB = b.updatedAt || b.createdAt;
+          if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+            dateStrB = dateStrB + 'Z';
+          }
+          const dateB = new Date(dateStrB);
+          
+          // Sort descending (newest first)
+          return dateB.getTime() - dateA.getTime();
+        });
+
+        console.log('✅ Chats with user info (sorted):', sortedChats);
+        setChats(sortedChats);
         
-        // Auto-select first chat if available
-        if (chatsWithUserInfo.length > 0 && !selectedChat) {
-          setSelectedChat(chatsWithUserInfo[0]);
+        // Auto-select first chat if available (chat mới nhất)
+        if (sortedChats.length > 0 && !selectedChat) {
+          setSelectedChat(sortedChats[0]);
         }
       } catch (err) {
         console.error('❌ Failed to load chats:', err);
@@ -399,7 +459,8 @@ const ExpertChat = () => {
         const messagesData = Array.isArray(response) ? response : response?.data || [];
         console.log('💬 Messages data:', messagesData);
         setMessages(messagesData);
-        setTimeout(() => scrollToBottom(), 100);
+        // Scroll to bottom after loading messages
+        setTimeout(() => scrollToBottom(), 200);
       } catch (err) {
         console.error('❌ Failed to load messages:', err);
         console.error('Error details:', {

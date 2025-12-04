@@ -48,22 +48,9 @@ body.dark-theme .page-header p {
   max-width: 500px;
 }
 
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input-wrapper svg {
-  position: absolute;
-  left: 1rem;
-  color: #666;
-  z-index: 1;
-}
-
 .search-input {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 3rem;
+  padding: 0.75rem 1rem;
   border: 2px solid rgba(255, 182, 193, 0.3);
   border-radius: 12px;
   font-size: 1rem;
@@ -116,10 +103,6 @@ body.dark-theme .search-input:focus {
   background: rgba(30, 30, 30, 0.95);
   border-color: #f72585;
   box-shadow: 0 0 0 3px rgba(247, 37, 133, 0.2);
-}
-
-body.dark-theme .search-input-wrapper svg {
-  color: #999;
 }
 
 body.dark-theme .filter-select {
@@ -486,6 +469,18 @@ body.dark-theme .stat-label {
   color: #e74c3c;
 }
 
+.action-btn.unban {
+  background: rgba(39, 174, 96, 0.15);
+  color: #27ae60;
+  border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+.action-btn.unban:hover {
+  background: rgba(39, 174, 96, 0.25);
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+
 .action-btn.delete:hover {
   background: rgba(231, 76, 60, 0.2);
   transform: scale(1.1);
@@ -665,6 +660,17 @@ body.dark-theme .action-btn.view {
 body.dark-theme .action-btn.view:hover {
   background: rgba(52, 152, 219, 0.3);
   box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+}
+
+body.dark-theme .action-btn.unban {
+  background: rgba(39, 174, 96, 0.2);
+  color: #52d48f;
+  border-color: rgba(39, 174, 96, 0.4);
+}
+
+body.dark-theme .action-btn.unban:hover {
+  background: rgba(39, 174, 96, 0.3);
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);
 }
 
 /* Responsive Design */

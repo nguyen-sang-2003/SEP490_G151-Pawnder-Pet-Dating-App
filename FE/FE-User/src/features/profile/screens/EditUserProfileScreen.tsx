@@ -20,6 +20,7 @@ import { colors } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { requestLocationAndGetCoordinates } from "../../../services/location.service";
+import { formatFullAddress } from "../../../utils/addressFormatter";
 
 type Props = NativeStackScreenProps<RootStackParamList, "EditProfile">;
 
@@ -352,7 +353,7 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.currentLocationLabel}>{t('profile.edit.currentLocation')}</Text>
                 <Text style={styles.currentLocationText}>
-                  {[ward, district, city].filter(Boolean).join(', ') || t('profile.edit.noCurrentLocation')}
+                  {formatFullAddress(ward, district, city) || t('profile.edit.noCurrentLocation')}
                 </Text>
               </View>
             </View>
