@@ -28,7 +28,6 @@ import { getVipStatus } from "../../payment/api/paymentApi";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { invalidateCache } from "../../../services/cache";
 import OptimizedImage from "../../../components/OptimizedImage";
-import { formatShortAddress, formatWardDistrict } from "../../../utils/addressFormatter";
 
 const { width } = Dimensions.get("window");
 
@@ -251,13 +250,10 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const city = getAddressField('City');
   const district = getAddressField('District');
   const ward = getAddressField('Ward');
-  const rawFullAddress = getAddressField('FullAddress');
+  const fullAddress = getAddressField('FullAddress');
 
-  // Format address with Vietnamese prefixes
-  // shortLocation: district + city (for main location display)
-  // fullAddress: ward + district only (city already shown in shortLocation above)
-  const shortLocation = formatShortAddress(district, city);
-  const fullAddress = formatWardDistrict(ward, district);
+  // Format short location
+  const shortLocation = [district, city].filter(Boolean).join(', ');
 
   // Owner Info
   const owner = {
@@ -619,7 +615,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {/* My Pets Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderLeft}>
+            <View>
               <Text style={styles.sectionTitle}>{t('profile.myPets.count', { count: myPets.length })}</Text>
               <Text style={styles.sectionSubtitle}>
                 {t('profile.myPets.subtitle')}
@@ -976,11 +972,8 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 12,
-  },
-  sectionHeaderLeft: {
-    flex: 1,
   },
   sectionTitle: {
     fontSize: 20,

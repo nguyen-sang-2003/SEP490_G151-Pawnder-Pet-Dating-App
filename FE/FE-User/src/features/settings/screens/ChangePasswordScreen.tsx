@@ -18,6 +18,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import { changePassword, logout } from "../../auth/api/authApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ChangePassword">;
 
@@ -81,14 +82,25 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
     setLoading(true);
 
     try {
-      // TODO: Implement API call to change password
+      const response = await changePassword(currentPassword, newPassword);
+      const message = response.Message || response.message || t('settings.changePassword.successMessage');
+      
       showAlert({
-        type: 'warning',
-        title: t('alerts.info'),
-        message: t('settings.changePassword.featureInDevelopment'),
+        type: 'success',
+        title: t('settings.changePassword.successTitle'),
+        message: message,
+        onConfirm: async () => {
+          // Logout user after password change (as backend clears JWT token)
+          await logout();
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'SignIn' }],
+          });
+        },
       });
-    } catch (error) {
-      showAlert({ type: 'error', title: t('common.error'), message: t('settings.changePassword.errors.changeFailed') });
+    } catch (error: any) {
+      const errorMessage = error.message || t('settings.changePassword.errors.changeFailed');
+      showAlert({ type: 'error', title: t('common.error'), message: errorMessage });
     } finally {
       setLoading(false);
     }

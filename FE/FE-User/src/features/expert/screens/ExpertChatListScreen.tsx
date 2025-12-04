@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  RefreshControl,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -38,6 +39,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
   const { t } = useTranslation();
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [expertChats, setExpertChats] = useState<ExpertChatListItem[]>([]);
   const [availableExperts, setAvailableExperts] = useState<Expert[]>([]);
   const [loadingExperts, setLoadingExperts] = useState(false);
@@ -55,9 +57,13 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
     }, [])
   );
 
-  const loadExpertChats = async () => {
+  const loadExpertChats = async (isRefresh: boolean = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const userIdStr = await AsyncStorage.getItem("userId");
       if (!userIdStr) {
         console.log("❌ No userId found");
@@ -93,8 +99,13 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       console.error("❌ Error loading expert chats:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+    loadExpertChats(true);
+  }, []);
 
   const loadAvailableExperts = async () => {
     try {
@@ -283,41 +294,52 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={styles.loadingText}>{t("expert.chatList.loading")}</Text>
         </View>
-      ) : expertChats.length > 0 ? (
+      ) : (
         <>
           <FlatList
             data={expertChats}
             keyExtractor={(item) => item.id}
             renderItem={renderExpertChat}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={expertChats.length === 0 ? styles.emptyListContent : styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#4CAF50"]}
+                tintColor="#4CAF50"
+              />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <LinearGradient
+                  colors={["#4CAF50", "#66BB6A"]}
+                  style={styles.emptyIconGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Icon name="chatbubbles-outline" size={48} color={colors.white} />
+                </LinearGradient>
+                <Text style={styles.emptyTitle}>{t("expert.chatList.empty.title")}</Text>
+                <Text style={styles.emptyText}>{t("expert.chatList.empty.message")}</Text>
+                <TouchableOpacity style={styles.startChatButton} onPress={handleOpenExpertModal} activeOpacity={0.8}>
+                  <LinearGradient colors={["#4CAF50", "#66BB6A"]} style={styles.startChatGradient}>
+                    <Icon name="add-circle" size={22} color={colors.white} />
+                    <Text style={styles.startChatText}>{t("expert.chatList.startNewChat")}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            }
           />
-          {/* FAB to start new chat */}
-          <TouchableOpacity style={styles.fab} onPress={handleOpenExpertModal} activeOpacity={0.8}>
-            <LinearGradient colors={["#4CAF50", "#66BB6A"]} style={styles.fabGradient}>
-              <Icon name="add" size={28} color={colors.white} />
-            </LinearGradient>
-          </TouchableOpacity>
+          {/* FAB to start new chat - only show when has chats */}
+          {expertChats.length > 0 && (
+            <TouchableOpacity style={styles.fab} onPress={handleOpenExpertModal} activeOpacity={0.8}>
+              <LinearGradient colors={["#4CAF50", "#66BB6A"]} style={styles.fabGradient}>
+                <Icon name="add" size={28} color={colors.white} />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </>
-      ) : (
-        <View style={styles.emptyState}>
-          <LinearGradient
-            colors={["#4CAF50", "#66BB6A"]}
-            style={styles.emptyIconGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Icon name="chatbubbles-outline" size={48} color={colors.white} />
-          </LinearGradient>
-          <Text style={styles.emptyTitle}>{t("expert.chatList.empty.title")}</Text>
-          <Text style={styles.emptyText}>{t("expert.chatList.empty.message")}</Text>
-          <TouchableOpacity style={styles.startChatButton} onPress={handleOpenExpertModal} activeOpacity={0.8}>
-            <LinearGradient colors={["#4CAF50", "#66BB6A"]} style={styles.startChatGradient}>
-              <Icon name="add-circle" size={22} color={colors.white} />
-              <Text style={styles.startChatText}>{t("expert.chatList.startNewChat")}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
       )}
 
       {/* Modal: Select Expert */}
@@ -491,6 +513,7 @@ const styles = StyleSheet.create({
 
   // Chat Item
   listContent: { paddingBottom: 100 },
+  emptyListContent: { flexGrow: 1, justifyContent: "center" },
   chatItem: {
     flexDirection: "row", alignItems: "center", backgroundColor: colors.white,
     marginHorizontal: 20, marginBottom: 12, padding: 16, borderRadius: radius.xl, ...shadows.small,
@@ -529,7 +552,7 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 16, color: colors.textMedium, marginTop: 12, fontWeight: "600" },
 
   // Empty State
-  emptyState: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
+  emptyState: { justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
   emptyIconGradient: {
     width: 100, height: 100, borderRadius: 50, justifyContent: "center", alignItems: "center", marginBottom: 24, ...shadows.large,
   },

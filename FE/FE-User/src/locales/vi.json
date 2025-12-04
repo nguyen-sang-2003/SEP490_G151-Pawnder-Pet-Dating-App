@@ -582,6 +582,8 @@
       "changeButton": "Đổi mật khẩu",
       "changingButton": "Đang đổi...",
       "forgotPassword": "Quên mật khẩu hiện tại?",
+      "successTitle": "Thành công",
+      "successMessage": "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
       "requirements": {
         "title": "Yêu cầu mật khẩu:",
         "minLength": "Ít nhất 8 ký tự",
@@ -773,10 +775,13 @@
         "success": "Thành công",
         "pending": "Chờ xử lý",
         "failed": "Thất bại",
+        "active": "Đang hoạt động",
+        "expired": "Đã hết hạn",
         "premiumActive": "Premium Active",
         "premiumExpired": "Premium Expired"
       },
       "paymentMethod": "Chuyển khoản QR",
+      "daysRemaining": "Còn {{count}} ngày",
       "empty": {
         "title": "Chưa có lịch sử thanh toán",
         "subtitle": "Your payment transactions will appear here",
@@ -1251,6 +1256,7 @@
       "expertBadge": "Chuyên gia",
       "inputPlaceholder": "Nhắn tin với chuyên gia...",
       "loading": "Đang tải tin nhắn...",
+      "pullToRefresh": "Kéo để làm mới tin nhắn",
       "empty": {
         "title": "Bắt đầu cuộc trò chuyện",
         "message": "Hãy gửi tin nhắn đầu tiên cho chuyên gia"
@@ -1268,6 +1274,7 @@
       "infoBanner": "Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất",
       "loading": "Đang tải...",
       "loadingExperts": "Đang tải danh sách chuyên gia...",
+      "pullToRefresh": "Kéo để làm mới danh sách",
       "empty": {
         "title": "Chưa có cuộc trò chuyện",
         "message": "Bắt đầu trò chuyện với chuyên gia thú y để được tư vấn về sức khỏe thú cưng của bạn"

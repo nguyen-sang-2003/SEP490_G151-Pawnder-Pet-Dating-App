@@ -14,7 +14,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { generatePaymentQR, createPaymentHistory } from "../api/paymentApi";
+import { generatePaymentQR, verifyPayment } from "../api/paymentApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "react-i18next";
 import CustomAlert from "../../../components/CustomAlert";
@@ -107,20 +107,16 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         '6months': 6,
         '12months': 12,
       };
-      const durationMonths = durationMonthsMap[planId] || 1;
+      const months = durationMonthsMap[planId] || 1;
 
-      // Call API to verify payment and create payment history
-      const response = await createPaymentHistory({
-        userId,
-        durationMonths,
-        amount,
-        planName,
-      });
+      // Call new callback API to verify payment from SePay (checks last 30 minutes)
+      // Body: { transferAmount: number, content: "userIdXmonthsY" }
+      const response = await verifyPayment(amount, userId, months);
 
       setProcessing(false);
 
       if (response.success && response.paid) {
-        // Payment verified successfully
+        // Payment verified successfully - VIP activated!
         showAlert({
           type: 'success',
           title: t("payment.qr.success.title"),
@@ -134,7 +130,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
           },
         });
       } else if (!response.paid) {
-        // Payment not found - user hasn't transferred yet
+        // Payment not found in last 30 minutes
         showAlert({
           type: 'warning',
           title: t("payment.qr.notFound.title"),
