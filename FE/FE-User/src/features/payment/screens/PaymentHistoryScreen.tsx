@@ -26,8 +26,10 @@ interface PaymentRecord {
   amount: number;
   startDate: string;
   endDate: string;
-  status: "success" | "pending" | "failed";
+  status: "active" | "expired" | "pending";
   createdAt: string;
+  durationMonths: number;
+  daysRemaining: number;
 }
 
 const PaymentHistoryScreen = ({ navigation }: Props) => {
@@ -53,15 +55,38 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
       const data = await getPaymentHistoryByUserId(userId);
 
       // Map API response to PaymentRecord format
-      const mappedPayments: PaymentRecord[] = data.map((item: any) => ({
-        historyId: item.historyId,
-        statusService: item.statusService === "active" ? t("payment.history.status.premiumActive") : t("payment.history.status.premiumExpired"),
-        amount: item.amount || 0,
-        startDate: item.startDate,
-        endDate: item.endDate,
-        status: item.statusService === "active" ? "success" : "pending",
-        createdAt: item.createdAt,
-      }));
+      const mappedPayments: PaymentRecord[] = data.map((item: any) => {
+        // Calculate duration in months from startDate and endDate
+        const start = new Date(item.startDate);
+        const end = new Date(item.endDate);
+        const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+        
+        // Calculate days remaining
+        const today = new Date();
+        const endDate = new Date(item.endDate);
+        const diffTime = endDate.getTime() - today.getTime();
+        const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        
+        // Determine status based on statusService and dates
+        let status: "active" | "expired" | "pending" = "pending";
+        if (item.statusService === "active" && daysRemaining > 0) {
+          status = "active";
+        } else if (item.statusService === "expired" || daysRemaining <= 0) {
+          status = "expired";
+        }
+
+        return {
+          historyId: item.historyId,
+          statusService: item.statusService,
+          amount: typeof item.amount === 'number' ? item.amount : parseInt(item.amount) || 0,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          status,
+          createdAt: item.createdAt,
+          durationMonths: diffMonths || 1,
+          daysRemaining,
+        };
+      });
 
       setPayments(mappedPayments);
     } catch (err: any) {
@@ -84,12 +109,12 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
 
   const getStatusColor = (status: PaymentRecord["status"]) => {
     switch (status) {
-      case "success":
+      case "active":
         return colors.success;
       case "pending":
         return "#FF9800";
-      case "failed":
-        return colors.error;
+      case "expired":
+        return colors.textMedium;
       default:
         return colors.textMedium;
     }
@@ -97,14 +122,42 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
 
   const getStatusIcon = (status: PaymentRecord["status"]) => {
     switch (status) {
-      case "success":
+      case "active":
         return "checkmark-circle";
       case "pending":
         return "time-outline";
-      case "failed":
-        return "close-circle";
+      case "expired":
+        return "close-circle-outline";
       default:
         return "ellipse-outline";
+    }
+  };
+
+  const getStatusText = (status: PaymentRecord["status"]) => {
+    switch (status) {
+      case "active":
+        return t("payment.history.status.active");
+      case "pending":
+        return t("payment.history.status.pending");
+      case "expired":
+        return t("payment.history.status.expired");
+      default:
+        return "";
+    }
+  };
+
+  const getPlanName = (durationMonths: number) => {
+    switch (durationMonths) {
+      case 1:
+        return t("payment.premium.plans.month1");
+      case 3:
+        return t("payment.premium.plans.month3");
+      case 6:
+        return t("payment.premium.plans.month6");
+      case 12:
+        return t("payment.premium.plans.month12");
+      default:
+        return `Premium ${durationMonths} tháng`;
     }
   };
 
@@ -129,7 +182,7 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
   };
 
   const renderPaymentItem = ({ item }: { item: PaymentRecord }) => (
-    <TouchableOpacity style={styles.paymentCard} activeOpacity={0.7}>
+    <View style={styles.paymentCard}>
       {/* Status Icon */}
       <View
         style={[
@@ -146,31 +199,41 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
 
       {/* Payment Info */}
       <View style={styles.paymentInfo}>
-        <Text style={styles.serviceName}>{item.statusService}</Text>
+        <View style={styles.planNameRow}>
+          <Text style={styles.serviceName}>{getPlanName(item.durationMonths)}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(item.status)}15` }]}>
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+              {getStatusText(item.status)}
+            </Text>
+          </View>
+        </View>
+        
         <Text style={styles.dateRange}>
-          {formatDate(item.startDate)} - {formatDate(item.endDate)}
+          {formatDate(item.startDate)} → {formatDate(item.endDate)}
         </Text>
-        <Text style={styles.paymentMethod}>
-          <Icon name="qr-code-outline" size={12} color={colors.textMedium} />{" "}
-          {t("payment.history.paymentMethod")}
-        </Text>
-      </View>
-
-      {/* Amount & Status */}
-      <View style={styles.paymentRight}>
-        <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
-        <View style={styles.statusBadge}>
-          <Text
-            style={[
-              styles.statusText,
-              { color: getStatusColor(item.status) },
-            ]}
-          >
-            {item.status === "success" ? t("payment.history.status.success") : item.status === "pending" ? t("payment.history.status.pending") : t("payment.history.status.failed")}
-          </Text>
+        
+        {item.status === "active" && item.daysRemaining > 0 && (
+          <View style={styles.remainingRow}>
+            <Icon name="time-outline" size={12} color={colors.success} />
+            <Text style={styles.remainingText}>
+              {t("payment.history.daysRemaining", { count: item.daysRemaining })}
+            </Text>
+          </View>
+        )}
+        
+        <View style={styles.paymentMethodRow}>
+          <Icon name="qr-code-outline" size={12} color={colors.textLabel} />
+          <Text style={styles.paymentMethod}>{t("payment.history.paymentMethod")}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+
+      {/* Amount */}
+      <View style={styles.paymentRight}>
+        <Text style={[styles.amount, item.amount > 0 ? {} : styles.amountZero]}>
+          {item.amount > 0 ? formatCurrency(item.amount) : "—"}
+        </Text>
+      </View>
+    </View>
   );
 
   const renderEmptyState = () => (
@@ -377,38 +440,61 @@ const styles = StyleSheet.create({
   paymentInfo: {
     flex: 1,
   },
+  planNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
   serviceName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.textDark,
-    marginBottom: 4,
   },
   dateRange: {
     fontSize: 13,
     color: colors.textMedium,
     marginBottom: 4,
   },
+  remainingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
+  remainingText: {
+    fontSize: 12,
+    color: colors.success,
+    fontWeight: "600",
+  },
+  paymentMethodRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   paymentMethod: {
     fontSize: 12,
-    color: colors.textMedium,
+    color: colors.textLabel,
   },
   paymentRight: {
     alignItems: "flex-end",
+    justifyContent: "center",
   },
   amount: {
     fontSize: 18,
     fontWeight: "bold",
-    color: colors.textDark,
-    marginBottom: 6,
+    color: colors.primary,
+  },
+  amountZero: {
+    color: colors.textLabel,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: radius.sm,
-    backgroundColor: colors.cardBackgroundLight,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
   },
   emptyState: {

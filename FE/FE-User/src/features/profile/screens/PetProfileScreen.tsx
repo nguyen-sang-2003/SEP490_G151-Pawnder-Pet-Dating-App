@@ -25,6 +25,7 @@ import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { getUserPetAvatar } from "../../../utils/petAvatar";
 import OptimizedImage from "../../../components/OptimizedImage";
+import { formatFullAddress, formatCity, formatWardDistrict } from "../../../utils/addressFormatter";
 
 const { width, height } = Dimensions.get("window");
 const IMAGE_HEIGHT = height * 0.55;
@@ -156,14 +157,17 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const city = addressData?.City || addressData?.city;
   const district = addressData?.District || addressData?.district;
   const ward = addressData?.Ward || addressData?.ward;
+  const rawFullAddress = addressData?.FullAddress || addressData?.fullAddress;
 
+  // Format address with Vietnamese prefixes
   const location = addressData
     ? (isMyPet
-      ? [ward, district, city].filter(Boolean).join(', ') || t('profile.petProfile.unknownLocation')
-      : city || t('profile.petProfile.unknownLocation'))
+      ? formatFullAddress(ward, district, city) || t('profile.petProfile.unknownLocation')
+      : formatCity(city) || t('profile.petProfile.unknownLocation'))
     : null;
 
-  const fullAddress = addressData?.FullAddress || addressData?.fullAddress;
+  // fullAddress should only show ward + district (city already shown in location above)
+  const fullAddress = rawFullAddress || formatWardDistrict(ward, district);
 
   console.log('📍 PetProfile - location:', location);
   console.log('📍 PetProfile - fullAddress:', fullAddress);
@@ -678,7 +682,7 @@ const styles = StyleSheet.create({
   tapZoneLeft: {
     position: "absolute",
     left: 0,
-    top: 0,
+    top: 100,
     bottom: 0,
     width: "35%",
     zIndex: 5,
@@ -686,7 +690,7 @@ const styles = StyleSheet.create({
   tapZoneRight: {
     position: "absolute",
     right: 0,
-    top: 0,
+    top: 100,
     bottom: 0,
     width: "35%",
     zIndex: 5,

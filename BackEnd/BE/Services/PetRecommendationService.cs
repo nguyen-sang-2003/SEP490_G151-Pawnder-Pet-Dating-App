@@ -43,12 +43,18 @@ namespace BE.Services
                 .Select(p => p.PetId)
                 .ToListAsync(ct);
 
-            // Lấy tất cả users đã từng match (kể cả đã unmatch) để không hiển thị lại
-            // Bỏ điều kiện IsDeleted == false để loại trừ cả các match đã bị hủy
+            // Logic giống Tinder: Loại trừ cả Pending và Accepted matches
+            // - Nếu A đã like B (Pending/Accepted), thì B KHÔNG thấy A trong màn hình quẹt
+            // - Nếu B đã like A (Pending/Accepted), thì A KHÔNG thấy B trong màn hình quẹt
+            // - Match đã unmatch (IsDeleted == true) sẽ được hiển thị lại
+            
+            // sentToUsers: Loại trừ users mà current user đã gửi like (Pending hoặc Accepted)
             var sentToUsers = await _context.ChatUsers
                 .Include(c => c.FromPet)
                 .Include(c => c.ToPet)
-                .Where(c => c.FromPet != null && c.ToPet != null
+                .Where(c => c.IsDeleted == false  // Chỉ lấy match chưa bị hủy
+                           && (c.Status == "Pending" || c.Status == "Accepted")  // Loại trừ cả pending và accepted
+                           && c.FromPet != null && c.ToPet != null
                            && userPetIds.Contains(c.FromPetId ?? -1))
                 .Select(c => c.ToPet!.UserId)
                 .Where(id => id.HasValue)
@@ -56,10 +62,14 @@ namespace BE.Services
                 .Distinct()
                 .ToListAsync(ct);
 
+            // receivedFromUsers: Loại trừ users đã gửi like cho current user (Pending hoặc Accepted)
+            // Nếu người khác đã like user, user không nên thấy họ trong màn hình quẹt (họ sẽ ở "Likes You")
             var receivedFromUsers = await _context.ChatUsers
                 .Include(c => c.FromPet)
                 .Include(c => c.ToPet)
-                .Where(c => c.FromPet != null && c.ToPet != null
+                .Where(c => c.IsDeleted == false  // Chỉ lấy match chưa bị hủy
+                           && (c.Status == "Pending" || c.Status == "Accepted")  // Loại trừ cả pending và accepted
+                           && c.FromPet != null && c.ToPet != null
                            && userPetIds.Contains(c.ToPetId ?? -1))
                 .Select(c => c.FromPet!.UserId)
                 .Where(id => id.HasValue)

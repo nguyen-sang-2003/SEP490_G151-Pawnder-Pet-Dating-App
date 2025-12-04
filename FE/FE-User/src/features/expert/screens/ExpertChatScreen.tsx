@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -43,6 +44,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -54,25 +56,38 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
     }
   }, [chatExpertId, dispatch]);
 
-  // Load messages
-  const loadMessages = useCallback(async () => {
-    if (!chatExpertId) {
+  // Auto scroll to bottom when messages change (nhận tin nhắn hoặc gửi tin nhắn)
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]); // Watch entire messages array, not just length
 
+  // Load messages
+  const loadMessages = useCallback(async (isRefresh: boolean = false) => {
+    if (!chatExpertId) {
       Alert.alert(t('alerts.error'), t('expert.chat.errors.chatNotFound'));
       setLoading(false);
       return;
     }
 
     try {
+      if (isRefresh) {
+        setRefreshing(true);
+      }
+      
       // Get current userId first
       const userIdStr = await AsyncStorage.getItem('userId');
       const userId = userIdStr ? parseInt(userIdStr) : null;
       setCurrentUserId(userId);
 
       if (!userId) {
-
         Alert.alert(t('alerts.error'), t('expert.chat.errors.userNotFound'));
         setLoading(false);
+        setRefreshing(false);
         return;
       }
 
@@ -99,12 +114,17 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       setMessages(transformedMessages);
       console.log('✅ Loaded', transformedMessages.length, 'messages');
     } catch (error: any) {
-
       Alert.alert(t('alerts.error'), error.message || t('expert.chat.errors.loadFailed'));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [chatExpertId, t]);
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(() => {
+    loadMessages(true);
+  }, [loadMessages]);
 
   // Setup SignalR for real-time messages
   useEffect(() => {
@@ -182,10 +202,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
             return [...prev, newMessage];
           });
 
-          // Scroll to bottom
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+          // Scroll to bottom will be handled by useEffect when messages change
         };
 
         signalRService.on('ReceiveExpertMessage', handleNewMessage);
@@ -233,10 +250,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
     setMessages((prev) => [...prev, newMessage]);
     setInputText("");
 
-    // Scroll to bottom
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    // Scroll to bottom will be handled by useEffect when messages change
 
     try {
       setSending(true);
@@ -444,6 +458,16 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         onContentSizeChange={() =>
           flatListRef.current?.scrollToEnd({ animated: true })
         }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#4CAF50"]}
+            tintColor="#4CAF50"
+            title={t("expert.chat.pullToRefresh")}
+            titleColor="#4CAF50"
+          />
+        }
       />
 
       {/* Input */}
@@ -583,9 +607,10 @@ const styles = StyleSheet.create({
   messagesList: {
     padding: 16,
     paddingBottom: 8,
+    flexGrow: 1,
   },
   emptyList: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
   },

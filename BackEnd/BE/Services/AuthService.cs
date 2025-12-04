@@ -26,6 +26,107 @@ namespace BE.Services
             _tokenService = tokenService;
         }
 
+        /// <summary>
+        /// Kiểm tra và cập nhật user status dựa trên ban history và VIP payment history
+        /// </summary>
+        private async Task UpdateUserStatusFromHistoryAsync(User user, DateTime now, CancellationToken ct = default)
+        {
+            // Kiểm tra ban status
+            var activeBan = await _context.UserBanHistories
+                .AsNoTracking()
+                .Where(b => b.UserId == user.UserId && b.IsActive == true)
+                .OrderByDescending(b => b.BanStart)
+                .FirstOrDefaultAsync(ct);
+
+            bool isBanned = false;
+            if (activeBan != null)
+            {
+                var stillBanned = !activeBan.BanEnd.HasValue || activeBan.BanEnd.Value > now;
+                if (stillBanned)
+                {
+                    isBanned = true;
+                }
+                else
+                {
+                    // Auto-deactivate expired ban
+                    var banToDeactivate = await _context.UserBanHistories
+                        .FirstOrDefaultAsync(b => b.BanId == activeBan.BanId, ct);
+                    if (banToDeactivate != null && banToDeactivate.IsActive == true)
+                    {
+                        banToDeactivate.IsActive = false;
+                        banToDeactivate.BanEnd = now;
+                        banToDeactivate.UpdatedAt = now;
+                        await _context.SaveChangesAsync(ct);
+                    }
+                }
+            }
+
+            // Nếu user bị ban, set status thành "Bị khóa"
+            if (isBanned)
+            {
+                var bannedStatus = await _context.UserStatuses
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, "Bị khóa"), ct);
+                if (bannedStatus != null && user.UserStatusId != bannedStatus.UserStatusId)
+                {
+                    user.UserStatusId = bannedStatus.UserStatusId;
+                    user.UpdatedAt = now;
+                    await _userRepository.UpdateAsync(user, ct);
+                }
+                return;
+            }
+
+            // Nếu không bị ban, kiểm tra VIP status từ payment history
+            var today = DateOnly.FromDateTime(now);
+            var hasActiveVip = await _context.PaymentHistories
+                .AsNoTracking()
+                .AnyAsync(ph => ph.UserId == user.UserId
+                    && ph.StatusService != null
+                    && ph.StatusService.ToLower().Contains("active")
+                    && ph.StartDate <= today
+                    && ph.EndDate >= today, ct);
+
+            // Cập nhật status dựa trên VIP status
+            string targetStatusName;
+            if (hasActiveVip)
+            {
+                targetStatusName = "Tài khoản VIP";
+            }
+            else
+            {
+                targetStatusName = "Tài khoản thường";
+                
+                // Auto chuyển StatusService của PaymentHistory có active sang pending khi chuyển về tài khoản thường
+                var activePayments = await _context.PaymentHistories
+                    .Where(ph => ph.UserId == user.UserId
+                        && ph.StatusService != null
+                        && ph.StatusService.ToLower().Contains("active")
+                        && ph.EndDate < today)
+                    .ToListAsync(ct);
+
+                if (activePayments.Any())
+                {
+                    foreach (var payment in activePayments)
+                    {
+                        payment.StatusService = "pending";
+                        payment.UpdatedAt = now;
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
+            }
+
+            var targetStatus = await _context.UserStatuses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, targetStatusName), ct);
+
+            if (targetStatus != null && user.UserStatusId != targetStatus.UserStatusId)
+            {
+                user.UserStatusId = targetStatus.UserStatusId;
+                user.UpdatedAt = now;
+                await _userRepository.UpdateAsync(user, ct);
+            }
+        }
+
         public async Task<object> LoginAsync(LoginRequest request, CancellationToken ct = default)
         {
             var email = request.Email?.Trim();
@@ -69,7 +170,7 @@ namespace BE.Services
                 await _userRepository.UpdateAsync(user, ct);
             }
 
-            // Business logic: Check ban status
+            // Business logic: Check ban status và cập nhật user status từ history
             var now = DateTime.Now;
             var activeBan = await _context.UserBanHistories
                 .AsNoTracking()
@@ -82,39 +183,18 @@ namespace BE.Services
                 var stillBanned = !activeBan.BanEnd.HasValue || activeBan.BanEnd.Value > now;
                 if (stillBanned)
                 {
+                    // Cập nhật status thành "Bị khóa" nếu chưa đúng
+                    await UpdateUserStatusFromHistoryAsync(user, now, ct);
+                    
                     var message = activeBan.BanEnd.HasValue
                         ? "Tài khoản đang bị khóa tạm thời"
                         : "Tài khoản đã bị khóa vĩnh viễn";
                     throw new InvalidOperationException($"{message}. BanStart: {activeBan.BanStart}, BanEnd: {activeBan.BanEnd}, Reason: {activeBan.BanReason}");
                 }
-                else
-                {
-                    // Business logic: Auto-deactivate expired ban
-                    var banToDeactivate = await _context.UserBanHistories
-                        .FirstOrDefaultAsync(b => b.BanId == activeBan.BanId, ct);
-                    if (banToDeactivate != null && banToDeactivate.IsActive == true)
-                    {
-                        banToDeactivate.IsActive = false;
-                        banToDeactivate.BanEnd = now; // Set BanEnd = thời điểm unban (giống unban thủ công)
-                        banToDeactivate.UpdatedAt = now;
-
-                        // Business logic: Set user status based on payment history
-                        var hasPaymentHistory = await _context.PaymentHistories
-                            .AsNoTracking()
-                            .AnyAsync(ph => ph.UserId == user.UserId, ct);
-                        var targetStatusName = hasPaymentHistory ? "Tài khoản VIP" : "Tài khoản thường";
-                        var targetStatus = await _context.UserStatuses
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, targetStatusName), ct);
-                        if (targetStatus != null)
-                        {
-                            user.UserStatusId = targetStatus.UserStatusId;
-                            user.UpdatedAt = now;
-                        }
-                        await _context.SaveChangesAsync(ct);
-                    }
-                }
             }
+
+            // Kiểm tra và cập nhật user status từ ban history và VIP payment history
+            await UpdateUserStatusFromHistoryAsync(user, now, ct);
 
             // Business logic: Generate tokens
             var accessToken = _tokenService.GenerateAccessToken(user.UserId, user.Role?.RoleName ?? "User");
@@ -182,7 +262,7 @@ namespace BE.Services
             if (!user.RoleId.HasValue || !validRoleIds.Contains(user.RoleId.Value))
                 throw new UnauthorizedAccessException("Tài khoản không có quyền truy cập hệ thống");
 
-            // Business logic: Check ban status
+            // Business logic: Check ban status và cập nhật user status từ history
             var now = DateTime.Now;
             var activeBan = await _context.UserBanHistories
                 .AsNoTracking()
@@ -195,39 +275,18 @@ namespace BE.Services
                 var stillBanned = !activeBan.BanEnd.HasValue || activeBan.BanEnd.Value > now;
                 if (stillBanned)
                 {
+                    // Cập nhật status thành "Bị khóa" nếu chưa đúng
+                    await UpdateUserStatusFromHistoryAsync(user, now, ct);
+                    
                     var message = activeBan.BanEnd.HasValue
                         ? "Tài khoản đang bị khóa tạm thời"
                         : "Tài khoản đã bị khóa vĩnh viễn";
                     throw new InvalidOperationException($"{message}. BanStart: {activeBan.BanStart}, BanEnd: {activeBan.BanEnd}, Reason: {activeBan.BanReason}");
                 }
-                else
-                {
-                    // Business logic: Auto-deactivate expired ban
-                    var banToDeactivate = await _context.UserBanHistories
-                        .FirstOrDefaultAsync(b => b.BanId == activeBan.BanId, ct);
-                    if (banToDeactivate != null && banToDeactivate.IsActive == true)
-                    {
-                        banToDeactivate.IsActive = false;
-                        banToDeactivate.BanEnd = now; // Set BanEnd = thời điểm unban (giống unban thủ công)
-                        banToDeactivate.UpdatedAt = now;
-
-                        // Business logic: Set user status based on payment history
-                        var hasPaymentHistory = await _context.PaymentHistories
-                            .AsNoTracking()
-                            .AnyAsync(ph => ph.UserId == user.UserId, ct);
-                        var targetStatusName = hasPaymentHistory ? "Tài khoản VIP" : "Tài khoản thường";
-                        var targetStatus = await _context.UserStatuses
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, targetStatusName), ct);
-                        if (targetStatus != null)
-                        {
-                            user.UserStatusId = targetStatus.UserStatusId;
-                            user.UpdatedAt = now;
-                        }
-                        await _context.SaveChangesAsync(ct);
-                    }
-                }
             }
+
+            // Kiểm tra và cập nhật user status từ ban history và VIP payment history
+            await UpdateUserStatusFromHistoryAsync(user, now, ct);
 
             // Business logic: Generate new tokens
             var newAccessToken = _tokenService.GenerateAccessToken(user.UserId, user.Role?.RoleName ?? "User");
@@ -255,6 +314,38 @@ namespace BE.Services
             await _userRepository.UpdateAsync(user, ct);
 
             return true;
+        }
+
+        public async Task<object> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+                throw new ArgumentException("Mật khẩu hiện tại và mật khẩu mới là bắt buộc");
+
+            var currentPassword = request.CurrentPassword.Trim();
+            var newPassword = request.NewPassword.Trim();
+
+            // Business logic: Get user
+            var user = await _userRepository.GetByIdAsync(userId, ct);
+            if (user == null)
+                throw new KeyNotFoundException("Không tìm thấy người dùng");
+
+            // Business logic: Verify current password
+            bool isCurrentPasswordValid = _passwordService.VerifyPassword(currentPassword, user.PasswordHash);
+            if (!isCurrentPasswordValid)
+                throw new UnauthorizedAccessException("Mật khẩu hiện tại không đúng");
+
+            // Business logic: Check if new password is same as current password
+            if (currentPassword == newPassword)
+                throw new InvalidOperationException("Mật khẩu mới phải khác mật khẩu hiện tại");
+
+            // Business logic: Hash new password and clear token for security
+            user.PasswordHash = _passwordService.HashPassword(newPassword);
+            user.TokenJwt = null; // Clear old token to force re-login
+            user.UpdatedAt = DateTime.Now;
+
+            await _userRepository.UpdateAsync(user, ct);
+
+            return new { Message = "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." };
         }
     }
 }
