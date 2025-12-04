@@ -20,6 +20,7 @@ namespace BE.Repositories
                     historyId = ph.HistoryId,
                     userId = ph.UserId,
                     statusService = ph.StatusService,
+                    amount = ph.Amount,
                     startDate = ph.StartDate,
                     endDate = ph.EndDate,
                     createdAt = ph.CreatedAt,

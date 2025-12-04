@@ -2,7 +2,7 @@ import apiClient from '../../../api/axiosClient';
 
 export interface GenerateQRRequest {
   amount: number;
-  addInfo: string;
+  months: number;
 }
 
 export interface PaymentHistoryResponse {
@@ -20,6 +20,28 @@ export interface CreatePaymentHistoryRequest {
   durationMonths: number; // 1, 3, 6, or 12
   amount: number;
   planName: string;
+}
+
+export interface PaymentCallbackRequest {
+  transferAmount: number;
+  content: string; // Format: userIdXmonthsY (e.g., userId3months1)
+}
+
+export interface PaymentCallbackResponse {
+  success: boolean;
+  paid: boolean;
+  message: string;
+  data?: {
+    historyId: number;
+    userId: number;
+    statusService: string;
+    startDate: string;
+    endDate: string;
+    amount: number;
+    durationMonths: number;
+    userStatusId: number;
+    transactionTime: string;
+  };
 }
 
 export interface VipStatusResponse {
@@ -65,12 +87,32 @@ export const getPaymentHistoryByUserId = async (
 };
 
 /**
- * Create payment history (simulate successful payment)
+ * Create payment history (old API - kept for backwards compatibility)
  */
 export const createPaymentHistory = async (
   request: CreatePaymentHistoryRequest
 ): Promise<any> => {
   const response = await apiClient.post('/api/payment-history', request);
+  return response.data;
+};
+
+/**
+ * Verify payment from SePay and create payment history
+ * Checks transactions in last 30 minutes
+ * @param transferAmount - Amount transferred (VND)
+ * @param userId - User ID from token
+ * @param months - Duration in months (1, 3, 6, 12)
+ */
+export const verifyPayment = async (
+  transferAmount: number,
+  userId: number,
+  months: number
+): Promise<PaymentCallbackResponse> => {
+  const content = `userId${userId}months${months}`;
+  const response = await apiClient.post('/api/payment-history/callback', {
+    transferAmount,
+    content,
+  });
   return response.data;
 };
 

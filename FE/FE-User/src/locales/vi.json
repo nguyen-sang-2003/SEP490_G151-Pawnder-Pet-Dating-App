@@ -773,10 +773,13 @@
         "success": "Thành công",
         "pending": "Chờ xử lý",
         "failed": "Thất bại",
+        "active": "Đang hoạt động",
+        "expired": "Đã hết hạn",
         "premiumActive": "Premium Active",
         "premiumExpired": "Premium Expired"
       },
       "paymentMethod": "Chuyển khoản QR",
+      "daysRemaining": "Còn {{count}} ngày",
       "empty": {
         "title": "Chưa có lịch sử thanh toán",
         "subtitle": "Your payment transactions will appear here",
