@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   tapZoneLeft: {
     position: "absolute",
     left: 0,
-    top: 0,
+    top: 100,
     bottom: 0,
     width: "35%",
     zIndex: 5,
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   tapZoneRight: {
     position: "absolute",
     right: 0,
-    top: 0,
+    top: 100,
     bottom: 0,
     width: "35%",
     zIndex: 5,
