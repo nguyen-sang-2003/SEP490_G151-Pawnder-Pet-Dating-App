@@ -39,7 +39,14 @@ namespace BE.Services
             if (user == null)
                 return null;
 
-            return new UserResponse
+            // Debug: Log IsProfileComplete from database
+            Console.WriteLine($"[UserService.GetUserByIdAsync] UserId={userId}, IsProfileComplete from DB: {user.IsProfileComplete}");
+
+            // Ensure IsProfileComplete is properly read (handle nullable bool)
+            var isProfileCompleteValue = user.IsProfileComplete;
+            Console.WriteLine($"[UserService.GetUserByIdAsync] UserId={userId}, IsProfileComplete raw value: {isProfileCompleteValue}, Type: {isProfileCompleteValue.GetType().Name}");
+
+            var response = new UserResponse
             {
                 UserId = user.UserId,
                 RoleId = user.RoleId,
@@ -49,10 +56,16 @@ namespace BE.Services
                 Gender = user.Gender,
                 Email = user.Email,
                 ProviderLogin = user.ProviderLogin,
+                isProfileComplete = isProfileCompleteValue, // Explicitly set
                 IsDeleted = user.IsDeleted ?? false,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };
+
+            // Debug: Log isProfileComplete in response
+            Console.WriteLine($"[UserService.GetUserByIdAsync] UserId={userId}, isProfileComplete in response: {response.isProfileComplete}, Type: {response.isProfileComplete.GetType().Name}");
+
+            return response;
         }
 
         public async Task<UserResponse> RegisterAsync(UserCreateRequest req, CancellationToken ct = default)
@@ -94,6 +107,7 @@ namespace BE.Services
                 Gender = entity.Gender,
                 Email = entity.Email,
                 ProviderLogin = entity.ProviderLogin,
+                isProfileComplete = entity.IsProfileComplete,
                 IsDeleted = entity.IsDeleted ?? false,
                 CreatedAt = entity.CreatedAt,
                 UpdatedAt = entity.UpdatedAt
@@ -132,6 +146,7 @@ namespace BE.Services
                 Gender = user.Gender,
                 Email = user.Email,
                 ProviderLogin = user.ProviderLogin,
+                isProfileComplete = user.IsProfileComplete,
                 IsDeleted = user.IsDeleted ?? false,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt

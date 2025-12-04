@@ -62,6 +62,12 @@ const UserDetail = () => {
           return;
         }
         
+        // Debug: Log isProfileComplete from backend
+        console.log('[UserDetail] Backend response:', userResponse);
+        console.log('[UserDetail] isProfileComplete (camelCase):', userResponse.isProfileComplete);
+        console.log('[UserDetail] IsProfileComplete (PascalCase):', userResponse.IsProfileComplete);
+        console.log('[UserDetail] All keys:', Object.keys(userResponse));
+        
         // Map UserResponse to frontend format
         const fullName = userResponse.FullName || userResponse.fullName || userResponse.Email?.split('@')[0] || 'User';
         const nameParts = fullName.split(' ');
@@ -118,7 +124,14 @@ const UserDetail = () => {
           roleId: userResponse.RoleId || userResponse.roleId,
           userStatusId: userStatusId,
           gender: userResponse.Gender || userResponse.gender || 'Unknown',
-          isVerified: userResponse.isProfileComplete || userResponse.IsProfileComplete || false,
+          isVerified: (() => {
+            const value = userResponse.isProfileComplete ?? userResponse.IsProfileComplete ?? false;
+            console.log('[UserDetail] isVerified calculated:', value, 'from:', {
+              isProfileComplete: userResponse.isProfileComplete,
+              IsProfileComplete: userResponse.IsProfileComplete
+            });
+            return value;
+          })(),
           avatar: null, // Backend doesn't have avatar
           phone: null, // Backend doesn't have phone
           address: null, // Backend doesn't have address (only AddressId)
@@ -128,14 +141,9 @@ const UserDetail = () => {
           lastLogin: null, // Backend doesn't have lastLogin
           totalPets: pets.length,
           totalMatches: 0, // Backend doesn't have matches data
-          // Additional data not in backend
-          bio: 'Chưa có thông tin giới thiệu.',
-          preferences: {
-            petSpecies: ['Cat'],
-            petAge: 'Any',
-            location: 'TP.HCM',
-            activityLevel: 'Moderate'
-          },
+          // Additional data not in backend - removed as backend doesn't provide this
+          // bio: removed
+          // preferences: removed
           pets: pets,
           matches: [] // Backend doesn't have matches data
         };
@@ -219,13 +227,18 @@ const UserDetail = () => {
                   console.log(`[UserDetail Refresh] No localStorage bans found, using status from backend: ${status}`);
                 }
                 
+                // Map isVerified from backend response
+                const isVerified = userResponse.isProfileComplete ?? userResponse.IsProfileComplete ?? false;
+                console.log(`[UserDetail Refresh] isVerified: ${isVerified} (from isProfileComplete: ${userResponse.isProfileComplete}, IsProfileComplete: ${userResponse.IsProfileComplete})`);
+                
                 setUser(prev => ({
                   ...prev,
                   status,
                   userStatusId: userStatusId,
                   firstName,
                   lastName,
-                  fullName
+                  fullName,
+                  isVerified: isVerified
                 }));
                 setLastFetchTime(Date.now());
               }
@@ -488,10 +501,6 @@ const UserDetail = () => {
                     <span className="label">Xác thực:</span>
                     <span className="value">{getVerificationBadge(user.isVerified)}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="label">Đăng nhập cuối:</span>
-                    <span className="value">{user.lastLogin ? formatDateTime(user.lastLogin) : 'Chưa đăng nhập'}</span>
-                  </div>
                 </div>
 
                 <div className="info-card">
@@ -511,32 +520,6 @@ const UserDetail = () => {
                 </div>
               </div>
 
-              <div className="bio-card">
-                <h3>Giới thiệu</h3>
-                <p>{user.bio}</p>
-              </div>
-
-              <div className="preferences-card">
-                <h3>Sở thích</h3>
-                <div className="preferences-grid">
-                  <div className="preference-item">
-                    <span className="label">Loài thú cưng:</span>
-                    <span className="value">{user.preferences.petSpecies.join(', ')}</span>
-                  </div>
-                  <div className="preference-item">
-                    <span className="label">Độ tuổi:</span>
-                    <span className="value">{user.preferences.petAge}</span>
-                  </div>
-                  <div className="preference-item">
-                    <span className="label">Khu vực:</span>
-                    <span className="value">{user.preferences.location}</span>
-                  </div>
-                  <div className="preference-item">
-                    <span className="label">Mức độ hoạt động:</span>
-                    <span className="value">{user.preferences.activityLevel}</span>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -609,16 +592,6 @@ const UserDetail = () => {
               </div>
               
               <div className="activity-timeline">
-                {user.lastLogin && (
-                  <div className="timeline-item">
-                    <div className="timeline-icon">👤</div>
-                    <div className="timeline-content">
-                      <h4>Đăng nhập lần cuối</h4>
-                      <p>{formatDateTime(user.lastLogin)}</p>
-                    </div>
-                  </div>
-                )}
-                
                 {user.updatedAt && (
                   <div className="timeline-item">
                     <div className="timeline-icon">📝</div>

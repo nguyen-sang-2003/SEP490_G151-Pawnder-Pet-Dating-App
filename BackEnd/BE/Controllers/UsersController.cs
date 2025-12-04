@@ -56,6 +56,9 @@ public class UserController : ControllerBase
             if (user == null)
                 return NotFound();
 
+            // Debug: Log isProfileComplete value
+            Console.WriteLine($"[GetUser] UserId={userId}, isProfileComplete={user.isProfileComplete}");
+
             return Ok(user);
         }
         catch (Exception ex)

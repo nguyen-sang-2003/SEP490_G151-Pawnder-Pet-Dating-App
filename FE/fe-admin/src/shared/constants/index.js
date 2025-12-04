@@ -29,6 +29,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/pet', // POST /api/pet
     UPDATE: (id) => `/api/pet/${id}`, // PUT /api/pet/{petId}
     DELETE: (id) => `/api/pet/${id}`, // DELETE /api/pet/{petId}
+    CHARACTERISTICS: (petId) => `/api/pet-characteristic/pet-characteristic/${petId}`, // GET /api/pet-characteristic/pet-characteristic/{petId}
   },
   REPORTS: {
     LIST: '/api/report', // GET /api/report (ReportController có [Route("api")])
