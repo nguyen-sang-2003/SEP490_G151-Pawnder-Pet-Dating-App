@@ -95,6 +95,24 @@ namespace BE.Services
             else
             {
                 targetStatusName = "Tài khoản thường";
+                
+                // Auto chuyển StatusService của PaymentHistory có active sang pending khi chuyển về tài khoản thường
+                var activePayments = await _context.PaymentHistories
+                    .Where(ph => ph.UserId == user.UserId
+                        && ph.StatusService != null
+                        && ph.StatusService.ToLower().Contains("active")
+                        && ph.EndDate < today)
+                    .ToListAsync(ct);
+
+                if (activePayments.Any())
+                {
+                    foreach (var payment in activePayments)
+                    {
+                        payment.StatusService = "pending";
+                        payment.UpdatedAt = now;
+                    }
+                    await _context.SaveChangesAsync(ct);
+                }
             }
 
             var targetStatus = await _context.UserStatuses
