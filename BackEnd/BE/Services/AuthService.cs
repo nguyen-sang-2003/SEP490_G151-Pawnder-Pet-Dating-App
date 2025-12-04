@@ -297,6 +297,38 @@ namespace BE.Services
 
             return true;
         }
+
+        public async Task<object> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+                throw new ArgumentException("Mật khẩu hiện tại và mật khẩu mới là bắt buộc");
+
+            var currentPassword = request.CurrentPassword.Trim();
+            var newPassword = request.NewPassword.Trim();
+
+            // Business logic: Get user
+            var user = await _userRepository.GetByIdAsync(userId, ct);
+            if (user == null)
+                throw new KeyNotFoundException("Không tìm thấy người dùng");
+
+            // Business logic: Verify current password
+            bool isCurrentPasswordValid = _passwordService.VerifyPassword(currentPassword, user.PasswordHash);
+            if (!isCurrentPasswordValid)
+                throw new UnauthorizedAccessException("Mật khẩu hiện tại không đúng");
+
+            // Business logic: Check if new password is same as current password
+            if (currentPassword == newPassword)
+                throw new InvalidOperationException("Mật khẩu mới phải khác mật khẩu hiện tại");
+
+            // Business logic: Hash new password and clear token for security
+            user.PasswordHash = _passwordService.HashPassword(newPassword);
+            user.TokenJwt = null; // Clear old token to force re-login
+            user.UpdatedAt = DateTime.Now;
+
+            await _userRepository.UpdateAsync(user, ct);
+
+            return new { Message = "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." };
+        }
     }
 }
 

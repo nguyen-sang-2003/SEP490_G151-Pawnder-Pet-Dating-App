@@ -92,5 +92,42 @@ namespace BE.Controllers
                 return StatusCode(500, $"Lỗi hệ thống: {ex.Message}");
             }
         }
+
+        [HttpPut("change-password")]
+        [Authorize(Roles = "User")]
+        public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized("Không xác định được người dùng.");
+
+                var id = int.Parse(userId);
+                var result = await _authService.ChangePasswordAsync(id, request, ct);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { Message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+            }
+        }
     }
 }
