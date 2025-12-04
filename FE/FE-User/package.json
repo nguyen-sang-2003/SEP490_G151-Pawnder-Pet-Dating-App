@@ -7,7 +7,10 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "build:android:release": "cd android && ./gradlew assembleRelease",
+    "build:android:bundle": "cd android && ./gradlew bundleRelease",
+    "clean:android": "cd android && ./gradlew clean"
   },
   "dependencies": {
     "@microsoft/signalr": "^9.0.6",
