@@ -2,6 +2,7 @@ using BE.Models;
 using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -26,90 +27,86 @@ namespace BE.Services
             _configuration = configuration;
         }
 
-        public async Task<byte[]> GenerateQrAsync(decimal amount, string addInfo, CancellationToken ct = default)
-        {
-            // Parse userId from addInfo
-            int userId = 0;
-            var parts = addInfo.Split('_');
-            if (parts.Length >= 4 && parts[0] == "userId" && parts[2] == "months")
-            {
-                int.TryParse(parts[1], out userId);
-            }
-            else
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(addInfo, @"userId(\d+)months(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                if (match.Success)
-                {
-                    int.TryParse(match.Groups[1].Value, out userId);
-                }
-            }
+	public async Task<byte[]> GenerateQrAsync(decimal amount, string addInfo, CancellationToken ct = default)
+	{
+		// Parse userId from addInfo - format: userIdXmonthsY (ví dụ: userId3months1)
+		int userId = 0;
+		var match = System.Text.RegularExpressions.Regex.Match(addInfo, @"userId(\d+)months(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+		if (match.Success)
+		{
+			int.TryParse(match.Groups[1].Value, out userId);
+		}
+		else
+		{
+			throw new InvalidOperationException($"Format addInfo không hợp lệ: '{addInfo}'. Format đúng: userIdXmonthsY (ví dụ: userId3months1)");
+		}
 
-            // Check if user has active VIP
-            var today = DateOnly.FromDateTime(DateTime.Today);
-            var hasActiveVip = await _context.PaymentHistories.AnyAsync(p => p.UserId == userId && p.StatusService == "active" && p.EndDate >= today, ct);
-            if (hasActiveVip)
-            {
-                throw new InvalidOperationException("Bạn đã có gói đăng ký VIP đang hoạt động. Vui lòng đợi đến khi gói đăng ký hết hạn trước khi gia hạn.");
-            }
+			// Check if user has active VIP
+			var today = DateOnly.FromDateTime(DateTime.Today);
+			var hasActiveVip = await _context.PaymentHistories.AnyAsync(p => p.UserId == userId && p.StatusService == "active" && p.EndDate >= today, ct);
+			if (hasActiveVip)
+			{
+				throw new InvalidOperationException("Bạn đã có gói đăng ký VIP đang hoạt động. Vui lòng đợi đến khi gói đăng ký hết hạn trước khi gia hạn.");
+			}
 
-            var apiKey = _configuration["VietQr:ApiKey"];
-            var clientId = _configuration["VietQr:ClientId"];
-            var accountNo = _configuration["VietQr:AccountInfo:AccountNo"];
-            var accountName = _configuration["VietQr:AccountInfo:AccountName"];
-            var acqId = _configuration["VietQr:AccountInfo:AcqId"];
-            var template = _configuration["VietQr:AccountInfo:Template"];
+			var apiKey = _configuration["VietQr:ApiKey"];
+			var clientId = _configuration["VietQr:ClientId"];
+			var accountNo = _configuration["VietQr:AccountInfo:AccountNo"];
+			var accountName = _configuration["VietQr:AccountInfo:AccountName"];
+			var acqId = _configuration["VietQr:AccountInfo:AcqId"];
+			var template = _configuration["VietQr:AccountInfo:Template"];
 
-            if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(accountNo))
-                throw new InvalidOperationException("Cấu hình VietQR chưa đầy đủ.");
+			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(accountNo))
+				throw new InvalidOperationException("Cấu hình VietQR chưa đầy đủ.");
 
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
-            client.DefaultRequestHeaders.Add("Accept", "application/json");
-            client.DefaultRequestHeaders.Add("X-Client-ID", clientId);
+			var client = _httpClientFactory.CreateClient();
+			client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+			client.DefaultRequestHeaders.Add("Accept", "application/json");
+			client.DefaultRequestHeaders.Add("X-Client-ID", clientId);
 
-            var payload = new
-            {
-                accountNo = accountNo,
-                accountName = accountName,
-                acqId = acqId,
-                addInfo = addInfo,
-                amount = amount,
-                template = template
-            };
+			var payload = new
+			{
+				accountNo = accountNo,
+				accountName = accountName,
+				acqId = acqId,
+				addInfo = addInfo,
+				amount = amount,
+				template = template
+			};
 
-            string jsonPayload = JsonSerializer.Serialize(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+			string jsonPayload = JsonSerializer.Serialize(payload);
+			var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync("https://api.vietqr.io/v2/generate", content, ct);
-            var responseContent = await response.Content.ReadAsStringAsync(ct);
+			var response = await client.PostAsync("https://api.vietqr.io/v2/generate", content, ct);
+			var responseContent = await response.Content.ReadAsStringAsync(ct);
 
-            var root = JsonDocument.Parse(responseContent).RootElement;
+			var root = JsonDocument.Parse(responseContent).RootElement;
 
-            if (root.TryGetProperty("code", out var codeProp) && codeProp.GetString() == "00")
-            {
-                if (root.TryGetProperty("data", out var dataProp) &&
-                    dataProp.TryGetProperty("qrDataURL", out var qrProp))
-                {
-                    string qrDataUrl = qrProp.GetString()!;
-                    string base64Data = qrDataUrl.Split(",")[1];
-                    byte[] qrBytes = Convert.FromBase64String(base64Data);
-                    return qrBytes;
-                }
-                else
-                {
-                    throw new InvalidOperationException("Response không có trường data.qrDataURL.");
-                }
-            }
-            else
-            {
-                var msg = root.TryGetProperty("desc", out var descProp)
-                    ? descProp.GetString()
-                    : root.ToString();
-                throw new InvalidOperationException($"Lỗi khi gọi VietQR API: {msg}");
-            }
-        }
+			if (root.TryGetProperty("code", out var codeProp) && codeProp.GetString() == "00")
+			{
+				if (root.TryGetProperty("data", out var dataProp) &&
+					dataProp.TryGetProperty("qrDataURL", out var qrProp))
+				{
+					string qrDataUrl = qrProp.GetString()!;
+					string base64Data = qrDataUrl.Split(",")[1];
+					byte[] qrBytes = Convert.FromBase64String(base64Data);
+					return qrBytes;
+				}
+				else
+				{
+					throw new InvalidOperationException("Response không có trường data.qrDataURL.");
+				}
+			}
+			else
+			{
+				var msg = root.TryGetProperty("desc", out var descProp)
+					? descProp.GetString()
+					: root.ToString();
+				throw new InvalidOperationException($"Lỗi khi gọi VietQR API: {msg}");
+			}
+		}
 
-        public async Task<object> CreatePaymentHistoryAsync(CreatePaymentHistoryRequest request, CancellationToken ct = default)
+		public async Task<object> CreatePaymentHistoryAsync(CreatePaymentHistoryRequest request, CancellationToken ct = default)
         {
             // Business logic: Validate user exists
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == request.UserId, ct);
@@ -124,7 +121,7 @@ namespace BE.Services
                 throw new InvalidOperationException("Bạn đã có gói VIP đang hoạt động. Vui lòng đợi hết hạn trước khi mua mới.");
 
             // Kiểm tra giao dịch thực tế từ SePay API
-            var expectedDescription = $"userId_{request.UserId}_months_{request.DurationMonths}";
+            var expectedDescription = $"userId{request.UserId}months{request.DurationMonths}";
             var verifyResult = await VerifyPaymentFromSepayAsync(request.UserId, request.Amount, expectedDescription, ct);
             
             if (!verifyResult.paid)
@@ -172,7 +169,7 @@ namespace BE.Services
                     statusService = paymentHistory.StatusService,
                     startDate = paymentHistory.StartDate,
                     endDate = paymentHistory.EndDate,
-                    amount = paymentHistory.Amount,
+                    amount = (int)paymentHistory.Amount,
                     durationMonths = request.DurationMonths,
                     userStatusId = user.UserStatusId,
                     transactionTime = verifyResult.transactionTime
@@ -191,7 +188,7 @@ namespace BE.Services
                 var apiKey = _configuration["Sepay:ApiKey"];
                 var apiUrl = _configuration["Sepay:ApiUrl"];
                 var accountNo = _configuration["Sepay:AccountNumber"];
-                var limit = _configuration["Sepay:Limit"] ?? "20";
+                var limit = _configuration["Sepay:Limit"] ?? "100";
 
                 Console.WriteLine($"[SePay] Checking payment for userId={userId}, amount={amount}, expectedDesc={expectedDescription}");
 
@@ -259,7 +256,7 @@ namespace BE.Services
                                 }
                                 else if (amountInProp.ValueKind == JsonValueKind.String)
                                 {
-                                    decimal.TryParse(amountInProp.GetString(), out transAmount);
+                                    decimal.TryParse(amountInProp.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out transAmount);
                                 }
                             }
                             else if (transaction.TryGetProperty("amount", out var amountProp))
@@ -270,7 +267,7 @@ namespace BE.Services
                                 }
                                 else if (amountProp.ValueKind == JsonValueKind.String)
                                 {
-                                    decimal.TryParse(amountProp.GetString(), out transAmount);
+                                    decimal.TryParse(amountProp.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out transAmount);
                                 }
                             }
 
@@ -282,25 +279,22 @@ namespace BE.Services
 
                             Console.WriteLine($"[SePay] Transaction #{transactionCount}: id={transactionId}, amount={transAmount}, content='{transDesc}'");
 
-                            // Kiểm tra description chứa CHÍNH XÁC userId với format: userId_X_months_Y hoặc userIdXmonthsY
+                            // Kiểm tra description chứa CHÍNH XÁC format: userIdXmonthsY (ví dụ: userId3months1)
                             // Pattern phải match chính xác userId, không được match userId3 khi tìm userId30
                             var normalizedDesc = transDesc.Replace(" ", "").ToLower();
                             
-                            // Sử dụng regex để match CHÍNH XÁC format:
-                            // - userid_3_months_1 hoặc userid3months1
-                            // - Đảm bảo số userId không bị match nhầm (userid3 không match userid30)
-                            // Pattern: userid[_]?{userId}[_]?months[_]?\d+ với boundary check
-                            var exactPattern = $@"userid[_]?{userId}[_]?months[_]?\d+";
+                            // Sử dụng regex để match CHÍNH XÁC format: userid{userId}months\d+
+                            // Ví dụ: userid3months1, userid30months12
+                            // Đảm bảo số userId không bị match nhầm (userid3 không match userid30)
+                            var exactPattern = $@"userid{userId}months\d+";
                             var descMatch = System.Text.RegularExpressions.Regex.IsMatch(normalizedDesc, exactPattern);
                             
-                            // Double check: đảm bảo không match userId3 với userId30
-                            // Bằng cách kiểm tra ký tự sau userId phải là 'm' (months) hoặc '_'
+                            // Double check: đảm bảo ký tự sau userId phải là 'm' (months)
                             if (descMatch)
                             {
-                                // Tìm vị trí của userId trong chuỗi và kiểm tra ký tự tiếp theo
                                 var userIdStr = userId.ToString();
-                                var patterns = new[] { $"userid_{userIdStr}_", $"userid_{userIdStr}m", $"userid{userIdStr}_", $"userid{userIdStr}m" };
-                                descMatch = patterns.Any(p => normalizedDesc.Contains(p));
+                                var checkPattern = $"userid{userIdStr}m";
+                                descMatch = normalizedDesc.Contains(checkPattern);
                             }
 
                             Console.WriteLine($"[SePay] descMatch={descMatch}, normalizedDesc='{normalizedDesc}', checking for userId={userId}");
@@ -344,18 +338,18 @@ namespace BE.Services
                                     }
                                 }
 
-                                // Kiểm tra số tiền: chỉ chấp nhận nếu chuyển ĐÚNG số tiền (cho phép sai lệch 1000đ do phí)
-                                var amountDiff = Math.Abs(transAmount - amount);
-                                if (amountDiff <= 1000)
+                                // Kiểm tra số tiền: bắt buộc phải khớp chính xác 100%
+                                // So sánh sau khi làm tròn về int (VNĐ không có phần thập phân)
+                                if ((int)transAmount == (int)amount)
                                 {
-                                    Console.WriteLine($"[SePay] FOUND matching transaction! id={transactionId}, amount={transAmount}, time={transTimeStr}");
+                                    Console.WriteLine($"[SePay] FOUND matching transaction! id={transactionId}, amount={(int)transAmount}, time={transTimeStr}");
                                     return (true, "Đã xác nhận giao dịch thanh toán", transTimeStr ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                                 }
                                 else
                                 {
                                     // Chuyển sai số tiền (thiếu hoặc thừa)
-                                    Console.WriteLine($"[SePay] Found transaction but amount mismatch: expected={amount}, got={transAmount}");
-                                    return (false, $"Số tiền chuyển khoản không đúng. Bạn đã chuyển {transAmount:N0}đ nhưng số tiền cần thanh toán là {amount:N0}đ. Vui lòng liên hệ hỗ trợ qua email: support@pawnder.com để được xử lý.", null);
+                                    Console.WriteLine($"[SePay] Found transaction but amount mismatch: expected={(int)amount}, got={(int)transAmount}");
+                                    return (false, $"Số tiền chuyển khoản không đúng. Bạn đã chuyển {(int)transAmount:N0}đ nhưng số tiền cần thanh toán là {(int)amount:N0}đ. Vui lòng liên hệ hỗ trợ qua email: support@pawnder.com để được xử lý.", null);
                                 }
                             }
                         }
@@ -415,162 +409,155 @@ namespace BE.Services
             };
         }
 
-        public async Task<object> ProcessPaymentCallbackAsync(JsonElement notification, CancellationToken ct = default)
-        {
-            try
-            {
-                // Parse thông tin từ SePay callback
-                // Format từ SePay: {"transferAmount": 5000, "content": "userId_1_months_1", "transferType": "in", ...}
-                
-                decimal amount = 0;
-                string description = "";
+	public async Task<object> ProcessPaymentCallbackAsync(JsonElement notification, int userIdFromToken, CancellationToken ct = default)
+	{
+		try
+		{
+		// Parse thông tin từ SePay callback
+		// Format từ SePay: {"transferAmount": 5000, "content": "userId1months1", "transferType": "in", ...}
 
-                // Lấy amount từ transferAmount hoặc amount
-                if (notification.TryGetProperty("transferAmount", out var transferAmountProp))
-                {
-                    amount = transferAmountProp.GetDecimal();
-                }
-                else if (notification.TryGetProperty("amount", out var amountProp))
-                {
-                    amount = amountProp.GetDecimal();
-                }
-                else
-                {
-                    throw new InvalidOperationException("Callback thiếu thông tin amount/transferAmount");
-                }
+			decimal amount = 0;
+			string description = "";
 
-                // Lấy description từ content, transaction_content hoặc description
-                if (notification.TryGetProperty("content", out var contentProp))
-                {
-                    description = contentProp.GetString() ?? "";
-                }
-                else if (notification.TryGetProperty("transaction_content", out var transContentProp))
-                {
-                    description = transContentProp.GetString() ?? "";
-                }
-                else if (notification.TryGetProperty("description", out var descProp))
-                {
-                    description = descProp.GetString() ?? "";
-                }
-                else
-                {
-                    throw new InvalidOperationException("Callback thiếu thông tin content/description");
-                }
+			// Lấy amount từ transferAmount hoặc amount
+			if (notification.TryGetProperty("transferAmount", out var transferAmountProp))
+			{
+				amount = transferAmountProp.GetDecimal();
+			}
+			else if (notification.TryGetProperty("amount", out var amountProp))
+			{
+				amount = amountProp.GetDecimal();
+			}
+			else
+			{
+				throw new InvalidOperationException("Callback thiếu thông tin amount/transferAmount");
+			}
 
-                // Parse description format: hỗ trợ cả "userId_{userId}_months_{months}" và "userId{userId}months{months}"
-                int userId;
-                int durationMonths;
+			// Lấy description từ content, transaction_content hoặc description
+			if (notification.TryGetProperty("content", out var contentProp))
+			{
+				description = contentProp.GetString() ?? "";
+			}
+			else if (notification.TryGetProperty("transaction_content", out var transContentProp))
+			{
+				description = transContentProp.GetString() ?? "";
+			}
+			else if (notification.TryGetProperty("description", out var descProp))
+			{
+				description = descProp.GetString() ?? "";
+			}
+			else
+			{
+				throw new InvalidOperationException("Callback thiếu thông tin content/description");
+			}
 
-                // Thử parse với dấu gạch dưới trước
-                var parts = description.Split('_');
-                if (parts.Length >= 4 && parts[0] == "userId" && parts[2] == "months")
-                {
-                    userId = int.Parse(parts[1]);
-                    durationMonths = int.Parse(parts[3]);
-                }
-                else
-                {
-                    // Thử parse không có dấu gạch dưới: "userId3months1"
-                    var match = System.Text.RegularExpressions.Regex.Match(description, @"userId(\d+)months(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                    if (match.Success)
-                    {
-                        userId = int.Parse(match.Groups[1].Value);
-                        durationMonths = int.Parse(match.Groups[2].Value);
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("Format description không hợp lệ. Expected: userId_{userId}_months_{months} hoặc userId{userId}months{months}");
-                    }
-                }
+		// Parse description format: userIdXmonthsY (ví dụ: userId3months1)
+		int userIdFromNotification;
+		int durationMonths;
 
-                // Kiểm tra user tồn tại
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId, ct);
-                if (user == null)
-                    throw new KeyNotFoundException($"User {userId} không tồn tại");
+		var match = System.Text.RegularExpressions.Regex.Match(description, @"userId(\d+)months(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+		if (match.Success)
+		{
+			userIdFromNotification = int.Parse(match.Groups[1].Value);
+			durationMonths = int.Parse(match.Groups[2].Value);
+		}
+		else
+		{
+			throw new InvalidOperationException($"Format description không hợp lệ: '{description}'. Format đúng: userIdXmonthsY (ví dụ: userId3months1)");
+		}
 
-                // Kiểm tra xem đã có payment history pending không
-                var existingPayment = await _context.PaymentHistories
-                    .Where(p => p.UserId == userId && p.Amount == amount && p.StatusService == "pending")
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefaultAsync(ct);
+			// So sánh userId từ token với userId trong notification
+			if (userIdFromToken != userIdFromNotification)
+			{
+				return new
+				{
+					success = false,
+					message = $"userId không khớp. Token userId: {userIdFromToken}, Notification userId: {userIdFromNotification}"
+				};
+			}
 
-                if (existingPayment != null)
-                {
-                    // Cập nhật payment history từ pending sang active
-                    existingPayment.StatusService = "active";
-                    existingPayment.UpdatedAt = DateTime.Now;
-                    await _context.SaveChangesAsync(ct);
+			// Kiểm tra user tồn tại
+			var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userIdFromNotification, ct);
+			if (user == null)
+				throw new KeyNotFoundException($"User {userIdFromNotification} không tồn tại");
 
-                    return new
-                    {
-                        success = true,
-                        message = "Cập nhật trạng thái thanh toán thành công",
-                        data = new
-                        {
-                            historyId = existingPayment.HistoryId,
-                            userId = existingPayment.UserId,
-                            statusService = existingPayment.StatusService,
-                            amount = existingPayment.Amount
-                        }
-                    };
-                }
-                else
-                {
-                    // Tạo mới payment history với status active
-                    var startDate = DateOnly.FromDateTime(DateTime.Now);
-                    var endDate = startDate.AddMonths(durationMonths);
+			// Kiểm tra xem đã có payment history pending không
+			var existingPayment = await _context.PaymentHistories
+				.Where(p => p.UserId == userIdFromNotification && p.Amount == amount && p.StatusService == "pending")
+				.OrderByDescending(p => p.CreatedAt)
+				.FirstOrDefaultAsync(ct);
 
-                    var paymentHistory = new PaymentHistory
-                    {
-                        UserId = userId,
-                        StatusService = "active",
-                        StartDate = startDate,
-                        EndDate = endDate,
-                        Amount = amount,
-                        CreatedAt = DateTime.Now,
-                        UpdatedAt = DateTime.Now
-                    };
+			if (existingPayment != null)
+			{
+				// Cập nhật payment history từ pending sang active
+				existingPayment.StatusService = "active";
+				existingPayment.UpdatedAt = DateTime.Now;
+				await _context.SaveChangesAsync(ct);
 
-                    _context.PaymentHistories.Add(paymentHistory);
+				return new
+				{
+					success = true,
+					message = "Cập nhật trạng thái thanh toán thành công",
+					data = new
+					{
+						historyId = existingPayment.HistoryId,
+						userId = existingPayment.UserId,
+						statusService = existingPayment.StatusService,
+						amount = (int)existingPayment.Amount
+					}
+				};
+			}
+			else
+			{
+				// Tạo mới payment history với status active
+				var startDate = DateOnly.FromDateTime(DateTime.Now);
+				var endDate = startDate.AddMonths(durationMonths);
 
-                    // Update UserStatusId to VIP (3 = 'Tài khoản VIP')
-                    user.UserStatusId = 3;
-                    user.UpdatedAt = DateTime.Now;
+				var paymentHistory = new PaymentHistory
+				{
+					UserId = userIdFromNotification,
+					StatusService = "active",
+					StartDate = startDate,
+					EndDate = endDate,
+					Amount = amount,
+					CreatedAt = DateTime.Now,
+					UpdatedAt = DateTime.Now
+				};
 
-                    await _context.SaveChangesAsync(ct);
+				_context.PaymentHistories.Add(paymentHistory);
+				await _context.SaveChangesAsync(ct);
 
-                    return new
-                    {
-                        success = true,
-                        message = "Tạo payment history thành công",
-                        data = new
-                        {
-                            historyId = paymentHistory.HistoryId,
-                            userId = paymentHistory.UserId,
-                            statusService = paymentHistory.StatusService,
-                            startDate = paymentHistory.StartDate,
-                            endDate = paymentHistory.EndDate,
-                            amount = paymentHistory.Amount,
-                            userStatusId = user.UserStatusId
-                        }
-                    };
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log error (có thể thêm ILogger nếu cần)
-                throw new InvalidOperationException($"Lỗi xử lý callback: {ex.Message}", ex);
-            }
-        }
+				return new
+				{
+					success = true,
+					message = "Tạo payment history thành công",
+					data = new
+					{
+						historyId = paymentHistory.HistoryId,
+						userId = paymentHistory.UserId,
+						statusService = paymentHistory.StatusService,
+						startDate = paymentHistory.StartDate,
+						endDate = paymentHistory.EndDate,
+						amount = (int)paymentHistory.Amount
+					}
+				};
+			}
+			}
+			catch (Exception ex)
+			{
+				// Log error (có thể thêm ILogger nếu cần)
+				throw new InvalidOperationException($"Lỗi xử lý callback: {ex.Message}", ex);
+			}
+		}
 
-        public async Task<object> CheckPaymentStatusAsync(int userId, decimal amount, string description, CancellationToken ct = default)
+		public async Task<object> CheckPaymentStatusAsync(int userId, decimal amount, string description, CancellationToken ct = default)
         {
             try
             {
                 var apiKey = _configuration["Sepay:ApiKey"];
                 var apiUrl = _configuration["Sepay:ApiUrl"];
                 var accountNo = _configuration["Sepay:AccountNumber"];
-                var limit = _configuration["Sepay:Limit"] ?? "20";
+                var limit = _configuration["Sepay:Limit"] ?? "100";
 
                 if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(accountNo))
                     throw new InvalidOperationException("Cấu hình SePay chưa đầy đủ.");
@@ -610,14 +597,15 @@ namespace BE.Services
                                 if (amtProp.ValueKind == JsonValueKind.Number)
                                     transAmount = amtProp.GetDecimal();
                                 else if (amtProp.ValueKind == JsonValueKind.String)
-                                    decimal.TryParse(amtProp.GetString(), out transAmount);
+                                    decimal.TryParse(amtProp.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out transAmount);
                             }
                             
                             var transDesc = "";
                             if (transaction.TryGetProperty("transaction_content", out var contentProp))
                                 transDesc = contentProp.GetString() ?? "";
 
-                            if (transAmount == amount && transDesc.Contains(description))
+                            // So sánh sau khi làm tròn về int (VNĐ không có phần thập phân)
+                            if ((int)transAmount == (int)amount && transDesc.Contains(description))
                             {
                                 // Tìm thấy giao dịch khớp - Cập nhật status
                                 var existingPayment = await _context.PaymentHistories
@@ -680,39 +668,408 @@ namespace BE.Services
             }
         }
 
-        public Task<bool> ValidateWebhookAsync(string? authHeader, CancellationToken ct = default)
-        {
-            try
-            {
-                var webhookApiKey = _configuration["Sepay:WebhookApiKey"];
+		public Task<bool> ValidateWebhookAsync(string? authHeader, CancellationToken ct = default)
+		{
+			try
+			{
+				var webhookApiKey = _configuration["Sepay:WebhookApiKey"];
 
-                if (string.IsNullOrEmpty(webhookApiKey))
-                {
-                    // Nếu không config WebhookApiKey thì cho phép tất cả (development mode)
-                    return Task.FromResult(true);
-                }
+				if (string.IsNullOrEmpty(webhookApiKey))
+				{
+					// Nếu không config WebhookApiKey thì cho phép tất cả (development mode)
+					return Task.FromResult(true);
+				}
 
-                if (string.IsNullOrEmpty(authHeader))
-                {
-                    return Task.FromResult(false);
-                }
+				if (string.IsNullOrEmpty(authHeader))
+				{
+					return Task.FromResult(false);
+				}
 
-                // SePay gửi Authorization header dạng: "Apikey <API_KEY>" hoặc "Bearer <API_KEY>"
-                var token = authHeader
-                    .Replace("Apikey ", "", StringComparison.OrdinalIgnoreCase)
-                    .Replace("Bearer ", "", StringComparison.OrdinalIgnoreCase)
-                    .Trim();
+				// SePay gửi Authorization header dạng: "Apikey <API_KEY>" hoặc "Bearer <API_KEY>"
+				var token = authHeader
+					.Replace("Apikey ", "", StringComparison.OrdinalIgnoreCase)
+					.Replace("Bearer ", "", StringComparison.OrdinalIgnoreCase)
+					.Trim();
 
-                // So sánh token với WebhookApiKey
-                return Task.FromResult(token == webhookApiKey);
-            }
-            catch
-            {
-                return Task.FromResult(false);
-            }
-        }
+				// So sánh token với WebhookApiKey
+				return Task.FromResult(token == webhookApiKey);
+			}
+			catch
+			{
+				return Task.FromResult(false);
+			}
+		}
 
-        public async Task<object> UpdateExpiredPaymentsAsync(CancellationToken ct = default)
+	/// <summary>
+	/// Kiểm tra thanh toán trong 1 giờ gần đây từ SePay
+	/// </summary>
+	public async Task<object> CheckPaymentInLastHourAsync(
+			int userId, 
+			decimal transferAmount, 
+			string content, 
+			CancellationToken ct = default)
+		{
+			try
+			{
+			var apiKey = _configuration["Sepay:ApiKey"];
+			var apiUrl = _configuration["Sepay:ApiUrl"];
+			var accountNo = _configuration["Sepay:AccountNumber"];
+			// Không dùng limit - lấy tất cả giao dịch
+
+			Console.WriteLine($"[CheckPaymentInLastHour] userId={userId}, amount={transferAmount}, content={content}");
+
+			if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(accountNo))
+			{
+				Console.WriteLine("[CheckPaymentInLastHour] Config missing!");
+				return new
+				{
+					success = false,
+					paid = false,
+					message = "Cấu hình SePay chưa đầy đủ. Vui lòng liên hệ admin."
+				};
+			}
+
+			var client = _httpClientFactory.CreateClient();
+			client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+
+			// Gọi SePay API để lấy TẤT CẢ giao dịch (không dùng limit)
+			var url = $"{apiUrl}?account_number={accountNo}";
+			Console.WriteLine($"[CheckPaymentInLastHour] Calling API: {url} (no limit)");
+				
+			var response = await client.GetAsync(url, ct);
+			var responseContent = await response.Content.ReadAsStringAsync(ct);
+			
+			Console.WriteLine($"[CheckPaymentInLastHour] Response status: {response.StatusCode}");
+			Console.WriteLine($"[CheckPaymentInLastHour] Full response (first 2000 chars): {responseContent.Substring(0, Math.Min(2000, responseContent.Length))}");
+
+			var root = JsonDocument.Parse(responseContent).RootElement;
+
+				// Parse status
+				int sepayStatus = 0;
+				if (root.TryGetProperty("status", out var statusProp))
+				{
+					if (statusProp.ValueKind == JsonValueKind.Number)
+						sepayStatus = statusProp.GetInt32();
+					else if (statusProp.ValueKind == JsonValueKind.String)
+						int.TryParse(statusProp.GetString(), out sepayStatus);
+				}
+				
+				if (sepayStatus == 200)
+				{
+		if (root.TryGetProperty("transactions", out var transactions))
+		{
+			var oneHourAgo = DateTime.Now.AddHours(-5); // Kiểm tra giao dịch trong 5 giờ gần đây
+			var transactionCount = 0;
+
+			// Biến để lưu thông tin giao dịch khớp
+			decimal? matchedTransAmount = null;
+			string? matchedTransDesc = null;
+			string? matchedTransTimeStr = null;
+			DateTime? matchedTransDateTime = null;
+
+			// Duyệt qua các giao dịch để tìm giao dịch khớp
+			foreach (var transaction in transactions.EnumerateArray())
+			{
+				transactionCount++;
+				
+				// Parse amount - hỗ trợ cả snake_case và camelCase
+				decimal transAmount = 0;
+				string rawAmountValue = "";
+				
+				if (transaction.TryGetProperty("transferAmount", out var transferAmountProp))
+				{
+					rawAmountValue = transferAmountProp.ToString();
+					Console.WriteLine($"[DEBUG] Raw transferAmount from SePay: '{rawAmountValue}' (ValueKind: {transferAmountProp.ValueKind})");
+					
+					if (transferAmountProp.ValueKind == JsonValueKind.Number)
+						transAmount = transferAmountProp.GetDecimal();
+					else if (transferAmountProp.ValueKind == JsonValueKind.String)
+						decimal.TryParse(transferAmountProp.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out transAmount);
+				}
+				else if (transaction.TryGetProperty("amount_in", out var amountInProp))
+				{
+					rawAmountValue = amountInProp.ToString();
+					Console.WriteLine($"[DEBUG] Raw amount_in from SePay: '{rawAmountValue}' (ValueKind: {amountInProp.ValueKind})");
+					
+					if (amountInProp.ValueKind == JsonValueKind.Number)
+						transAmount = amountInProp.GetDecimal();
+					else if (amountInProp.ValueKind == JsonValueKind.String)
+						decimal.TryParse(amountInProp.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out transAmount);
+				}
+				else if (transaction.TryGetProperty("amount", out var amountProp))
+				{
+					rawAmountValue = amountProp.ToString();
+					Console.WriteLine($"[DEBUG] Raw amount from SePay: '{rawAmountValue}' (ValueKind: {amountProp.ValueKind})");
+					
+					if (amountProp.ValueKind == JsonValueKind.Number)
+						transAmount = amountProp.GetDecimal();
+					else if (amountProp.ValueKind == JsonValueKind.String)
+						decimal.TryParse(amountProp.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out transAmount);
+				}
+				
+				Console.WriteLine($"[DEBUG] Parsed transAmount: {transAmount:F2} ({(int)transAmount}), Expected transferAmount: {transferAmount:F2} ({(int)transferAmount})");
+
+				// Parse transaction content - hỗ trợ cả snake_case và camelCase
+				var transDesc = "";
+				if (transaction.TryGetProperty("content", out var contentProp))
+					transDesc = contentProp.GetString() ?? "";
+				else if (transaction.TryGetProperty("transaction_content", out var transContentProp))
+					transDesc = transContentProp.GetString() ?? "";
+
+				// Parse transaction date - hỗ trợ cả snake_case và camelCase
+				var transTimeStr = "";
+				if (transaction.TryGetProperty("transactionDate", out var transDateProp))
+					transTimeStr = transDateProp.GetString() ?? "";
+				else if (transaction.TryGetProperty("transaction_date", out var dateProp))
+					transTimeStr = dateProp.GetString() ?? "";
+
+				Console.WriteLine($"[CheckPaymentInLastHour] Transaction #{transactionCount}: amount={(int)transAmount}, content='{transDesc}', time={transTimeStr}");
+
+				// Kiểm tra thời gian giao dịch - chỉ lấy giao dịch trong khoảng thời gian gần đây
+				if (!string.IsNullOrEmpty(transTimeStr))
+				{
+					if (DateTime.TryParse(transTimeStr, out var transDateTime))
+					{
+						var hoursSinceTransaction = (DateTime.Now - transDateTime).TotalHours;
+						Console.WriteLine($"[CheckPaymentInLastHour] Transaction time: {transDateTime}, Current: {DateTime.Now}, Hours ago: {hoursSinceTransaction:F2}");
+						
+						if (transDateTime < oneHourAgo)
+						{
+							Console.WriteLine($"[CheckPaymentInLastHour] ❌ Transaction too old: {transDateTime} < {oneHourAgo} (more than 5 hours ago)");
+							continue; // Bỏ qua giao dịch cũ
+						}
+
+						// Kiểm tra xem giao dịch này đã được sử dụng chưa
+						var alreadyUsed = await _context.PaymentHistories
+							.AnyAsync(p => p.UserId == userId 
+								&& p.Amount == transAmount 
+								&& p.CreatedAt >= transDateTime.AddMinutes(-5), ct);
+						
+						if (alreadyUsed)
+						{
+							Console.WriteLine($"[CheckPaymentInLastHour] Transaction already used");
+							continue;
+						}
+
+						// Normalize content để so sánh (bỏ khoảng trắng, lowercase)
+						var normalizedTransDesc = transDesc.Replace(" ", "").ToLower();
+						var normalizedContent = content.Replace(" ", "").ToLower();
+
+						Console.WriteLine($"[CheckPaymentInLastHour] Comparing: amount={(int)transAmount} vs {(int)transferAmount}, content contains? {normalizedTransDesc.Contains(normalizedContent)}");
+
+						// Kiểm tra: Amount khớp VÀ Content chứa chuỗi yêu cầu
+						// So sánh sau khi làm tròn về int (VNĐ không có phần thập phân)
+						if ((int)transAmount == (int)transferAmount && normalizedTransDesc.Contains(normalizedContent))
+						{
+							Console.WriteLine($"[CheckPaymentInLastHour] ✅ FOUND matching transaction!");
+							
+							// Lưu thông tin giao dịch khớp và dừng vòng for
+							matchedTransAmount = transAmount;
+							matchedTransDesc = transDesc;
+							matchedTransTimeStr = transTimeStr;
+							matchedTransDateTime = transDateTime;
+							break; // Dừng vòng for khi tìm thấy giao dịch khớp
+						}
+					}
+				}
+			}
+
+			// Sau khi dừng vòng for, kiểm tra nếu có giao dịch khớp thì thực hiện logic lưu PaymentHistory
+			if (matchedTransAmount.HasValue && matchedTransDateTime.HasValue)
+			{
+				Console.WriteLine($"[CheckPaymentInLastHour] Processing matched transaction: amount={matchedTransAmount}, content={matchedTransDesc}");
+				
+				// Parse userId và durationMonths từ content của giao dịch
+				int userIdFromTransaction = 0;
+				int durationMonths = 0;
+				var match = System.Text.RegularExpressions.Regex.Match(matchedTransDesc ?? "", @"userId(\d+)months(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+				if (match.Success)
+				{
+					userIdFromTransaction = int.Parse(match.Groups[1].Value);
+					durationMonths = int.Parse(match.Groups[2].Value);
+				}
+				else
+				{
+					// Nếu không parse được từ transDesc, dùng userId và content từ parameter
+					userIdFromTransaction = userId;
+					match = System.Text.RegularExpressions.Regex.Match(content, @"userId(\d+)months(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+					if (match.Success)
+					{
+						durationMonths = int.Parse(match.Groups[2].Value);
+					}
+					else
+					{
+						Console.WriteLine($"[CheckPaymentInLastHour] ⚠️ Cannot parse durationMonths from content: '{content}'");
+						// Mặc định 1 tháng nếu không parse được
+						durationMonths = 1;
+					}
+				}
+
+				// Kiểm tra userId từ transaction có khớp với userId từ token không
+				if (userIdFromTransaction != userId)
+				{
+					Console.WriteLine($"[CheckPaymentInLastHour] ⚠️ userId mismatch: transaction={userIdFromTransaction}, token={userId}");
+					return new
+					{
+						success = false,
+						paid = false,
+						message = $"userId không khớp. Transaction userId: {userIdFromTransaction}, Token userId: {userId}"
+					};
+				}
+
+				// Kiểm tra user tồn tại
+				var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId, ct);
+				if (user == null)
+				{
+					Console.WriteLine($"[CheckPaymentInLastHour] ⚠️ User {userId} not found");
+					return new
+					{
+						success = false,
+						paid = false,
+						message = $"User {userId} không tồn tại"
+					};
+				}
+
+				// Kiểm tra user chưa có VIP active
+				var today = DateOnly.FromDateTime(DateTime.Today);
+				var hasActiveVip = await _context.PaymentHistories.AnyAsync(
+					p => p.UserId == userId && p.StatusService == "active" && p.EndDate >= today, ct);
+				if (hasActiveVip)
+				{
+					Console.WriteLine($"[CheckPaymentInLastHour] ⚠️ User {userId} already has active VIP");
+					return new
+					{
+						success = false,
+						paid = false,
+						message = "Bạn đã có gói VIP đang hoạt động. Vui lòng đợi hết hạn trước khi mua mới."
+					};
+				}
+
+				// Kiểm tra xem đã có payment history pending không (theo logic ProcessPaymentCallbackAsync)
+				var existingPayment = await _context.PaymentHistories
+					.Where(p => p.UserId == userId && p.Amount == matchedTransAmount.Value && p.StatusService == "pending")
+					.OrderByDescending(p => p.CreatedAt)
+					.FirstOrDefaultAsync(ct);
+
+				if (existingPayment != null)
+				{
+					// Cập nhật payment history từ pending sang active
+					existingPayment.StatusService = "active";
+					existingPayment.UpdatedAt = DateTime.Now;
+					
+					// Update UserStatusId to VIP (3 = 'Tài khoản VIP')
+					user.UserStatusId = 3;
+					user.UpdatedAt = DateTime.Now;
+					await _context.SaveChangesAsync(ct);
+
+					Console.WriteLine($"[CheckPaymentInLastHour] ✅ PaymentHistory updated: HistoryId={existingPayment.HistoryId}, UserId={userId}, Status: pending -> active");
+					
+					// Trả về thông tin giao dịch đã cập nhật
+					return new
+					{
+						success = true,
+						paid = true,
+						message = "Cập nhật trạng thái thanh toán thành công! Tài khoản VIP đã được kích hoạt.",
+						data = new
+						{
+							historyId = existingPayment.HistoryId,
+							userId = existingPayment.UserId,
+							statusService = existingPayment.StatusService,
+							startDate = existingPayment.StartDate,
+							endDate = existingPayment.EndDate,
+							amount = (int)existingPayment.Amount,
+							durationMonths = durationMonths,
+							userStatusId = user.UserStatusId,
+							transactionTime = matchedTransTimeStr
+						}
+					};
+				}
+				else
+				{
+					// Tạo mới payment history với status active
+					var startDate = DateOnly.FromDateTime(DateTime.Now);
+					var endDate = startDate.AddMonths(durationMonths);
+
+					var paymentHistory = new PaymentHistory
+					{
+						UserId = userId,
+						StatusService = "active",
+						StartDate = startDate,
+						EndDate = endDate,
+						Amount = matchedTransAmount.Value,
+						CreatedAt = DateTime.Now,
+						UpdatedAt = DateTime.Now
+					};
+
+					_context.PaymentHistories.Add(paymentHistory);
+
+					// Update UserStatusId to VIP (3 = 'Tài khoản VIP')
+					user.UserStatusId = 3;
+					user.UpdatedAt = DateTime.Now;
+					await _context.SaveChangesAsync(ct);
+
+					Console.WriteLine($"[CheckPaymentInLastHour] ✅ PaymentHistory created: HistoryId={paymentHistory.HistoryId}, UserId={userId}, Amount={matchedTransAmount}, Duration={durationMonths} months");
+					
+					// Trả về thông tin giao dịch đã lưu
+					return new
+					{
+						success = true,
+						paid = true,
+						message = "Thanh toán thành công! Tài khoản VIP đã được kích hoạt.",
+						data = new
+						{
+							historyId = paymentHistory.HistoryId,
+							userId = paymentHistory.UserId,
+							statusService = paymentHistory.StatusService,
+							startDate = paymentHistory.StartDate,
+							endDate = paymentHistory.EndDate,
+							amount = (int)paymentHistory.Amount,
+							durationMonths = durationMonths,
+							userStatusId = user.UserStatusId,
+							transactionTime = matchedTransTimeStr
+						}
+					};
+				}
+			}
+
+	Console.WriteLine($"[CheckPaymentInLastHour] Checked {transactionCount} transactions, no match found");
+	return new
+	{
+		success = false,
+		paid = false,
+		message = $"Chưa phát hiện giao dịch trong 5 giờ gần đây với số tiền {transferAmount:N0}đ và nội dung chứa '{content}'."
+	};
+	}
+	else
+	{
+		Console.WriteLine("[CheckPaymentInLastHour] No 'transactions' field in response");
+	}
+}
+else
+{
+	Console.WriteLine($"[CheckPaymentInLastHour] API returned non-200 status");
+}
+
+				return new
+				{
+					success = false,
+					paid = false,
+					message = "Không thể kiểm tra giao dịch từ ngân hàng. Vui lòng thử lại sau."
+				};
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"[CheckPaymentInLastHour] Exception: {ex.Message}");
+				return new
+				{
+					success = false,
+					paid = false,
+					message = $"Lỗi khi kiểm tra thanh toán: {ex.Message}"
+				};
+			}
+		}
+
+		public async Task<object> UpdateExpiredPaymentsAsync(CancellationToken ct = default)
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
 
