@@ -235,51 +235,6 @@ namespace BE.Controllers
 			}
 		}
 
-		// GET /api/payment-history/check-payment?userId={userId}&amount={amount}&description={description}
-		[HttpGet("check-payment")]
-		[Authorize(Roles = "User")]
-		public async Task<IActionResult> CheckPaymentStatus(
-			[FromQuery] int userId, 
-			[FromQuery] decimal amount, 
-			[FromQuery] string description, 
-			CancellationToken ct = default)
-		{
-			try
-			{
-				var result = await _paymentHistoryService.CheckPaymentStatusAsync(userId, amount, description, ct);
-				return Ok(result);
-			}
-			catch (Exception ex)
-			{
-				return StatusCode(500, new
-				{
-					success = false,
-					message = "Lỗi khi kiểm tra trạng thái thanh toán",
-					error = ex.Message
-				});
-			}
-		}
-
-		// PUT /api/payment-history/update-expired
-		[HttpPut("update-expired")]
-		// [Authorize(Roles = "Admin")]
-		public async Task<IActionResult> UpdateExpiredPayments(CancellationToken ct = default)
-		{
-			try
-			{
-				var result = await _paymentHistoryService.UpdateExpiredPaymentsAsync(ct);
-				return Ok(result);
-			}
-			catch (Exception ex)
-			{
-				return StatusCode(500, new
-				{
-					success = false,
-					message = "Lỗi khi update expired payments",
-					error = ex.Message
-				});
-			}
-		}
 	}
 }
 

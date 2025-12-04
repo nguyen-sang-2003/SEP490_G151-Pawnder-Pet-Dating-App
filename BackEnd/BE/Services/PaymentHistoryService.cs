@@ -550,124 +550,6 @@ namespace BE.Services
 			}
 		}
 
-		public async Task<object> CheckPaymentStatusAsync(int userId, decimal amount, string description, CancellationToken ct = default)
-        {
-            try
-            {
-                var apiKey = _configuration["Sepay:ApiKey"];
-                var apiUrl = _configuration["Sepay:ApiUrl"];
-                var accountNo = _configuration["Sepay:AccountNumber"];
-                var limit = _configuration["Sepay:Limit"] ?? "100";
-
-                if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(accountNo))
-                    throw new InvalidOperationException("Cấu hình SePay chưa đầy đủ.");
-
-                var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
-
-                // Gọi SePay API để lấy danh sách giao dịch
-                var url = $"{apiUrl}?account_number={accountNo}&limit={limit}";
-                var response = await client.GetAsync(url, ct);
-                var responseContent = await response.Content.ReadAsStringAsync(ct);
-
-                var root = JsonDocument.Parse(responseContent).RootElement;
-
-                // SePay response format: {"status": 200, "messages": {...}, "transactions": [...]}
-                // status có thể là Number hoặc String
-                int checkStatus = 0;
-                if (root.TryGetProperty("status", out var statusProp))
-                {
-                    if (statusProp.ValueKind == JsonValueKind.Number)
-                        checkStatus = statusProp.GetInt32();
-                    else if (statusProp.ValueKind == JsonValueKind.String)
-                        int.TryParse(statusProp.GetString(), out checkStatus);
-                }
-                
-                if (checkStatus == 200)
-                {
-                    if (root.TryGetProperty("transactions", out var transactions))
-                    {
-                        // Tìm giao dịch khớp với amount và description
-                        foreach (var transaction in transactions.EnumerateArray())
-                        {
-                            // Parse amount_in - có thể là Number hoặc String
-                            decimal transAmount = 0;
-                            if (transaction.TryGetProperty("amount_in", out var amtProp))
-                            {
-                                if (amtProp.ValueKind == JsonValueKind.Number)
-                                    transAmount = amtProp.GetDecimal();
-                                else if (amtProp.ValueKind == JsonValueKind.String)
-                                    decimal.TryParse(amtProp.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out transAmount);
-                            }
-                            
-                            var transDesc = "";
-                            if (transaction.TryGetProperty("transaction_content", out var contentProp))
-                                transDesc = contentProp.GetString() ?? "";
-
-                            // So sánh sau khi làm tròn về int (VNĐ không có phần thập phân)
-                            if ((int)transAmount == (int)amount && transDesc.Contains(description))
-                            {
-                                // Tìm thấy giao dịch khớp - Cập nhật status
-                                var existingPayment = await _context.PaymentHistories
-                                    .Where(p => p.UserId == userId && p.Amount == amount && p.StatusService == "pending")
-                                    .OrderByDescending(p => p.CreatedAt)
-                                    .FirstOrDefaultAsync(ct);
-
-                                if (existingPayment != null)
-                                {
-                                    existingPayment.StatusService = "active";
-                                    existingPayment.UpdatedAt = DateTime.Now;
-                                    await _context.SaveChangesAsync(ct);
-
-                                    return new
-                                    {
-                                        success = true,
-                                        paid = true,
-                                        message = "Thanh toán thành công! Tài khoản VIP đã được kích hoạt.",
-                                        data = new
-                                        {
-                                            historyId = existingPayment.HistoryId,
-                                            statusService = existingPayment.StatusService,
-                                            transactionTime = transaction.GetProperty("transaction_date").GetString()
-                                        }
-                                    };
-                                }
-                                else
-                                {
-                                    return new
-                                    {
-                                        success = true,
-                                        paid = true,
-                                        message = "Đã tìm thấy giao dịch nhưng chưa có payment history pending.",
-                                        needCreateHistory = true
-                                    };
-                                }
-                            }
-                        }
-
-                        // Không tìm thấy giao dịch khớp
-                        return new
-                        {
-                            success = true,
-                            paid = false,
-                            message = "Chưa phát hiện giao dịch thanh toán."
-                        };
-                    }
-                }
-
-                return new
-                {
-                    success = false,
-                    paid = false,
-                    message = "Lỗi khi kiểm tra giao dịch với SePay"
-                };
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Lỗi khi kiểm tra payment status: {ex.Message}", ex);
-            }
-        }
-
 		public Task<bool> ValidateWebhookAsync(string? authHeader, CancellationToken ct = default)
 		{
 			try
@@ -701,7 +583,7 @@ namespace BE.Services
 		}
 
 	/// <summary>
-	/// Kiểm tra thanh toán trong 1 giờ gần đây từ SePay
+	/// Kiểm tra thanh toán trong 30 phút gần đây từ SePay
 	/// </summary>
 	public async Task<object> CheckPaymentInLastHourAsync(
 			int userId, 
@@ -758,7 +640,7 @@ namespace BE.Services
 				{
 		if (root.TryGetProperty("transactions", out var transactions))
 		{
-			var oneHourAgo = DateTime.Now.AddHours(-5); // Kiểm tra giao dịch trong 5 giờ gần đây
+			var thirtyMinutesAgo = DateTime.Now.AddMinutes(-30); // Kiểm tra giao dịch trong 30 phút gần đây
 			var transactionCount = 0;
 
 			// Biến để lưu thông tin giao dịch khớp
@@ -833,9 +715,9 @@ namespace BE.Services
 						var hoursSinceTransaction = (DateTime.Now - transDateTime).TotalHours;
 						Console.WriteLine($"[CheckPaymentInLastHour] Transaction time: {transDateTime}, Current: {DateTime.Now}, Hours ago: {hoursSinceTransaction:F2}");
 						
-						if (transDateTime < oneHourAgo)
+						if (transDateTime < thirtyMinutesAgo)
 						{
-							Console.WriteLine($"[CheckPaymentInLastHour] ❌ Transaction too old: {transDateTime} < {oneHourAgo} (more than 5 hours ago)");
+							Console.WriteLine($"[CheckPaymentInLastHour] ❌ Transaction too old: {transDateTime} < {thirtyMinutesAgo} (more than 30 minutes ago)");
 							continue; // Bỏ qua giao dịch cũ
 						}
 
@@ -1037,7 +919,7 @@ namespace BE.Services
 	{
 		success = false,
 		paid = false,
-		message = $"Chưa phát hiện giao dịch trong 5 giờ gần đây với số tiền {transferAmount:N0}đ và nội dung chứa '{content}'."
+		message = $"Chưa phát hiện giao dịch trong 30 phút gần đây với số tiền {transferAmount:N0}đ và nội dung chứa '{content}'."
 	};
 	}
 	else
@@ -1069,69 +951,6 @@ else
 			}
 		}
 
-		public async Task<object> UpdateExpiredPaymentsAsync(CancellationToken ct = default)
-        {
-            var today = DateOnly.FromDateTime(DateTime.Today);
-
-            // Tìm tất cả payment history có EndDate < today và StatusService = "active"
-            var expiredPayments = await _context.PaymentHistories
-                .Where(p => p.EndDate < today && p.StatusService == "active")
-                .ToListAsync(ct);
-
-            if (!expiredPayments.Any())
-            {
-                return new
-                {
-                    success = true,
-                    message = "Không có payment nào hết hạn",
-                    updatedCount = 0
-                };
-            }
-
-            // Lấy danh sách userId bị hết hạn VIP
-            var expiredUserIds = expiredPayments.Select(p => p.UserId).Distinct().ToList();
-
-            // Update tất cả payment về expired
-            foreach (var payment in expiredPayments)
-            {
-                payment.StatusService = "expired";
-                payment.UpdatedAt = DateTime.Now;
-            }
-
-            // Cập nhật UserStatusId về 2 (Tài khoản thường) cho các user hết hạn VIP
-            // Chỉ cập nhật nếu user không còn gói VIP active nào khác
-            foreach (var userId in expiredUserIds)
-            {
-                var hasOtherActiveVip = await _context.PaymentHistories
-                    .AnyAsync(p => p.UserId == userId && p.StatusService == "active" && p.EndDate >= today, ct);
-
-                if (!hasOtherActiveVip)
-                {
-                    var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId, ct);
-                    if (user != null && user.UserStatusId == 3) // Chỉ cập nhật nếu đang là VIP
-                    {
-                        user.UserStatusId = 2; // Chuyển về Tài khoản thường
-                        user.UpdatedAt = DateTime.Now;
-                    }
-                }
-            }
-
-            await _context.SaveChangesAsync(ct);
-
-            return new
-            {
-                success = true,
-                message = $"Đã update {expiredPayments.Count} payment về trạng thái 'expired' và cập nhật UserStatus",
-                updatedCount = expiredPayments.Count,
-                payments = expiredPayments.Select(p => new
-                {
-                    historyId = p.HistoryId,
-                    userId = p.UserId,
-                    endDate = p.EndDate,
-                    statusService = p.StatusService
-                })
-            };
-        }
     }
 }
 
