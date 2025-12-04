@@ -258,10 +258,6 @@ const Dashboard = () => {
               <span className="quick-stat-label">Báo cáo đã xử lý</span>
               <span className="quick-stat-value">{stats.resolvedReports.toLocaleString('en-US')}</span>
             </div>
-            <div className="quick-stat">
-              <span className="quick-stat-label">Tỷ lệ hài lòng</span>
-              <span className="quick-stat-value">94%</span>
-            </div>
           </div>
         </div>
       </div>

@@ -95,6 +95,47 @@ const UsersList = () => {
               // This will also update UserStatusId based on payment history
               await userService.unbanUser(parseInt(userId));
               console.log(`✅ Auto-unbanned user ${userId} - ban expired`);
+              
+              // Fetch updated user data from backend to get correct status
+              try {
+                const updatedUserResponse = await userService.getUserById(parseInt(userId));
+                if (updatedUserResponse) {
+                  const userStatusId = parseInt(updatedUserResponse.UserStatusId || updatedUserResponse.userStatusId) || 2;
+                  let status = 'NORMAL';
+                  if (userStatusId === 3) { // PREMIUM
+                    status = 'PREMIUM';
+                  } else if (userStatusId === 1) { // BANNED
+                    status = 'BANNED';
+                  }
+                  
+                  // Update users state with data from backend
+                  setUsers(prevUsers => 
+                    prevUsers.map(user => 
+                      user.id.toString() === userId
+                        ? { 
+                            ...user, 
+                            status: status, 
+                            userStatusId: userStatusId,
+                            updatedAt: updatedUserResponse.UpdatedAt || updatedUserResponse.updatedAt
+                          }
+                        : user
+                    )
+                  );
+                  
+                  // Set timestamp to notify UserDetail to refresh
+                  localStorage.setItem(`${STORAGE_KEYS.USER_UPDATED_TIMESTAMP}_${userId}`, Date.now().toString());
+                }
+              } catch (fetchError) {
+                console.error(`Error fetching updated user data for ${userId}:`, fetchError);
+                // Fallback: set to NORMAL if fetch fails
+                setUsers(prevUsers => 
+                  prevUsers.map(user => 
+                    user.id.toString() === userId
+                      ? { ...user, status: 'NORMAL', userStatusId: NORMAL_STATUS }
+                      : user
+                  )
+                );
+              }
             } catch (error) {
               console.error(`❌ Error auto-unbanning user ${userId}:`, error);
               // If unban API fails, fallback to update UserStatusId directly
@@ -109,15 +150,6 @@ const UsersList = () => {
           });
 
           localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
-          
-          // Update users state to reflect unbanned status
-          setUsers(prevUsers => 
-            prevUsers.map(user => 
-              userIdsToUnban.includes(user.id.toString())
-                ? { ...user, status: 'NORMAL', userStatusId: NORMAL_STATUS }
-                : user
-            )
-          );
         }
 
         return updatedBans;
@@ -406,6 +438,9 @@ const UsersList = () => {
         )
       );
       
+      // Set timestamp to notify UserDetail to refresh
+      localStorage.setItem(`${STORAGE_KEYS.USER_UPDATED_TIMESTAMP}_${selectedUser.id}`, Date.now().toString());
+      
       alert(banResponse?.message || 'Đã ban người dùng thành công!');
       handleCloseBanModal();
     } catch (error) {
@@ -442,29 +477,94 @@ const UsersList = () => {
     if (!selectedUserForUnban) return;
 
     try {
+      console.log(`[Unban] Starting unban for user ${selectedUserForUnban.id}...`);
+      
       // Call backend unban API
       await userService.unbanUser(selectedUserForUnban.id);
+      console.log(`[Unban] Backend unban API called successfully`);
       
-      // Remove from localStorage
+      // Remove from localStorage bans
       const updatedBans = { ...userBans };
       delete updatedBans[selectedUserForUnban.id];
 
       setUserBans(updatedBans);
       localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+      console.log(`[Unban] Removed user ${selectedUserForUnban.id} from localStorage bans`);
       
-      // Update user status in local state
-      setUsers(prevUsers => 
-        prevUsers.map(u => 
-          u.id === selectedUserForUnban.id 
-            ? { ...u, status: 'NORMAL', userStatusId: USER_STATUS.NORMAL }
-            : u
-        )
-      );
+      // Wait a bit for backend to process (500ms)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fetch updated user data from backend to get correct status
+      // Retry up to 3 times in case backend is still processing
+      let updatedUserResponse = null;
+      const maxRetries = 3;
+      
+      for (let retries = 0; retries < maxRetries; retries++) {
+        try {
+          const response = await userService.getUserById(selectedUserForUnban.id);
+          console.log(`[Unban] Fetch attempt ${retries + 1}:`, response);
+          
+          if (response) {
+            updatedUserResponse = response;
+            // Map UserStatusId to status string
+            const userStatusId = parseInt(response.UserStatusId || response.userStatusId) || 2;
+            console.log(`[Unban] Parsed UserStatusId: ${userStatusId} (original: ${response.UserStatusId || response.userStatusId})`);
+            
+            let status = 'NORMAL';
+            if (userStatusId === USER_STATUS.PREMIUM) {
+              status = 'PREMIUM';
+            } else if (userStatusId === USER_STATUS.BANNED) {
+              status = 'BANNED';
+            }
+            
+            console.log(`[Unban] Mapped status: ${status} (from UserStatusId: ${userStatusId})`);
+            
+            // Update user status in local state with data from backend
+            setUsers(prevUsers => 
+              prevUsers.map(u => 
+                u.id === selectedUserForUnban.id 
+                  ? { 
+                      ...u, 
+                      status: status, 
+                      userStatusId: userStatusId,
+                      updatedAt: response.UpdatedAt || response.updatedAt
+                    }
+                  : u
+              )
+            );
+            
+            console.log(`[Unban] Updated local state: status=${status}, userStatusId=${userStatusId}`);
+            break; // Success, exit retry loop
+          }
+        } catch (fetchError) {
+          console.error(`[Unban] Error fetching updated user data (attempt ${retries + 1}):`, fetchError);
+          if (retries < maxRetries - 1) {
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+      
+      // If still no response after retries, use fallback
+      if (!updatedUserResponse) {
+        console.warn(`[Unban] Failed to fetch updated user data after ${maxRetries} attempts. Using fallback: NORMAL`);
+        setUsers(prevUsers => 
+          prevUsers.map(u => 
+            u.id === selectedUserForUnban.id 
+              ? { ...u, status: 'NORMAL', userStatusId: USER_STATUS.NORMAL }
+              : u
+          )
+        );
+      }
+      
+      // Set timestamp to notify UserDetail to refresh
+      localStorage.setItem(`${STORAGE_KEYS.USER_UPDATED_TIMESTAMP}_${selectedUserForUnban.id}`, Date.now().toString());
+      console.log(`[Unban] Set refresh timestamp for UserDetail`);
       
       alert('Đã gỡ ban người dùng thành công!');
       handleCloseUnbanModal();
     } catch (error) {
-      console.error('Error unbanning user:', error);
+      console.error('[Unban] Error unbanning user:', error);
       alert('Không thể gỡ ban người dùng. Vui lòng thử lại sau.');
     }
   };
@@ -547,10 +647,12 @@ const UsersList = () => {
         // Map backend UserResponse to frontend user format
         const mappedUsers = usersData.map(user => {
           // Map UserStatusId to status string
+          // Convert to number to handle both string and number from backend
+          const userStatusId = parseInt(user.UserStatusId || user.userStatusId) || 2; // Default to NORMAL (2)
           let status = 'NORMAL';
-          if (user.UserStatusId === USER_STATUS.PREMIUM) {
+          if (userStatusId === USER_STATUS.PREMIUM) {
             status = 'PREMIUM';
-          } else if (user.UserStatusId === USER_STATUS.BANNED) {
+          } else if (userStatusId === USER_STATUS.BANNED) {
             status = 'BANNED';
           }
           
@@ -569,7 +671,7 @@ const UsersList = () => {
             fullName,
             status,
             roleId: user.RoleId || user.roleId,
-            userStatusId: user.UserStatusId || user.userStatusId,
+            userStatusId: userStatusId, // Use parsed value
             gender: user.Gender || user.gender,
             isVerified: user.isProfileComplete || user.IsProfileComplete || false,
             avatar: null, // Backend doesn't have avatar
@@ -582,7 +684,17 @@ const UsersList = () => {
             totalPets: 0 // Will be updated after fetching pets count
           };
           
-          // Debug: log users with BANNED status
+          // Debug: log users with PREMIUM or BANNED status
+          if (mappedUser.userStatusId === USER_STATUS.PREMIUM) {
+            console.log('Found PREMIUM user:', {
+              id: mappedUser.id,
+              name: mappedUser.fullName,
+              userStatusId: mappedUser.userStatusId,
+              status: mappedUser.status,
+              originalUserStatusId: user.UserStatusId || user.userStatusId,
+              originalType: typeof (user.UserStatusId || user.userStatusId)
+            });
+          }
           if (mappedUser.userStatusId === USER_STATUS.BANNED || mappedUser.status === 'BANNED') {
             console.log('Found BANNED user:', mappedUser);
           }
@@ -590,8 +702,11 @@ const UsersList = () => {
           return mappedUser;
         });
 
+        // Filter chỉ lấy role "Người dùng" (User, RoleId = 3) - không hiển thị Admin và Expert
+        const userRoleOnly = mappedUsers.filter(user => user.roleId === ROLE_ID.USER);
+        
         // Sắp xếp theo ngày tạo (mới nhất -> cũ nhất)
-        const sortedUsers = mappedUsers.sort((a, b) => {
+        const sortedUsers = userRoleOnly.sort((a, b) => {
           const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return bTime - aTime;
@@ -627,11 +742,14 @@ const UsersList = () => {
         
         const allUsers = response.Items || response.items || [];
         
+        // Filter chỉ lấy role "Người dùng" (User, RoleId = 3) - không tính Admin và Expert
+        const userRoleOnly = allUsers.filter(u => (u.RoleId || u.roleId) === ROLE_ID.USER);
+        
         const stats = {
-          total: response.Total || response.total || 0,
-          normal: allUsers.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.NORMAL).length,
-          premium: allUsers.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.PREMIUM).length,
-          verified: allUsers.filter(u => u.isProfileComplete || u.IsProfileComplete).length
+          total: userRoleOnly.length,
+          normal: userRoleOnly.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.NORMAL).length,
+          premium: userRoleOnly.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.PREMIUM).length,
+          verified: userRoleOnly.filter(u => u.isProfileComplete || u.IsProfileComplete).length
         };
         
         setUserStats(stats);
@@ -813,7 +931,6 @@ const UsersList = () => {
                 <td>
                   <div className="user-info">
                     <div className="user-name">{user.firstName} {user.lastName}</div>
-                    <div className="user-username">@{user.username}</div>
                     {user.gender && (
                       <div className="user-details">
                         {user.gender}

@@ -134,6 +134,7 @@ export const STORAGE_KEYS = {
   EXPERT_NOTIFICATIONS: 'expert_notifications', // Lưu trạng thái notifications của expert
   EXPERT_NOTIFICATIONS_INITIALIZED: 'expert_notifications_initialized', // Flag đánh dấu đã khởi tạo (ngăn reset về mock data)
   USER_BANS: 'user_bans', // Lưu trạng thái ban của người dùng
+  USER_UPDATED_TIMESTAMP: 'user_updated_timestamp', // Track khi nào user được update để refresh UserDetail
 };
 
 // Theme

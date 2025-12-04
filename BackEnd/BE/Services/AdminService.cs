@@ -203,12 +203,17 @@ namespace BE.Services
                 b.UpdatedAt = now;
             }
 
-            // Business logic: Set user status back based on payment history
-            var hasPaymentHistory = await _context.PaymentHistories
+            // Business logic: Set user status back based on ACTIVE payment history
+            // Only set PREMIUM if user has an active payment (EndDate >= today)
+            // Otherwise, set to NORMAL
+            var today = DateOnly.FromDateTime(now);
+            var hasActivePayment = await _context.PaymentHistories
                 .AsNoTracking()
-                .AnyAsync(ph => ph.UserId == userId, ct);
+                .AnyAsync(ph => ph.UserId == userId 
+                    && ph.EndDate.HasValue 
+                    && ph.EndDate.Value >= today, ct);
 
-            var targetStatusName = hasPaymentHistory ? "Tài khoản VIP" : "Tài khoản thường";
+            var targetStatusName = hasActivePayment ? "Tài khoản VIP" : "Tài khoản thường";
             var targetStatus = await _context.UserStatuses
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, targetStatusName), ct);

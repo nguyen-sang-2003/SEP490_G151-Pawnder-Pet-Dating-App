@@ -157,9 +157,11 @@ class DashboardService {
         return status === 'pending' || status === 'chờ xử lý' || status === 'đang chờ';
       }).length;
       
+      // "Đã xử lý" bao gồm cả "resolved" và "rejected" (giống logic trong ReportsList.js)
       const resolved = reports.filter(r => {
         const status = normalizeStatus(r.Status || r.status);
-        return status === 'resolved' || status === 'đã xử lý' || status === 'đã giải quyết';
+        return status === 'resolved' || status === 'đã xử lý' || status === 'đã giải quyết' ||
+               status === 'rejected' || status === 'từ chối' || status === 'bị từ chối';
       }).length;
       
       const rejected = reports.filter(r => {
@@ -245,26 +247,41 @@ class DashboardService {
 
   /**
    * Get active users today
-   * Users who have logged in today
+   * Users who have updated their profile or were created today
+   * Note: Backend doesn't have LastLogin field, so we use UpdatedAt as proxy for activity
    */
   async getActiveUsersToday() {
     try {
-      const users = await this.getAllUsers(100);
+      const users = await this.getAllUsers(1000); // Get more users for accuracy
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayEnd = new Date(today);
       todayEnd.setHours(23, 59, 59, 999);
       
-      // Note: Backend UserResponse doesn't include lastLogin field
-      // This is a placeholder - backend should add lastLogin field
-      // For now, we'll return 0 or estimate based on CreatedAt
       const activeUsers = users.filter(user => {
-        // If user was created today, consider them active
-        const createdAt = user.CreatedAt || user.createdAt;
-        if (!createdAt) return false;
+        // Priority 1: Check UpdatedAt - if user updated profile today, they're active
+        const updatedAt = user.UpdatedAt || user.updatedAt;
+        if (updatedAt) {
+          const updatedDate = new Date(updatedAt);
+          if (!isNaN(updatedDate.getTime())) {
+            if (updatedDate >= today && updatedDate <= todayEnd) {
+              return true;
+            }
+          }
+        }
         
-        const createdDate = new Date(createdAt);
-        return createdDate >= today && createdDate <= todayEnd;
+        // Priority 2: Check CreatedAt - if user was created today, they're active
+        const createdAt = user.CreatedAt || user.createdAt;
+        if (createdAt) {
+          const createdDate = new Date(createdAt);
+          if (!isNaN(createdDate.getTime())) {
+            if (createdDate >= today && createdDate <= todayEnd) {
+              return true;
+            }
+          }
+        }
+        
+        return false;
       }).length;
       
       return activeUsers;
