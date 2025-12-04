@@ -582,6 +582,8 @@
       "changeButton": "Đổi mật khẩu",
       "changingButton": "Đang đổi...",
       "forgotPassword": "Quên mật khẩu hiện tại?",
+      "successTitle": "Thành công",
+      "successMessage": "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
       "requirements": {
         "title": "Yêu cầu mật khẩu:",
         "minLength": "Ít nhất 8 ký tự",

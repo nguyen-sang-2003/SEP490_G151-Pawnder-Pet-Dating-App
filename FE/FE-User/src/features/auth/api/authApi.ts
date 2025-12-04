@@ -291,3 +291,57 @@ export const completeUserProfile = async (userId: number): Promise<void> => {
   }
 };
 
+export interface ChangePasswordRequest {
+  CurrentPassword: string;
+  NewPassword: string;
+}
+
+export interface ChangePasswordResponse {
+  Message?: string;
+  message?: string;
+}
+
+/**
+ * Change user password
+ * PUT /api/change-password
+ */
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string,
+): Promise<ChangePasswordResponse> => {
+  try {
+    const response = await apiClient.put<ChangePasswordResponse>('/api/change-password', {
+      CurrentPassword: currentPassword,
+      NewPassword: newPassword,
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data;
+
+      let errorMessage = 'Đổi mật khẩu thất bại';
+
+      if (typeof data === 'string') {
+        errorMessage = data;
+      } else if (data?.message) {
+        errorMessage = data.message;
+      } else if (data?.Message) {
+        errorMessage = data.Message;
+      }
+
+      if (status === 401) {
+        throw new Error(errorMessage || 'Mật khẩu hiện tại không đúng');
+      } else if (status === 400) {
+        throw new Error(errorMessage || 'Thông tin không hợp lệ');
+      } else {
+        throw new Error(errorMessage);
+      }
+    } else if (error.request) {
+      throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.');
+    } else {
+      throw new Error(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+    }
+  }
+};
+
