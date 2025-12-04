@@ -9,10 +9,9 @@ namespace BE.Services.Interfaces
         Task<IEnumerable<object>> GetPaymentHistoriesByUserIdAsync(int userId, CancellationToken ct = default);
         Task<IEnumerable<object>> GetAllPaymentHistoriesAsync(CancellationToken ct = default);
         Task<object> GetVipStatusAsync(int userId, CancellationToken ct = default);
-        Task<object> ProcessPaymentCallbackAsync(JsonElement notification, CancellationToken ct = default);
-        Task<object> CheckPaymentStatusAsync(int userId, decimal amount, string description, CancellationToken ct = default);
+        Task<object> ProcessPaymentCallbackAsync(JsonElement notification, int userIdFromToken, CancellationToken ct = default);
+        Task<object> CheckPaymentInLastHourAsync(int userId, decimal transferAmount, string content, CancellationToken ct = default);
         Task<bool> ValidateWebhookAsync(string? authHeader, CancellationToken ct = default);
-        Task<object> UpdateExpiredPaymentsAsync(CancellationToken ct = default);
     }
 
     public record CreatePaymentHistoryRequest
