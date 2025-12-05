@@ -319,9 +319,8 @@ const PaymentManagement = () => {
     );
   };
 
-  // Tính tổng doanh thu
+  // Tính tổng doanh thu - lấy tất cả thanh toán kể cả hết hạn
   const totalRevenue = paymentSource
-    .filter(p => p.statusKey === 'active')
     .reduce((sum, p) => sum + p.amount, 0);
 
   const totalTransactions = paymentSource.length;
