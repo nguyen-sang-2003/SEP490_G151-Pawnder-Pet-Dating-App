@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { useAuth } from '../../shared/context/AuthContext';
 import { expertService, userService } from '../../shared/api';
@@ -139,6 +140,7 @@ const ExpertNotifications = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterStatus, setFilterStatus] = useState('pending');
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
@@ -424,14 +426,28 @@ const ExpertNotifications = () => {
         return bTime - aTime;
       });
 
+    let filtered = notifications;
+
+    // Filter by status
     if (filterStatus === 'pending') {
-      return sortByCreatedDesc(notifications.filter((n) => n.status === 'pending'));
+      filtered = filtered.filter((n) => n.status === 'pending');
+    } else if (filterStatus === 'all') {
+      filtered = filtered.filter((n) => n.status === 'confirmed');
+    } else {
+      filtered = filtered.filter((n) => n.status === 'confirmed');
     }
-    if (filterStatus === 'all') {
-      return sortByCreatedDesc(notifications.filter((n) => n.status === 'confirmed'));
+
+    // Filter by search term (user name)
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter((n) => {
+        const userName = (n.userName || '').toLowerCase();
+        return userName.includes(searchLower);
+      });
     }
-    return sortByCreatedDesc(notifications.filter((n) => n.status === 'confirmed'));
-  }, [filterStatus, notifications]);
+
+    return sortByCreatedDesc(filtered);
+  }, [filterStatus, notifications, searchTerm]);
 
   const totalPages = Math.max(
     1,
@@ -551,7 +567,7 @@ const ExpertNotifications = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterStatus]);
+  }, [filterStatus, searchTerm]);
 
   if (loading) {
     return (
@@ -570,6 +586,27 @@ const ExpertNotifications = () => {
             <p>Xác nhận và xử lý các yêu cầu xác thực thông tin AI từ người dùng.</p>
           </div>
           <div className="header-actions">
+            <div className="search-container">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Tìm kiếm theo tên người dùng..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  className="search-clear"
+                  onClick={() => setSearchTerm('')}
+                  title="Xóa tìm kiếm"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
+            </div>
             <button
               className="view-all-processed-btn"
               onClick={() =>
@@ -741,7 +778,7 @@ const ExpertNotifications = () => {
         </div>
       )}
 
-      {showConfirmModal && selectedNotification && (
+      {showConfirmModal && selectedNotification && createPortal(
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div 
             className={`modal-content ${showChatHistory && selectedNotification?.chatHistory?.length > 0 ? 'has-chat-history' : ''}`}
@@ -908,7 +945,8 @@ const ExpertNotifications = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

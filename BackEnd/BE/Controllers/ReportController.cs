@@ -63,6 +63,9 @@ namespace BE.Controllers
 					});
 				}
 
+				// Debug logging
+				Console.WriteLine($"[ReportController] ReportId: {report.ReportId}, ContentId: {report.ContentId}, Content: {(report.Content != null ? $"Message={report.Content.Message}" : "null")}");
+
 				return Ok(new
 				{
 					success = true,

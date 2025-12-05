@@ -131,12 +131,6 @@ const Login = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="login-form">
-            {errors.general && (
-              <div className="error-message general-error">
-                {errors.general}
-              </div>
-            )}
-            
             <div className="form-group">
               <input
                 type="email"
@@ -195,6 +189,11 @@ const Login = () => {
               </label>
             </div>
             
+            {errors.general && (
+              <div className="general-error">
+                {errors.general}
+              </div>
+            )}
             <button
               type="submit"
               className={`login-button ${isLoading ? 'loading' : ''}`}

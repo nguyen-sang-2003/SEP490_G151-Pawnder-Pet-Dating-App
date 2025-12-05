@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { userService, petService } from '../../shared/api';
 import { STORAGE_KEYS } from '../../shared/constants';
@@ -611,33 +612,19 @@ const UsersList = () => {
     }
   }, []);
 
-  // Fetch users from API (lấy toàn bộ để sắp xếp theo ngày tạo phía frontend)
+  // Fetch users from API (chỉ fetch một lần khi mount, filter phía frontend)
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Prepare query parameters - luôn lấy full list, phân trang phía frontend
+        // Prepare query parameters - luôn lấy full list, không filter ở backend
         const params = {
           page: 1,
           pageSize: 1000,
           includeDeleted: false
         };
-        
-        // Add search if provided
-        if (searchTerm.trim()) {
-          params.search = searchTerm.trim();
-        }
-        
-        // Add status filter
-        // Backend uses statusId: 2 = NORMAL, 3 = PREMIUM
-        if (filterStatus === 'NORMAL') {
-          params.statusId = USER_STATUS.NORMAL;
-        } else if (filterStatus === 'PREMIUM') {
-          params.statusId = USER_STATUS.PREMIUM;
-        }
-        // filterStatus === 'all' means no statusId filter
         
         const response = await userService.getUsers(params);
         
@@ -713,7 +700,6 @@ const UsersList = () => {
         });
         
         setUsers(sortedUsers);
-        setTotalPages(Math.max(1, Math.ceil(sortedUsers.length / itemsPerPage)));
         
         // Fetch pets count for each user (in parallel, but limit concurrency)
         fetchPetsCount(sortedUsers);
@@ -727,7 +713,7 @@ const UsersList = () => {
     };
     
     fetchUsers();
-  }, [searchTerm, filterStatus, itemsPerPage, USER_STATUS.BANNED, USER_STATUS.NORMAL, USER_STATUS.PREMIUM, fetchPetsCount]);
+  }, []); // Chỉ fetch một lần khi mount
 
   // Fetch user stats (total, normal, premium, verified)
   useEffect(() => {
@@ -767,14 +753,52 @@ const UsersList = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle search/filter changes with debounce -> always reset to page 1
+  // Reset to page 1 when search or filter changes
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setCurrentPage(1);
-    }, 500); // Debounce 500ms
-    
-    return () => clearTimeout(timeoutId);
+    setCurrentPage(1);
   }, [searchTerm, filterStatus]);
+
+  // Memoize filtered users to avoid recalculating on every render (giống PetsList)
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      // Filter by search term
+      const matchesSearch = 
+        (user.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.username || '').toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filter by status
+      const matchesStatus = 
+        filterStatus === 'all' || 
+        (filterStatus === 'NORMAL' && user.status === 'NORMAL') ||
+        (filterStatus === 'PREMIUM' && user.status === 'PREMIUM') ||
+        (filterStatus === 'BANNED' && user.status === 'BANNED');
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [users, searchTerm, filterStatus]);
+
+  // Sắp xếp filtered users theo ngày tạo (mới nhất -> cũ nhất)
+  const sortedUsersForView = useMemo(() => {
+    return [...filteredUsers].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [filteredUsers]);
+
+  // Update total pages when filtered users change
+  useEffect(() => {
+    const total = sortedUsersForView.length;
+    setTotalPages(Math.ceil(total / itemsPerPage));
+  }, [sortedUsersForView, itemsPerPage]);
+
+  // Memoize current users (paginated)
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedUsersForView.slice(startIndex, endIndex);
+  }, [sortedUsersForView, currentPage, itemsPerPage]);
 
   const handleUserClick = (userId) => {
     navigate(`/users/${userId}`);
@@ -841,14 +865,6 @@ const UsersList = () => {
     );
   }
 
-  // Sắp xếp người dùng theo ngày tạo (mới nhất -> cũ nhất) và phân trang phía frontend
-  const sortedUsersForView = [...users].sort((a, b) => {
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return bTime - aTime;
-  });
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedUsers = sortedUsersForView.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="users-page">
@@ -861,7 +877,7 @@ const UsersList = () => {
         <div className="search-section">
           <input
             type="text"
-            placeholder="Tìm kiếm theo tên, email, username..."
+            placeholder="Tìm kiếm theo tên"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -1098,7 +1114,7 @@ const UsersList = () => {
       )}
 
       {/* Ban User Modal */}
-      {showBanModal && selectedUser && (
+      {showBanModal && selectedUser && createPortal(
         <div className="modal-overlay" onClick={handleCloseBanModal}>
           <div className="modal-content ban-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1200,11 +1216,12 @@ const UsersList = () => {
               </button>
             </div>
            </div>
-         </div>
+         </div>,
+         document.body
        )}
 
        {/* Unban User Modal */}
-       {showUnbanModal && selectedUserForUnban && (
+       {showUnbanModal && selectedUserForUnban && createPortal(
          <div className="modal-overlay" onClick={handleCloseUnbanModal}>
            <div className="modal-content unban-modal" onClick={(e) => e.stopPropagation()}>
              <div className="modal-header">
@@ -1293,7 +1310,8 @@ const UsersList = () => {
                </button>
              </div>
            </div>
-         </div>
+         </div>,
+         document.body
        )}
      </div>
    );

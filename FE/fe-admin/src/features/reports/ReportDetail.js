@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { reportService, userService } from '../../shared/api';
 import { addUserNotification } from '../../shared/data/mockUserNotifications';
@@ -121,11 +122,11 @@ const ReportDetail = () => {
             avatar: null // Backend doesn't have avatar
           },
           reportedUser,
-          // Reported content (not available from backend)
+          // Reported content from backend
           reportedContent: {
             type: 'Message',
-            message: 'N/A', // Backend doesn't return Content in ReportDto
-            timestamp: reportResponse.CreatedAt || reportResponse.createdAt
+            message: reportResponse.Content?.Message || reportResponse.content?.message || 'N/A',
+            timestamp: reportResponse.Content?.CreatedAt || reportResponse.content?.createdAt || reportResponse.CreatedAt || reportResponse.createdAt
           }
         };
         
@@ -452,9 +453,9 @@ const ReportDetail = () => {
           </div>
         )}
       </div>
-      {isActionModalOpen && (
-        <div className="action-modal-overlay">
-          <div className="action-modal">
+      {isActionModalOpen && createPortal(
+        <div className="action-modal-overlay" onClick={closeActionModal}>
+          <div className="action-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{actionType === 'resolve' ? 'Nhập phản hồi xử lý' : 'Nhập lý do từ chối'}</h3>
             <p>Phản hồi này sẽ được lưu vào hệ thống và gửi đến người báo cáo.</p>
             <textarea
@@ -472,7 +473,8 @@ const ReportDetail = () => {
               <button className="primary-btn" onClick={handleSubmitAction}>Lưu phản hồi</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
