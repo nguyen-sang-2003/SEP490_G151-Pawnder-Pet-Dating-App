@@ -17,8 +17,10 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
-import { createPet } from "../../../api";
+import { createPet, getPetsByUserId } from "../../../api";
 import { getItem } from "../../../services/storage";
+
+const MAX_PETS_PER_USER = 3;
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetBasicInfo">;
 
@@ -68,6 +70,24 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       }
 
       const userId = parseInt(userIdStr, 10);
+
+      // Kiểm tra số lượng pet hiện tại (tối đa 3 pet)
+      if (isFromProfile) {
+        try {
+          const existingPets = await getPetsByUserId(userId);
+          if (existingPets && existingPets.length >= MAX_PETS_PER_USER) {
+            showAlert({
+              type: 'warning',
+              title: t('profile.myPets.maxPetsReached'),
+              message: t('profile.myPets.maxPetsMessage', { max: MAX_PETS_PER_USER }),
+            });
+            setLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.log('Could not check existing pets count:', error);
+        }
+      }
 
       // Create pet (Gender default to "Male", user will update in Characteristics screen)
       // IsActive: false by default - user can manually set active later

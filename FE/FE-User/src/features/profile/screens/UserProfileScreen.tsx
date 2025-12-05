@@ -637,11 +637,22 @@ const UserProfileScreen = ({ navigation }: Props) => {
               </Text>
             </View>
             <TouchableOpacity
-              style={styles.addPetButton}
-              onPress={() => navigation.navigate("AddPet")}
+              style={[styles.addPetButton, myPets.length >= 3 && styles.addPetButtonDisabled]}
+              onPress={() => {
+                const MAX_PETS = 3;
+                if (myPets.length >= MAX_PETS) {
+                  showAlert({
+                    type: 'warning',
+                    title: t('profile.myPets.maxPetsReached'),
+                    message: t('profile.myPets.maxPetsMessage', { max: MAX_PETS }),
+                  });
+                  return;
+                }
+                navigation.navigate("AddPet");
+              }}
             >
               <LinearGradient
-                colors={gradients.profile}
+                colors={myPets.length >= 3 ? ['#BDBDBD', '#9E9E9E'] : gradients.profile}
                 style={styles.addPetGradient}
               >
                 <Icon name="add" size={18} color="#fff" />
@@ -1191,6 +1202,9 @@ const styles = StyleSheet.create({
   addPetButton: {
     borderRadius: radius.md,
     overflow: "hidden",
+  },
+  addPetButtonDisabled: {
+    opacity: 0.6,
   },
   addPetGradient: {
     flexDirection: "row",

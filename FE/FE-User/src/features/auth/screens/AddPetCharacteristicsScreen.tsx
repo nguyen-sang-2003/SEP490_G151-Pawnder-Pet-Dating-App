@@ -44,6 +44,10 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   // Store existing characteristics for display (optionValue and value)
   const [existingCharacteristics, setExistingCharacteristics] = useState<Record<number, { optionValue?: string; value?: number; unit?: string }>>({});
 
+  // Determine if this is "editing existing pet" vs "adding new pet"
+  // Only true when editing from profile AND pet has existing characteristics saved
+  const isEditingExistingPet = isFromProfile && existingCharacteristicIds.size > 0;
+
   useEffect(() => {
     if (!petId) {
 
@@ -246,14 +250,19 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'success',
         title: t('auth.addPet.characteristics.success'),
-        message: isFromProfile 
+        message: isEditingExistingPet 
           ? t('auth.addPet.characteristics.characteristicsUpdated')
           : t('auth.addPet.characteristics.profileCreated'),
-        confirmText: isFromProfile ? t('auth.addPet.characteristics.backToProfile') : t('common.continue'),
+        confirmText: isEditingExistingPet ? t('auth.addPet.characteristics.backToProfile') : t('common.continue'),
         onClose: () => {
-          if (isFromProfile) {
+          if (isEditingExistingPet) {
+            // Editing existing pet → go back to profile
+            navigation.navigate("Profile");
+          } else if (isFromProfile) {
+            // Adding new pet from profile → go back to profile
             navigation.navigate("Profile");
           } else {
+            // Adding new pet during registration → go to onboarding
             navigation.replace("OnboardingPreferences");
           }
         },
@@ -261,7 +270,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     } catch (error: any) {
 
 
-      let errorMessage = isFromProfile 
+      let errorMessage = isEditingExistingPet 
         ? t('auth.addPet.characteristics.updateFailed')
         : t('auth.addPet.characteristics.saveFailed');
 
@@ -321,8 +330,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
 
-          {/* Step Indicator - Only show when adding new pet, not when editing */}
-          {!isFromProfile && (
+          {/* Step Indicator - Show when adding new pet (step 3), hide when editing existing */}
+          {!isEditingExistingPet && (
             <View style={styles.stepIndicatorContainer}>
               <View style={styles.stepBarsContainer}>
                 <View style={[styles.stepBar, styles.stepBarActive]} />
@@ -334,10 +343,10 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           )}
 
           <Text style={styles.title}>
-            {isFromProfile ? t('auth.addPet.characteristics.editTitle') : t('auth.addPet.characteristics.title')}
+            {isEditingExistingPet ? t('auth.addPet.characteristics.editTitle') : t('auth.addPet.characteristics.title')}
           </Text>
           <Text style={styles.subtitle}>
-            {isFromProfile ? t('auth.addPet.characteristics.editSubtitle') : t('auth.addPet.characteristics.subtitle')}
+            {isEditingExistingPet ? t('auth.addPet.characteristics.editSubtitle') : t('auth.addPet.characteristics.subtitle')}
           </Text>
         </View>
 
@@ -358,24 +367,15 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             </View>
           )}
 
-          {/* Dynamic Attributes - Only show attributes that have values */}
+          {/* Dynamic Attributes - Show ALL attributes for both add and edit */}
           {attributes
             .filter((attr) => {
+              // Only filter out invalid attributes
               if (!attr.AttributeId) return false;
               
-              // When editing: only show attributes that have existing values
-              if (isFromProfile) {
-                const existingChar = existingCharacteristics[attr.AttributeId];
-                return existingChar && (existingChar.optionValue || existingChar.value != null);
-              }
-              
-              // When adding: only show attributes that have been filled (selected or numeric value)
-              const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
-              if (isNumeric) {
-                return numericValues[attr.AttributeId] && numericValues[attr.AttributeId].trim() !== '';
-              } else {
-                return selectedOptions[attr.AttributeId] != null;
-              }
+              // Always show ALL attributes - for both adding new pet and editing existing pet
+              // This allows users to see which ones are filled and fill in missing ones
+              return true;
             })
             .map((attr) => {
             if (!attr.AttributeId) return null;
@@ -384,7 +384,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
 
             const existingChar = existingCharacteristics[attr.AttributeId!];
-            const hasExistingValue = isFromProfile && existingChar && (existingChar.optionValue || existingChar.value != null);
+            const hasExistingValue = isEditingExistingPet && existingChar && (existingChar.optionValue || existingChar.value != null);
             
             return (
               <View key={`attr-${attr.AttributeId}`} style={styles.inputGroup}>
@@ -500,7 +500,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>{isFromProfile ? t('auth.addPet.characteristics.saveButton') : t('auth.addPet.characteristics.continueButton')}</Text>
+                  <Text style={styles.buttonText}>{isEditingExistingPet ? t('auth.addPet.characteristics.saveButton') : t('auth.addPet.characteristics.continueButton')}</Text>
                   <Icon name="arrow-forward" size={22} color={colors.white} />
                 </>
               )}

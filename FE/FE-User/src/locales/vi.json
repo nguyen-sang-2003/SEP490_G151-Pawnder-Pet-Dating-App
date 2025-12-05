@@ -857,6 +857,8 @@
       "count": "Thú cưng của tôi ({{count}})",
       "subtitle": "Nhấn để đặt thú cưng hoạt động để ghép đôi",
       "addPet": "Thêm thú cưng",
+      "maxPetsReached": "Giới hạn thú cưng",
+      "maxPetsMessage": "Bạn đã có tối đa {{max}} thú cưng. Vui lòng xóa một thú cưng trước khi thêm mới.",
       "active": "Hoạt động",
       "setActive": "Đặt hoạt động",
       "alreadyActive": "Đã kích hoạt",
