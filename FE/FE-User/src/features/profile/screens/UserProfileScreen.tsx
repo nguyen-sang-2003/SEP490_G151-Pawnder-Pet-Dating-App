@@ -630,7 +630,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {/* My Pets Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View>
+            <View style={styles.sectionHeaderLeft}>
               <Text style={styles.sectionTitle}>{t('profile.myPets.count', { count: myPets.length })}</Text>
               <Text style={styles.sectionSubtitle}>
                 {t('profile.myPets.subtitle')}
@@ -1001,6 +1001,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  sectionHeaderLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "bold",
@@ -1202,6 +1206,7 @@ const styles = StyleSheet.create({
   addPetButton: {
     borderRadius: radius.md,
     overflow: "hidden",
+    flexShrink: 0,
   },
   addPetButtonDisabled: {
     opacity: 0.6,
