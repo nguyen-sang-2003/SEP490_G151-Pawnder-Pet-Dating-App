@@ -11,6 +11,7 @@ import {
   ScrollView,
   StatusBar,
   SafeAreaView,
+  RefreshControl,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -31,6 +32,8 @@ import { getPetsByUserId } from "../../pet/api/petApi";
 import OptimizedImage from "../../../components/OptimizedImage";
 import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
 import signalRService from "../../../services/signalr.service";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 const { width, height } = Dimensions.get("window");
 const CARD_PADDING = 16;
@@ -56,8 +59,10 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const activePetId = useSelector(selectActivePetId); // Get current active pet ID
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [pets, setPets] = useState<LikeCat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [currentPhotoIndices, setCurrentPhotoIndices] = useState<{ [key: string]: number }>({});
   const [activeTab, setActiveTab] = useState<'likes' | 'matches'>('likes');
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -267,6 +272,18 @@ const FavoriteScreen = ({ navigation }: Props) => {
     return `${diffDays} ngày trước`;
   };
 
+  // Handle pull-to-refresh
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadLikes(true); // Force refresh
+    } catch (error) {
+      console.error('❌ Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   // 🚀 OPTIMIZATION 2: Memoize filtered pets by tab
   const filteredPets = useMemo(() => {
     if (activeTab === 'likes') {
@@ -347,37 +364,62 @@ const FavoriteScreen = ({ navigation }: Props) => {
     }
   }, []);
 
-  const handleUnmatch = useCallback(async (petId: string) => {
-    try {
-      console.log('💔 Unmatching:', petId);
+  const handleUnmatch = useCallback((petId: string) => {
+    const pet = pets.find(p => p.id === petId);
+    const petName = pet?.catName || t('favorite.unmatch.petName');
+    
+    showAlert({
+      type: 'warning',
+      title: t('favorite.unmatch.title'),
+      message: t('favorite.unmatch.message', { name: petName }),
+      showCancel: true,
+      confirmText: t('favorite.unmatch.confirm'),
+      cancelText: t('common.cancel'),
+      onConfirm: async () => {
+        try {
+          console.log('💔 Unmatching:', petId);
 
-      // Call API to unmatch (pass on already matched)
-      await respondToLike({
-        matchId: parseInt(petId),
-        action: 'pass'
-      });
+          // Call API to unmatch (pass on already matched)
+          await respondToLike({
+            matchId: parseInt(petId),
+            action: 'pass'
+          });
 
-      // ✅ Remove badge for this chat immediately
-      const matchId = parseInt(petId);
-      dispatch(markChatAsRead(matchId));
-      console.log('✅ Removed badge for matchId:', matchId);
+          // ✅ Remove badge for this chat immediately
+          const matchId = parseInt(petId);
+          dispatch(markChatAsRead(matchId));
+          console.log('✅ Removed badge for matchId:', matchId);
 
-      // Remove from list immediately
-      setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
+          // Remove from list immediately
+          setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
 
-      // 🚀 OPTIMIZATION: Invalidate cache after action
-      const userIdStr = await AsyncStorage.getItem('userId');
-      if (userIdStr) {
-        const userId = parseInt(userIdStr);
-        invalidateCache.likes(userId);
-        invalidateCache.chats(userId); // Also invalidate chats
-      }
+          // 🚀 OPTIMIZATION: Invalidate cache after action
+          const userIdStr = await AsyncStorage.getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr);
+            invalidateCache.likes(userId);
+            invalidateCache.chats(userId); // Also invalidate chats
+          }
 
-      console.log('✅ Unmatched successfully');
-    } catch (error) {
+          console.log('✅ Unmatched successfully');
 
-    }
-  }, [dispatch]);
+          // Show success message
+          showAlert({
+            type: 'success',
+            title: t('favorite.unmatch.success'),
+            message: t('favorite.unmatch.successMessage', { name: petName }),
+          });
+        } catch (error: any) {
+          console.error('❌ Error unmatching:', error);
+          showAlert({
+            type: 'error',
+            title: t('common.error'),
+            message: error.message || t('favorite.unmatch.error'),
+          });
+        }
+      },
+    });
+  }, [dispatch, pets, t, showAlert]);
 
   const handleChat = useCallback((matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
     console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
@@ -742,12 +784,35 @@ const FavoriteScreen = ({ navigation }: Props) => {
               { useNativeDriver: true }
             )}
             scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
           />
         );
       })()}
 
       {/* Bottom Navigation */}
       <BottomNav active="Favorite" />
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          showCancel={alertConfig.showCancel}
+          confirmText={alertConfig.confirmText}
+          cancelText={alertConfig.cancelText}
+          onConfirm={alertConfig.onConfirm}
+          onClose={hideAlert}
+        />
+      )}
     </View >
   );
 };

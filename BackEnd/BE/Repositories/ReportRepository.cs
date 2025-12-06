@@ -28,6 +28,13 @@ namespace BE.Repositories
                     Resolution = r.Resolution,
                     CreatedAt = r.CreatedAt,
                     UpdatedAt = r.UpdatedAt,
+                    ContentId = r.ContentId,
+                    Content = r.Content != null ? new ContentDto
+                    {
+                        ContentId = r.Content.ContentId,
+                        Message = r.Content.Message,
+                        CreatedAt = r.Content.CreatedAt
+                    } : null,
                     UserReport = r.UserReport != null ? new UserReportDto
                     {
                         UserId = r.UserReport.UserId,

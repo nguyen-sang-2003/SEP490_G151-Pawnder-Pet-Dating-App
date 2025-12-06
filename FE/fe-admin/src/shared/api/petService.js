@@ -72,6 +72,32 @@ class PetService {
     return response;
   }
 
+  /**
+   * Get pet characteristics
+   * Backend: GET /api/pet-characteristic/pet-characteristic/{petId}
+   * Response: Array of { attributeId, name, optionValue, value, unit, typeValue }
+   */
+  async getPetCharacteristics(petId) {
+    try {
+      const endpoint = API_ENDPOINTS.PETS.CHARACTERISTICS(petId);
+      console.log('[petService] Fetching characteristics:', { petId, endpoint });
+      const response = await apiClient.get(endpoint);
+      console.log('[petService] Characteristics response:', response);
+      const result = Array.isArray(response) ? response : [];
+      console.log('[petService] Returning characteristics:', result.length, 'items');
+      return result;
+    } catch (error) {
+      console.error('[petService] Error fetching characteristics:', {
+        petId,
+        status: error?.response?.status,
+        message: error?.message,
+        url: error?.config?.url
+      });
+      // Re-throw error so caller can check status code (e.g., 404)
+      throw error;
+    }
+  }
+
   // Backend không có approve/reject endpoints - có thể implement sau nếu cần
   // async approvePet(id) {
   //   const response = await apiClient.post(`/api/pet/${id}/approve`);

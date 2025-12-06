@@ -414,7 +414,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
                   source={{ uri: photos[0].ImageUrl || photos[0].imageUrl || photos[0].Url || photos[0].url }}
                   style={styles.avatar}
                   resizeMode="cover"
-                  imageSize="medium"
+                  imageSize="thumbnail"
                 />
               ) : (
                 <Image
@@ -529,18 +529,6 @@ const EditPetScreen = ({ navigation, route }: Props) => {
               onChangeText={setBreed}
               placeholder={t('profile.editPet.form.breedPlaceholder')}
               placeholderTextColor="#999"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('profile.editPet.form.age')}</Text>
-            <TextInput
-              style={styles.input}
-              value={age}
-              onChangeText={setAge}
-              placeholder={t('profile.editPet.form.agePlaceholder')}
-              placeholderTextColor="#999"
-              keyboardType="numeric"
             />
           </View>
 

@@ -18,7 +18,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
-import { changePassword, logout } from "../../auth/api/authApi";
+import { changePassword } from "../../auth/api/authApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ChangePassword">;
 
@@ -89,13 +89,9 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
         type: 'success',
         title: t('settings.changePassword.successTitle'),
         message: message,
-        onConfirm: async () => {
-          // Logout user after password change (as backend clears JWT token)
-          await logout();
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'SignIn' }],
-          });
+        onClose: () => {
+          // Quay về màn hình trước sau khi đổi mật khẩu thành công
+          navigation.goBack();
         },
       });
     } catch (error: any) {

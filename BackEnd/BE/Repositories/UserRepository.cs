@@ -72,7 +72,15 @@ namespace BE.Repositories
             if (!includeDeleted)
                 query = query.Where(x => x.IsDeleted == null || x.IsDeleted == false);
             
-            return await query.FirstOrDefaultAsync(ct);
+            var user = await query.FirstOrDefaultAsync(ct);
+            
+            // Debug: Log IsProfileComplete directly from query result
+            if (user != null)
+            {
+                Console.WriteLine($"[UserRepository.GetUserByIdAsync] UserId={userId}, IsProfileComplete from query: {user.IsProfileComplete}");
+            }
+            
+            return user;
         }
 
         public async Task<bool> EmailExistsAsync(string email, CancellationToken ct = default)

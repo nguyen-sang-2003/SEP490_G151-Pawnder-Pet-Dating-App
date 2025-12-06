@@ -27,6 +27,9 @@ const UserDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Track last fetch timestamp to detect updates
+  const [lastFetchTime, setLastFetchTime] = useState(Date.now());
+
   // Fetch user data from API
   useEffect(() => {
     const fetchUserData = async () => {
@@ -59,6 +62,12 @@ const UserDetail = () => {
           return;
         }
         
+        // Debug: Log isProfileComplete from backend
+        console.log('[UserDetail] Backend response:', userResponse);
+        console.log('[UserDetail] isProfileComplete (camelCase):', userResponse.isProfileComplete);
+        console.log('[UserDetail] IsProfileComplete (PascalCase):', userResponse.IsProfileComplete);
+        console.log('[UserDetail] All keys:', Object.keys(userResponse));
+        
         // Map UserResponse to frontend format
         const fullName = userResponse.FullName || userResponse.fullName || userResponse.Email?.split('@')[0] || 'User';
         const nameParts = fullName.split(' ');
@@ -66,8 +75,9 @@ const UserDetail = () => {
         const lastName = nameParts.slice(1).join(' ') || '';
         
         // Map UserStatusId to status string
+        // Convert to number to handle both string and number from backend
+        const userStatusId = parseInt(userResponse.UserStatusId || userResponse.userStatusId) || 2; // Default to NORMAL (2)
         let status = 'NORMAL';
-        const userStatusId = userResponse.UserStatusId || userResponse.userStatusId;
         if (userStatusId === USER_STATUS.PREMIUM) {
           status = 'PREMIUM';
         } else if (userStatusId === USER_STATUS.BANNED) {
@@ -114,7 +124,14 @@ const UserDetail = () => {
           roleId: userResponse.RoleId || userResponse.roleId,
           userStatusId: userStatusId,
           gender: userResponse.Gender || userResponse.gender || 'Unknown',
-          isVerified: userResponse.isProfileComplete || userResponse.IsProfileComplete || false,
+          isVerified: (() => {
+            const value = userResponse.isProfileComplete ?? userResponse.IsProfileComplete ?? false;
+            console.log('[UserDetail] isVerified calculated:', value, 'from:', {
+              isProfileComplete: userResponse.isProfileComplete,
+              IsProfileComplete: userResponse.IsProfileComplete
+            });
+            return value;
+          })(),
           avatar: null, // Backend doesn't have avatar
           phone: null, // Backend doesn't have phone
           address: null, // Backend doesn't have address (only AddressId)
@@ -124,14 +141,9 @@ const UserDetail = () => {
           lastLogin: null, // Backend doesn't have lastLogin
           totalPets: pets.length,
           totalMatches: 0, // Backend doesn't have matches data
-          // Additional data not in backend
-          bio: 'Chưa có thông tin giới thiệu.',
-          preferences: {
-            petSpecies: ['Cat'],
-            petAge: 'Any',
-            location: 'TP.HCM',
-            activityLevel: 'Moderate'
-          },
+          // Additional data not in backend - removed as backend doesn't provide this
+          // bio: removed
+          // preferences: removed
           pets: pets,
           matches: [] // Backend doesn't have matches data
         };
@@ -148,6 +160,7 @@ const UserDetail = () => {
         }
         
         setUser(mappedUser);
+        setLastFetchTime(Date.now());
       } catch (err) {
         console.error('Error fetching user data:', err);
         setError('Không thể tải thông tin người dùng. Vui lòng thử lại sau.');
@@ -158,6 +171,92 @@ const UserDetail = () => {
     
     fetchUserData();
   }, [id]);
+
+  // Check for user updates (from unban, ban, etc.) and refresh if needed
+  useEffect(() => {
+    if (!id || !user) return;
+
+    const checkForUpdates = () => {
+      const userId = parseInt(id);
+      if (isNaN(userId)) return;
+
+      // Check if user was updated (unban, ban, etc.)
+      const updatedTimestamp = localStorage.getItem(`${STORAGE_KEYS.USER_UPDATED_TIMESTAMP}_${userId}`);
+      if (updatedTimestamp) {
+        const updateTime = parseInt(updatedTimestamp);
+        if (updateTime > lastFetchTime) {
+          // User was updated, refresh data
+          console.log(`User ${userId} was updated, refreshing...`);
+          const fetchUserData = async () => {
+            try {
+              const userResponse = await userService.getUserById(userId);
+              if (userResponse) {
+                // Re-map user data (same logic as above)
+                const fullName = userResponse.FullName || userResponse.fullName || userResponse.Email?.split('@')[0] || 'User';
+                const nameParts = fullName.split(' ');
+                const firstName = nameParts[0] || fullName;
+                const lastName = nameParts.slice(1).join(' ') || '';
+                
+                let status = 'NORMAL';
+                const userStatusId = parseInt(userResponse.UserStatusId || userResponse.userStatusId) || 2;
+                console.log(`[UserDetail Refresh] UserId=${userId}, UserStatusId=${userStatusId} (original: ${userResponse.UserStatusId || userResponse.userStatusId})`);
+                
+                if (userStatusId === USER_STATUS.PREMIUM) {
+                  status = 'PREMIUM';
+                } else if (userStatusId === USER_STATUS.BANNED) {
+                  status = 'BANNED';
+                }
+                
+                console.log(`[UserDetail Refresh] Mapped status: ${status} (from UserStatusId: ${userStatusId})`);
+                
+                // Check localStorage bans - only override to BANNED if user is actually banned
+                const savedBans = localStorage.getItem(STORAGE_KEYS.USER_BANS);
+                if (savedBans) {
+                  try {
+                    const bans = JSON.parse(savedBans);
+                    if (bans[userId] !== undefined) {
+                      console.log(`[UserDetail Refresh] User ${userId} found in localStorage bans, overriding to BANNED`);
+                      status = 'BANNED';
+                    } else {
+                      console.log(`[UserDetail Refresh] User ${userId} NOT in localStorage bans, using status from backend: ${status}`);
+                    }
+                  } catch (err) {
+                    console.error('[UserDetail Refresh] Error parsing user bans:', err);
+                  }
+                } else {
+                  console.log(`[UserDetail Refresh] No localStorage bans found, using status from backend: ${status}`);
+                }
+                
+                // Map isVerified from backend response
+                const isVerified = userResponse.isProfileComplete ?? userResponse.IsProfileComplete ?? false;
+                console.log(`[UserDetail Refresh] isVerified: ${isVerified} (from isProfileComplete: ${userResponse.isProfileComplete}, IsProfileComplete: ${userResponse.IsProfileComplete})`);
+                
+                setUser(prev => ({
+                  ...prev,
+                  status,
+                  userStatusId: userStatusId,
+                  firstName,
+                  lastName,
+                  fullName,
+                  isVerified: isVerified
+                }));
+                setLastFetchTime(Date.now());
+              }
+            } catch (err) {
+              console.error('Error refreshing user data:', err);
+            }
+          };
+          fetchUserData();
+        }
+      }
+    };
+
+    // Check immediately and then every 2 seconds
+    checkForUpdates();
+    const interval = setInterval(checkForUpdates, 2000);
+
+    return () => clearInterval(interval);
+  }, [id, user, lastFetchTime]);
 
   const tabs = [
     { id: 'profile', label: 'Thông tin cá nhân', icon: '👤' },
@@ -303,7 +402,6 @@ const UserDetail = () => {
             <h2>
               {getGenderIcon(user.gender)} {user.firstName} {user.lastName}
             </h2>
-            <p className="user-username">@{user.username}</p>
             <p className="user-age">
               {user.dateOfBirth ? `${getAge(user.dateOfBirth)} tuổi` : 'N/A'} • {user.gender || 'N/A'}
             </p>
@@ -403,10 +501,6 @@ const UserDetail = () => {
                     <span className="label">Xác thực:</span>
                     <span className="value">{getVerificationBadge(user.isVerified)}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="label">Đăng nhập cuối:</span>
-                    <span className="value">{user.lastLogin ? formatDateTime(user.lastLogin) : 'Chưa đăng nhập'}</span>
-                  </div>
                 </div>
 
                 <div className="info-card">
@@ -426,32 +520,6 @@ const UserDetail = () => {
                 </div>
               </div>
 
-              <div className="bio-card">
-                <h3>Giới thiệu</h3>
-                <p>{user.bio}</p>
-              </div>
-
-              <div className="preferences-card">
-                <h3>Sở thích</h3>
-                <div className="preferences-grid">
-                  <div className="preference-item">
-                    <span className="label">Loài thú cưng:</span>
-                    <span className="value">{user.preferences.petSpecies.join(', ')}</span>
-                  </div>
-                  <div className="preference-item">
-                    <span className="label">Độ tuổi:</span>
-                    <span className="value">{user.preferences.petAge}</span>
-                  </div>
-                  <div className="preference-item">
-                    <span className="label">Khu vực:</span>
-                    <span className="value">{user.preferences.location}</span>
-                  </div>
-                  <div className="preference-item">
-                    <span className="label">Mức độ hoạt động:</span>
-                    <span className="value">{user.preferences.activityLevel}</span>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -524,16 +592,6 @@ const UserDetail = () => {
               </div>
               
               <div className="activity-timeline">
-                {user.lastLogin && (
-                  <div className="timeline-item">
-                    <div className="timeline-icon">👤</div>
-                    <div className="timeline-content">
-                      <h4>Đăng nhập lần cuối</h4>
-                      <p>{formatDateTime(user.lastLogin)}</p>
-                    </div>
-                  </div>
-                )}
-                
                 {user.updatedAt && (
                   <div className="timeline-item">
                     <div className="timeline-icon">📝</div>

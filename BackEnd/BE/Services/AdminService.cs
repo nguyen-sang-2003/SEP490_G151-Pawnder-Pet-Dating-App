@@ -203,12 +203,63 @@ namespace BE.Services
                 b.UpdatedAt = now;
             }
 
-            // Business logic: Set user status back based on payment history
-            var hasPaymentHistory = await _context.PaymentHistories
+            // Business logic: Set user status back based on ACTIVE payment history
+            // CRITICAL: Only set PREMIUM if user has a payment with:
+            // 1. StatusService = "active" (exact match, case-insensitive)
+            // 2. EndDate >= today (payment chưa hết hạn)
+            // 3. StartDate <= today (payment đã bắt đầu)
+            // Otherwise, set to NORMAL
+            var today = DateOnly.FromDateTime(now);
+            
+            // Step 1: Update expired payments (EndDate < today but StatusService still "active")
+            var expiredActivePayments = await _context.PaymentHistories
+                .Where(ph => ph.UserId == userId 
+                    && ph.StatusService != null
+                    && ph.StatusService.ToLower().Trim() == "active"
+                    && ph.EndDate.HasValue 
+                    && ph.EndDate.Value < today)
+                .ToListAsync(ct);
+            
+            if (expiredActivePayments.Any())
+            {
+                foreach (var expiredPayment in expiredActivePayments)
+                {
+                    expiredPayment.StatusService = "pending";
+                    expiredPayment.UpdatedAt = now;
+                }
+                await _context.SaveChangesAsync(ct);
+            }
+            
+            // Step 2: Get ALL payments first for comprehensive check
+            var allPayments = await _context.PaymentHistories
                 .AsNoTracking()
-                .AnyAsync(ph => ph.UserId == userId, ct);
+                .Where(ph => ph.UserId == userId)
+                .ToListAsync(ct);
+            
+            // Step 3: Check for ACTIVE payment (StatusService must be EXACTLY "active" AND EndDate >= today AND StartDate <= today)
+            var activePayments = allPayments
+                .Where(ph => ph.StatusService != null
+                    && ph.StatusService.ToLower().Trim() == "active"  // MUST be "active", not "pending"
+                    && ph.EndDate.HasValue 
+                    && ph.EndDate.Value >= today  // EndDate >= today
+                    && ph.StartDate.HasValue
+                    && ph.StartDate.Value <= today)  // Payment must have started
+                .ToList();
+            
+            // CRITICAL: Check if ALL payments are "pending" - if so, FORCE NORMAL
+            var allPaymentsArePending = allPayments.Any() && 
+                allPayments.All(p => 
+                {
+                    var status = p.StatusService?.ToLower().Trim() ?? "";
+                    return status == "pending";
+                });
+            
+            // Only set PREMIUM if:
+            // 1. There's at least one ACTIVE payment (StatusService="active" AND EndDate>=today AND StartDate<=today)
+            // 2. AND not all payments are "pending"
+            var hasActivePayment = activePayments.Any() && !allPaymentsArePending;
 
-            var targetStatusName = hasPaymentHistory ? "Tài khoản VIP" : "Tài khoản thường";
+            var targetStatusName = hasActivePayment ? "Tài khoản VIP" : "Tài khoản thường";
             var targetStatus = await _context.UserStatuses
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => EF.Functions.ILike(s.UserStatusName, targetStatusName), ct);

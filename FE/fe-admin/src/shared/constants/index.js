@@ -29,6 +29,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/pet', // POST /api/pet
     UPDATE: (id) => `/api/pet/${id}`, // PUT /api/pet/{petId}
     DELETE: (id) => `/api/pet/${id}`, // DELETE /api/pet/{petId}
+    CHARACTERISTICS: (petId) => `/api/pet-characteristic/pet-characteristic/${petId}`, // GET /api/pet-characteristic/pet-characteristic/{petId}
   },
   REPORTS: {
     LIST: '/api/report', // GET /api/report (ReportController có [Route("api")])
@@ -134,6 +135,7 @@ export const STORAGE_KEYS = {
   EXPERT_NOTIFICATIONS: 'expert_notifications', // Lưu trạng thái notifications của expert
   EXPERT_NOTIFICATIONS_INITIALIZED: 'expert_notifications_initialized', // Flag đánh dấu đã khởi tạo (ngăn reset về mock data)
   USER_BANS: 'user_bans', // Lưu trạng thái ban của người dùng
+  USER_UPDATED_TIMESTAMP: 'user_updated_timestamp', // Track khi nào user được update để refresh UserDetail
 };
 
 // Theme

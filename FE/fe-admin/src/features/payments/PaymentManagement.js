@@ -302,24 +302,25 @@ const PaymentManagement = () => {
     const statusKey = getStatusKey(statusService);
     const statusConfig = {
       active: { color: '#27ae60', text: 'active', icon: '✓' },
-      pending: { color: '#f39c12', text: 'pending', icon: '⏳' },
+      pending: { color: '#f39c12', text: 'HẾT HẠN', icon: '⏳' },
       failed: { color: '#e74c3c', text: 'failed', icon: '✗' }
     };
-    const displayText = statusService?.trim() || statusConfig[statusKey]?.text || 'unknown';
-    const config = statusConfig[statusKey] || { color: '#95a5a6', text: displayText, icon: '' };
+    // Always use text from config if statusKey exists, otherwise use statusService or 'unknown'
+    const config = statusConfig[statusKey];
+    const displayText = config?.text || statusService?.trim() || 'unknown';
+    const finalConfig = config || { color: '#95a5a6', text: displayText, icon: '' };
     return (
       <span 
         className="status-badge" 
-        style={{ backgroundColor: config.color }}
+        style={{ backgroundColor: finalConfig.color }}
       >
-        {config.icon} {displayText}
+        {finalConfig.icon} {displayText}
       </span>
     );
   };
 
-  // Tính tổng doanh thu
+  // Tính tổng doanh thu - lấy tất cả thanh toán kể cả hết hạn
   const totalRevenue = paymentSource
-    .filter(p => p.statusKey === 'active')
     .reduce((sum, p) => sum + p.amount, 0);
 
   const totalTransactions = paymentSource.length;

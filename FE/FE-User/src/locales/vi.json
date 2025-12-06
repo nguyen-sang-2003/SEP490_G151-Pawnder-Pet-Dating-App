@@ -336,6 +336,8 @@
       "recommended": "Nên chọn",
       "apply": "Áp dụng bộ lọc",
       "applyWithCount": "Áp dụng bộ lọc ({{count}})",
+      "saveSuccess": "Thành công",
+      "saveSuccessMessage": "Bộ lọc đã được áp dụng thành công",
       "saveError": "Lỗi khi lưu",
       "unknownError": "Lỗi không xác định. Vui lòng thử lại."
     }
@@ -583,7 +585,7 @@
       "changingButton": "Đang đổi...",
       "forgotPassword": "Quên mật khẩu hiện tại?",
       "successTitle": "Thành công",
-      "successMessage": "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
+      "successMessage": "Đổi mật khẩu thành công!",
       "requirements": {
         "title": "Yêu cầu mật khẩu:",
         "minLength": "Ít nhất 8 ký tự",
@@ -855,6 +857,8 @@
       "count": "Thú cưng của tôi ({{count}})",
       "subtitle": "Nhấn để đặt thú cưng hoạt động để ghép đôi",
       "addPet": "Thêm thú cưng",
+      "maxPetsReached": "Giới hạn thú cưng",
+      "maxPetsMessage": "Bạn đã có tối đa {{max}} thú cưng. Vui lòng xóa một thú cưng trước khi thêm mới.",
       "active": "Hoạt động",
       "setActive": "Đặt hoạt động",
       "alreadyActive": "Đã kích hoạt",
@@ -1235,6 +1239,15 @@
     "actions": {
       "sendMessage": "Gửi tin nhắn",
       "unmatch": "Hủy ghép đôi"
+    },
+    "unmatch": {
+      "title": "Hủy ghép đôi",
+      "message": "Bạn có chắc muốn hủy ghép đôi với {{name}}? Cuộc trò chuyện sẽ bị xóa và bạn sẽ không thể nhắn tin với họ nữa.",
+      "confirm": "Hủy ghép đôi",
+      "success": "Đã hủy ghép đôi",
+      "successMessage": "Đã hủy ghép đôi với {{name}} thành công.",
+      "error": "Không thể hủy ghép đôi. Vui lòng thử lại.",
+      "petName": "thú cưng này"
     },
     "empty": {
       "likes": {

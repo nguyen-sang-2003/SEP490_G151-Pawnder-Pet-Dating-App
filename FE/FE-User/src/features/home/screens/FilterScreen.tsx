@@ -24,6 +24,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getAttributesForFilter, AttributeForFilter, FilterSuggestion } from "../api/attributesApi";
 import { saveUserPreferencesBatch, getUserPreferences } from "../api/preferencesApi";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import CustomAlert from "../../../components/CustomAlert";
 
 const { width } = Dimensions.get("window");
 
@@ -42,6 +44,7 @@ interface ActiveFilter {
 
 const FilterScreen = ({ navigation }: Props) => {
     const { t } = useTranslation();
+    const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [attributes, setAttributes] = useState<AttributeForFilter[]>([]);
@@ -199,8 +202,16 @@ const FilterScreen = ({ navigation }: Props) => {
             await saveUserPreferencesBatch(currentUserId, preferences);
             console.log("✅ Filters saved successfully!");
 
-            // Navigate back to Home screen - will auto-reload pets with new recommendations
-            navigation.goBack();
+            // Show success notification
+            showAlert({
+                type: 'success',
+                title: t('home.filter.saveSuccess'),
+                message: t('home.filter.saveSuccessMessage'),
+                onClose: () => {
+                    // Navigate back to Home screen - will auto-reload pets with new recommendations
+                    navigation.goBack();
+                },
+            });
         } catch (error: any) {
 
             Alert.alert(
@@ -681,6 +692,21 @@ const FilterScreen = ({ navigation }: Props) => {
                     </LinearGradient>
                 </TouchableOpacity>
             </LinearGradient>
+
+            {/* Custom Alert */}
+            {alertConfig && (
+                <CustomAlert
+                    visible={visible}
+                    type={alertConfig.type}
+                    title={alertConfig.title}
+                    message={alertConfig.message}
+                    confirmText={alertConfig.confirmText}
+                    onClose={hideAlert}
+                    onConfirm={alertConfig.onConfirm}
+                    cancelText={alertConfig.cancelText}
+                    showCancel={alertConfig.showCancel}
+                />
+            )}
         </View>
     );
 };

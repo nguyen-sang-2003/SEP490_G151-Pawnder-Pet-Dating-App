@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { userService, petService } from '../../shared/api';
 import { STORAGE_KEYS } from '../../shared/constants';
@@ -95,6 +96,47 @@ const UsersList = () => {
               // This will also update UserStatusId based on payment history
               await userService.unbanUser(parseInt(userId));
               console.log(`✅ Auto-unbanned user ${userId} - ban expired`);
+              
+              // Fetch updated user data from backend to get correct status
+              try {
+                const updatedUserResponse = await userService.getUserById(parseInt(userId));
+                if (updatedUserResponse) {
+                  const userStatusId = parseInt(updatedUserResponse.UserStatusId || updatedUserResponse.userStatusId) || 2;
+                  let status = 'NORMAL';
+                  if (userStatusId === 3) { // PREMIUM
+                    status = 'PREMIUM';
+                  } else if (userStatusId === 1) { // BANNED
+                    status = 'BANNED';
+                  }
+                  
+                  // Update users state with data from backend
+                  setUsers(prevUsers => 
+                    prevUsers.map(user => 
+                      user.id.toString() === userId
+                        ? { 
+                            ...user, 
+                            status: status, 
+                            userStatusId: userStatusId,
+                            updatedAt: updatedUserResponse.UpdatedAt || updatedUserResponse.updatedAt
+                          }
+                        : user
+                    )
+                  );
+                  
+                  // Set timestamp to notify UserDetail to refresh
+                  localStorage.setItem(`${STORAGE_KEYS.USER_UPDATED_TIMESTAMP}_${userId}`, Date.now().toString());
+                }
+              } catch (fetchError) {
+                console.error(`Error fetching updated user data for ${userId}:`, fetchError);
+                // Fallback: set to NORMAL if fetch fails
+                setUsers(prevUsers => 
+                  prevUsers.map(user => 
+                    user.id.toString() === userId
+                      ? { ...user, status: 'NORMAL', userStatusId: NORMAL_STATUS }
+                      : user
+                  )
+                );
+              }
             } catch (error) {
               console.error(`❌ Error auto-unbanning user ${userId}:`, error);
               // If unban API fails, fallback to update UserStatusId directly
@@ -109,15 +151,6 @@ const UsersList = () => {
           });
 
           localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
-          
-          // Update users state to reflect unbanned status
-          setUsers(prevUsers => 
-            prevUsers.map(user => 
-              userIdsToUnban.includes(user.id.toString())
-                ? { ...user, status: 'NORMAL', userStatusId: NORMAL_STATUS }
-                : user
-            )
-          );
         }
 
         return updatedBans;
@@ -406,6 +439,9 @@ const UsersList = () => {
         )
       );
       
+      // Set timestamp to notify UserDetail to refresh
+      localStorage.setItem(`${STORAGE_KEYS.USER_UPDATED_TIMESTAMP}_${selectedUser.id}`, Date.now().toString());
+      
       alert(banResponse?.message || 'Đã ban người dùng thành công!');
       handleCloseBanModal();
     } catch (error) {
@@ -442,29 +478,94 @@ const UsersList = () => {
     if (!selectedUserForUnban) return;
 
     try {
+      console.log(`[Unban] Starting unban for user ${selectedUserForUnban.id}...`);
+      
       // Call backend unban API
       await userService.unbanUser(selectedUserForUnban.id);
+      console.log(`[Unban] Backend unban API called successfully`);
       
-      // Remove from localStorage
+      // Remove from localStorage bans
       const updatedBans = { ...userBans };
       delete updatedBans[selectedUserForUnban.id];
 
       setUserBans(updatedBans);
       localStorage.setItem(STORAGE_KEYS.USER_BANS, JSON.stringify(updatedBans));
+      console.log(`[Unban] Removed user ${selectedUserForUnban.id} from localStorage bans`);
       
-      // Update user status in local state
-      setUsers(prevUsers => 
-        prevUsers.map(u => 
-          u.id === selectedUserForUnban.id 
-            ? { ...u, status: 'NORMAL', userStatusId: USER_STATUS.NORMAL }
-            : u
-        )
-      );
+      // Wait a bit for backend to process (500ms)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fetch updated user data from backend to get correct status
+      // Retry up to 3 times in case backend is still processing
+      let updatedUserResponse = null;
+      const maxRetries = 3;
+      
+      for (let retries = 0; retries < maxRetries; retries++) {
+        try {
+          const response = await userService.getUserById(selectedUserForUnban.id);
+          console.log(`[Unban] Fetch attempt ${retries + 1}:`, response);
+          
+          if (response) {
+            updatedUserResponse = response;
+            // Map UserStatusId to status string
+            const userStatusId = parseInt(response.UserStatusId || response.userStatusId) || 2;
+            console.log(`[Unban] Parsed UserStatusId: ${userStatusId} (original: ${response.UserStatusId || response.userStatusId})`);
+            
+            let status = 'NORMAL';
+            if (userStatusId === USER_STATUS.PREMIUM) {
+              status = 'PREMIUM';
+            } else if (userStatusId === USER_STATUS.BANNED) {
+              status = 'BANNED';
+            }
+            
+            console.log(`[Unban] Mapped status: ${status} (from UserStatusId: ${userStatusId})`);
+            
+            // Update user status in local state with data from backend
+            setUsers(prevUsers => 
+              prevUsers.map(u => 
+                u.id === selectedUserForUnban.id 
+                  ? { 
+                      ...u, 
+                      status: status, 
+                      userStatusId: userStatusId,
+                      updatedAt: response.UpdatedAt || response.updatedAt
+                    }
+                  : u
+              )
+            );
+            
+            console.log(`[Unban] Updated local state: status=${status}, userStatusId=${userStatusId}`);
+            break; // Success, exit retry loop
+          }
+        } catch (fetchError) {
+          console.error(`[Unban] Error fetching updated user data (attempt ${retries + 1}):`, fetchError);
+          if (retries < maxRetries - 1) {
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+      
+      // If still no response after retries, use fallback
+      if (!updatedUserResponse) {
+        console.warn(`[Unban] Failed to fetch updated user data after ${maxRetries} attempts. Using fallback: NORMAL`);
+        setUsers(prevUsers => 
+          prevUsers.map(u => 
+            u.id === selectedUserForUnban.id 
+              ? { ...u, status: 'NORMAL', userStatusId: USER_STATUS.NORMAL }
+              : u
+          )
+        );
+      }
+      
+      // Set timestamp to notify UserDetail to refresh
+      localStorage.setItem(`${STORAGE_KEYS.USER_UPDATED_TIMESTAMP}_${selectedUserForUnban.id}`, Date.now().toString());
+      console.log(`[Unban] Set refresh timestamp for UserDetail`);
       
       alert('Đã gỡ ban người dùng thành công!');
       handleCloseUnbanModal();
     } catch (error) {
-      console.error('Error unbanning user:', error);
+      console.error('[Unban] Error unbanning user:', error);
       alert('Không thể gỡ ban người dùng. Vui lòng thử lại sau.');
     }
   };
@@ -511,33 +612,19 @@ const UsersList = () => {
     }
   }, []);
 
-  // Fetch users from API (lấy toàn bộ để sắp xếp theo ngày tạo phía frontend)
+  // Fetch users from API (chỉ fetch một lần khi mount, filter phía frontend)
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Prepare query parameters - luôn lấy full list, phân trang phía frontend
+        // Prepare query parameters - luôn lấy full list, không filter ở backend
         const params = {
           page: 1,
           pageSize: 1000,
           includeDeleted: false
         };
-        
-        // Add search if provided
-        if (searchTerm.trim()) {
-          params.search = searchTerm.trim();
-        }
-        
-        // Add status filter
-        // Backend uses statusId: 2 = NORMAL, 3 = PREMIUM
-        if (filterStatus === 'NORMAL') {
-          params.statusId = USER_STATUS.NORMAL;
-        } else if (filterStatus === 'PREMIUM') {
-          params.statusId = USER_STATUS.PREMIUM;
-        }
-        // filterStatus === 'all' means no statusId filter
         
         const response = await userService.getUsers(params);
         
@@ -547,10 +634,12 @@ const UsersList = () => {
         // Map backend UserResponse to frontend user format
         const mappedUsers = usersData.map(user => {
           // Map UserStatusId to status string
+          // Convert to number to handle both string and number from backend
+          const userStatusId = parseInt(user.UserStatusId || user.userStatusId) || 2; // Default to NORMAL (2)
           let status = 'NORMAL';
-          if (user.UserStatusId === USER_STATUS.PREMIUM) {
+          if (userStatusId === USER_STATUS.PREMIUM) {
             status = 'PREMIUM';
-          } else if (user.UserStatusId === USER_STATUS.BANNED) {
+          } else if (userStatusId === USER_STATUS.BANNED) {
             status = 'BANNED';
           }
           
@@ -569,7 +658,7 @@ const UsersList = () => {
             fullName,
             status,
             roleId: user.RoleId || user.roleId,
-            userStatusId: user.UserStatusId || user.userStatusId,
+            userStatusId: userStatusId, // Use parsed value
             gender: user.Gender || user.gender,
             isVerified: user.isProfileComplete || user.IsProfileComplete || false,
             avatar: null, // Backend doesn't have avatar
@@ -582,7 +671,17 @@ const UsersList = () => {
             totalPets: 0 // Will be updated after fetching pets count
           };
           
-          // Debug: log users with BANNED status
+          // Debug: log users with PREMIUM or BANNED status
+          if (mappedUser.userStatusId === USER_STATUS.PREMIUM) {
+            console.log('Found PREMIUM user:', {
+              id: mappedUser.id,
+              name: mappedUser.fullName,
+              userStatusId: mappedUser.userStatusId,
+              status: mappedUser.status,
+              originalUserStatusId: user.UserStatusId || user.userStatusId,
+              originalType: typeof (user.UserStatusId || user.userStatusId)
+            });
+          }
           if (mappedUser.userStatusId === USER_STATUS.BANNED || mappedUser.status === 'BANNED') {
             console.log('Found BANNED user:', mappedUser);
           }
@@ -590,15 +689,17 @@ const UsersList = () => {
           return mappedUser;
         });
 
+        // Filter chỉ lấy role "Người dùng" (User, RoleId = 3) - không hiển thị Admin và Expert
+        const userRoleOnly = mappedUsers.filter(user => user.roleId === ROLE_ID.USER);
+        
         // Sắp xếp theo ngày tạo (mới nhất -> cũ nhất)
-        const sortedUsers = mappedUsers.sort((a, b) => {
+        const sortedUsers = userRoleOnly.sort((a, b) => {
           const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return bTime - aTime;
         });
         
         setUsers(sortedUsers);
-        setTotalPages(Math.max(1, Math.ceil(sortedUsers.length / itemsPerPage)));
         
         // Fetch pets count for each user (in parallel, but limit concurrency)
         fetchPetsCount(sortedUsers);
@@ -612,7 +713,7 @@ const UsersList = () => {
     };
     
     fetchUsers();
-  }, [searchTerm, filterStatus, itemsPerPage, USER_STATUS.BANNED, USER_STATUS.NORMAL, USER_STATUS.PREMIUM, fetchPetsCount]);
+  }, []); // Chỉ fetch một lần khi mount
 
   // Fetch user stats (total, normal, premium, verified)
   useEffect(() => {
@@ -627,11 +728,14 @@ const UsersList = () => {
         
         const allUsers = response.Items || response.items || [];
         
+        // Filter chỉ lấy role "Người dùng" (User, RoleId = 3) - không tính Admin và Expert
+        const userRoleOnly = allUsers.filter(u => (u.RoleId || u.roleId) === ROLE_ID.USER);
+        
         const stats = {
-          total: response.Total || response.total || 0,
-          normal: allUsers.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.NORMAL).length,
-          premium: allUsers.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.PREMIUM).length,
-          verified: allUsers.filter(u => u.isProfileComplete || u.IsProfileComplete).length
+          total: userRoleOnly.length,
+          normal: userRoleOnly.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.NORMAL).length,
+          premium: userRoleOnly.filter(u => (u.UserStatusId || u.userStatusId) === USER_STATUS.PREMIUM).length,
+          verified: userRoleOnly.filter(u => u.isProfileComplete || u.IsProfileComplete).length
         };
         
         setUserStats(stats);
@@ -649,14 +753,52 @@ const UsersList = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle search/filter changes with debounce -> always reset to page 1
+  // Reset to page 1 when search or filter changes
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setCurrentPage(1);
-    }, 500); // Debounce 500ms
-    
-    return () => clearTimeout(timeoutId);
+    setCurrentPage(1);
   }, [searchTerm, filterStatus]);
+
+  // Memoize filtered users to avoid recalculating on every render (giống PetsList)
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      // Filter by search term
+      const matchesSearch = 
+        (user.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.username || '').toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filter by status
+      const matchesStatus = 
+        filterStatus === 'all' || 
+        (filterStatus === 'NORMAL' && user.status === 'NORMAL') ||
+        (filterStatus === 'PREMIUM' && user.status === 'PREMIUM') ||
+        (filterStatus === 'BANNED' && user.status === 'BANNED');
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [users, searchTerm, filterStatus]);
+
+  // Sắp xếp filtered users theo ngày tạo (mới nhất -> cũ nhất)
+  const sortedUsersForView = useMemo(() => {
+    return [...filteredUsers].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [filteredUsers]);
+
+  // Update total pages when filtered users change
+  useEffect(() => {
+    const total = sortedUsersForView.length;
+    setTotalPages(Math.ceil(total / itemsPerPage));
+  }, [sortedUsersForView, itemsPerPage]);
+
+  // Memoize current users (paginated)
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedUsersForView.slice(startIndex, endIndex);
+  }, [sortedUsersForView, currentPage, itemsPerPage]);
 
   const handleUserClick = (userId) => {
     navigate(`/users/${userId}`);
@@ -723,14 +865,6 @@ const UsersList = () => {
     );
   }
 
-  // Sắp xếp người dùng theo ngày tạo (mới nhất -> cũ nhất) và phân trang phía frontend
-  const sortedUsersForView = [...users].sort((a, b) => {
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return bTime - aTime;
-  });
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedUsers = sortedUsersForView.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="users-page">
@@ -743,7 +877,7 @@ const UsersList = () => {
         <div className="search-section">
           <input
             type="text"
-            placeholder="Tìm kiếm theo tên, email, username..."
+            placeholder="Tìm kiếm theo tên"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -813,7 +947,6 @@ const UsersList = () => {
                 <td>
                   <div className="user-info">
                     <div className="user-name">{user.firstName} {user.lastName}</div>
-                    <div className="user-username">@{user.username}</div>
                     {user.gender && (
                       <div className="user-details">
                         {user.gender}
@@ -981,7 +1114,7 @@ const UsersList = () => {
       )}
 
       {/* Ban User Modal */}
-      {showBanModal && selectedUser && (
+      {showBanModal && selectedUser && createPortal(
         <div className="modal-overlay" onClick={handleCloseBanModal}>
           <div className="modal-content ban-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1083,11 +1216,12 @@ const UsersList = () => {
               </button>
             </div>
            </div>
-         </div>
+         </div>,
+         document.body
        )}
 
        {/* Unban User Modal */}
-       {showUnbanModal && selectedUserForUnban && (
+       {showUnbanModal && selectedUserForUnban && createPortal(
          <div className="modal-overlay" onClick={handleCloseUnbanModal}>
            <div className="modal-content unban-modal" onClick={(e) => e.stopPropagation()}>
              <div className="modal-header">
@@ -1176,7 +1310,8 @@ const UsersList = () => {
                </button>
              </div>
            </div>
-         </div>
+         </div>,
+         document.body
        )}
      </div>
    );

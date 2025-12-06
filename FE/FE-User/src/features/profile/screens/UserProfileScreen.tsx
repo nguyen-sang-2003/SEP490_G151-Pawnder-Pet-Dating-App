@@ -311,21 +311,34 @@ const UserProfileScreen = ({ navigation }: Props) => {
       type: 'warning',
       title: t('profile.deletePet.title'),
       message: t('profile.deletePet.message', { name: petName }),
+      showCancel: true,
       confirmText: t('profile.deletePet.confirmText'),
       cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
           await deletePet(petId);
 
+          // ✅ Remove pet from state immediately (optimistic update)
+          setPets(prevPets => {
+            const updatedPets = prevPets.filter(p => (p.PetId || p.petId) !== petId);
+            
+            // If deleted pet was active, set first remaining pet as active
+            if (pet.IsActive === true || pet.isActive === true) {
+              const newActivePet = updatedPets[0] || null;
+              setActivePet(newActivePet);
+            }
+            
+            return updatedPets;
+          });
+
+          // Reload data to ensure sync with server
+          await fetchProfileData();
+
           showAlert({
             type: 'success',
             title: t('profile.deletePet.successTitle'),
             message: t('profile.deletePet.successMessage', { name: petName }),
-            confirmText: 'OK',
-            onClose: () => {
-              // Reload pets list
-              fetchProfileData();
-            }
+            confirmText: 'OK'
           });
         } catch (error: any) {
 
@@ -360,11 +373,12 @@ const UserProfileScreen = ({ navigation }: Props) => {
     const petName = pet.Name || pet.name || 'This pet';
 
     showAlert({
-      type: 'info',
+      type: 'warning',
       title: t('profile.myPets.setActiveTitle'),
       message: t('profile.myPets.setActiveMessage', { name: petName }),
       showCancel: true,
       confirmText: t('common.confirm'),
+      cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
           // Call API để update DB
@@ -396,6 +410,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
             type: 'success',
             title: t('common.success'),
             message: t('profile.myPets.setActiveSuccess', { name: petName }),
+            confirmText: 'OK'
           });
         } catch (error: any) {
 
@@ -615,18 +630,29 @@ const UserProfileScreen = ({ navigation }: Props) => {
         {/* My Pets Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View>
+            <View style={styles.sectionHeaderLeft}>
               <Text style={styles.sectionTitle}>{t('profile.myPets.count', { count: myPets.length })}</Text>
               <Text style={styles.sectionSubtitle}>
                 {t('profile.myPets.subtitle')}
               </Text>
             </View>
             <TouchableOpacity
-              style={styles.addPetButton}
-              onPress={() => navigation.navigate("AddPet")}
+              style={[styles.addPetButton, myPets.length >= 3 && styles.addPetButtonDisabled]}
+              onPress={() => {
+                const MAX_PETS = 3;
+                if (myPets.length >= MAX_PETS) {
+                  showAlert({
+                    type: 'warning',
+                    title: t('profile.myPets.maxPetsReached'),
+                    message: t('profile.myPets.maxPetsMessage', { max: MAX_PETS }),
+                  });
+                  return;
+                }
+                navigation.navigate("AddPet");
+              }}
             >
               <LinearGradient
-                colors={gradients.profile}
+                colors={myPets.length >= 3 ? ['#BDBDBD', '#9E9E9E'] : gradients.profile}
                 style={styles.addPetGradient}
               >
                 <Icon name="add" size={18} color="#fff" />
@@ -975,6 +1001,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  sectionHeaderLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "bold",
@@ -1176,6 +1206,10 @@ const styles = StyleSheet.create({
   addPetButton: {
     borderRadius: radius.md,
     overflow: "hidden",
+    flexShrink: 0,
+  },
+  addPetButtonDisabled: {
+    opacity: 0.6,
   },
   addPetGradient: {
     flexDirection: "row",

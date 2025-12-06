@@ -10,6 +10,8 @@ const PetDetail = () => {
   
   // Pet data state
   const [pet, setPet] = useState(null);
+  const [characteristics, setCharacteristics] = useState([]);
+  const [characteristicsError, setCharacteristicsError] = useState(null); // Track if characteristics endpoint is not available
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -30,13 +32,24 @@ const PetDetail = () => {
         // Fetch pet, photos, and characteristics in parallel
         // Note: PetDto_1 doesn't include UserId, so we need to fetch it separately
         // First, try to get pet details
-        const [petResponse, photosResponse] = await Promise.all([
+        const [petResponse, photosResponse, characteristicsResponse] = await Promise.all([
           petService.getPetById(petId).catch(err => {
             console.error('Error fetching pet:', err);
             return null;
           }),
           petPhotoService.getPhotosByPet(petId).catch(err => {
             console.warn('Error fetching photos:', err);
+            return [];
+          }),
+          petService.getPetCharacteristics(petId).catch(err => {
+            // Log error for debugging
+            console.warn('[PetDetail] Error fetching characteristics:', {
+              status: err?.response?.status,
+              message: err?.message,
+              url: err?.config?.url
+            });
+            // Return empty array - we'll still show the section but with "Chưa có đặc điểm"
+            setCharacteristicsError('error');
             return [];
           })
         ]);
@@ -140,6 +153,13 @@ const PetDetail = () => {
         }
         
         setPet(mappedPet);
+        const characteristicsArray = Array.isArray(characteristicsResponse) ? characteristicsResponse : [];
+        setCharacteristics(characteristicsArray);
+        // Reset error if we got data (even if empty)
+        if (Array.isArray(characteristicsResponse)) {
+          setCharacteristicsError(null);
+          console.log('[PetDetail] Characteristics loaded:', characteristicsArray.length, 'items');
+        }
       } catch (err) {
         console.error('Error fetching pet data:', err);
         setError('Không thể tải thông tin thú cưng. Vui lòng thử lại sau.');
@@ -378,6 +398,39 @@ const PetDetail = () => {
           <div className="description-card">
             <h3>Mô tả</h3>
             <p>{pet.description}</p>
+          </div>
+
+          {/* Always show characteristics section */}
+          <div className="info-card">
+            <h3>Đặc điểm</h3>
+            {characteristics.length > 0 ? (
+              <div className="characteristics-list">
+                {characteristics.map((char, index) => (
+                  <div key={index} className="characteristic-item">
+                    <span className="label">{char.name}:</span>
+                    <span className="value">
+                      {char.optionValue || (char.value !== null && char.value !== undefined 
+                        ? `${char.value}${char.unit ? ' ' + char.unit : ''}` 
+                        : 'N/A')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#999', fontStyle: 'italic', margin: 0, padding: '1rem 0' }}>
+                {characteristicsError ? (
+                  <span>
+                    Không thể tải đặc điểm
+                    <br />
+                    <small style={{ fontSize: '0.85em', opacity: 0.7 }}>
+                      (Endpoint chưa có trên production)
+                    </small>
+                  </span>
+                ) : (
+                  'Chưa có đặc điểm'
+                )}
+              </p>
+            )}
           </div>
         </div>
       </div>
