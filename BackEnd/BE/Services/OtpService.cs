@@ -56,6 +56,11 @@ namespace BE.Services
             // Business logic: Generate OTP
             var otp = new Random().Next(100000, 999999).ToString();
 
+            // ⚠️ IMPORTANT: Cache OTP FIRST before sending email
+            // This ensures OTP is available even if email sending is delayed or there are network issues
+            var cacheKey = $"otp_{email}";
+            _cache.Set(cacheKey, otp, TimeSpan.FromMinutes(5));
+
             var subject = "Mã OTP xác thực từ Pawnder";
             var body = $@"
                 <p>Xin chào,</p>
@@ -67,10 +72,6 @@ namespace BE.Services
             try
             {
                 await _emailService.SendEmailAsync(email, subject, body);
-
-                // Business logic: Cache OTP for 5 minutes
-                var cacheKey = $"otp_{email}";
-                _cache.Set(cacheKey, otp, TimeSpan.FromMinutes(5));
 
                 return new { message = "Đã gửi OTP tới email người dùng." };
             }

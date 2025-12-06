@@ -106,6 +106,17 @@ builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 
 // Register Email Service 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+// Configure ResendClientOptions with API key from EmailSettings
+builder.Services.AddHttpClient<Resend.ResendClient>();
+builder.Services.Configure<Resend.ResendClientOptions>(options =>
+{
+    var emailSettings = builder.Configuration.GetSection("EmailSettings").Get<EmailSettings>();
+    if (emailSettings != null && !string.IsNullOrWhiteSpace(emailSettings.ResendApiKey))
+    {
+        options.ApiToken = emailSettings.ResendApiKey; // Use ApiToken, not ApiKey
+    }
+});
+builder.Services.AddTransient<Resend.IResend, Resend.ResendClient>();
 builder.Services.AddTransient<EmailService>();
 
 // setup save data 
