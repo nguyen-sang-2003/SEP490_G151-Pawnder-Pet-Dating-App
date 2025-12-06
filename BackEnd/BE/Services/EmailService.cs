@@ -25,24 +25,23 @@ namespace BE.Services
         {
             try
             {
-                var message = new EmailMessage
+                // Resend SDK 0.2.1 uses Email class with different property names
+                var email = new Email
                 {
                     From = $"{_settings.SenderName} <{_settings.SenderEmail}>",
-                    To = new List<string> { toEmail },
+                    To = toEmail,
                     Subject = subject,
-                    HtmlBody = body
+                    Html = body
                 };
 
-                var result = await _resendClient.Email.SendAsync(message);
+                var result = await _resendClient.SendEmailAsync(email);
 
-                // Check for errors in the result
-                if (!result.IsSuccess || result.Error != null)
+                if (result == null || string.IsNullOrEmpty(result))
                 {
-                    var errorMessage = result.Error?.Message ?? "Unknown Resend API error";
-                    throw new InvalidOperationException($"Resend API error: {errorMessage}");
+                    throw new InvalidOperationException("Resend API returned empty response");
                 }
 
-                Console.WriteLine($"[EmailService] ✅ Email sent successfully to {toEmail} via Resend (ID: {result.Data?.Id})");
+                Console.WriteLine($"[EmailService] ✅ Email sent successfully to {toEmail} via Resend (ID: {result})");
             }
             catch (InvalidOperationException)
             {
