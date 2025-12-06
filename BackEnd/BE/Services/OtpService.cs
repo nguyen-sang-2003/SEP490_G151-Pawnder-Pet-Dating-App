@@ -74,14 +74,13 @@ namespace BE.Services
 
                 return new { message = "Đã gửi OTP tới email người dùng." };
             }
-            catch (InvalidOperationException ex)
+            catch (System.Net.Mail.SmtpFailedRecipientException)
             {
-                // Handle Resend API errors (and other operation exceptions)
-                throw new InvalidOperationException($"Không thể gửi email: {ex.Message}");
+                throw new InvalidOperationException("Không gửi được email: người nhận không tồn tại hoặc bị từ chối.");
             }
-            catch (Exception ex)
+            catch (System.Net.Mail.SmtpException ex)
             {
-                throw new InvalidOperationException($"Lỗi không xác định khi gửi email: {ex.Message}");
+                throw new InvalidOperationException($"Lỗi SMTP khi gửi email: {ex.Message}");
             }
         }
 
