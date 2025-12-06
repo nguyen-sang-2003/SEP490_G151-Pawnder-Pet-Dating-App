@@ -5,38 +5,43 @@ namespace BE.Services
 {
     public class EmailService
     {
-        private readonly IResend _resend;
+        private readonly ResendClient _resendClient;
         private readonly EmailSettings _settings;
 
-        public EmailService(IOptions<EmailSettings> settings, IResend resend)
+        public EmailService(IOptions<EmailSettings> settings)
         {
             _settings = settings.Value;
-            _resend = resend;
             
-            // Validate API key is configured
+            // Initialize Resend client with API key
             if (string.IsNullOrWhiteSpace(_settings.ResendApiKey))
             {
                 throw new InvalidOperationException("ResendApiKey is not configured in EmailSettings");
             }
+            
+            _resendClient = new ResendClient(_settings.ResendApiKey);
         }
 
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
             try
             {
-                // Resend SDK 0.2.1 uses EmailMessage class
-                // To property uses EmailAddressList which can be initialized with collection initializer
-                var email = new EmailMessage
+                // Resend SDK 0.2.1 uses Email class with different property names
+                var email = new Email
                 {
                     From = $"{_settings.SenderName} <{_settings.SenderEmail}>",
-                    To = { toEmail }, // Collection initializer syntax for EmailAddressList
+                    To = toEmail,
                     Subject = subject,
-                    HtmlBody = body
+                    Html = body
                 };
 
-                await _resend.EmailSendAsync(email);
+                var result = await _resendClient.SendEmailAsync(email);
 
-                Console.WriteLine($"[EmailService] ✅ Email sent successfully to {toEmail} via Resend");
+                if (result == null || string.IsNullOrEmpty(result))
+                {
+                    throw new InvalidOperationException("Resend API returned empty response");
+                }
+
+                Console.WriteLine($"[EmailService] ✅ Email sent successfully to {toEmail} via Resend (ID: {result})");
             }
             catch (InvalidOperationException)
             {
