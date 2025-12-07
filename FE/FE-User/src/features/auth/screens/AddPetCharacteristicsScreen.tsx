@@ -265,19 +265,12 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   };
 
   const handleBack = () => {
-    if (isFromProfile) {
-      // Editing from profile → go back to EditPet screen
-      navigation.navigate("EditPet", {
-        petId: petId.toString(),
-      });
-    } else {
-      // Adding new pet during registration → go back to photos screen, preserve AI results
-      navigation.navigate("AddPetPhotos", {
-        petId,
-        isFromProfile,
-        aiResults: aiResults, // Truyền kết quả AI hiện tại để giữ lại
-      });
-    }
+    // Allow going back to photos screen, preserve AI results
+    navigation.navigate("AddPetPhotos", {
+      petId,
+      isFromProfile,
+      aiResults: aiResults, // Truyền kết quả AI hiện tại để giữ lại
+    });
   };
 
   if (loading) {

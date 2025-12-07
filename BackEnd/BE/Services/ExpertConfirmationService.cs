@@ -70,7 +70,7 @@ namespace BE.Services
             if (!canConfirm)
             {
                 int remaining = await _dailyLimitService.GetRemainingCount(userId, "expert_confirm");
-                throw new InvalidOperationException($"Bạn đã hết lượt yêu cầu chuyên gia xác nhận hôm nay!");
+                throw new InvalidOperationException($"Bạn đã hết lượt yêu cầu chuyên gia xác nhận hôm nay! Nâng cấp lên VIP để sử dụng không giới hạn. Còn lại: {remaining}");
             }
 
             // Business logic: Validate user
