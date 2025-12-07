@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ import {
 import { selectUnreadExpertChats } from "../../badge/badgeSlice";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
+import signalRService from "../../../services/signalr.service";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChatList">;
 
@@ -56,6 +57,100 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       loadExpertChats();
     }, [])
   );
+
+  // Setup SignalR listener for real-time updates
+  useEffect(() => {
+    let handleNewMessage: ((data: any) => void) | null = null;
+
+    const setupSignalR = async () => {
+      try {
+        const userIdStr = await AsyncStorage.getItem('userId');
+        if (!userIdStr) return;
+
+        const userId = parseInt(userIdStr);
+
+        // Ensure connected
+        if (!signalRService.isConnected()) {
+          await signalRService.connect(userId);
+        }
+
+        // Listen for new expert messages
+        handleNewMessage = (data: any) => {
+          console.log('💬 [ExpertChatList] New message received via SignalR:', data);
+          
+          const chatExpertId = data.ChatExpertId || data.chatExpertId;
+          const message = data.Message || data.message;
+          const createdAt = data.CreatedAt || data.createdAt;
+          
+          if (!chatExpertId) {
+            console.log('⚠️ No chatExpertId in message data');
+            return;
+          }
+
+          // Update chat list with new message
+          setExpertChats((prevChats) => {
+            const chatIndex = prevChats.findIndex(c => c.chatExpertId === chatExpertId);
+            
+            if (chatIndex === -1) {
+              // Chat not in list, reload to get it
+              console.log('🆕 New chat detected, reloading...');
+              // Use setTimeout to avoid calling setState during render
+              setTimeout(() => {
+                loadExpertChats(true);
+              }, 0);
+              return prevChats;
+            }
+
+            // Update existing chat
+            const updatedChats = [...prevChats];
+            const updatedChat = {
+              ...updatedChats[chatIndex],
+              lastMessage: message,
+              time: createdAt || new Date().toISOString(),
+            };
+
+            // Remove from current position
+            updatedChats.splice(chatIndex, 1);
+            // Add to top (newest first)
+            updatedChats.unshift(updatedChat);
+
+            // Re-sort to ensure correct order
+            updatedChats.sort((a, b) => {
+              let dateStrA = a.time;
+              if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+                dateStrA = dateStrA + 'Z';
+              }
+              const dateA = new Date(dateStrA);
+              
+              let dateStrB = b.time;
+              if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+                dateStrB = dateStrB + 'Z';
+              }
+              const dateB = new Date(dateStrB);
+              
+              return dateB.getTime() - dateA.getTime();
+            });
+
+            console.log('✅ Updated expert chat list with new message');
+            return updatedChats;
+          });
+        };
+
+        signalRService.on('ReceiveExpertMessage', handleNewMessage);
+      } catch (error) {
+        console.error('❌ Error setting up SignalR in ExpertChatList:', error);
+      }
+    };
+
+    setupSignalR();
+
+    // Cleanup on unmount
+    return () => {
+      if (handleNewMessage) {
+        signalRService.off('ReceiveExpertMessage', handleNewMessage);
+      }
+    };
+  }, []);
 
   const loadExpertChats = async (isRefresh: boolean = false) => {
     try {

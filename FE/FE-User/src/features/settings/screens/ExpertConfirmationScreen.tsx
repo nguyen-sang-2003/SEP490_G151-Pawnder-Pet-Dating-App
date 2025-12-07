@@ -52,8 +52,16 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
 
       const userId = parseInt(userIdStr);
       const data = await getUserExpertConfirmations(userId);
-      setRequests(data);
-      console.log("✅ Loaded expert confirmations:", data.length);
+      
+      // Sort by createdAt descending (newest first)
+      const sortedData = [...data].sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Newest first
+      });
+      
+      setRequests(sortedData);
+      console.log("✅ Loaded expert confirmations:", sortedData.length);
     } catch (error: any) {
 
     } finally {

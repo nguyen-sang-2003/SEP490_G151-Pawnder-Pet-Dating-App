@@ -483,6 +483,7 @@
       "deleteError": "Không thể xóa cuộc trò chuyện",
       "userNotFound": "Không tìm thấy thông tin người dùng",
       "timeAgo": {
+        "justNow": "Vừa xong",
         "minutes": "{{count}} phút trước",
         "hours": "{{count}} giờ trước",
         "yesterday": "Hôm qua",
