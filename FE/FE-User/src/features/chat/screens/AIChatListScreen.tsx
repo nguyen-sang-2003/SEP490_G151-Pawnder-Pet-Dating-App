@@ -65,17 +65,13 @@ const AIChatListScreen = ({ navigation }: Props) => {
       const sessions = await getChatAISessions(userId);
 
       // Convert API data to ChatSession format
+      // Backend sends local time (DateTime.Now), parse as-is without adding 'Z'
       const formattedSessions: ChatSession[] = sessions.map((session: ChatAISession) => {
-        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
-        let dateStr = session.updatedAt;
-        if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
-          dateStr = dateStr + 'Z';
-        }
         return {
           id: session.chatAiid.toString(),
           title: session.title,
           lastMessage: session.lastQuestion || '',
-          timestamp: new Date(dateStr),
+          timestamp: new Date(session.updatedAt),
           messageCount: session.messageCount,
         };
       });
@@ -179,6 +175,12 @@ const AIChatListScreen = ({ navigation }: Props) => {
   const formatTime = (date: Date) => {
     const now = new Date();
     const diffTime = now.getTime() - date.getTime();
+    
+    // Handle negative diff (clock skew) or just created (< 1 min)
+    if (diffTime < 60000) {
+      return t('chat.aiList.timeAgo.justNow');
+    }
+    
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {

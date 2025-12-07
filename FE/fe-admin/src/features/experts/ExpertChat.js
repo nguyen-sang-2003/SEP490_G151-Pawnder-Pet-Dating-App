@@ -518,6 +518,7 @@ const ExpertChat = () => {
     if (!newMessage.trim() || !selectedChat || sending) return;
 
     const messageText = newMessage.trim();
+    const tempId = `temp_${Date.now()}`;
     const userId = user?.id;
     
     if (!userId) {
@@ -526,28 +527,35 @@ const ExpertChat = () => {
       return;
     }
 
+    // Add message IMMEDIATELY (optimistic update) - BEFORE API call
+    const optimisticMsg = {
+      contentId: tempId,
+      chatExpertId: selectedChat.chatExpertId,
+      fromId: userId,
+      message: messageText,
+      expertId: userId,
+      userId: selectedChat.userId,
+      chatAIId: null,
+      createdAt: new Date().toISOString(),
+      status: 'sending',
+    };
+    
+    setMessages((prev) => [...prev, optimisticMsg]);
     setNewMessage('');
     setSending(true);
+    scrollToBottom();
 
     try {
       if (USE_MOCK_DATA) {
-        // Sử dụng mock data - chỉ thêm vào local state
+        // Sử dụng mock data - chỉ cập nhật status
         console.log('🎭 Using MOCK DATA for sending message');
-        await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 300));
         
-        const newMsg = {
-          contentId: Date.now(),
-          chatExpertId: selectedChat.chatExpertId,
-          fromId: userId,
-          message: messageText,
-          expertId: userId,
-          userId: selectedChat.userId,
-          chatAIId: null,
-          createdAt: new Date().toISOString(),
-        };
-
-        setMessages((prev) => [...prev, newMsg]);
-        scrollToBottom();
+        setMessages((prev) => 
+          prev.map((m) => 
+            m.contentId === tempId ? { ...m, status: 'sent' } : m
+          )
+        );
         setSending(false);
         return;
       }
@@ -557,8 +565,6 @@ const ExpertChat = () => {
         chatExpertId: selectedChat.chatExpertId,
         fromId: userId,
         message: messageText,
-        expertId: userId,
-        userId: selectedChat.userId,
       });
       
       const result = await chatExpertService.sendMessage(
@@ -572,45 +578,30 @@ const ExpertChat = () => {
 
       console.log('✅ Message sent, result:', result);
 
-      // Add message to state immediately (optimistic update)
-      // SignalR will also broadcast it, but we'll handle duplicates
-      const newMsg = {
-        contentId: result?.contentId || Date.now(),
-        chatExpertId: selectedChat.chatExpertId,
-        fromId: userId,
-        message: messageText,
-        expertId: userId,
-        userId: selectedChat.userId,
-        chatAIId: null,
-        createdAt: result?.createdAt || new Date().toISOString(),
-      };
-
-      setMessages((prev) => {
-        // Check if message already exists (from SignalR)
-        const exists = prev.some(m => 
-          m.contentId === newMsg.contentId || 
-          (m.message === newMsg.message && 
-           Math.abs(new Date(m.createdAt).getTime() - new Date(newMsg.createdAt).getTime()) < 2000)
-        );
-        
-        if (exists) {
-          console.log('⚠️ Message already exists, skipping optimistic update');
-          return prev;
-        }
-        
-        return [...prev, newMsg];
-      });
-      
-      scrollToBottom();
+      // Update optimistic message with real contentId from server
+      setMessages((prev) => 
+        prev.map((m) => 
+          m.contentId === tempId 
+            ? { 
+                ...m, 
+                contentId: result?.contentId || tempId,
+                createdAt: result?.createdAt || m.createdAt,
+                status: 'sent' 
+              } 
+            : m
+        )
+      );
     } catch (err) {
       console.error('❌ Failed to send message:', err);
-      console.error('Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-      });
+      
+      // Mark message as failed
+      setMessages((prev) => 
+        prev.map((m) => 
+          m.contentId === tempId ? { ...m, status: 'failed' } : m
+        )
+      );
+      
       alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
-      setNewMessage(messageText); // Restore message
     } finally {
       setSending(false);
     }
