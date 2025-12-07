@@ -229,7 +229,7 @@ namespace BE.Services
             if (!canMatch)
             {
                 int remaining = await _dailyLimitService.GetRemainingCount(request.FromUserId, "request_match");
-                throw new InvalidOperationException($"Bạn đã hết lượt gửi match hôm nay! Nâng cấp lên VIP để sử dụng không giới hạn. Còn lại: {remaining}");
+                throw new InvalidOperationException($"Bạn đã hết lượt gửi match hôm nay!");
             }
 
             if (request.FromUserId == request.ToUserId)

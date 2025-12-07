@@ -62,7 +62,7 @@ namespace BE.Services
                 if (!canChat)
                 {
                     int remaining = await _dailyLimitService.GetRemainingCount(fromId, "expert_chat");
-                    throw new InvalidOperationException($"Bạn đã hết lượt chat với chuyên gia hôm nay. Số lượt còn lại: {remaining}. Nâng cấp VIP để có thêm lượt chat.");
+                    throw new InvalidOperationException($"Bạn đã hết lượt chat với chuyên gia hôm nay!");
                 }
             }
 

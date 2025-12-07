@@ -26,6 +26,8 @@ import { getExpertChatMessages, sendExpertChatMessage, ExpertChatMessage } from 
 import signalRService from "../../../services/signalr.service";
 import { markExpertChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
+import { LimitReachedModal } from "../../../components/LimitReachedModal";
+import { getVipStatus } from "../../payment/api/paymentApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChat">;
 
@@ -47,6 +49,9 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [showExpertChatLimitModal, setShowExpertChatLimitModal] = useState(false);
+  const [expertChatLimitMessage, setExpertChatLimitMessage] = useState<string>("");
+  const [isVip, setIsVip] = useState<boolean>(false);
   const flatListRef = useRef<FlatList>(null);
 
   // Mark chat as read when entering screen
@@ -65,6 +70,22 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
       }, 100);
     }
   }, [messages]); // Watch entire messages array, not just length
+
+  // Load VIP status
+  const loadVipStatus = useCallback(async () => {
+    try {
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (userIdStr) {
+        const userId = parseInt(userIdStr);
+        const vipStatus = await getVipStatus(userId);
+        setIsVip(vipStatus.isVip);
+        console.log('💎 VIP status loaded:', vipStatus.isVip);
+      }
+    } catch (error) {
+      console.log('⚠️ Failed to load VIP status, assuming not VIP');
+      setIsVip(false);
+    }
+  }, []);
 
   // Load messages
   const loadMessages = useCallback(async (isRefresh: boolean = false) => {
@@ -222,11 +243,12 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
     setupSignalR();
   }, [chatExpertId]);
 
-  // Load messages on mount
+  // Load messages and VIP status on mount
   useFocusEffect(
     useCallback(() => {
       loadMessages();
-    }, [loadMessages])
+      loadVipStatus();
+    }, [loadMessages, loadVipStatus])
   );
 
   const handleSend = async () => {
@@ -285,16 +307,28 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
 
       console.log('✅ Message sent successfully');
     } catch (error: any) {
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
 
+      // Check if it's an expert chat limit error
+      const errorMessage = error.message || error.response?.data?.message || "";
+      const isLimitError = errorMessage.includes("hết lượt chat") || 
+                          errorMessage.includes("expert_chat") ||
+                          errorMessage.includes("vượt quá limit");
 
-      // Mark message as failed
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === tempId ? { ...msg, status: "failed" as const } : msg
-        )
-      );
-
-      Alert.alert(t('alerts.error'), error.message || t('expert.chat.errors.sendFailed'));
+      if (isLimitError) {
+        // Show limit modal with VIP status
+        setExpertChatLimitMessage(errorMessage);
+        setShowExpertChatLimitModal(true);
+      } else {
+        // Mark message as failed for other errors
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId ? { ...msg, status: "failed" as const } : msg
+          )
+        );
+        Alert.alert(t('alerts.error'), errorMessage || t('expert.chat.errors.sendFailed'));
+      }
     } finally {
       setSending(false);
     }
@@ -515,6 +549,15 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Expert Chat Limit Modal */}
+      <LimitReachedModal
+        visible={showExpertChatLimitModal}
+        onClose={() => setShowExpertChatLimitModal(false)}
+        message={expertChatLimitMessage}
+        actionType="expert_chat"
+        isVip={isVip}
+      />
     </View>
   );
 };
