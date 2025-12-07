@@ -259,7 +259,12 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
   // Helper to format time ago
   const getTimeAgo = (dateString: string): string => {
-    const date = new Date(dateString);
+    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+    let dateStr = dateString;
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      dateStr = dateStr + 'Z';
+    }
+    const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);

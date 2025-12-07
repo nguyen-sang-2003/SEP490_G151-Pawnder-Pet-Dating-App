@@ -134,12 +134,18 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       const formattedMessages: Message[] = [];
 
       chatData.messages.forEach(msg => {
+        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        let dateString = msg.createdAt;
+        if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+          dateString = dateString + 'Z';
+        }
+
         // User question
         formattedMessages.push({
           id: `${msg.contentId}-q`,
           text: msg.question,
           isAI: false,
-          timestamp: new Date(msg.createdAt),
+          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
         });
 
         // AI answer
@@ -147,7 +153,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           id: `${msg.contentId}-a`,
           text: msg.answer,
           isAI: true,
-          timestamp: new Date(msg.createdAt),
+          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
         });
       });
 
@@ -218,11 +224,17 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       }
 
       // Add AI response to messages
+      // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+      let timestampString = response.timestamp;
+      if (typeof timestampString === 'string' && !timestampString.endsWith('Z') && !timestampString.includes('+')) {
+        timestampString = timestampString + 'Z';
+      }
+      
       const aiMessage: Message = {
         id: Date.now().toString(),
         text: response.answer,
         isAI: true,
-        timestamp: new Date(response.timestamp),
+        timestamp: new Date(timestampString), // Parse as UTC, auto converts to local time
       };
 
       setMessages(prev => [...prev, aiMessage]);

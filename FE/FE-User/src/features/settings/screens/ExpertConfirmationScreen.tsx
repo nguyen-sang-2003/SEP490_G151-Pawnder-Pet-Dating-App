@@ -55,8 +55,17 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       
       // Sort by createdAt descending (newest first)
       const sortedData = [...data].sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
+        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        let dateStrA = a.createdAt;
+        if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+          dateStrA = dateStrA + 'Z';
+        }
+        let dateStrB = b.createdAt;
+        if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+          dateStrB = dateStrB + 'Z';
+        }
+        const dateA = new Date(dateStrA).getTime();
+        const dateB = new Date(dateStrB).getTime();
         return dateB - dateA; // Newest first
       });
       

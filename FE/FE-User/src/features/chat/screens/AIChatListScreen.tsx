@@ -65,13 +65,18 @@ const AIChatListScreen = ({ navigation }: Props) => {
       const sessions = await getChatAISessions(userId);
 
       // Convert API data to ChatSession format
-      // Backend sends local time (DateTime.Now), parse as-is without adding 'Z'
       const formattedSessions: ChatSession[] = sessions.map((session: ChatAISession) => {
+        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        let dateString = session.updatedAt;
+        if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+          dateString = dateString + 'Z';
+        }
+
         return {
           id: session.chatAiid.toString(),
           title: session.title,
           lastMessage: session.lastQuestion || '',
-          timestamp: new Date(session.updatedAt),
+          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
           messageCount: session.messageCount,
         };
       });
