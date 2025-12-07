@@ -155,7 +155,7 @@ namespace BE.Services
                 }
 
                 // Sử dụng gemini-1.5-flash vì stable và hỗ trợ vision tốt
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
                 var mimeType = contentType;
                 if (string.IsNullOrEmpty(mimeType) || !mimeType.StartsWith("image/"))
