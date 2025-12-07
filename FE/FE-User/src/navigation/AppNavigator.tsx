@@ -84,7 +84,20 @@ export type RootStackParamList = {
       optionId?: number | null;
     }>;
   };
-  AddPetPhotos: { petId: number; isFromProfile?: boolean; petName?: string; breed?: string; description?: string };
+  AddPetPhotos: { 
+    petId: number; 
+    isFromProfile?: boolean; 
+    petName?: string; 
+    breed?: string; 
+    description?: string;
+    aiResults?: Array<{
+      attributeName: string;
+      optionName?: string | null;
+      value?: number | null;
+      attributeId?: number | null;
+      optionId?: number | null;
+    }>;
+  };
   OnboardingPreferences: undefined;
   Home: undefined;
   FilterScreen: undefined;

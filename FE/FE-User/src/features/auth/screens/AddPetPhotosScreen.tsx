@@ -47,14 +47,22 @@ type Photo = DBPhoto | LocalPhoto;
 
 const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
-  const { petId, isFromProfile, petName, breed, description } = route.params;
+  const { petId, isFromProfile, petName, breed, description, aiResults: previousAiResults } = route.params;
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [uploading, setUploading] = useState(false);
   const [analyzingAI, setAnalyzingAI] = useState(false);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
+  const [savedAiResults, setSavedAiResults] = useState<AIAttributeResult[] | undefined>(previousAiResults);
   const maxPhotos = 6;
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+
+  // Update saved AI results when route params change (when coming back from Step 3)
+  useEffect(() => {
+    if (previousAiResults) {
+      setSavedAiResults(previousAiResults);
+    }
+  }, [previousAiResults]);
 
   // Load existing photos from DB when screen mounts
   useEffect(() => {
@@ -198,6 +206,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
           if (analysisResponse.success && analysisResponse.attributes && analysisResponse.attributes.length > 0) {
             aiResults = analysisResponse.attributes;
+            // Lưu kết quả AI để dùng lại nếu quay lại
+            setSavedAiResults(aiResults);
 
             showAlert({
               type: 'success',
@@ -242,10 +252,11 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             message: errorMessage,
             confirmText: t('common.continue'),
             onClose: () => {
+              // Nếu AI fail nhưng có kết quả cũ, vẫn dùng kết quả cũ
               navigation.navigate("AddPetCharacteristics", {
                 petId,
                 isFromProfile,
-                aiResults: undefined
+                aiResults: savedAiResults || undefined
               });
             },
           });
@@ -253,11 +264,11 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           setAnalyzingAI(false);
         }
       } else {
-        // No new photos - just continue to characteristics (skip AI)
+        // No new photos - use saved AI results if available, otherwise skip AI
         navigation.navigate("AddPetCharacteristics", {
           petId,
           isFromProfile,
-          aiResults: undefined
+          aiResults: savedAiResults // Dùng kết quả AI đã lưu từ lần trước
         });
       }
     } catch (error: any) {
