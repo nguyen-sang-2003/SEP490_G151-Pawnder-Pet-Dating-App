@@ -188,7 +188,7 @@ namespace BE.Services
                         temperature = 0.1,  // Thấp hơn để JSON output nhất quán
                         topK = 32,
                         topP = 1,
-                        maxOutputTokens = 2048  // Giảm để nhanh hơn
+                        maxOutputTokens = 4096  // Giảm để nhanh hơn
                     }
                 };
 
@@ -249,6 +249,7 @@ namespace BE.Services
                     
                     // Parse manually to handle flexible value types
                     var result = ParseAttributeResults(jsonText);
+
                     return result;
                 }
 
