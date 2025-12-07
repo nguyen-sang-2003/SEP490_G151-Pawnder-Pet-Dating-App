@@ -608,10 +608,6 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         {/* Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.attachButton}>
-              <Icon name="camera-outline" size={28} color={colors.aiPrimary} />
-            </TouchableOpacity>
-
             <TextInput
               style={styles.input}
               placeholder={t('chat.ai.inputPlaceholder')}
@@ -1219,10 +1215,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(255, 154, 118, 0.15)",
     ...shadows.medium,
-  },
-  attachButton: {
-    padding: 4,
-    marginRight: 4,
   },
   input: {
     flex: 1,

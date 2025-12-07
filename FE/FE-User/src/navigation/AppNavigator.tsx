@@ -72,7 +72,7 @@ export type RootStackParamList = {
   };
   ForgotPassword: undefined;
   ResetPassword: { email: string };
-  AddPetBasicInfo: { isFromProfile?: boolean };
+  AddPetBasicInfo: { isFromProfile?: boolean; petId?: number; petName?: string; breed?: string; description?: string };
   AddPetCharacteristics: {
     petId: number;
     isFromProfile?: boolean;
@@ -84,7 +84,7 @@ export type RootStackParamList = {
       optionId?: number | null;
     }>;
   };
-  AddPetPhotos: { petId: number; isFromProfile?: boolean };
+  AddPetPhotos: { petId: number; isFromProfile?: boolean; petName?: string; breed?: string; description?: string };
   OnboardingPreferences: undefined;
   Home: undefined;
   FilterScreen: undefined;

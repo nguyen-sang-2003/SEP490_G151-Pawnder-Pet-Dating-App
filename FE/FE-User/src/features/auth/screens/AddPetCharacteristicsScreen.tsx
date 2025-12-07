@@ -26,9 +26,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
   const { petId, isFromProfile, aiResults } = route.params;
 
-  console.log('AddPetCharacteristicsScreen - petId:', petId, 'isFromProfile:', isFromProfile);
-  console.log('🤖 AI Results received:', aiResults);
-
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [attributeOptions, setAttributeOptions] = useState<Record<number, AttributeOption[]>>({});
   const [selectedOptions, setSelectedOptions] = useState<Record<number, number>>({});
@@ -66,7 +63,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     try {
       setLoading(true);
       const attrs = await getAttributes();
-      console.log('Loaded attributes:', attrs);
 
       // Filter out invalid attributes and distance-related attributes (those are user preferences, not pet characteristics)
       const validAttrs = attrs.filter(attr => {
@@ -75,7 +71,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         // Filter out distance/range attributes - these are user preferences, not pet characteristics
         const name = attr.Name?.toLowerCase() || '';
         if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
-          console.log('🚫 Filtering out distance attribute:', attr.Name);
           return false;
         }
 
@@ -103,8 +98,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       if (isFromProfile) {
         try {
           const existingChars = await getPetCharacteristics(petId);
-          console.log('📝 Loaded existing characteristics:', existingChars);
-
           const tempExistingChars: Record<number, { optionValue?: string; value?: number; unit?: string }> = {};
           
           existingChars.forEach((char: any) => {
@@ -133,17 +126,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           });
           
           setExistingCharacteristics(tempExistingChars);
-
-          console.log('📋 Existing characteristic IDs:', Array.from(tempExistingIds));
         } catch (error) {
-          console.log('⚠️ No existing characteristics or error loading:', error);
+          // Silent fail
         }
       }
 
       // Pre-fill from AI results (if available)
       if (aiResults && aiResults.length > 0) {
-        console.log('🤖 Pre-filling from AI results...');
-
         aiResults.forEach((aiAttr: AIAttributeResult) => {
           if (!aiAttr.attributeId) return;
 
@@ -153,17 +142,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           // Fill option-based attributes
           if (aiAttr.optionId && aiAttr.optionName) {
             tempSelectedOptions[aiAttr.attributeId] = aiAttr.optionId;
-            console.log(`✅ AI filled option: ${aiAttr.attributeName} = ${aiAttr.optionName}`);
           }
 
           // Fill numeric attributes
           if (aiAttr.value != null) {
             tempNumericValues[aiAttr.attributeId] = aiAttr.value.toString();
-            console.log(`✅ AI filled value: ${aiAttr.attributeName} = ${aiAttr.value}`);
           }
         });
-
-        console.log(`🎯 AI filled ${tempAiFilledIds.size} attributes`);
       }
 
       setExistingCharacteristicIds(tempExistingIds);
@@ -194,7 +179,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
         const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
 
-        console.log(`${shouldUpdate ? 'Updating' : 'Creating'} option: attributeId=${attributeId}, optionId=${optionId}`);
         savePromises.push(
           apiFunction(petId, attrId, { OptionId: optionId })
         );
@@ -209,7 +193,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
             const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
 
-            console.log(`${shouldUpdate ? 'Updating' : 'Creating'} numeric: attributeId=${attributeId}, value=${numValue}`);
             savePromises.push(
               apiFunction(petId, attrId, { Value: numValue })
             );
@@ -217,33 +200,24 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         }
       });
 
-      console.log(`Total promises: ${savePromises.length}`);
       await Promise.all(savePromises);
-
-      console.log(`✅ Pet characteristics saved successfully`);
 
       // Complete profile after characteristics
       if (!isFromProfile) {
         try {
           const userIdStr = await getItem('userId');
-          console.log('Retrieved userId from storage:', userIdStr);
 
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
-            console.log('Parsed userId:', userId);
 
             if (isNaN(userId) || userId <= 0) {
-
               throw new Error('Invalid userId');
             }
 
             await completeUserProfile(userId);
-            console.log('✅ User profile marked as complete');
-          } else {
-            console.warn('No userId found in storage');
           }
         } catch (err) {
-          console.warn('Failed to mark profile complete, but continuing:', err);
+          // Silent fail
         }
       }
 
@@ -291,15 +265,11 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   };
 
   const handleBack = () => {
-    if (isFromProfile) {
-      navigation.goBack();
-    } else {
-      showAlert({
-        type: 'warning',
-        title: t('auth.addPet.characteristics.completeProfile'),
-        message: t('auth.addPet.characteristics.needComplete'),
-      });
-    }
+    // Allow going back to photos screen
+    navigation.navigate("AddPetPhotos", {
+      petId,
+      isFromProfile,
+    });
   };
 
   if (loading) {

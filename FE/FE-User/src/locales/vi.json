@@ -201,6 +201,7 @@
         "userNotFound": "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
         "success": "Thành công!",
         "petCreated": "Đã tạo hồ sơ {{name}}. Hãy thêm một số hình ảnh!",
+        "petUpdated": "Đã cập nhật hồ sơ {{name}}. Tiếp tục thêm ảnh!",
         "createFailed": "Không thể tạo hồ sơ thú cưng. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
         "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục."
@@ -216,7 +217,13 @@
         "selectError": "Không thể chọn ảnh. Vui lòng thử lại.",
         "removePhoto": "Xóa ảnh",
         "removeConfirm": "Bạn có chắc chắn muốn xóa ảnh này không?",
+        "removeDbPhotoConfirm": "Ảnh này đã được lưu trên server. Bạn có chắc muốn xóa vĩnh viễn không?",
         "removeButton": "Xóa",
+        "deleteError": "Không thể xóa ảnh. Vui lòng thử lại.",
+        "loadingPhotos": "Đang tải ảnh...",
+        "noNewPhotos": "Không có ảnh mới",
+        "noNewPhotosMessage": "Bạn chưa thêm ảnh mới. Tiếp tục để chỉnh sửa đặc điểm.",
+        "photoBreakdown": "{{db}} ảnh đã lưu • {{new}} ảnh mới",
         "needMorePhotos": "Cần thêm ảnh",
         "minPhotosMessage": "Vui lòng thêm ít nhất 3 ảnh (Hiện tại: {{current}}/3)",
         "photoCount": "{{count}}/{{max}} ảnh",
@@ -227,8 +234,11 @@
         "analyzing": "AI đang phân tích...",
         "aiAnalysisComplete": "Phân tích AI hoàn tất",
         "aiAnalysisMessage": "Đã tìm thấy {{count}} đặc điểm. Bạn có thể xem xét và chỉnh sửa tiếp theo.",
-        "aiAnalysisFailed": "Ảnh đã được tải lên!",
+        "aiAnalysisFailed": "Phân tích AI không thành công",
         "aiAnalysisFailedMessage": "Phân tích AI không khả dụng. Bạn có thể thêm đặc điểm thủ công.",
+        "aiNotAvailable": "Tính năng phân tích AI hiện không khả dụng từ khu vực này. Bạn có thể tiếp tục và thêm đặc điểm thủ công.",
+        "aiApiKeyError": "Lỗi cấu hình AI. Vui lòng thử lại sau.",
+        "aiQuotaExceeded": "Đã vượt quá giới hạn phân tích AI. Vui lòng thử lại sau.",
         "uploadFailed": "Không thể tải ảnh lên. Vui lòng thử lại.",
         "tips": {
           "title": "Mẹo chụp ảnh",
@@ -237,7 +247,9 @@
           "includeVariety": "Bao gồm ảnh toàn thân và cận cảnh"
         },
         "completeProfile": "Hoàn thành hồ sơ",
-        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục."
+        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
+        "editBasicInfo": "Sửa thông tin cơ bản",
+        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?"
       },
       "characteristics": {
         "title": "Đặc điểm thú cưng",
