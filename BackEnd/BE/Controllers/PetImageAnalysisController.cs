@@ -116,7 +116,7 @@ namespace BE.Controllers
         //}
 
         /// <summary>
-        /// Phân tích nhiều ảnh thú cưng cùng lúc
+        /// Phân tích nhiều ảnh thú cưng cùng lúc - CHỈ chấp nhận ảnh MÈO
         /// </summary>
         /// <param name="images">Danh sách file ảnh thú cưng</param>
         /// <returns>Danh sách kết quả phân tích cho từng ảnh</returns>
@@ -138,15 +138,60 @@ namespace BE.Controllers
             }
 
             var results = new List<PetImageAnalysisResponse>();
+            var failedImages = new List<string>(); // Danh sách ảnh không phải mèo
 
             foreach (var image in images)
             {
-                var result = await _analysisService.AnalyzeImageAsync(image);
-                result.SqlInsertScript = null;
-                results.Add(result);
+                try
+                {
+                    var result = await _analysisService.AnalyzeImageAsync(image);
+                    result.SqlInsertScript = null;
+                    
+                    if (!result.Success)
+                    {
+                        // Nếu ảnh không phải mèo hoặc lỗi phân tích
+                        if (result.Message.Contains("không phải là mèo") || result.Message.Contains("Ảnh không phải"))
+                        {
+                            failedImages.Add(image.FileName);
+                        }
+                    }
+                    
+                    results.Add(result);
+                }
+                catch (Exception ex)
+                {
+                    // Nếu có exception (bao gồm lỗi không phải mèo)
+                    if (ex.Message.Contains("không phải là mèo") || ex.Message.Contains("Ảnh không phải"))
+                    {
+                        failedImages.Add(image.FileName);
+                    }
+                    
+                    results.Add(new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = ex.Message
+                    });
+                }
             }
 
-            return Ok(results);
+            // NẾU CÓ BẤT KỲ ẢNH NÀO KHÔNG PHẢI MÈO → TRẢ VỀ LỖI
+            if (failedImages.Any())
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = $"Phát hiện {failedImages.Count} ảnh không phải là mèo! Vui lòng chỉ tải lên ảnh mèo.",
+                    invalidImages = failedImages,
+                    details = "Tất cả ảnh trong danh sách đều phải là ảnh mèo. Vui lòng kiểm tra và tải lại."
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = $"Đã phân tích thành công {results.Count} ảnh mèo",
+                results = results
+            });
         }
 
         /// <summary>
