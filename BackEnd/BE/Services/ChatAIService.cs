@@ -67,7 +67,7 @@ namespace BE.Services
                 throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện");
 
             chat.Title = title;
-            chat.UpdatedAt = DateTime.Now;
+            chat.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             await _context.SaveChangesAsync(ct);
 
             return true;
@@ -82,7 +82,7 @@ namespace BE.Services
                 throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện");
 
             chat.IsDeleted = true;
-            chat.UpdatedAt = DateTime.Now;
+            chat.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             _context.ChatAis.Update(chat);
             await _context.SaveChangesAsync(ct);
@@ -192,7 +192,7 @@ namespace BE.Services
                 {
                     question = question,
                     answer = geminiResponse.Answer,
-                    timestamp = DateTime.Now,
+                    timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
                     usage = new
                     {
                         isVip = isVip,

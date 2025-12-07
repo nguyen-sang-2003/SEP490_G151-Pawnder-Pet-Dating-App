@@ -56,13 +56,14 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
         public async Task<ChatAi> CreateChatSessionAsync(int userId, string title)
         {
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             var chatAi = new ChatAi
             {
                 UserId = userId,
                 Title = title ?? "Chat với AI",
                 IsDeleted = false,
-                CreatedAt = DateTime.Now, // Giữ nguyên DateTime.Now
-                UpdatedAt = DateTime.Now  // Giữ nguyên DateTime.Now
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             _context.ChatAis.Add(chatAi);
@@ -154,18 +155,19 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             }
 
             // Lưu Q&A
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             var content = new ChatAicontent
             {
                 ChatAiid = chatAiId,
                 Question = question,
                 Answer = answer,
-                CreatedAt = DateTime.Now, // <-- ĐÃ ĐỔI
-                UpdatedAt = DateTime.Now  // <-- ĐÃ ĐỔI
+                CreatedAt = now,
+                UpdatedAt = now
             };
             _context.ChatAicontents.Add(content);
 
             // Cập nhật chat
-            chatAi.UpdatedAt = DateTime.Now; // <-- ĐÃ ĐỔI
+            chatAi.UpdatedAt = now;
 
             // Auto-generate title nếu đây là câu hỏi đầu tiên
             if (history.Count == 0 && (chatAi.Title == "Chat với AI" || chatAi.Title == "New Chat"))
