@@ -99,8 +99,15 @@ namespace BE.Services
         private string BuildAnalysisPrompt(List<Models.Attribute> attributes)
         {
             var promptBuilder = new StringBuilder();
-            promptBuilder.AppendLine("Hãy phân tích ảnh thú cưng này và trả về thông tin về các đặc điểm sau dưới dạng JSON:");
+            
+            // BƯỚC 1: Yêu cầu AI kiểm tra đây có phải ảnh mèo không
+            promptBuilder.AppendLine("BƯỚC 1 - KIỂM TRA LOẠI ĐỘNG VẬT:");
+            promptBuilder.AppendLine("Đầu tiên, hãy xác định xem ảnh này có phải là ảnh MÈO (cat) hay không.");
+            promptBuilder.AppendLine("- Nếu KHÔNG PHẢI MÈO (ví dụ: chó, chim, người, đồ vật, phong cảnh...), trả về: {\"isCat\": false}");
+            promptBuilder.AppendLine("- Nếu LÀ MÈO, tiếp tục phân tích các đặc điểm bên dưới.");
             promptBuilder.AppendLine();
+            
+            promptBuilder.AppendLine("BƯỚC 2 - PHÂN TÍCH ĐẶC ĐIỂM MÈO (chỉ thực hiện nếu là mèo):");
             promptBuilder.AppendLine("Các thuộc tính cần phân tích:");
 
             foreach (var attr in attributes)
@@ -119,27 +126,36 @@ namespace BE.Services
                 promptBuilder.AppendLine();
             }
 
-            promptBuilder.AppendLine("QUAN TRỌNG: Trả về JSON array theo CHÍNH XÁC format này:");
-            promptBuilder.AppendLine("[");
-            promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"Giống\",");
-            promptBuilder.AppendLine("    \"optionName\": \"Mèo Ba Tư\"");
-            promptBuilder.AppendLine("  },");
-            promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"Màu lông\",");
-            promptBuilder.AppendLine("    \"optionName\": \"Trắng\"");
-            promptBuilder.AppendLine("  },");
-            promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"Cân nặng\",");
-            promptBuilder.AppendLine("    \"value\": 5");
-            promptBuilder.AppendLine("  }");
-            promptBuilder.AppendLine("]");
+            promptBuilder.AppendLine("QUAN TRỌNG: Trả về JSON theo CHÍNH XÁC format này:");
+            promptBuilder.AppendLine();
+            promptBuilder.AppendLine("Nếu KHÔNG PHẢI MÈO:");
+            promptBuilder.AppendLine("{\"isCat\": false}");
+            promptBuilder.AppendLine();
+            promptBuilder.AppendLine("Nếu LÀ MÈO:");
+            promptBuilder.AppendLine("{");
+            promptBuilder.AppendLine("  \"isCat\": true,");
+            promptBuilder.AppendLine("  \"attributes\": [");
+            promptBuilder.AppendLine("    {");
+            promptBuilder.AppendLine("      \"attributeName\": \"Giống\",");
+            promptBuilder.AppendLine("      \"optionName\": \"Mèo Ba Tư\"");
+            promptBuilder.AppendLine("    },");
+            promptBuilder.AppendLine("    {");
+            promptBuilder.AppendLine("      \"attributeName\": \"Màu lông\",");
+            promptBuilder.AppendLine("      \"optionName\": \"Trắng\"");
+            promptBuilder.AppendLine("    },");
+            promptBuilder.AppendLine("    {");
+            promptBuilder.AppendLine("      \"attributeName\": \"Cân nặng\",");
+            promptBuilder.AppendLine("      \"value\": 5");
+            promptBuilder.AppendLine("    }");
+            promptBuilder.AppendLine("  ]");
+            promptBuilder.AppendLine("}");
             promptBuilder.AppendLine();
             promptBuilder.AppendLine("LƯU Ý:");
-            promptBuilder.AppendLine("- CHỈ trả về JSON array, KHÔNG thêm markdown, text giải thích.");
+            promptBuilder.AppendLine("- CHỈ trả về JSON object, KHÔNG thêm markdown, text giải thích.");
+            promptBuilder.AppendLine("- Nếu không phải mèo, CHỈ trả về {\"isCat\": false}, không cần attributes.");
             promptBuilder.AppendLine("- attributeName phải KHỚP CHÍNH XÁC với danh sách trên.");
             promptBuilder.AppendLine("- optionName phải KHỚP với một trong các tùy chọn đã liệt kê.");
-            promptBuilder.AppendLine("- Nếu không chắc chắn, hãy đưa ra dự đoán tốt nhất dựa trên ảnh.");
+            promptBuilder.AppendLine("- Nếu không chắc chắn về đặc điểm, hãy đưa ra dự đoán tốt nhất dựa trên ảnh.");
 
             return promptBuilder.ToString();
         }
@@ -155,7 +171,7 @@ namespace BE.Services
                 }
 
                 // Sử dụng gemini-1.5-flash vì stable và hỗ trợ vision tốt
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
                 var mimeType = contentType;
                 if (string.IsNullOrEmpty(mimeType) || !mimeType.StartsWith("image/"))
@@ -239,17 +255,53 @@ namespace BE.Services
                 
                 Console.WriteLine($"🤖 AI Response: {text?.Substring(0, Math.Min(200, text?.Length ?? 0))}...");
 
-                // Extract JSON from response
-                var jsonStart = text?.IndexOf('[') ?? -1;
-                var jsonEnd = text?.LastIndexOf(']') ?? -1;
+                // Extract JSON from response - now expecting JSON object instead of array
+                var jsonStart = text?.IndexOf('{') ?? -1;
+                var jsonEnd = text?.LastIndexOf('}') ?? -1;
 
                 if (jsonStart >= 0 && jsonEnd > jsonStart)
                 {
                     var jsonText = text!.Substring(jsonStart, jsonEnd - jsonStart + 1);
                     
-                    // Parse manually to handle flexible value types
-                    var result = ParseAttributeResults(jsonText);
-                    return result;
+                    // Parse JSON object to check isCat first
+                    using var document = JsonDocument.Parse(jsonText);
+                    var root = document.RootElement;
+                    
+                    // KIỂM TRA CÓ PHẢI MÈO KHÔNG
+                    if (root.TryGetProperty("isCat", out var isCatElement))
+                    {
+                        bool isCat = isCatElement.GetBoolean();
+                        
+                        if (!isCat)
+                        {
+                            // KHÔNG PHẢI MÈO - throw exception
+                            Console.WriteLine($"🚫 Image is NOT a cat! Rejecting analysis.");
+                            throw new Exception("Ảnh không phải là mèo! Vui lòng chỉ tải lên ảnh mèo để phân tích.");
+                        }
+                        
+                        // LÀ MÈO - tiếp tục parse attributes
+                        Console.WriteLine($"✅ Image confirmed as cat. Parsing attributes...");
+                        
+                        if (root.TryGetProperty("attributes", out var attributesElement))
+                        {
+                            var result = ParseAttributeResults(attributesElement.GetRawText());
+                            return result;
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: nếu response không có isCat (format cũ), thử parse như array
+                        Console.WriteLine($"⚠️ Response missing isCat field, trying legacy format...");
+                        var arrayStart = text?.IndexOf('[') ?? -1;
+                        var arrayEnd = text?.LastIndexOf(']') ?? -1;
+                        
+                        if (arrayStart >= 0 && arrayEnd > arrayStart)
+                        {
+                            var arrayText = text!.Substring(arrayStart, arrayEnd - arrayStart + 1);
+                            var result = ParseAttributeResults(arrayText);
+                            return result;
+                        }
+                    }
                 }
 
                 return null;
