@@ -1,17 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useTheme } from '../../shared/context/ThemeContext';
+import ExpertInfoModal from './ExpertInfoModal';
+import { USER_ROLES } from '../../shared/constants';
 import './styles/Header.css';
 
 const Header = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [showExpertInfoModal, setShowExpertInfoModal] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleProfileClick = (e) => {
+    e.preventDefault();
+    // Nếu là Expert, hiển thị modal thông tin
+    const userRole = user?.Role || user?.role;
+    const isExpert = userRole === USER_ROLES.EXPERT || userRole === 'Expert' || (user?.RoleId || user?.roleId) === 2;
+    
+    if (isExpert) {
+      setShowExpertInfoModal(true);
+    } else {
+      // Nếu không phải Expert, điều hướng đến trang profile (nếu có)
+      navigate('/profile');
+    }
+  };
+
+  const getExpertId = () => {
+    const expertId = user?.UserId || user?.userId;
+    console.log('[Header] Getting Expert ID:', expertId, 'User object:', user);
+    return expertId;
   };
 
 
@@ -75,13 +98,13 @@ const Header = () => {
             </button>
             
             <div className="dropdown-menu">
-              <a href="/profile" className="dropdown-item">
+              <button onClick={handleProfileClick} className="dropdown-item">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
                 Thông tin cá nhân
-              </a>
+              </button>
               <div className="dropdown-divider"></div>
               <button onClick={handleLogout} className="dropdown-item logout">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -95,6 +118,16 @@ const Header = () => {
           </div>
         </div>
       </div>
+
+      {/* Expert Info Modal */}
+      {showExpertInfoModal && (
+        <ExpertInfoModal
+          isOpen={showExpertInfoModal}
+          onClose={() => setShowExpertInfoModal(false)}
+          expertId={getExpertId()}
+          userData={user}
+        />
+      )}
     </header>
   );
 };

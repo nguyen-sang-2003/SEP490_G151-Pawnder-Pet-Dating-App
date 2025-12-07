@@ -1,18 +1,19 @@
 using BE.Repositories.Interfaces;
 using BE.Services.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
+using System.Text.RegularExpressions;
 
 namespace BE.Services
 {
     public class OtpService : IOtpService
     {
-        private readonly EmailService _emailService;
+        private readonly IEmailService _emailService;
         private readonly IMemoryCache _cache;
         private readonly IKickboxClient _kickboxClient;
         private readonly IUserRepository _userRepository;
 
         public OtpService(
-            EmailService emailService,
+            IEmailService emailService,
             IMemoryCache cache,
             IKickboxClient kickboxClient,
             IUserRepository userRepository)
@@ -29,16 +30,8 @@ namespace BE.Services
                 throw new ArgumentException("Email không được để trống.");
 
             // Business logic: Validate email format
-            try
-            {
-                var addr = new System.Net.Mail.MailAddress(email);
-                if (addr.Address != email)
-                    throw new ArgumentException("Địa chỉ email không hợp lệ.");
-            }
-            catch
-            {
+            if (!IsValidEmail(email))
                 throw new ArgumentException("Địa chỉ email không hợp lệ.");
-            }
 
             // Business logic: Check email based on purpose
             var emailExists = await _userRepository.EmailExistsAsync(email, ct);
@@ -74,13 +67,17 @@ namespace BE.Services
 
                 return new { message = "Đã gửi OTP tới email người dùng." };
             }
-            catch (System.Net.Mail.SmtpFailedRecipientException)
+            catch (Google.GoogleApiException ex)
             {
-                throw new InvalidOperationException("Không gửi được email: người nhận không tồn tại hoặc bị từ chối.");
+                throw new InvalidOperationException($"Lỗi Gmail API khi gửi email: {ex.Message}");
             }
-            catch (System.Net.Mail.SmtpException ex)
+            catch (InvalidOperationException)
             {
-                throw new InvalidOperationException($"Lỗi SMTP khi gửi email: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Lỗi khi gửi email: {ex.Message}");
             }
         }
 
@@ -104,6 +101,16 @@ namespace BE.Services
             }
 
             throw new InvalidOperationException("OTP đã hết hạn hoặc chưa được gửi.");
+        }
+
+        private static bool IsValidEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            // Regex pattern để validate email format
+            var emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            return Regex.IsMatch(email, emailPattern, RegexOptions.IgnoreCase);
         }
     }
 }

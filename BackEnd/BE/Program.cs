@@ -104,9 +104,11 @@ builder.Services.AddAuthorization();
 //Gemini AI Service
 builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 
-// Register Email Service 
+// Register Email Service (Gmail API OAuth2)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
-builder.Services.AddTransient<EmailService>();
+builder.Services.Configure<GmailOAuth2Settings>(builder.Configuration.GetSection("GmailOAuth2Settings"));
+builder.Services.AddSingleton<GmailOAuth2Service>();
+builder.Services.AddScoped<BE.Services.Interfaces.IEmailService, EmailService>();
 
 // setup save data 
 builder.Services.AddMemoryCache();

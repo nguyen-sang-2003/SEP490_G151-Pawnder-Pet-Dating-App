@@ -1,44 +1,35 @@
-﻿using Microsoft.Extensions.Options;
-using System.Net;
-using System.Net.Mail;
+﻿using BE.Services.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace BE.Services
 {
-    public class EmailService
+    public class EmailService : IEmailService
     {
+        private readonly GmailOAuth2Service _gmailService;
         private readonly EmailSettings _settings;
 
-        public EmailService(IOptions<EmailSettings> settings)
+        public EmailService(
+            GmailOAuth2Service gmailService,
+            IOptions<EmailSettings> settings)
         {
+            _gmailService = gmailService;
             _settings = settings.Value;
         }
 
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
-            using var client = new SmtpClient(_settings.SmtpServer, _settings.SmtpPort)
-            {
-                Credentials = new NetworkCredential(_settings.SenderEmail, _settings.SenderPassword),
-                EnableSsl = true
-            };
-
-            var mail = new MailMessage
-            {
-                From = new MailAddress(_settings.SenderEmail, _settings.SenderName),
-                Subject = subject,
-                Body = body,
-                IsBodyHtml = true
-            };
-            mail.To.Add(toEmail);
-
-            await client.SendMailAsync(mail);
+            await _gmailService.SendEmailAsync(
+                toEmail, 
+                subject, 
+                body, 
+                _settings.SenderEmail, 
+                _settings.SenderName);
         }
     }
+
     public class EmailSettings
     {
-        public string SmtpServer { get; set; } = null!;
-        public int SmtpPort { get; set; }
         public string SenderName { get; set; } = null!;
         public string SenderEmail { get; set; } = null!;
-        public string SenderPassword { get; set; } = null!;
     }
 }
