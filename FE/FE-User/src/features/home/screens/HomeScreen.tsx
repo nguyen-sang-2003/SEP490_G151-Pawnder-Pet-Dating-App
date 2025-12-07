@@ -75,6 +75,7 @@ const HomeScreen = ({ navigation }: Props) => {
     const [showMatchLimitModal, setShowMatchLimitModal] = useState(false);
     const [limitMessage, setLimitMessage] = useState("");
     const [refreshing, setRefreshing] = useState(false);
+    const [isVip, setIsVip] = useState<boolean>(false);
 
     // Fade-in animation for loaded pets
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -448,6 +449,16 @@ const HomeScreen = ({ navigation }: Props) => {
             }
 
             setCurrentUserId(userId);
+
+            // Load current user's VIP status
+            try {
+                const vipStatus = await getVipStatus(userId);
+                setIsVip(vipStatus.isVip);
+                console.log('💎 Current user VIP status:', vipStatus.isVip);
+            } catch (error) {
+                console.log('⚠️ Failed to load VIP status, assuming not VIP');
+                setIsVip(false);
+            }
 
             // 🚀 OPTIMIZATION 1: Parallel API calls instead of sequential
             const [userPets, recommendedPets] = await Promise.all([
@@ -999,7 +1010,8 @@ const HomeScreen = ({ navigation }: Props) => {
         });
 
         // Trigger empty state animation when pets.length is 0
-        if (pets.length === 0 && emptyStateAnim._value === 0) {
+        if (pets.length === 0) {
+            emptyStateAnim.setValue(0);
             Animated.timing(emptyStateAnim, {
                 toValue: 1,
                 duration: 500,
@@ -1184,6 +1196,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 onClose={() => setShowMatchLimitModal(false)}
                 message={limitMessage}
                 actionType="match"
+                isVip={isVip}
             />
 
             {/* Custom Alert for Login Success */}

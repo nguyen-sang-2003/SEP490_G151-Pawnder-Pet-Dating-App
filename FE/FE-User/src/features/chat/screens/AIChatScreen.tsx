@@ -928,6 +928,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         onClose={() => setShowExpertLimitModal(false)}
         message={expertLimitMessage}
         actionType="expert_confirm"
+        isVip={tokenUsage?.isVip || false}
       />
     </View>
   );

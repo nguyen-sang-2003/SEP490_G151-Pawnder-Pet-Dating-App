@@ -23,7 +23,8 @@ interface LimitReachedModalProps {
   onClose: () => void;
   title?: string;
   message?: string;
-  actionType?: 'match' | 'ai_chat' | 'expert_confirm' | 'filter';
+  actionType?: 'match' | 'ai_chat' | 'expert_confirm' | 'expert_chat';
+  isVip?: boolean;
 }
 
 // 🚀 OPTIMIZATION: Memoize LimitReachedModal to prevent unnecessary re-renders
@@ -33,6 +34,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
   title,
   message,
   actionType = 'match',
+  isVip = false,
 }) => {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -46,8 +48,9 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
         return 'chatbubbles-outline';
       case 'expert_confirm':
         return 'people-outline';
-      case 'filter':
-        return 'funnel-outline';
+      case 'expert_chat':
+        return 'chatbubble-ellipses-outline';
+
       default:
         return 'timer-outline';
     }
@@ -99,41 +102,51 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
             {/* Message */}
             <Text style={styles.message}>{displayMessage}</Text>
 
-            {/* Premium Features */}
-            <View style={styles.featuresBox}>
-              <View style={styles.featureRow}>
-                <Icon name="infinite" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>{t('limitModal.features.unlimitedLikes')}</Text>
+            {isVip ? (
+              /* VIP User - Show wait message */
+              <View style={styles.vipWaitBox}>
+                <Icon name="time-outline" size={32} color="#FFD700" />
+                <Text style={styles.vipWaitText}>{t('limitModal.vipWaitMessage')}</Text>
               </View>
-              <View style={styles.featureRow}>
-                <Icon name="chatbubbles" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>{t('limitModal.features.unlimitedAI')}</Text>
-              </View>
-              <View style={styles.featureRow}>
-                <Icon name="people" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>{t('limitModal.features.unlimitedExpert')}</Text>
-              </View>
-              <View style={styles.featureRow}>
-                <Icon name="star" size={24} color="#FFD700" />
-                <Text style={styles.featureText}>{t('limitModal.features.vipBadge')}</Text>
-              </View>
-            </View>
+            ) : (
+              <>
+                {/* Premium Features - Only show for non-VIP users */}
+                <View style={styles.featuresBox}>
+                  <View style={styles.featureRow}>
+                    <Icon name="infinite" size={24} color="#FFD700" />
+                    <Text style={styles.featureText}>{t('limitModal.features.unlimitedLikes')}</Text>
+                  </View>
+                  <View style={styles.featureRow}>
+                    <Icon name="chatbubbles" size={24} color="#FFD700" />
+                    <Text style={styles.featureText}>{t('limitModal.features.unlimitedAI')}</Text>
+                  </View>
+                  <View style={styles.featureRow}>
+                    <Icon name="people" size={24} color="#FFD700" />
+                    <Text style={styles.featureText}>{t('limitModal.features.unlimitedExpert')}</Text>
+                  </View>
+                  <View style={styles.featureRow}>
+                    <Icon name="star" size={24} color="#FFD700" />
+                    <Text style={styles.featureText}>{t('limitModal.features.vipBadge')}</Text>
+                  </View>
+                </View>
 
-            {/* Upgrade Button */}
-            <TouchableOpacity
-              style={styles.upgradeButton}
-              onPress={handleUpgrade}
-            >
-              <LinearGradient
-                colors={['#FFD700', '#FFA500']}
-                style={styles.upgradeButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Icon name="diamond" size={20} color="#000" />
-                <Text style={styles.upgradeButtonText}>{t('limitModal.upgradePremium')}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                {/* Upgrade Button - Only show for non-VIP users */}
+                <TouchableOpacity
+                  style={styles.upgradeButton}
+                  onPress={handleUpgrade}
+                >
+                  <LinearGradient
+                    colors={['#FFD700', '#FFA500']}
+                    style={styles.upgradeButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Icon name="diamond" size={20} color="#000" />
+                    <Text style={styles.upgradeButtonText}>{t('limitModal.upgradePremium')}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* Close Button */}
             <TouchableOpacity
@@ -237,5 +250,20 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     textAlign: 'center',
   },
+  vipWaitBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: radius.lg,
+    padding: 24,
+    width: '100%',
+    marginBottom: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  vipWaitText: {
+    fontSize: 16,
+    color: colors.white,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
 });
-
