@@ -1,0 +1,85 @@
+/* Admin Layout Styles */
+.admin-layout {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: linear-gradient(225deg, #FFB3D9 0%, #FFD1DC 20%, #FFF0F5 40%, #E6F3FF 60%, #D1E7FF 80%, #C7E9F1 100%);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Dark theme */
+body.dark-theme .admin-layout {
+  background: linear-gradient(225deg, #1a1a2e 0%, #16213e 20%, #0f3460 40%, #533483 60%, #7209b7 80%, #f72585 100%);
+}
+
+.admin-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 70px);
+  max-height: calc(100vh - 70px);
+  position: relative;
+}
+
+.admin-main {
+  flex: 1;
+  margin-left: 250px;
+  padding: 2rem;
+  transition: margin-left 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  max-height: calc(100vh - 70px);
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+.main-content {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 20px rgba(255, 182, 193, 0.1);
+  border: 1px solid rgba(255, 182, 193, 0.2);
+  transition: all 0.3s ease;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Dark theme */
+body.dark-theme .main-content {
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .admin-main {
+    margin-left: 0;
+    padding: 1rem;
+  }
+  
+  .main-content {
+    padding: 1.5rem;
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-main {
+    padding: 0.5rem;
+  }
+  
+  .main-content {
+    padding: 1rem;
+    border-radius: 6px;
+  }
+}
+

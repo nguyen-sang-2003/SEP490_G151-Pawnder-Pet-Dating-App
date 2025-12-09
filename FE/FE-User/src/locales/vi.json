@@ -1,0 +1,1452 @@
+{
+  "common": {
+    "ok": "OK",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "confirm": "Xác nhận",
+    "back": "Quay lại",
+    "next": "Tiếp tục",
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công",
+    "retry": "Thử lại",
+    "close": "Đóng",
+    "search": "Tìm kiếm",
+    "noData": "Không có dữ liệu",
+    "pullToRefresh": "Kéo để làm mới",
+    "continue": "Tiếp tục",
+    "skip": "Bỏ qua",
+    "finish": "Hoàn tất",
+    "sending": "Đang gửi...",
+    "saving": "Đang lưu...",
+    "uploading": "Đang tải lên..."
+  },
+
+  "auth": {
+    "welcome": {
+      "tagline": "Tìm bạn đời hoàn hảo cho thú cưng của bạn",
+      "button": "CHÀO MỪNG"
+    },
+    "signIn": {
+      "title": "Đăng nhập",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "button": "Đăng nhập →",
+      "signUpLink": "Đăng ký ngay!",
+      "forgotPassword": "Quên mật khẩu",
+      "missingInfo": "Thiếu thông tin",
+      "enterEmail": "Vui lòng nhập email của bạn",
+      "invalidEmail": "Email không hợp lệ",
+      "invalidEmailFormat": "Vui lòng nhập đúng định dạng email (ví dụ: example@email.com)",
+      "missingPassword": "Thiếu mật khẩu",
+      "enterPassword": "Vui lòng nhập mật khẩu",
+      "loginFailed": "Đăng nhập thất bại",
+      "genericError": "Có lỗi xảy ra. Vui lòng thử lại.",
+      "wrongCredentials": "Sai thông tin đăng nhập",
+      "wrongCredentialsMessage": "Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại",
+      "accountBanned": "Tài khoản bị khóa",
+      "accountBannedMessage": "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ",
+      "connectionError": "Lỗi kết nối",
+      "connectionErrorMessage": "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng",
+      "completeProfile": "Hoàn thành hồ sơ",
+      "completeProfileMessage": "Hãy hoàn thành thông tin thú cưng để sử dụng ứng dụng"
+    },
+    "signUp": {
+      "title": "Đăng ký",
+      "fullName": "Họ và tên",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "male": "Nam",
+      "female": "Nữ",
+      "agreeTerms": "Tôi đồng ý với điều khoản và chính sách",
+      "button": "Đăng ký",
+      "hasAccount": "Đã có tài khoản?",
+      "signInLink": "Đăng nhập",
+      "missingInfo": "Thiếu thông tin",
+      "enterFullName": "Vui lòng nhập họ tên của bạn",
+      "invalidFullName": "Họ tên không hợp lệ",
+      "fullNameMinLength": "Họ tên phải có ít nhất 2 ký tự",
+      "selectGender": "Vui lòng chọn giới tính",
+      "enterEmail": "Vui lòng nhập email",
+      "invalidEmail": "Email không hợp lệ",
+      "invalidEmailFormat": "Vui lòng nhập đúng định dạng email (ví dụ: example@email.com)",
+      "missingPassword": "Thiếu mật khẩu",
+      "enterPassword": "Vui lòng nhập mật khẩu",
+      "passwordTooShort": "Mật khẩu quá ngắn",
+      "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+      "passwordInvalid": "Mật khẩu không hợp lệ",
+      "passwordNeedsNumber": "Mật khẩu phải chứa ít nhất 1 chữ số",
+      "passwordNeedsSpecial": "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
+      "missingConfirmPassword": "Thiếu xác nhận mật khẩu",
+      "enterConfirmPassword": "Vui lòng nhập lại mật khẩu để xác nhận",
+      "passwordMismatch": "Mật khẩu không khớp",
+      "passwordMismatchMessage": "Mật khẩu xác nhận không giống mật khẩu đã nhập",
+      "termsNotAgreed": "Chưa đồng ý điều khoản",
+      "termsNotAgreedMessage": "Vui lòng đồng ý với điều khoản và chính sách để tiếp tục",
+      "checkEmail": "Kiểm tra email",
+      "otpSent": "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và nhập mã xác thực.",
+      "verifyNow": "Xác thực ngay",
+      "signUpFailed": "Đăng ký thất bại",
+      "otpSendFailed": "Không thể gửi mã OTP. Vui lòng thử lại.",
+      "emailExists": "Email đã được sử dụng",
+      "emailExistsMessage": "Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập",
+      "otpSendError": "Không thể gửi mã xác thực",
+      "otpSendErrorMessage": "Không thể gửi mã OTP đến email. Vui lòng kiểm tra email và thử lại",
+      "passwordRequirements": {
+        "minLength": "Ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
+        "hasNumber": "Chứa ít nhất 1 chữ số",
+        "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt"
+      }
+    },
+    "forgotPassword": {
+      "title": "Quên mật khẩu?",
+      "subtitle": "Đừng lo! Nhập địa chỉ email của bạn và chúng tôi sẽ gửi cho bạn mã để đặt lại mật khẩu.",
+      "emailPlaceholder": "Địa chỉ Email",
+      "sendButton": "Gửi mã đặt lại",
+      "sendingButton": "Đang gửi...",
+      "backToSignIn": "Quay lại đăng nhập",
+      "error": "Lỗi",
+      "enterEmail": "Vui lòng nhập email",
+      "invalidEmail": "Vui lòng nhập email hợp lệ",
+      "success": "Thành công",
+      "codeSent": "Mã đặt lại mật khẩu đã được gửi đến email của bạn",
+      "sendFailed": "Không thể gửi mã. Vui lòng thử lại."
+    },
+    "otp": {
+      "title": "Xác thực Email của bạn",
+      "subtitle": "Chúng tôi đã gửi mã 6 chữ số đến",
+      "codeValidity": "Mã có hiệu lực: {{minutes}}:{{seconds}}",
+      "codeExpired": "Mã đã hết hạn! Vui lòng gửi lại",
+      "verifyButton": "Xác thực Email",
+      "noCode": "Không nhận được mã?",
+      "resend": "Gửi lại",
+      "resendIn": "Gửi lại sau {{seconds}}s",
+      "otpIncomplete": "OTP chưa đầy đủ",
+      "enterFullOtp": "Vui lòng nhập đủ 6 số",
+      "otpExpired": "OTP đã hết hạn",
+      "otpExpiredMessage": "Mã OTP đã hết hiệu lực. Vui lòng gửi lại mã mới.",
+      "otpExpiredAlert": "Mã OTP đã hết hiệu lực. Vui lòng nhấn \"Gửi lại mã\" để nhận mã mới.",
+      "otpCorrect": "OTP đúng",
+      "otpCorrectMessage": "Mã xác thực chính xác. Tiếp tục tạo tài khoản...",
+      "verifyFailed": "Xác thực thất bại",
+      "wrongOtp": "Mã OTP không chính xác. Vui lòng thử lại.",
+      "createAccountFailed": "Tạo tài khoản thất bại",
+      "locationPermission": "Cấp quyền vị trí",
+      "locationPermissionMessage": "Để tìm thú cưng gần bạn, vui lòng cho phép Pawnder truy cập vị trí của bạn.",
+      "agree": "Đồng ý",
+      "locationSkipped": "Bỏ qua vị trí",
+      "locationSkippedMessage": "Bạn có thể cập nhật vị trí sau trong cài đặt. Tiếp tục thêm thông tin thú cưng!",
+      "registrationComplete": "Đăng ký hoàn tất",
+      "locationSaved": "Vị trí đã được lưu. Bây giờ hãy thêm thông tin thú cưng của bạn!",
+      "locationSaveFailed": "Không thể lưu vị trí",
+      "locationSaveFailedMessage": "Bạn có thể cập nhật sau. Tiếp tục thêm thông tin thú cưng!",
+      "verifySuccess": "Xác thực thành công",
+      "emailVerified": "Email đã được xác thực.",
+      "resendSuccess": "Đã gửi lại",
+      "resendSuccessMessage": "Mã OTP mới đã được gửi đến email của bạn.",
+      "resendFailed": "Lỗi gửi OTP",
+      "resendFailedMessage": "Không thể gửi lại OTP. Vui lòng thử lại."
+    },
+    "resetPassword": {
+      "title": "Đặt lại mật khẩu",
+      "subtitle": "Nhập mã đã gửi đến {{email}} và tạo mật khẩu mới",
+      "otpPlaceholder": "Nhập mã OTP",
+      "newPassword": "Mật khẩu mới",
+      "confirmPassword": "Xác nhận mật khẩu mới",
+      "resetButton": "Đặt lại mật khẩu",
+      "resettingButton": "Đang đặt lại...",
+      "error": "Lỗi",
+      "enterOtp": "Vui lòng nhập mã OTP",
+      "enterNewPassword": "Vui lòng nhập mật khẩu mới",
+      "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+      "passwordNeedsUppercase": "Mật khẩu phải chứa ít nhất 1 chữ hoa",
+      "passwordNeedsNumber": "Mật khẩu phải chứa ít nhất 1 chữ số",
+      "passwordNeedsSpecial": "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
+      "passwordMismatch": "Mật khẩu không khớp",
+      "success": "Thành công",
+      "resetSuccess": "Đã đặt lại mật khẩu thành công!",
+      "resetFailed": "Không thể đặt lại mật khẩu. Vui lòng thử lại.",
+      "requirements": {
+        "title": "Mật khẩu phải:",
+        "minLength": "Có ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
+        "hasNumber": "Chứa ít nhất 1 chữ số",
+        "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt",
+        "match": "Khớp với mật khẩu xác nhận"
+      }
+    },
+    "addPet": {
+      "basicInfo": {
+        "title": "Hồ sơ thú cưng",
+        "subtitle": "Hãy cho chúng tôi biết về người bạn lông xù của bạn",
+        "step": "Bước 1 / 3",
+        "name": "Tên",
+        "namePlaceholder": "Tên thú cưng của bạn là gì?",
+        "breed": "Giống",
+        "breedPlaceholder": "VD: Ba Tư, Anh Lông Ngắn",
+        "description": "Giới thiệu",
+        "descriptionPlaceholder": "Mô tả tính cách và đặc điểm của thú cưng...",
+        "optional": "Tùy chọn",
+        "charCount": "Tùy chọn • {{count}}/200",
+        "continueButton": "Tiếp tục",
+        "missingInfo": "Thiếu thông tin",
+        "enterPetName": "Vui lòng nhập tên thú cưng",
+        "invalidName": "Tên không hợp lệ",
+        "nameMinLength": "Tên thú cưng phải có ít nhất 2 ký tự",
+        "error": "Lỗi",
+        "userNotFound": "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
+        "success": "Thành công!",
+        "petCreated": "Đã tạo hồ sơ {{name}}. Hãy thêm một số hình ảnh!",
+        "petUpdated": "Đã cập nhật hồ sơ {{name}}. Tiếp tục thêm ảnh!",
+        "createFailed": "Không thể tạo hồ sơ thú cưng. Vui lòng thử lại.",
+        "completeProfile": "Hoàn thành hồ sơ",
+        "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục."
+      },
+      "photos": {
+        "title": "Thêm ảnh",
+        "editTitle": "Ảnh thú cưng",
+        "subtitle": "Thêm ít nhất 3 ảnh để giới thiệu thú cưng của bạn",
+        "step": "Bước 2 / 3",
+        "addPhoto": "Thêm ảnh",
+        "photoLimit": "Giới hạn ảnh",
+        "maxPhotos": "Tối đa {{max}} ảnh được phép",
+        "selectError": "Không thể chọn ảnh. Vui lòng thử lại.",
+        "removePhoto": "Xóa ảnh",
+        "removeConfirm": "Bạn có chắc chắn muốn xóa ảnh này không?",
+        "removeDbPhotoConfirm": "Ảnh này đã được lưu trên server. Bạn có chắc muốn xóa vĩnh viễn không?",
+        "removeButton": "Xóa",
+        "deleteError": "Không thể xóa ảnh. Vui lòng thử lại.",
+        "loadingPhotos": "Đang tải ảnh...",
+        "noNewPhotos": "Không có ảnh mới",
+        "noNewPhotosMessage": "Bạn chưa thêm ảnh mới. Tiếp tục để chỉnh sửa đặc điểm.",
+        "photoBreakdown": "{{db}} ảnh đã lưu • {{new}} ảnh mới",
+        "needMorePhotos": "Cần thêm ảnh",
+        "minPhotosMessage": "Vui lòng thêm ít nhất 3 ảnh (Hiện tại: {{current}}/3)",
+        "photoCount": "{{count}}/{{max}} ảnh",
+        "photoCountReady": "{{count}}/{{max}} ảnh (Sẵn sàng!)",
+        "photoCountNeed": "{{count}}/{{max}} ảnh (Cần {{need}} ảnh nữa)",
+        "continueWithAI": "Tiếp tục với AI",
+        "uploading": "Đang tải lên...",
+        "analyzing": "AI đang phân tích...",
+        "aiAnalysisComplete": "Phân tích AI hoàn tất",
+        "aiAnalysisMessage": "Đã tìm thấy {{count}} đặc điểm. Bạn có thể xem xét và chỉnh sửa tiếp theo.",
+        "aiAnalysisFailed": "Phân tích AI không thành công",
+        "aiAnalysisFailedMessage": "Phân tích AI không khả dụng. Bạn có thể thêm đặc điểm thủ công.",
+        "aiNotAvailable": "Tính năng phân tích AI hiện không khả dụng từ khu vực này. Bạn có thể tiếp tục và thêm đặc điểm thủ công.",
+        "aiApiKeyError": "Lỗi cấu hình AI. Vui lòng thử lại sau.",
+        "aiQuotaExceeded": "Đã vượt quá giới hạn phân tích AI. Vui lòng thử lại sau.",
+        "notCatPhoto": "Ảnh không hợp lệ",
+        "uploadFailed": "Không thể tải ảnh lên. Vui lòng thử lại.",
+        "tips": {
+          "title": "Mẹo chụp ảnh",
+          "clearPhoto": "Sử dụng ảnh rõ ràng, ánh sáng tốt",
+          "showPersonality": "Thể hiện tính cách thú cưng của bạn",
+          "includeVariety": "Bao gồm ảnh toàn thân và cận cảnh"
+        },
+        "completeProfile": "Hoàn thành hồ sơ",
+        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
+        "editBasicInfo": "Sửa thông tin cơ bản",
+        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?"
+      },
+      "characteristics": {
+        "title": "Đặc điểm thú cưng",
+        "editTitle": "Chỉnh sửa đặc điểm",
+        "subtitle": "Giúp mọi người hiểu rõ hơn về thú cưng của bạn",
+        "editSubtitle": "Cập nhật thông tin thú cưng của bạn",
+        "step": "Bước 3 / 3",
+        "loading": "Đang tải thuộc tính...",
+        "error": "Lỗi",
+        "petNotFound": "Không tìm thấy thông tin thú cưng. Vui lòng thử lại.",
+        "loadFailed": "Không thể tải đặc điểm. Vui lòng thử lại.",
+        "enterValue": "Nhập {{name}}",
+        "aiBanner": {
+          "title": "Phân tích AI hoàn tất!",
+          "message": "Đã phát hiện {{count}} đặc điểm. Hãy xem xét và chỉnh sửa nếu cần."
+        },
+        "aiBadge": "AI",
+        "currentValue": "Giá trị hiện tại",
+        "infoCard": "Những thông tin này giúp chúng tôi tìm được bạn đồng hành hoàn hảo cho thú cưng của bạn. Bạn có thể cập nhật bất cứ lúc nào.",
+        "continueButton": "Tiếp tục",
+        "saveButton": "Lưu thay đổi",
+        "success": "Thành công!",
+        "profileCreated": "Hồ sơ thú cưng của bạn đã được tạo thành công!",
+        "characteristicsUpdated": "Đã cập nhật thuộc tính thú cưng thành công!",
+        "backToProfile": "Về trang cá nhân",
+        "saveFailed": "Không thể lưu thuộc tính. Vui lòng thử lại.",
+        "updateFailed": "Không thể cập nhật thuộc tính. Vui lòng thử lại.",
+        "completeProfile": "Hoàn thành hồ sơ",
+        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục."
+      }
+    },
+    "onboarding": {
+      "title": "Thiết lập sở thích",
+      "skip": "Bỏ qua",
+      "back": "Quay lại",
+      "continue": "Tiếp tục",
+      "finish": "Hoàn tất",
+      "loading": "Đang tải...",
+      "error": "Lỗi",
+      "userNotFound": "Không tìm thấy thông tin người dùng",
+      "loadFailed": "Không thể tải dữ liệu",
+      "saveFailed": "Không thể lưu sở thích",
+      "complete": "Hoàn tất",
+      "completeWithPrefs": "Đã lưu {{count}} sở thích. Sẵn sàng tìm bạn đồng hành!",
+      "completeWithoutPrefs": "Bạn có thể cập nhật sở thích sau. Sẵn sàng khám phá!",
+      "steps": {
+        "gender": {
+          "title": "Giới tính bạn mong muốn?",
+          "subtitle": "Chọn giới tính thú cưng bạn muốn tìm"
+        },
+        "appearance": {
+          "title": "Ngoại hình bạn thích?",
+          "subtitle": "Chọn các đặc điểm ngoại hình bạn ưa thích"
+        },
+        "size": {
+          "title": "Kích thước mong muốn?",
+          "subtitle": "Chọn khoảng cân nặng và chiều cao",
+          "weight": "Cân nặng (kg)",
+          "height": "Chiều cao (cm)",
+          "from": "Từ",
+          "to": "Đến"
+        },
+        "distance": {
+          "title": "Khoảng cách tối đa?",
+          "subtitle": "Bạn sẵn sàng đi bao xa để gặp bạn đồng hành?"
+        }
+      }
+    }
+  },
+
+  "home": {
+    "title": "Khám phá",
+    "noMorePets": "Hết thú cưng rồi!",
+    "noMorePetsDesc": "Quay lại sau để xem thêm những cặp đôi đáng yêu",
+    "noMorePetsSubtitle": "Hoặc điều chỉnh bộ lọc để xem thêm thú cưng",
+    "reload": "Tải lại",
+    "adjustFilters": "Điều chỉnh bộ lọc",
+    "like": "THÍCH",
+    "pass": "BỎ QUA",
+    "owner": "Chủ: {{name}}",
+    "matchLimit": "Bạn đã hết lượt gửi match hôm nay!",
+    "loginSuccess": "Đăng nhập thành công",
+    "welcome": "Chào mừng",
+    "loadError": "Không thể tải lại danh sách pets. Vui lòng thử lại.",
+    "petAge": "{{age}} tuổi",
+    "unknownBreed": "Không rõ",
+    "noDescription": "Chưa có mô tả",
+    "filter": {
+      "title": "Bộ lọc",
+      "clear": "Xóa",
+      "tips": "💡 Mẹo nhỏ",
+      "distance": "Khoảng cách",
+      "all": "Tất cả",
+      "appearance": "Ngoại hình",
+      "priority": "Ưu tiên",
+      "recommended": "Nên chọn",
+      "apply": "Áp dụng bộ lọc",
+      "applyWithCount": "Áp dụng bộ lọc ({{count}})",
+      "saveSuccess": "Thành công",
+      "saveSuccessMessage": "Bộ lọc đã được áp dụng thành công",
+      "saveError": "Lỗi khi lưu",
+      "unknownError": "Lỗi không xác định. Vui lòng thử lại."
+    }
+  },
+
+  "navigation": {
+    "home": "Trang chủ",
+    "chat": "Tin nhắn",
+    "favorite": "Yêu thích",
+    "profile": "Hồ sơ"
+  },
+
+  "errors": {
+    "network": "Lỗi kết nối mạng",
+    "server": "Lỗi máy chủ",
+    "unknown": "Đã xảy ra lỗi",
+    "tryAgain": "Vui lòng thử lại",
+    "sessionExpired": "Phiên đăng nhập hết hạn",
+    "unauthorized": "Không có quyền truy cập",
+    "notFound": "Không tìm thấy",
+    "validation": {
+      "required": "Trường này là bắt buộc",
+      "email": "Email không hợp lệ",
+      "phone": "Số điện thoại không hợp lệ",
+      "password": "Mật khẩu phải có ít nhất 6 ký tự",
+      "passwordMatch": "Mật khẩu không khớp"
+    }
+  },
+
+  "chat": {
+    "title": "Tin nhắn",
+    "searchPlaceholder": "Tìm kiếm cuộc trò chuyện...",
+    "startConversation": "Bắt đầu trò chuyện!",
+    "noChats": "Chưa có cuộc trò chuyện",
+    "noChatsDesc": "Kết nối với chủ thú cưng khác để bắt đầu trò chuyện!",
+    "noSearchResults": "Không tìm thấy kết quả",
+    "noSearchResultsDesc": "Thử tìm kiếm với tên hoặc tin nhắn khác",
+    "filter": {
+      "all": "Tất cả",
+      "unread": "Chưa đọc"
+    },
+    "time": {
+      "justNow": "Vừa xong",
+      "minutesAgo": "{{count}} phút",
+      "hoursAgo": "{{count}} giờ",
+      "yesterday": "Hôm qua",
+      "daysAgo": "{{count}} ngày"
+    },
+    "specialChat": {
+      "aiTitle": "Trợ lý AI",
+      "aiSubtitle": "Tư vấn tức thì",
+      "expertTitle": "Chuyên gia",
+      "expertSubtitle": "Tư vấn chuyên sâu"
+    },
+    "detail": {
+      "typing": "đang nhập...",
+      "online": "Đang hoạt động",
+      "offline": "Ngoại tuyến",
+      "inputPlaceholder": "Nhập tin nhắn...",
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua",
+      "loadError": "Không thể tải tin nhắn. Vui lòng thử lại.",
+      "sendError": "Không thể gửi tin nhắn. Vui lòng thử lại.",
+      "sendErrorTitle": "Lỗi gửi tin nhắn",
+      "retryButton": "Thử lại"
+    },
+    "menu": {
+      "viewProfile": "Xem hồ sơ",
+      "unmatch": "Hủy kết nối",
+      "block": "Chặn người dùng",
+      "report": "Báo cáo",
+      "deleteChat": "Xóa cuộc trò chuyện"
+    },
+    "unmatch": {
+      "title": "Hủy kết nối",
+      "message": "Bạn có chắc muốn hủy kết nối với {{name}}? Cuộc trò chuyện sẽ bị ẩn và bạn không thể nhắn tin với nhau nữa.",
+      "success": "Đã hủy kết nối",
+      "successMessage": "Bạn đã hủy kết nối với {{name}}. Cuộc trò chuyện đã bị ẩn."
+    },
+    "block": {
+      "title": "Chặn người dùng",
+      "message": "Bạn có chắc muốn chặn {{name}}? Bạn sẽ không thể nhắn tin với nhau nữa và match sẽ bị hủy.",
+      "success": "Đã chặn",
+      "successMessage": "{{name}} đã bị chặn. Cuộc trò chuyện đã bị ẩn."
+    },
+    "deleteChat": {
+      "title": "Xóa cuộc trò chuyện",
+      "message": "Xóa cuộc trò chuyện với {{name}}? Bạn vẫn còn kết nối và có thể bắt đầu chat mới. Để xóa kết nối hoàn toàn, hãy dùng \"Hủy kết nối\".",
+      "success": "Đã xóa",
+      "successMessage": "Cuộc trò chuyện đã được xóa. Bạn vẫn còn kết nối."
+    },
+    "report": {
+      "title": "Báo cáo tin nhắn",
+      "success": "Đã báo cáo",
+      "successMessage": "Đã báo cáo tin nhắn và chặn {{name}}. Cuộc trò chuyện đã bị ẩn."
+    },
+    "profile": {
+      "noPetInfo": "Người dùng này chưa có thông tin thú cưng",
+      "petNotFound": "Không tìm thấy thông tin thú cưng",
+      "loadError": "Không thể tải thông tin profile. Vui lòng thử lại."
+    },
+    "ai": {
+      "title": "Trợ lý AI thú cưng",
+      "listTitle": "AI Pet Assistant",
+      "welcome": "Xin chào! 👋 Tôi là Trợ lý AI Chăm sóc Thú cưng. Tôi ở đây để giúp bạn với mọi câu hỏi về mèo của bạn! Tôi có thể giúp gì cho bạn hôm nay?",
+      "suggestions": {
+        "careTips": "Mẹo chăm sóc",
+        "healthAdvice": "Tư vấn sức khỏe",
+        "trainingTips": "Mẹo huấn luyện",
+        "nutritionGuide": "Hướng dẫn dinh dưỡng"
+      },
+      "typing": "đang nhập...",
+      "loading": "Đang tải...",
+      "loadingChat": "Đang tải cuộc trò chuyện...",
+      "inputPlaceholder": "Hỏi tôi bất cứ điều gì về chăm sóc mèo...",
+      "tokenUsage": "{{used}}/{{total}} tokens",
+      "limitReached": "Đã đạt giới hạn (100%)",
+      "loadError": "Không thể tải lịch sử chat",
+      "sendError": "Không thể gửi tin nhắn. Vui lòng kiểm tra kết nối.",
+      "createChatFirst": "Vui lòng tạo cuộc trò chuyện mới trước",
+      "aiOverloaded": "AI đang quá tải",
+      "aiOverloadedMessage": "AI đang mất nhiều thời gian để xử lý. Vui lòng thử lại sau vài giây.",
+      "aiLabel": "Trợ lý AI"
+    },
+    "aiList": {
+      "infoBanner": "Nhận tư vấn chăm sóc thú cưng tức thì từ AI. Hỏi chuyên gia để xác nhận!",
+      "newChat": "Cuộc trò chuyện mới",
+      "yourChats": "Cuộc trò chuyện của bạn",
+      "chatCount": "{{count}} cuộc trò chuyện",
+      "messageCount": "{{count}} tin nhắn",
+      "startChat": "Bắt đầu cuộc trò chuyện...",
+      "noChats": "Chưa có cuộc trò chuyện",
+      "noChatsDesc": "Bắt đầu cuộc trò chuyện mới để nhận tư vấn chăm sóc thú cưng từ AI",
+      "deleteTitle": "Xóa cuộc trò chuyện",
+      "deleteMessage": "Xóa \"{{title}}\"? Không thể hoàn tác.",
+      "renameTitle": "Đổi tên cuộc trò chuyện",
+      "renamePlaceholder": "Nhập tên mới...",
+      "renameEmpty": "Vui lòng nhập tên cuộc trò chuyện",
+      "renameMinLength": "Tên cuộc trò chuyện phải có ít nhất 2 ký tự",
+      "renameError": "Không thể đổi tên cuộc trò chuyện",
+      "createError": "Không thể tạo chat",
+      "createErrorMessage": "Vui lòng thử lại sau",
+      "deleteError": "Không thể xóa cuộc trò chuyện",
+      "userNotFound": "Không tìm thấy thông tin người dùng",
+      "timeAgo": {
+        "justNow": "Vừa xong",
+        "minutes": "{{count}} phút trước",
+        "hours": "{{count}} giờ trước",
+        "yesterday": "Hôm qua",
+        "days": "{{count}} ngày trước"
+      }
+    },
+    "expert": {
+      "askExpert": "Hỏi chuyên gia xác nhận",
+      "sentToExpert": "Đã gửi cho chuyên gia",
+      "modalTitle": "Yêu cầu chuyên gia xác nhận",
+      "modalDescription": "Nhập câu hỏi của bạn để chuyên gia thú y có thể hiểu rõ vấn đề và đưa ra lời khuyên chính xác nhất.",
+      "aiResponseHeader": "Câu trả lời của AI",
+      "questionLabel": "Câu hỏi/thắc mắc của bạn về câu trả lời này",
+      "required": "*",
+      "questionHint": "Hãy mô tả chi tiết vấn đề hoặc thắc mắc của bạn để chuyên gia có thể tư vấn chính xác",
+      "questionPlaceholder": "Ví dụ: Mèo của tôi bị chảy nước mắt và hắt hơi liên tục. Có phải mèo bị cảm không? Tôi cần làm gì?",
+      "charCount": "{{count}}/500",
+      "infoText": "Chuyên gia sẽ xem xét câu hỏi và câu trả lời của AI, sau đó gửi phản hồi cho bạn qua thông báo.",
+      "submitButton": "Gửi yêu cầu",
+      "successTitle": "Đã gửi yêu cầu!",
+      "successMessage": "Yêu cầu của bạn đã được gửi đến chuyên gia. Bạn sẽ nhận được thông báo khi họ phản hồi.",
+      "viewRequests": "Xem yêu cầu của tôi",
+      "emptyQuestion": "Vui lòng nhập câu hỏi của bạn",
+      "saveChatFirst": "Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia",
+      "submitError": "Không thể gửi yêu cầu. Vui lòng thử lại."
+    }
+  },
+
+  "alerts": {
+    "info": "Thông báo",
+    "warning": "Cảnh báo",
+    "error": "Lỗi",
+    "success": "Thành công"
+  },
+
+  "settings": {
+    "title": "Cài đặt",
+    "sections": {
+      "account": "Tài khoản",
+      "appSettings": "Cài đặt ứng dụng",
+      "premium": "Premium & Thanh toán",
+      "support": "Hỗ trợ",
+      "dangerZone": "Vùng nguy hiểm"
+    },
+    "account": {
+      "editProfile": "Chỉnh sửa hồ sơ",
+      "editProfileDesc": "Cập nhật thông tin cá nhân của bạn",
+      "myPets": "Thú cưng của tôi",
+      "myPetsDesc": "Quản lý hồ sơ thú cưng của bạn",
+      "changePassword": "Đổi mật khẩu",
+      "changePasswordDesc": "Cập nhật mật khẩu của bạn"
+    },
+    "appSettings": {
+      "expertConfirmation": "Xác nhận chuyên gia",
+      "expertConfirmationDesc": "Xem phản hồi AI đã được chuyên gia xác nhận",
+      "blockedUsers": "Người dùng bị chặn",
+      "blockedUsersDesc": "Quản lý tài khoản bị chặn",
+      "myReports": "Báo cáo của tôi",
+      "myReportsDesc": "Xem nội dung bạn đã báo cáo",
+      "notifications": "Thông báo",
+      "notificationsDesc": "Xem thông báo của bạn"
+    },
+    "premiumSection": {
+      "pawnderPremium": "Pawnder Premium",
+      "pawnderPremiumDesc": "Mở khóa các tính năng độc quyền",
+      "paymentHistory": "Lịch sử thanh toán",
+      "paymentHistoryDesc": "Xem lịch sử giao dịch của bạn"
+    },
+    "supportSection": {
+      "helpSupport": "Trợ giúp & Hỗ trợ",
+      "helpSupportDesc": "Nhận trợ giúp và liên hệ hỗ trợ",
+      "terms": "Điều khoản & Điều kiện",
+      "termsDesc": "Đọc điều khoản dịch vụ của chúng tôi",
+      "privacy": "Chính sách bảo mật",
+      "privacyDesc": "Đọc chính sách bảo mật của chúng tôi"
+    },
+    "danger": {
+      "logout": "Đăng xuất",
+      "logoutTitle": "Đăng xuất",
+      "logoutConfirm": "Bạn có chắc chắn muốn đăng xuất?",
+      "deleteAccount": "Xóa tài khoản",
+      "deleteAccountTitle": "Xóa tài khoản",
+      "deleteAccountConfirm": "Hành động này không thể hoàn tác. Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn."
+    },
+    "vip": {
+      "active": "ACTIVE",
+      "expireDate": "Hết hạn {{date}} • Còn {{days}} ngày",
+      "upgrade": "Nâng cấp",
+      "unlockPremium": "Mở khóa Pawnder Premium",
+      "unlockDesc": "Tăng giới hạn ghép đôi, AI và nhiều hơn nữa"
+    },
+    "version": "Phiên bản {{version}}",
+    "changePassword": {
+      "title": "Đổi mật khẩu",
+      "subtitle": "Đảm bảo mật khẩu mới của bạn mạnh và an toàn",
+      "currentPassword": "Mật khẩu hiện tại",
+      "newPassword": "Mật khẩu mới",
+      "confirmPassword": "Xác nhận mật khẩu mới",
+      "changeButton": "Đổi mật khẩu",
+      "changingButton": "Đang đổi...",
+      "forgotPassword": "Quên mật khẩu hiện tại?",
+      "successTitle": "Thành công",
+      "successMessage": "Đổi mật khẩu thành công!",
+      "requirements": {
+        "title": "Yêu cầu mật khẩu:",
+        "minLength": "Ít nhất 8 ký tự",
+        "hasNumber": "Chứa ít nhất 1 chữ số",
+        "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
+        "differentFromCurrent": "Khác với mật khẩu hiện tại"
+      },
+      "errors": {
+        "enterCurrentPassword": "Vui lòng nhập mật khẩu hiện tại",
+        "enterNewPassword": "Vui lòng nhập mật khẩu mới",
+        "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+        "passwordNeedsNumber": "Mật khẩu phải chứa ít nhất 1 chữ số",
+        "passwordNeedsSpecial": "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
+        "passwordSameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại",
+        "passwordMismatch": "Mật khẩu không khớp",
+        "changeFailed": "Không thể thay đổi mật khẩu. Vui lòng thử lại."
+      },
+      "featureInDevelopment": "Tính năng đổi mật khẩu đang được phát triển. Vui lòng thử lại sau."
+    },
+    "helpAndSupport": {
+      "title": "Trợ giúp & Hỗ trợ",
+      "contactUs": "Contact Us",
+      "email": "Email",
+      "call": "Call",
+      "liveChat": "Live Chat",
+      "faq": "Frequently Asked Questions",
+      "sendMessage": "Send us a message",
+      "messagePlaceholder": "Describe your issue or question...",
+      "sendButton": "Send Message",
+      "messageSent": "Tin nhắn đã được gửi! Chúng tôi sẽ phản hồi sớm.",
+      "resources": "Resources & Policies"
+    },
+    "resources": {
+      "termsOfService": "Điều khoản dịch vụ",
+      "termsDesc": "Đọc điều khoản và điều kiện của chúng tôi",
+      "privacyPolicy": "Chính sách bảo mật",
+      "privacyDesc": "Cách chúng tôi bảo vệ dữ liệu của bạn",
+      "communityGuidelines": "Nguyên tắc cộng đồng",
+      "communityDesc": "Quy tắc tương tác tôn trọng",
+      "userGuide": "Hướng dẫn sử dụng",
+      "userGuideDesc": "Tìm hiểu cách sử dụng Pawnder",
+      "safetyTips": "Mẹo an toàn",
+      "safetyDesc": "Giữ an toàn trên Pawnder",
+      "aboutPawnder": "Về Pawnder",
+      "aboutDesc": "Sứ mệnh và câu chuyện của chúng tôi"
+    },
+    "expertConfirmation": {
+      "title": "Yêu cầu chuyên gia",
+      "stats": {
+        "answered": "Đã trả lời",
+        "pending": "Chờ xử lý",
+        "total": "Tổng cộng"
+      },
+      "filter": {
+        "showAll": "Hiển thị tất cả {{count}} yêu cầu",
+        "showAnswered": "{{count}} yêu cầu đã được trả lời",
+        "showPending": "{{count}} yêu cầu đang chờ xử lý"
+      },
+      "infoBanner": "Các chuyên gia thú y được chứng nhận sẽ xem xét câu trả lời của AI",
+      "loading": "Đang tải yêu cầu...",
+      "requestCard": {
+        "title": "Yêu cầu chuyên gia",
+        "requestContent": "Nội dung yêu cầu:",
+        "expertResponse": "Phản hồi của chuyên gia:",
+        "respondedAt": "Trả lời lúc: {{time}}",
+        "chatWithExpert": "Nhắn tin với chuyên gia",
+        "pendingMessage": "Đang chờ chuyên gia xem xét. Bạn sẽ nhận được thông báo khi có phản hồi."
+      },
+      "status": {
+        "pending": "Đang chờ",
+        "answered": "Đã trả lời",
+        "rejected": "Bị từ chối",
+        "unknown": "Không rõ"
+      },
+      "empty": {
+        "all": {
+          "title": "Chưa có yêu cầu chuyên gia",
+          "message": "Khi bạn cần chuyên gia xác nhận lời khuyên của AI, các yêu cầu sẽ xuất hiện ở đây"
+        },
+        "answered": {
+          "title": "Chưa có yêu cầu được trả lời",
+          "message": "Các yêu cầu đã được chuyên gia trả lời sẽ xuất hiện ở đây"
+        },
+        "pending": {
+          "title": "Chưa có yêu cầu đang chờ",
+          "message": "Các yêu cầu đang chờ chuyên gia xử lý sẽ xuất hiện ở đây"
+        }
+      },
+      "time": {
+        "justNow": "Vừa xong",
+        "minutesAgo": "{{count}} phút trước",
+        "hoursAgo": "{{count}} giờ trước",
+        "yesterday": "Hôm qua",
+        "daysAgo": "{{count}} ngày trước"
+      },
+      "errors": {
+        "userNotFound": "Không tìm thấy thông tin người dùng",
+        "expertNotFound": "Không tìm thấy thông tin chuyên gia",
+        "createChatFailed": "Không thể tạo chat với chuyên gia"
+      }
+    }
+  },
+
+  "payment": {
+    "premium": {
+      "title": "Pawnder Premium",
+      "subtitle": "Nâng cao trải nghiệm ghép đôi cho thú cưng của bạn",
+      "price": "99,000₫",
+      "pricePerMonth": "/tháng",
+      "sectionFeatures": "Tính năng Premium",
+      "sectionBenefits": "Những gì bạn nhận được",
+      "sectionComparison": "Miễn phí vs Premium",
+      "sectionChoosePlan": "Chọn gói của bạn",
+      "features": {
+        "matchRequests": "Gửi yêu cầu ghép đôi",
+        "expertChat": "Chat với chuyên gia",
+        "expertConfirmation": "Xác nhận từ chuyên gia",
+        "aiTokens": "Chat AI (Tokens)",
+        "premiumBadge": "Huy hiệu Premium",
+        "yes": "Có",
+        "no": "Không",
+        "comparison": {
+          "matchFree": "10/ngày",
+          "matchPremium": "30/ngày",
+          "expertChatFree": "5 tin nhắn/ngày",
+          "expertChatPremium": "15 tin nhắn/ngày",
+          "expertConfirmFree": "2/ngày",
+          "expertConfirmPremium": "10/ngày",
+          "aiTokensFree": "10,000 tokens/ngày",
+          "aiTokensPremium": "50,000 tokens/ngày"
+        }
+      },
+      "benefits": {
+        "matchTitle": "3x Lượt ghép đôi",
+        "matchDesc": "30 lượt/ngày thay vì 10",
+        "expertChatTitle": "3x Chat chuyên gia",
+        "expertChatDesc": "15 tin nhắn/ngày thay vì 5",
+        "aiTokensTitle": "5x Tokens AI",
+        "aiTokensDesc": "50,000 tokens/ngày thay vì 10,000",
+        "badgeTitle": "Huy hiệu Premium",
+        "badgeDesc": "Nổi bật với huy hiệu đặc biệt"
+      },
+      "details": {
+        "matchTitle": "Tăng 3 lần lượt ghép đôi",
+        "matchDesc": "Gửi 30 yêu cầu ghép đôi mỗi ngày thay vì chỉ 10 lượt",
+        "expertChatTitle": "Tăng 3 lần chat chuyên gia",
+        "expertChatDesc": "Chat với chuyên gia 15 tin nhắn/ngày thay vì chỉ 5 tin nhắn",
+        "expertConfirmTitle": "Tăng 5 lần xác nhận chuyên gia",
+        "expertConfirmDesc": "Nhận 10 xác nhận từ chuyên gia mỗi ngày thay vì chỉ 2 lần",
+        "aiTokensTitle": "Tăng 5 lần tokens AI",
+        "aiTokensDesc": "Sử dụng 50,000 tokens AI mỗi ngày thay vì chỉ 10,000 tokens",
+        "badgeTitle": "Huy hiệu Premium",
+        "badgeDesc": "Nhận huy hiệu Premium để nổi bật và tăng uy tín"
+      },
+      "comparison": {
+        "feature": "Tính năng",
+        "free": "Miễn phí",
+        "premium": "Premium"
+      },
+      "plans": {
+        "month1": "1 Tháng",
+        "month3": "3 Tháng",
+        "month6": "6 Tháng",
+        "month12": "12 Tháng",
+        "perMonth": "/tháng",
+        "mostPopular": "PHỔ BIẾN NHẤT"
+      },
+      "subscribeButton": "Nâng cấp Premium ngay",
+      "disclaimer": "Hủy bất cứ lúc nào • Thanh toán an toàn • Kích hoạt ngay lập tức",
+      "alreadyVip": "Bạn đã là thành viên VIP",
+      "alreadyVipHint": "Gói VIP của bạn đang hoạt động. Bạn có thể gia hạn khi gói hiện tại hết hạn.",
+      "vipActive": {
+        "title": "Pawnder Premium",
+        "active": "ĐANG HOẠT ĐỘNG",
+        "expireDate": "Hết hạn {{date}} • Còn {{days}} ngày"
+      }
+    },
+    "history": {
+      "title": "Lịch sử thanh toán",
+      "loading": "Đang tải lịch sử thanh toán...",
+      "userNotFound": "Không tìm thấy thông tin người dùng",
+      "loadError": "Không thể tải lịch sử thanh toán",
+      "retry": "Thử lại",
+      "summary": {
+        "totalSpent": "Tổng chi tiêu",
+        "transactions": "Giao dịch"
+      },
+      "status": {
+        "success": "Thành công",
+        "pending": "Chờ xử lý",
+        "failed": "Thất bại",
+        "active": "Đang hoạt động",
+        "expired": "Đã hết hạn",
+        "premiumActive": "Premium Active",
+        "premiumExpired": "Premium Expired"
+      },
+      "paymentMethod": "Chuyển khoản QR",
+      "daysRemaining": "Còn {{count}} ngày",
+      "empty": {
+        "title": "Chưa có lịch sử thanh toán",
+        "subtitle": "Your payment transactions will appear here",
+        "upgradePremium": "Nâng cấp Premium"
+      }
+    },
+    "qr": {
+      "title": "Thanh toán",
+      "planLabel": "Gói dịch vụ",
+      "durationLabel": "Thời hạn",
+      "amountLabel": "Số tiền",
+      "scanTitle": "Quét mã QR để thanh toán",
+      "scanSubtitle": "Mở ứng dụng ngân hàng và quét mã QR bên dưới",
+      "generating": "Đang tạo mã QR...",
+      "generateError": "Không thể tạo mã QR. Vui lòng thử lại.",
+      "retry": "Thử lại",
+      "instructions": {
+        "step1": "Mở ứng dụng ngân hàng của bạn",
+        "step2": "Chọn chức năng quét mã QR",
+        "step3": "Quét mã QR và xác nhận thanh toán"
+      },
+      "doneButton": "Đã thanh toán",
+      "processing": "Đang xử lý...",
+      "disclaimer": "Giao dịch sẽ được xử lý trong vòng 5-10 phút",
+      "success": {
+        "title": "Thanh toán thành công",
+        "message": "Bạn đã nâng cấp lên {{planName}}!\n\nThời hạn: {{duration}}\nCảm ơn bạn đã tin tưởng sử dụng dịch vụ!",
+        "button": "Tuyệt vời!"
+      },
+      "error": {
+        "title": "Lỗi",
+        "userNotFound": "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
+        "invalidUser": "Thông tin người dùng không hợp lệ.",
+        "paymentFailed": "Không thể hoàn tất thanh toán. Vui lòng thử lại.",
+        "paymentError": "Lỗi thanh toán",
+        "genericError": "Đã có lỗi xảy ra. Vui lòng thử lại sau."
+      },
+      "notFound": {
+        "title": "Chưa tìm thấy giao dịch",
+        "message": "Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền và nội dung, sau đó thử lại.",
+        "tryAgain": "Thử lại"
+      }
+    },
+    "vip": {
+      "active": "ACTIVE",
+      "expireDate": "Hết hạn {{date}} • Còn {{days}} ngày",
+      "upgrade": "Nâng cấp",
+      "unlockPremium": "Mở khóa Pawnder Premium",
+      "unlockDesc": "Tăng giới hạn ghép đôi, AI và nhiều hơn nữa"
+    }
+  },
+
+  "profile": {
+    "title": "Hồ sơ của tôi",
+    "loading": "Đang tải hồ sơ...",
+    "loadError": "Không thể tải thông tin profile",
+    "userNotFound": "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
+    "about": "Về {{name}}",
+    "aboutPet": "Về thú cưng",
+    "noDescription": "Chưa có mô tả",
+    "characteristics": "Đặc điểm",
+    "attributeCount": "{{count}} thuộc tính",
+    "notSet": "Chưa đặt",
+    "showMore": "Xem thêm {{count}}",
+    "showLess": "Thu gọn",
+    "unknownBreed": "Không rõ giống",
+    "unknownAge": "Không rõ",
+    "ageYears": "{{age}} tuổi",
+    "myPets": {
+      "title": "Thú cưng của tôi",
+      "count": "Thú cưng của tôi ({{count}})",
+      "subtitle": "Nhấn để đặt thú cưng hoạt động để ghép đôi",
+      "addPet": "Thêm thú cưng",
+      "maxPetsReached": "Giới hạn thú cưng",
+      "maxPetsMessage": "Bạn đã có tối đa {{max}} thú cưng. Vui lòng xóa một thú cưng trước khi thêm mới.",
+      "active": "Hoạt động",
+      "setActive": "Đặt hoạt động",
+      "alreadyActive": "Đã kích hoạt",
+      "alreadyActiveMessage": "{{name}} đã là thú cưng đang hoạt động của bạn!",
+      "setActiveTitle": "Đặt pet hoạt động",
+      "setActiveMessage": "Bạn muốn đặt {{name}} làm pet hoạt động để matching?",
+      "setActiveSuccess": "{{name}} giờ là pet hoạt động của bạn!",
+      "setActiveError": "Không thể đặt pet hoạt động. Vui lòng thử lại."
+    },
+    "deletePet": {
+      "title": "Xóa thú cưng? 🗑️",
+      "message": "Bạn có chắc muốn xóa {{name}}? Hành động này sẽ xóa tất cả dữ liệu liên quan đến thú cưng này (ảnh, đặc điểm, ghép đôi).",
+      "confirmText": "Xóa",
+      "successTitle": "Đã xóa! 👋",
+      "successMessage": "{{name}} đã được xóa thành công.",
+      "error": "Không thể xóa thú cưng. Vui lòng thử lại."
+    },
+    "owner": {
+      "title": "Thông tin chủ sở hữu",
+      "edit": "Sửa",
+      "memberSince": "Thành viên từ {{date}}",
+      "noLocation": "Chưa đặt vị trí"
+    },
+    "edit": {
+      "title": "Chỉnh sửa hồ sơ",
+      "personalInfo": "Thông tin cá nhân",
+      "fullName": "Họ và tên",
+      "fullNamePlaceholder": "Nhập tên của bạn",
+      "email": "Email",
+      "emailPlaceholder": "Nhập email của bạn",
+      "emailCannotChange": "Email không thể thay đổi",
+      "gender": "Giới tính",
+      "male": "Nam",
+      "female": "Nữ",
+      "location": "Vị trí (GPS)",
+      "gpsInfo": "Nhấn nút bên dưới để tự động lấy vị trí từ GPS của bạn",
+      "getGpsLocation": "Lấy vị trí GPS",
+      "gettingLocation": "Đang lấy vị trí...",
+      "currentLocation": "Vị trí hiện tại:",
+      "noCurrentLocation": "Chưa có",
+      "saveChanges": "Lưu thay đổi",
+      "saving": "Đang lưu...",
+      "saveSuccess": "Đã cập nhật thông tin!",
+      "saveError": "Không thể lưu thông tin",
+      "locationError": "Không thể lấy vị trí GPS. Vui lòng thử lại.",
+      "locationDenied": "Bạn đã từ chối quyền truy cập vị trí. Vui lòng bật GPS trong cài đặt.",
+      "locationSuccess": "Đã cập nhật vị trí từ GPS.",
+      "validation": {
+        "missingInfo": "Thiếu thông tin",
+        "enterName": "Vui lòng nhập họ tên",
+        "invalidName": "Tên không hợp lệ",
+        "nameMinLength": "Họ tên phải có ít nhất 2 ký tự"
+      }
+    },
+    "petInfo": {
+      "age": "{{age}} tuổi",
+      "unknown": "Không rõ",
+      "noDescription": "Chưa có mô tả",
+      "breed": "Giống",
+      "gender": "Giới tính",
+      "location": "Vị trí"
+    },
+    "petProfile": {
+      "loading": "Đang tải hồ sơ thú cưng...",
+      "loadError": "Không tìm thấy thông tin pet",
+      "unknownBreed": "Không rõ",
+      "unknownLocation": "Không rõ vị trí",
+      "quickStats": {
+        "breed": "Giống",
+        "age": "Tuổi",
+        "gender": "Giới tính"
+      },
+      "owner": {
+        "title": "Chủ sở hữu",
+        "fullAddress": "Địa chỉ đầy đủ"
+      },
+      "actions": {
+        "sendMatchRequest": "Gửi yêu cầu ghép đôi",
+        "sending": "Đang gửi...",
+        "block": "Chặn"
+      },
+      "block": {
+        "title": "Chặn người dùng",
+        "message": "Bạn có chắc muốn chặn {{name}}? Bạn sẽ không thấy thú cưng của họ nữa.",
+        "confirmText": "Chặn",
+        "success": "Đã chặn",
+        "successMessage": "{{name}} đã bị chặn.",
+        "error": "Không thể chặn người dùng"
+      },
+      "match": {
+        "successTitle": "Ghép đôi thành công",
+        "successMessage": "Bạn đã ghép đôi với {{name}}! Bây giờ bạn có thể trò chuyện với họ.",
+        "goToChat": "Go to Chat",
+        "requestSentTitle": "Đã gửi yêu cầu ghép đôi! 💌",
+        "requestSentMessage": "Yêu cầu ghép đôi của bạn đã được gửi đến {{name}}. Họ sẽ thấy trong mục Yêu thích.",
+        "needActivePet": "Bạn cần có một pet đang hoạt động để gửi like",
+        "ownerNotFound": "Không tìm thấy thông tin chủ pet"
+      }
+    },
+    "editPet": {
+      "title": "Chỉnh sửa hồ sơ thú cưng",
+      "loading": "Đang tải...",
+      "loadError": "Không tìm thấy thông tin pet",
+      "changePhoto": "Đổi ảnh thú cưng",
+      "photos": {
+        "title": "Ảnh thú cưng",
+        "count": "Ảnh thú cưng ({{current}}/{{max}})",
+        "limitTitle": "Giới hạn ảnh",
+        "limitMessage": "Chỉ có thể thêm tối đa {{max}} ảnh",
+        "uploadSuccess": "Đã thêm ảnh mới!",
+        "uploadError": "Không thể upload ảnh. Vui lòng thử lại.",
+        "deleteTitle": "Xóa ảnh",
+        "deleteMessage": "Bạn có chắc muốn xóa ảnh này?",
+        "deleteConfirm": "Xóa",
+        "deleteSuccess": "Đã xóa ảnh!",
+        "deleteError": "Không thể xóa ảnh. Vui lòng thử lại.",
+        "cannotDelete": "Không thể xóa",
+        "minPhotosRequired": "Phải có ít nhất 1 ảnh cho pet.",
+        "reorderError": "Không thể sắp xếp lại ảnh. Vui lòng thử lại."
+      },
+      "form": {
+        "title": "Thông tin thú cưng",
+        "name": "Tên thú cưng",
+        "namePlaceholder": "Nhập tên thú cưng",
+        "breed": "Giống",
+        "breedPlaceholder": "Nhập giống",
+        "age": "Tuổi (năm)",
+        "agePlaceholder": "Nhập tuổi (năm)",
+        "gender": "Giới tính",
+        "male": "Đực",
+        "female": "Cái",
+        "description": "Mô tả",
+        "descriptionPlaceholder": "Mô tả thú cưng của bạn"
+      },
+      "editCharacteristics": "Chỉnh sửa đặc điểm",
+      "ownerLocation": {
+        "title": "Vị trí chủ sở hữu",
+        "noLocation": "Chưa đặt vị trí",
+        "note": "Vị trí thú cưng được kế thừa từ tài khoản của bạn. Cập nhật vị trí trong cài đặt hồ sơ."
+      },
+      "saveChanges": "Lưu thay đổi",
+      "saving": "Đang lưu...",
+      "saveSuccess": "Đã cập nhật thông tin pet!",
+      "saveError": "Không thể lưu thông tin pet",
+      "validation": {
+        "missingInfo": "Thiếu thông tin",
+        "enterPetName": "Vui lòng nhập tên thú cưng",
+        "invalidName": "Tên không hợp lệ",
+        "nameMinLength": "Tên thú cưng phải có ít nhất 2 ký tự",
+        "invalidAge": "Tuổi không hợp lệ",
+        "ageNegative": "Tuổi không thể là số âm",
+        "ageMax": "Tuổi không thể lớn hơn 30"
+      }
+    }
+  },
+
+  "report": {
+    "title": "Báo cáo người dùng",
+    "reportUser": "Báo cáo {{name}}",
+    "reportSubtitle": "Báo cáo của bạn sẽ được giữ bí mật. Chúng tôi sẽ xem xét và xử lý phù hợp.",
+    "whyReport": "Tại sao bạn báo cáo?",
+    "selectReason": "Chọn lý do mô tả đúng nhất vấn đề",
+    "additionalDetails": "Chi tiết bổ sung",
+    "provideMoreInfo": "Vui lòng cung cấp thêm thông tin về vấn đề",
+    "descriptionPlaceholder": "Mô tả chi tiết vấn đề...",
+    "safetyTips": "Mẹo an toàn",
+    "safetyTipsContent": "• Báo cáo của bạn hoàn toàn ẩn danh\n• Chúng tôi xem xét tất cả báo cáo trong 24-48 giờ\n• Vi phạm lặp lại có thể dẫn đến đình chỉ tài khoản\n• Đối với vấn đề an toàn khẩn cấp, hãy liên hệ trực tiếp",
+    "submitButton": "Gửi báo cáo",
+    "submitting": "Đang gửi...",
+    "reasons": {
+      "spam": "Spam hoặc Quảng cáo",
+      "inappropriate": "Nội dung không phù hợp",
+      "fake": "Hồ sơ giả mạo",
+      "harassment": "Quấy rối hoặc Bắt nạt",
+      "scam": "Lừa đảo",
+      "other": "Khác"
+    },
+    "validation": {
+      "missingInfo": "Thiếu thông tin",
+      "selectReason": "Vui lòng chọn lý do báo cáo",
+      "provideDetails": "Vui lòng cung cấp thêm chi tiết về vấn đề",
+      "descriptionTooShort": "Mô tả quá ngắn",
+      "minCharacters": "Vui lòng nhập ít nhất 10 ký tự để mô tả vấn đề"
+    },
+    "success": {
+      "title": "Đã gửi báo cáo",
+      "message": "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét và xử lý phù hợp."
+    },
+    "blocked": {
+      "title": "Người dùng đã chặn",
+      "infoBanner": "Người dùng bị chặn sẽ không thấy hồ sơ của bạn trên HomeScreen",
+      "loading": "Đang tải...",
+      "unblock": "Bỏ chặn",
+      "unblockTitle": "Bỏ chặn người dùng",
+      "unblockConfirm": "Bạn có chắc muốn bỏ chặn {{name}}?",
+      "unblockSuccess": "Đã bỏ chặn",
+      "unblockSuccessMessage": "{{name}} đã được bỏ chặn.",
+      "blockedTime": "Chặn {{time}}",
+      "empty": {
+        "title": "Không có người dùng bị chặn",
+        "message": "Bạn chưa chặn ai. Danh sách người dùng bị chặn sẽ hiển thị ở đây."
+      },
+      "errors": {
+        "userNotFound": "Không tìm thấy thông tin người dùng",
+        "loadFailed": "Không thể tải danh sách người dùng đã chặn",
+        "unblockFailed": "Không thể bỏ chặn người dùng"
+      }
+    },
+    "myReports": {
+      "title": "Báo cáo của tôi",
+      "loading": "Đang tải...",
+      "reportMessage": "Báo cáo tin nhắn",
+      "reportedUser": "Người bị báo cáo:",
+      "reason": "Lý do:",
+      "reportedMessage": "Tin nhắn bị báo cáo:",
+      "resolution": "Kết quả xử lý:",
+      "userUnavailable": "Thông tin người dùng không khả dụng (có thể đã bị xóa hoặc chặn)",
+      "messageUnavailable": "Tin nhắn không khả dụng (có thể đã bị xóa)",
+      "stats": {
+        "total": "Tổng số",
+        "resolved": "Đã xử lý",
+        "pending": "Đang xử lý"
+      },
+      "filter": {
+        "showAll": "Hiển thị tất cả {{count}} báo cáo",
+        "showResolved": "{{count}} báo cáo đã được xử lý",
+        "showPending": "{{count}} báo cáo đang chờ xử lý"
+      },
+      "status": {
+        "pending": "Đang xử lý",
+        "resolved": "Đã xử lý",
+        "rejected": "Bị từ chối",
+        "unknown": "Không rõ"
+      },
+      "empty": {
+        "all": {
+          "title": "Chưa có báo cáo nào",
+          "message": "Bạn chưa gửi báo cáo nào.\nLịch sử báo cáo của bạn sẽ hiển thị ở đây."
+        },
+        "resolved": {
+          "title": "Chưa có báo cáo được xử lý",
+          "message": "Các báo cáo đã được xử lý sẽ xuất hiện ở đây"
+        },
+        "pending": {
+          "title": "Chưa có báo cáo đang chờ",
+          "message": "Các báo cáo đang chờ xử lý sẽ xuất hiện ở đây"
+        }
+      },
+      "time": {
+        "justNow": "Vừa xong",
+        "minutesAgo": "{{count}} phút trước",
+        "hoursAgo": "{{count}} giờ trước",
+        "yesterday": "Hôm qua",
+        "daysAgo": "{{count}} ngày trước",
+        "weeksAgo": "{{count}} tuần trước",
+        "monthsAgo": "{{count}} tháng trước"
+      }
+    },
+    "modal": {
+      "title": "Báo cáo tin nhắn",
+      "confirmTitle": "Xác nhận báo cáo",
+      "infoBanner": "Báo cáo sẽ được xem xét và giữ bí mật. Người dùng này sẽ bị chặn sau khi bạn báo cáo.",
+      "selectReason": "Chọn lý do báo cáo tin nhắn từ {{name}}:",
+      "otherReasonLabel": "Vui lòng mô tả chi tiết lý do:",
+      "otherReasonPlaceholder": "Nhập lý do của bạn...",
+      "nextButton": "Tiếp tục",
+      "backButton": "Quay lại",
+      "submitButton": "Gửi báo cáo",
+      "confirmMessage": "Bạn đang báo cáo tin nhắn từ",
+      "confirmReason": "với lý do:",
+      "warningMessage": "Sau khi báo cáo, {{name}} sẽ bị chặn tự động và cuộc trò chuyện sẽ bị ẩn. Hành động này không thể hoàn tác.",
+      "reasons": {
+        "inappropriateContent": {
+          "title": "Nội dung không phù hợp",
+          "description": "Hình ảnh hoặc nội dung không phù hợp"
+        },
+        "spamScam": {
+          "title": "Spam hoặc lừa đảo",
+          "description": "Tin nhắn quảng cáo, lừa đảo"
+        },
+        "harassment": {
+          "title": "Quấy rối hoặc bắt nạt",
+          "description": "Hành vi quấy rối, bắt nạt"
+        },
+        "inappropriateMessages": {
+          "title": "Tin nhắn khiếm nhã",
+          "description": "Tin nhắn tình dục, phản cảm"
+        },
+        "hateSpeech": {
+          "title": "Ngôn từ căm thù",
+          "description": "Phân biệt chủng tộc, tôn giáo"
+        },
+        "violenceThreats": {
+          "title": "Bạo lực hoặc đe dọa",
+          "description": "Đe dọa, khuyến khích bạo lực"
+        },
+        "fakeProfile": {
+          "title": "Hồ sơ giả mạo",
+          "description": "Giả danh người khác"
+        },
+        "underage": {
+          "title": "Người dùng chưa đủ tuổi",
+          "description": "Nghi ngờ dưới 18 tuổi"
+        },
+        "other": {
+          "title": "Lý do khác",
+          "description": "Mô tả lý do của bạn"
+        }
+      }
+    }
+  },
+
+  "notification": {
+    "title": "Thông báo",
+    "loading": "Đang tải thông báo...",
+    "markAllRead": "Đánh dấu đã đọc tất cả",
+    "filter": {
+      "all": "Tất cả",
+      "unread": "Chưa đọc",
+      "system": "Hệ thống",
+      "expert": "Chuyên gia"
+    },
+    "expertBadge": "Expert",
+    "empty": {
+      "all": {
+        "title": "Chưa có thông báo",
+        "message": "Bạn sẽ thấy thông báo hệ thống và chuyên gia ở đây"
+      },
+      "unread": {
+        "title": "Đã đọc hết!",
+        "message": "Bạn không có thông báo chưa đọc"
+      },
+      "system": {
+        "title": "Không có thông báo hệ thống",
+        "message": "Thông báo hệ thống sẽ xuất hiện ở đây"
+      },
+      "expert": {
+        "title": "Không có thông báo chuyên gia",
+        "message": "Thông báo trả lời từ chuyên gia sẽ xuất hiện ở đây"
+      }
+    },
+    "modal": {
+      "yourQuestion": "Câu hỏi của bạn",
+      "expertAnswer": "Câu trả lời từ chuyên gia",
+      "satisfaction": "Bạn có hài lòng với câu trả lời?",
+      "discussMore": "Muốn thảo luận thêm với chuyên gia không?",
+      "chatWithExpert": "Nhắn tin với chuyên gia",
+      "close": "Đóng"
+    },
+    "time": {
+      "justNow": "Vừa xong",
+      "minutesAgo": "{{count}} phút trước",
+      "hoursAgo": "{{count}} giờ trước",
+      "daysAgo": "{{count}} ngày trước"
+    },
+    "errors": {
+      "loadFailed": "Không thể tải thông báo",
+      "createChatFailed": "Không thể tạo chat với chuyên gia"
+    }
+  },
+
+  "favorite": {
+    "title": "Yêu thích",
+    "subtitle": "Thú cưng đã thích bạn",
+    "loading": "Đang tải...",
+    "tabs": {
+      "likes": "Lượt thích",
+      "likesCount": "Lượt thích ({{count}})",
+      "matches": "Ghép đôi",
+      "matchesCount": "Ghép đôi ({{count}})"
+    },
+    "card": {
+      "matched": "Ghép đôi!",
+      "age": "{{age}} tuổi",
+      "unknownAge": "Không rõ",
+      "unknownBreed": "Không rõ"
+    },
+    "actions": {
+      "sendMessage": "Gửi tin nhắn",
+      "unmatch": "Hủy ghép đôi"
+    },
+    "unmatch": {
+      "title": "Hủy ghép đôi",
+      "message": "Bạn có chắc muốn hủy ghép đôi với {{name}}? Cuộc trò chuyện sẽ bị xóa và bạn sẽ không thể nhắn tin với họ nữa.",
+      "confirm": "Hủy ghép đôi",
+      "success": "Đã hủy ghép đôi",
+      "successMessage": "Đã hủy ghép đôi với {{name}} thành công.",
+      "error": "Không thể hủy ghép đôi. Vui lòng thử lại.",
+      "petName": "thú cưng này"
+    },
+    "empty": {
+      "likes": {
+        "title": "Chưa có lượt thích",
+        "message": "Khi thú cưng khác thích bạn, chúng sẽ xuất hiện ở đây.\nTiếp tục vuốt để tìm cặp đôi hoàn hảo!"
+      },
+      "matches": {
+        "title": "Chưa có ghép đôi",
+        "message": "Khi bạn ghép đôi với ai đó, họ sẽ xuất hiện ở đây.\nBắt đầu thích thú cưng để tạo ghép đôi!"
+      }
+    },
+    "startSwiping": "Bắt đầu vuốt"
+  },
+
+  "expert": {
+    "chat": {
+      "title": "Chuyên gia thú y",
+      "verifiedExpert": "Chuyên gia xác nhận",
+      "expertBadge": "Chuyên gia",
+      "inputPlaceholder": "Nhắn tin với chuyên gia...",
+      "loading": "Đang tải tin nhắn...",
+      "pullToRefresh": "Kéo để làm mới tin nhắn",
+      "empty": {
+        "title": "Bắt đầu cuộc trò chuyện",
+        "message": "Hãy gửi tin nhắn đầu tiên cho chuyên gia"
+      },
+      "errors": {
+        "chatNotFound": "Không tìm thấy cuộc trò chuyện",
+        "userNotFound": "Không tìm thấy thông tin người dùng",
+        "loadFailed": "Không thể tải tin nhắn",
+        "sendFailed": "Không thể gửi tin nhắn. Vui lòng thử lại."
+      }
+    },
+    "chatList": {
+      "title": "Chuyên gia",
+      "subtitle": "Tư vấn từ các chuyên gia thú y",
+      "infoBanner": "Chúng tôi sẽ cố gắng giải đáp thắc mắc của bạn sớm nhất",
+      "loading": "Đang tải...",
+      "loadingExperts": "Đang tải danh sách chuyên gia...",
+      "pullToRefresh": "Kéo để làm mới danh sách",
+      "empty": {
+        "title": "Chưa có cuộc trò chuyện",
+        "message": "Bắt đầu trò chuyện với chuyên gia thú y để được tư vấn về sức khỏe thú cưng của bạn"
+      },
+      "startNewChat": "Bắt đầu chat mới",
+      "selectExpert": {
+        "title": "Chọn chuyên gia",
+        "subtitle": "Chọn một chuyên gia thú y để bắt đầu cuộc trò chuyện"
+      },
+      "defaultSpecialty": "Chuyên gia thú y",
+      "noExperts": "Hiện tại chưa có chuyên gia nào. Vui lòng thử lại sau.",
+      "confirmInfo": "Bạn có thể hỏi chuyên gia về sức khỏe, dinh dưỡng, hành vi của thú cưng. Chuyên gia sẽ phản hồi sớm nhất có thể.",
+      "startChat": "Bắt đầu chat",
+      "errors": {
+        "userNotFound": "Không tìm thấy thông tin người dùng",
+        "createChatFailed": "Không thể tạo cuộc trò chuyện. Vui lòng thử lại."
+      },
+      "time": {
+        "justNow": "Vừa xong",
+        "minutesAgo": "{{count}} phút trước",
+        "hoursAgo": "{{count}} giờ trước",
+        "yesterday": "Hôm qua",
+        "daysAgo": "{{count}} ngày trước"
+      }
+    },
+    "confirmation": {
+      "title": "Yêu cầu chuyên gia",
+      "stats": {
+        "answered": "Đã trả lời",
+        "pending": "Chờ xử lý",
+        "total": "Tổng cộng"
+      },
+      "filter": {
+        "showAll": "Hiển thị tất cả {{count}} yêu cầu",
+        "showAnswered": "{{count}} yêu cầu đã được trả lời",
+        "showPending": "{{count}} yêu cầu đang chờ xử lý"
+      },
+      "infoBanner": "Các chuyên gia thú y được chứng nhận sẽ xem xét câu trả lời của AI",
+      "loading": "Đang tải yêu cầu...",
+      "requestCard": {
+        "title": "Yêu cầu chuyên gia",
+        "requestContent": "Nội dung yêu cầu:",
+        "expertResponse": "Phản hồi của chuyên gia:",
+        "respondedAt": "Trả lời lúc: {{time}}",
+        "chatWithExpert": "Nhắn tin với chuyên gia",
+        "pendingMessage": "Đang chờ chuyên gia xem xét. Bạn sẽ nhận được thông báo khi có phản hồi."
+      },
+      "status": {
+        "pending": "Đang chờ",
+        "answered": "Đã trả lời",
+        "rejected": "Bị từ chối",
+        "unknown": "Không rõ"
+      },
+      "empty": {
+        "all": {
+          "title": "Chưa có yêu cầu chuyên gia",
+          "message": "Khi bạn cần chuyên gia xác nhận lời khuyên của AI, các yêu cầu sẽ xuất hiện ở đây"
+        },
+        "answered": {
+          "title": "Chưa có yêu cầu được trả lời",
+          "message": "Các yêu cầu đã được chuyên gia trả lời sẽ xuất hiện ở đây"
+        },
+        "pending": {
+          "title": "Chưa có yêu cầu đang chờ",
+          "message": "Các yêu cầu đang chờ chuyên gia xử lý sẽ xuất hiện ở đây"
+        }
+      },
+      "time": {
+        "justNow": "Vừa xong",
+        "minutesAgo": "{{count}} phút trước",
+        "hoursAgo": "{{count}} giờ trước",
+        "yesterday": "Hôm qua",
+        "daysAgo": "{{count}} ngày trước"
+      },
+      "errors": {
+        "userNotFound": "Không tìm thấy thông tin người dùng",
+        "expertNotFound": "Không tìm thấy thông tin chuyên gia",
+        "createChatFailed": "Không thể tạo chat với chuyên gia"
+      }
+    }
+  },
+
+  "match": {
+    "title": "Ghép đôi thành công",
+    "subtitle": "Bạn và {{name}} đã thích thú cưng của nhau",
+    "sendMessage": "Gửi tin nhắn",
+    "keepSwiping": "Tiếp tục duyệt"
+  },
+
+  "limitModal": {
+    "defaultTitle": "Oops! Đã hết lượt",
+    "defaultMessage": "Bạn đã hết lượt sử dụng hôm nay!",
+    "titles": {
+      "match": "Oops! Hết lượt thích",
+      "ai_chat": "Oops! Hết lượt hỏi AI",
+      "expert_confirm": "Oops! Hết lượt xác nhận chuyên gia",
+      "expert_chat": "Oops! Hết lượt chat với chuyên gia",
+      "filter": "Oops! Hết lượt tìm kiếm bộ lọc"
+    },
+    "features": {
+      "unlimitedLikes": "Không giới hạn lượt thích",
+      "unlimitedAI": "Chat AI không giới hạn",
+      "unlimitedExpert": "Xác nhận chuyên gia không giới hạn",
+      "vipBadge": "Huy hiệu VIP & ưu tiên"
+    },
+    "upgradePremium": "Nâng cấp Premium",
+    "later": "Để sau",
+    "vipWaitMessage": "Bạn đã sử dụng hết lượt hôm nay. Vui lòng đợi đến ngày mai để tiếp tục sử dụng tính năng này."
+  },
+
+  "tokenLimitModal": {
+    "vipChatLimit": "Hết lượt chat VIP!",
+    "freeChatLimit": "Hết lượt chat miễn phí!",
+    "notEnoughTokens": "Không đủ tokens!",
+    "needMoreTokens": "Câu hỏi này cần ~{{estimated}} tokens, nhưng bạn chỉ còn {{remaining}} tokens",
+    "usedAllTokens": "Bạn đã sử dụng hết {{quota}} tokens {{type}} ngày hôm nay",
+    "vipType": "VIP",
+    "freeType": "miễn phí",
+    "percentUsed": "{{percent}}% đã sử dụng",
+    "vipQuotaMessage": "Bạn đã sử dụng hết {{quota}} tokens VIP hôm nay. Quota sẽ được làm mới vào 00:00 ngày mai.",
+    "freeQuotaMessage": "Bạn đã sử dụng hết {{quota}} tokens miễn phí hôm nay!",
+    "upgradeVipTitle": "Nâng cấp VIP - 99,000đ/tháng",
+    "benefits": {
+      "moreTokens": "50,000 tokens/ngày",
+      "moreTokensDesc": "(5x nhiều hơn)",
+      "seeLikes": "Xem ai thích pet của bạn trước",
+      "priorityMatching": "Ưu tiên ghép đôi (Priority matching)",
+      "noAds": "Không có quảng cáo"
+    },
+    "upgradeNow": "Nâng cấp VIP ngay",
+    "understood": "Đã hiểu",
+    "later": "Để sau"
+  },
+
+  "badges": {
+    "vip": "VIP",
+    "expert": "Expert"
+  },
+
+  "appName": "Pawnder",
+
+  "fallback": {
+    "unknown": "Không rõ",
+    "unknownBreed": "Không rõ giống",
+    "noDescription": "Chưa có mô tả",
+    "noAnswer": "Chưa có câu trả lời"
+  }
+}
