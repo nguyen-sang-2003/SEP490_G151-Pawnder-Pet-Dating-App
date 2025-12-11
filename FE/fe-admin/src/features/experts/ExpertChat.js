@@ -220,14 +220,15 @@ const ExpertChat = () => {
           if (currentSelectedChat?.chatExpertId === chatExpertId) {
             setMessages((prev) => {
               // Check if message already exists (avoid duplicates)
+              // Use more strict check: same content, same fromId, and within 3 seconds
               const exists = prev.some(m => {
                 const sameContent = m.fromId === fromId && m.message === message;
-                const sameTime = Math.abs(new Date(m.createdAt).getTime() - new Date(createdAt).getTime()) < 2000;
+                const sameTime = Math.abs(new Date(m.createdAt).getTime() - new Date(createdAt).getTime()) < 3000;
                 return sameContent && sameTime;
               });
               
               if (exists) {
-                console.log('⚠️ [SignalR] Message already exists, skipping');
+                console.log('⚠️ [SignalR] Message already exists, skipping duplicate');
                 return prev;
               }
               
