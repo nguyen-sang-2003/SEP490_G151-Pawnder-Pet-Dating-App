@@ -533,44 +533,6 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('profile.editPet.form.gender')}</Text>
-            <View style={styles.genderContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.genderButton,
-                  gender === "Male" && styles.genderButtonActive,
-                ]}
-                onPress={() => setGender("Male")}
-              >
-                <Text
-                  style={[
-                    styles.genderText,
-                    gender === "Male" && styles.genderTextActive,
-                  ]}
-                >
-                  {t('profile.editPet.form.male')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.genderButton,
-                  gender === "Female" && styles.genderButtonActive,
-                ]}
-                onPress={() => setGender("Female")}
-              >
-                <Text
-                  style={[
-                    styles.genderText,
-                    gender === "Female" && styles.genderTextActive,
-                  ]}
-                >
-                  {t('profile.editPet.form.female')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('profile.editPet.form.description')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -857,34 +819,6 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: "top",
   },
-
-  // Gender
-  genderContainer: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  genderButton: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  genderButtonActive: {
-    borderColor: "#C8A8D4",
-    backgroundColor: "#F5F0F7",
-  },
-  genderText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#666",
-  },
-  genderTextActive: {
-    color: "#C8A8D4",
-  },
-
   // Button
   btnShadow: {
     borderRadius: 26,
