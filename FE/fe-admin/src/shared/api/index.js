@@ -9,6 +9,7 @@ export { default as notificationService } from './notificationService';
 export { default as expertService } from './expertService';
 export { default as dashboardService } from './dashboardService';
 export { default as chatExpertService } from './chatExpertService';
+export { default as chatAIService } from './chatAIService';
 export { default as attributeService } from './attributeService';
 export { default as paymentService } from './paymentService';
 
