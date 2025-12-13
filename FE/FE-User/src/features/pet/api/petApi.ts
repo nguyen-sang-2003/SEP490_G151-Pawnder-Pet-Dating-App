@@ -300,6 +300,15 @@ export const getPetsForMatching = async (userId: number): Promise<PetForMatching
   }
 };
 
+// Matched attribute from recommendation API
+export interface MatchedAttribute {
+  attributeId: number;
+  attributeName: string;
+  percent: number;
+  petValue: string;
+  petOptionName?: string;
+}
+
 export interface RecommendedPet {
   petId: number;
   userId: number;
@@ -310,9 +319,11 @@ export interface RecommendedPet {
   description?: string;
   matchPercent: number;
   matchScore: number;
+  totalPercent?: number;
   totalAttributes: number;
   distanceKm?: number | null;
   photos: string[];
+  matchedAttributes?: MatchedAttribute[];
   owner?: {
     userId: number;
     fullName?: string;
@@ -324,19 +335,55 @@ export interface RecommendedPet {
   };
 }
 
+// Response for single pet match details
+export interface PetMatchDetailsResponse {
+  message: string;
+  totalPreferences: number;
+  hasPreferences: boolean;
+  data: RecommendedPet;
+}
+
+// Response wrapper for recommended pets list
+export interface RecommendedPetsResponse {
+  pets: RecommendedPet[];
+  totalPreferences: number;
+}
+
 /**
  * Get recommended pets based on user preferences
  * GET /api/PetRecommendation/{userId}
  * 🚀 OPTIMIZED: With caching
  */
-export const getRecommendedPets = async (userId: number): Promise<RecommendedPet[]> => {
+export const getRecommendedPets = async (userId: number): Promise<RecommendedPetsResponse> => {
   try {
-    const data = await cachedGet(`/api/PetRecommendation/${userId}`, {
+    const response = await cachedGet(`/api/PetRecommendation/${userId}`, {
       cacheDuration: CACHE_DURATION.SHORT, // 2 minutes - recommendations should be fresh
     });
-    return data.data || data || [];
+    return {
+      pets: response.data || response || [],
+      totalPreferences: response.totalPreferences || 0,
+    };
   } catch (error: any) {
 
+    throw error;
+  }
+};
+
+/**
+ * Get match details for a specific pet
+ * GET /api/PetRecommendation/pet/{preferenceUserId}/{targetPetId}
+ * Returns match score and matched attributes for a single pet
+ */
+export const getPetMatchDetails = async (
+  preferenceUserId: number,
+  targetPetId: number
+): Promise<PetMatchDetailsResponse> => {
+  try {
+    const response = await apiClient.get(
+      `/api/PetRecommendation/pet/${preferenceUserId}/${targetPetId}`
+    );
+    return response.data;
+  } catch (error: any) {
     throw error;
   }
 };

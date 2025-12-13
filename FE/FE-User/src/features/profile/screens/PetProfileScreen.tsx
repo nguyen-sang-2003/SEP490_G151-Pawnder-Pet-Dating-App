@@ -18,8 +18,10 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser, getPetsByUserId } from "../../../api";
+import { getPetMatchDetails, MatchedAttribute } from "../../pet/api/petApi";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getItem } from "../../../services/storage";
+import { MatchDetailsModal } from "../../../components/MatchDetailsModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -49,6 +51,16 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [activePetId, setActivePetId] = useState<number | null>(null);
   const [ownerAvatar, setOwnerAvatar] = useState<any>(require("../../../assets/cat_avatar_signin.png"));
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
+
+  // Match details state
+  const [matchData, setMatchData] = useState<{
+    matchPercent: number;
+    matchScore: number;
+    totalPercent: number;
+    matchedAttributes: MatchedAttribute[];
+    totalFilters: number;
+  } | null>(null);
+  const [showMatchDetailsModal, setShowMatchDetailsModal] = useState(false);
 
   const loadPetData = async () => {
     try {
@@ -128,6 +140,27 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
       } catch (error) {
         console.log('⚠️ No characteristics found');
         setCharacteristics([]);
+      }
+
+      // Load match details if not my pet
+      if (!isOwner && currentUserId) {
+        try {
+          console.log('📊 Loading match details for pet:', petId);
+          const matchDetails = await getPetMatchDetails(currentUserId, petId);
+          if (matchDetails?.data) {
+            setMatchData({
+              matchPercent: matchDetails.data.matchPercent ?? 0,
+              matchScore: matchDetails.data.matchScore ?? 0,
+              totalPercent: matchDetails.data.totalPercent ?? 0,
+              matchedAttributes: matchDetails.data.matchedAttributes ?? [],
+              totalFilters: matchDetails.totalPreferences ?? 0,
+            });
+            console.log('✅ Match details loaded:', matchDetails.data.matchPercent, '%, filters:', matchDetails.totalPreferences);
+          }
+        } catch (error) {
+          console.log('⚠️ Could not load match details:', error);
+          setMatchData(null);
+        }
       }
 
     } catch (error: any) {
@@ -428,6 +461,21 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                     {" "}{pet.gender === "male" ? "♂" : "♀"}
                   </Text>
                 </Text>
+                {/* Match Badge - Only show for other's pets */}
+                {!isMyPet && matchData && matchData.matchPercent > 0 && (
+                  <TouchableOpacity 
+                    style={styles.matchBadgeHero}
+                    onPress={() => {
+                      console.log('📊 Match badge pressed on PetProfile!');
+                      setShowMatchDetailsModal(true);
+                    }}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Icon name="star" size={14} color={colors.primary} />
+                    <Text style={styles.matchBadgeHeroText}>{matchData.matchPercent}%</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <View style={styles.heroMetaRow}>
                 <Icon name="paw" size={16} color="#fff" />
@@ -641,6 +689,20 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           showCancel={alertConfig.showCancel}
         />
       )}
+
+      {/* Match Details Modal */}
+      {matchData && (
+        <MatchDetailsModal
+          visible={showMatchDetailsModal}
+          onClose={() => setShowMatchDetailsModal(false)}
+          petName={pet.name}
+          matchPercent={matchData.matchPercent}
+          matchScore={matchData.matchScore}
+          totalPercent={matchData.totalPercent}
+          matchedAttributes={matchData.matchedAttributes}
+          totalFilters={matchData.totalFilters}
+        />
+      )}
     </View>
   );
 };
@@ -759,6 +821,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
+    gap: 12,
+  },
+  matchBadgeHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  matchBadgeHeroText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
   },
   heroName: {
     fontSize: 34,

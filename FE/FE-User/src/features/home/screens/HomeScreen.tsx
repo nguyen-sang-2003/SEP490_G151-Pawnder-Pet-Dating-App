@@ -22,7 +22,8 @@ import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../pet/api/petApi";
+import { getRecommendedPets, RecommendedPet, getPetsByUserId, MatchedAttribute } from "../../pet/api/petApi";
+import { MatchDetailsModal } from "../../../components/MatchDetailsModal";
 import { sendLike } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppSelector } from "../../../app/hooks";
@@ -59,6 +60,9 @@ interface PetProfile {
     owner: string;
     ownerId: number; // Add ownerId for API calls
     matchPercent: number; // Match percentage (0-100)
+    matchScore: number; // Match score (total matched percent)
+    totalPercent: number; // Total possible percent
+    matchedAttributes: MatchedAttribute[]; // Matched attributes for modal
     ownerIsVip?: boolean; // VIP status of pet owner
 }
 
@@ -76,6 +80,11 @@ const HomeScreen = ({ navigation }: Props) => {
     const [limitMessage, setLimitMessage] = useState("");
     const [refreshing, setRefreshing] = useState(false);
     const [isVip, setIsVip] = useState<boolean>(false);
+    
+    // Match details modal state
+    const [showMatchDetailsModal, setShowMatchDetailsModal] = useState(false);
+    const [selectedPetForMatch, setSelectedPetForMatch] = useState<PetProfile | null>(null);
+    const [totalFilters, setTotalFilters] = useState(0); // Tổng số filter user đã đặt
 
     // Fade-in animation for loaded pets
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -461,10 +470,15 @@ const HomeScreen = ({ navigation }: Props) => {
             }
 
             // 🚀 OPTIMIZATION 1: Parallel API calls instead of sequential
-            const [userPets, recommendedPets] = await Promise.all([
+            const [userPets, recommendedResponse] = await Promise.all([
                 getPetsByUserId(userId),
                 getRecommendedPets(userId)
             ]);
+
+            // Extract pets and totalPreferences from response
+            const recommendedPets = recommendedResponse.pets;
+            setTotalFilters(recommendedResponse.totalPreferences);
+            console.log('🔍 Total filters:', recommendedResponse.totalPreferences);
 
             // Get user's active pet ID
             const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
@@ -504,6 +518,9 @@ const HomeScreen = ({ navigation }: Props) => {
                         owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: matchPercent,
+                        matchScore: pet.matchScore ?? 0,
+                        totalPercent: pet.totalPercent ?? 0,
+                        matchedAttributes: pet.matchedAttributes ?? [],
                     };
                 });
 
@@ -580,6 +597,9 @@ const HomeScreen = ({ navigation }: Props) => {
                         owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: pet.matchPercent ?? 0,
+                        matchScore: pet.matchScore ?? 0,
+                        totalPercent: pet.totalPercent ?? 0,
+                        matchedAttributes: pet.matchedAttributes ?? [],
                         ownerIsVip: false, // Will be updated later if needed
                     };
                 });
@@ -697,6 +717,13 @@ const HomeScreen = ({ navigation }: Props) => {
         console.log('📱 Opening pet detail:', petId);
         navigation.navigate("PetProfile", { petId });
     }, [navigation]);
+
+    // Handler for opening match details modal
+    const handleOpenMatchDetails = useCallback((pet: PetProfile) => {
+        console.log('📊 Opening match details for:', pet.name);
+        setSelectedPetForMatch(pet);
+        setShowMatchDetailsModal(true);
+    }, []);
 
     // Pull-to-refresh handler
     const onRefresh = useCallback(async () => {
@@ -865,10 +892,14 @@ const HomeScreen = ({ navigation }: Props) => {
                                             </Text>
                                         </Text>
                                         {pet.matchPercent > 0 && (
-                                            <View style={styles.matchBadge}>
+                                            <TouchableOpacity 
+                                                style={styles.matchBadge}
+                                                onPress={() => handleOpenMatchDetails(pet)}
+                                                activeOpacity={0.7}
+                                            >
                                                 <Icon name="star" size={12} color={colors.primary} />
                                                 <Text style={styles.matchBadgeText}>{pet.matchPercent}%</Text>
-                                            </View>
+                                            </TouchableOpacity>
                                         )}
                                     </View>
                                     <Text style={styles.petMeta}>
@@ -938,7 +969,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 </View>
             </Animated.View>
         );
-    }, [currentIndex, currentPhotoIndices, position.x, position.y, rotate, panResponder.panHandlers, handleViewPetDetail, handleLike, handleNope, fadeAnim, likeButtonScale, passButtonScale, cardOpacity, nextCardFadeAnim]);
+    }, [currentIndex, currentPhotoIndices, position.x, position.y, rotate, panResponder.panHandlers, handleViewPetDetail, handleLike, handleNope, handleOpenMatchDetails, fadeAnim, likeButtonScale, passButtonScale, cardOpacity, nextCardFadeAnim]);
 
     // Show loading state with skeleton
     if (loading) {
@@ -1198,6 +1229,23 @@ const HomeScreen = ({ navigation }: Props) => {
                 actionType="match"
                 isVip={isVip}
             />
+
+            {/* Match Details Modal */}
+            {selectedPetForMatch && (
+                <MatchDetailsModal
+                    visible={showMatchDetailsModal}
+                    onClose={() => {
+                        setShowMatchDetailsModal(false);
+                        setSelectedPetForMatch(null);
+                    }}
+                    petName={selectedPetForMatch.name}
+                    matchPercent={selectedPetForMatch.matchPercent}
+                    matchScore={selectedPetForMatch.matchScore}
+                    totalPercent={selectedPetForMatch.totalPercent}
+                    matchedAttributes={selectedPetForMatch.matchedAttributes}
+                    totalFilters={totalFilters}
+                />
+            )}
 
             {/* Custom Alert for Login Success */}
             {alertConfig && (

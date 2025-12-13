@@ -1248,7 +1248,8 @@
       "matched": "Ghép đôi!",
       "age": "{{age}} tuổi",
       "unknownAge": "Không rõ",
-      "unknownBreed": "Không rõ"
+      "unknownBreed": "Không rõ",
+      "viewMatch": "Xem %"
     },
     "actions": {
       "sendMessage": "Gửi tin nhắn",
@@ -1442,6 +1443,15 @@
   },
 
   "appName": "Pawnder",
+
+  "matchDetails": {
+    "matchWithYou": "phù hợp với bạn",
+    "filterCount": "Khớp {{matched}}/{{total}} bộ lọc của bạn",
+    "matchedFilters": "Chi tiết các bộ lọc đã khớp",
+    "infoHint": "Điểm phù hợp dựa trên số bộ lọc khớp và độ ưu tiên của từng tiêu chí",
+    "noPreferences": "Chưa thiết lập bộ lọc",
+    "noPreferencesDesc": "Hãy vào bộ lọc để thiết lập tiêu chí tìm kiếm."
+  },
 
   "fallback": {
     "unknown": "Không rõ",
