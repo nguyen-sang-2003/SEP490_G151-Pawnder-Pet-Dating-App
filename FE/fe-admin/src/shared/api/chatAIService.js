@@ -76,6 +76,16 @@ class ChatAIService {
     );
     return response;
   }
+
+  /**
+   * Clone an existing AI chat for Expert to continue the conversation
+   * Backend: POST /api/chat-ai/clone/{originalChatAiId}
+   * Returns: { success: true, data: {...}, message: "..." }
+   */
+  async cloneChat(originalChatAiId) {
+    const response = await apiClient.post(API_ENDPOINTS.CHAT_AI.CLONE(originalChatAiId));
+    return response;
+  }
 }
 
 export default new ChatAIService();

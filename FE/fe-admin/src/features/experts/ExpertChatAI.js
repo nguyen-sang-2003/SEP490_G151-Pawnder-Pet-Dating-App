@@ -30,17 +30,25 @@ const ExpertChatAI = () => {
         const response = await chatAIService.getAllChats(userId);
         console.log('📥 API Response:', response);
         
-        const chatsData = Array.isArray(response) ? response : response?.data || [];
+        // Backend returns: { success: true, data: [...] }
+        const chatsData = response?.data || [];
         console.log('💬 Chats data:', chatsData);
 
         // Map to consistent format
-        const mappedChats = chatsData.map((chat) => ({
-          chatAiId: chat.chatAiId || chat.ChatAiId,
-          userId: chat.userId || chat.UserId,
-          title: chat.title || chat.Title || `Chat ${chat.chatAiId || chat.ChatAiId}`,
-          createdAt: chat.createdAt || chat.CreatedAt,
-          updatedAt: chat.updatedAt || chat.UpdatedAt,
-        }));
+        // Backend returns: { ChatAiid, Title, CreatedAt, UpdatedAt, MessageCount, LastQuestion }
+        const mappedChats = chatsData.map((chat) => {
+          const chatAiId = chat.chatAiId || chat.ChatAiId || chat.ChatAiid || chat.chatAiid;
+          if (!chatAiId) {
+            console.warn('⚠️ Chat missing chatAiId:', chat);
+          }
+          return {
+            chatAiId: chatAiId,
+            userId: chat.userId || chat.UserId,
+            title: chat.title || chat.Title || `Chat ${chatAiId || 'Unknown'}`,
+            createdAt: chat.createdAt || chat.CreatedAt,
+            updatedAt: chat.updatedAt || chat.UpdatedAt,
+          };
+        }).filter(chat => chat.chatAiId); // Filter out chats without chatAiId
 
         // Sort by updatedAt (newest first)
         const sortedChats = mappedChats.sort((a, b) => {
@@ -78,7 +86,8 @@ const ExpertChatAI = () => {
         const response = await chatAIService.getChatHistory(selectedChat.chatAiId);
         console.log('📥 Messages response:', response);
         
-        const messagesData = Array.isArray(response) ? response : response?.data || [];
+        // Backend returns: { success: true, data: { chatTitle: "...", messages: [...] } }
+        const messagesData = response?.data?.messages || [];
         console.log('💬 Messages data:', messagesData);
 
         // Map to consistent format
@@ -126,13 +135,15 @@ const ExpertChatAI = () => {
       const result = await chatAIService.createChat(userId);
       console.log('✅ Chat created, result:', result);
 
-      const newChat = result?.data || result;
+      // Backend returns: { success: true, data: { chatId, title, createdAt } }
+      const newChat = result?.data || {};
+      const chatAiId = newChat.chatId || newChat.chatAiId || newChat.ChatAiId || newChat.ChatAiid;
       const mappedChat = {
-        chatAiId: newChat.chatAiId || newChat.ChatAiId,
+        chatAiId: chatAiId,
         userId: newChat.userId || newChat.UserId,
-        title: newChat.title || newChat.Title || `Chat ${newChat.chatAiId || newChat.ChatAiId}`,
+        title: newChat.title || newChat.Title || `Chat ${chatAiId || 'Unknown'}`,
         createdAt: newChat.createdAt || newChat.CreatedAt,
-        updatedAt: newChat.updatedAt || newChat.UpdatedAt,
+        updatedAt: newChat.updatedAt || newChat.UpdatedAt || newChat.createdAt || newChat.CreatedAt,
       };
 
       setChats((prev) => [mappedChat, ...prev]);
@@ -149,6 +160,14 @@ const ExpertChatAI = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || sending) return;
+
+    // Validate chatAiId
+    const chatAiId = selectedChat.chatAiId;
+    if (!chatAiId) {
+      console.error('❌ chatAiId is undefined:', selectedChat);
+      alert('Lỗi: Không tìm thấy ID cuộc trò chuyện. Vui lòng chọn lại chat hoặc tạo chat mới.');
+      return;
+    }
 
     const question = newMessage.trim();
     setNewMessage('');
@@ -168,14 +187,16 @@ const ExpertChatAI = () => {
 
     try {
       console.log('📤 Sending message to AI:', {
-        chatAiId: selectedChat.chatAiId,
+        chatAiId: chatAiId,
         question: question,
+        selectedChat: selectedChat,
       });
 
-      const result = await chatAIService.sendMessage(selectedChat.chatAiId, question);
+      const result = await chatAIService.sendMessage(chatAiId, question);
       console.log('✅ Message sent, result:', result);
 
-      const responseData = result?.data || result;
+      // Backend returns: { success: true, data: {...} }
+      const responseData = result?.data || {};
       const aiMessage = {
         messageId: responseData.messageId || responseData.MessageId || Date.now() + 1,
         chatAiId: selectedChat.chatAiId,
@@ -386,9 +407,12 @@ const ExpertChatAI = () => {
                     const showDate =
                       index === 0 ||
                       formatDate(messages[index - 1].createdAt) !== formatDate(msg.createdAt);
+                    
+                    // Use a unique key combining messageId and index
+                    const uniqueKey = msg.messageId ? `msg-${msg.messageId}` : `msg-${index}-${msg.createdAt || Date.now()}`;
 
                     return (
-                      <React.Fragment key={msg.messageId || index}>
+                      <React.Fragment key={uniqueKey}>
                         {showDate && (
                           <div className="message-date-divider">
                             {formatDate(msg.createdAt)}

@@ -80,6 +80,7 @@ export const API_ENDPOINTS = {
     DELETE_CHAT: (chatAiId) => `/api/chat-ai/${chatAiId}`, // DELETE /api/chat-ai/{chatAiId}
     MESSAGES: (chatAiId) => `/api/chat-ai/${chatAiId}/messages`, // GET /api/chat-ai/{chatAiId}/messages
     SEND_MESSAGE: (chatAiId) => `/api/chat-ai/${chatAiId}/messages`, // POST /api/chat-ai/{chatAiId}/messages
+    CLONE: (originalChatAiId) => `/api/chat-ai/clone/${originalChatAiId}`, // POST /api/chat-ai/clone/{originalChatAiId}
   },
   CHAT_EXPERT: {
     GET_BY_EXPERT: (expertId) => `/api/ChatExpert/expert/${expertId}`, // GET /api/ChatExpert/expert/{expertId}
