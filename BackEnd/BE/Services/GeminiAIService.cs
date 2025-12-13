@@ -100,7 +100,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             // Lý do: History càng dài → tokens càng nhiều → Gemini càng chậm
             var recentHistory = history
                 .Where(h => !string.IsNullOrEmpty(h.Question) && !string.IsNullOrEmpty(h.Answer))
-                .TakeLast(2)
+                .TakeLast(5)
                 .ToList();
 
             if (recentHistory.Any())
