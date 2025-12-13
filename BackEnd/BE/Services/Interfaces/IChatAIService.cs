@@ -9,6 +9,7 @@ namespace BE.Services.Interfaces
         Task<object> GetChatHistoryAsync(int chatAiId, int userId, CancellationToken ct = default);
         Task<object> SendMessageAsync(int chatAiId, int userId, string question, CancellationToken ct = default);
         Task<object> GetTokenUsageAsync(int userId, CancellationToken ct = default);
+        Task<object> CloneChatForExpertAsync(int originalChatAiId, int expertId, CancellationToken ct = default);
     }
 }
 

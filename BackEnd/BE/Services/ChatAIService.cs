@@ -255,6 +255,61 @@ namespace BE.Services
 
             return inputTokens + estimatedOutputTokens;
         }
+
+        public async Task<object> CloneChatForExpertAsync(int originalChatAiId, int expertId, CancellationToken ct = default)
+        {
+            // 1. Load original chat
+            var originalChat = await _context.ChatAis
+                .Include(c => c.ChatAicontents)
+                .FirstOrDefaultAsync(c => c.ChatAiid == originalChatAiId && c.IsDeleted == false, ct);
+
+            if (originalChat == null)
+                throw new KeyNotFoundException("Không tìm thấy cuộc trò chuyện gốc");
+
+            // 2. Check if expert exists
+            var expert = await _context.Users.FindAsync(expertId);
+            if (expert == null)
+                throw new KeyNotFoundException("Không tìm thấy chuyên gia");
+
+            // 3. Create new chat for expert
+            var newChat = new ChatAi
+            {
+                UserId = expertId,
+                Title = $"[Clone] {originalChat.Title}",
+                IsDeleted = false,
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+            };
+
+            _context.ChatAis.Add(newChat);
+            await _context.SaveChangesAsync(ct);
+
+            // 4. Copy all messages from original chat
+            var originalMessages = originalChat.ChatAicontents.OrderBy(m => m.CreatedAt).ToList();
+            foreach (var msg in originalMessages)
+            {
+                var newMessage = new ChatAicontent
+                {
+                    ChatAiid = newChat.ChatAiid,
+                    Question = msg.Question,
+                    Answer = msg.Answer,
+                    CreatedAt = msg.CreatedAt,
+                    UpdatedAt = msg.UpdatedAt
+                };
+                _context.ChatAicontents.Add(newMessage);
+            }
+
+            await _context.SaveChangesAsync(ct);
+
+            return new
+            {
+                chatId = newChat.ChatAiid,
+                title = newChat.Title,
+                createdAt = newChat.CreatedAt,
+                messageCount = originalMessages.Count,
+                clonedFromChatAiId = originalChatAiId
+            };
+        }
     }
 }
 
