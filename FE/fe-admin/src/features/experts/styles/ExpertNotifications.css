@@ -1227,3 +1227,142 @@ body.dark-theme .btn-close-modal:hover {
   box-shadow: 0 6px 20px rgba(247, 37, 133, 0.4);
 }
 
+/* Clone Chat AI Button - Main */
+.btn-clone-chat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-clone-chat:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a6fd8, #6a42a0);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-clone-chat:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-clone-chat:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-clone-chat svg {
+  flex-shrink: 0;
+}
+
+/* Clone Chat AI Button - Small (in chat history panel) */
+.btn-clone-chat-small {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+  white-space: nowrap;
+}
+
+.btn-clone-chat-small:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a6fd8, #6a42a0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.btn-clone-chat-small:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-clone-chat-small svg {
+  flex-shrink: 0;
+}
+
+/* Chat history header with button */
+.chat-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+  flex-shrink: 0;
+}
+
+.chat-history-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+/* Spinner animation for loading state */
+.btn-clone-chat .spinner,
+.btn-clone-chat-small .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark theme for clone buttons */
+body.dark-theme .btn-clone-chat {
+  background: linear-gradient(135deg, #f72585, #7209b7);
+  box-shadow: 0 4px 15px rgba(247, 37, 133, 0.3);
+}
+
+body.dark-theme .btn-clone-chat:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e91e63, #6a1b9a);
+  box-shadow: 0 6px 20px rgba(247, 37, 133, 0.4);
+}
+
+body.dark-theme .btn-clone-chat-small {
+  background: linear-gradient(135deg, #f72585, #7209b7);
+  box-shadow: 0 2px 8px rgba(247, 37, 133, 0.25);
+}
+
+body.dark-theme .btn-clone-chat-small:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e91e63, #6a1b9a);
+  box-shadow: 0 4px 12px rgba(247, 37, 133, 0.35);
+}
+
+body.dark-theme .chat-history-header {
+  border-bottom-color: rgba(247, 37, 133, 0.3);
+}
+
+body.dark-theme .chat-history-header h3 {
+  color: #fff;
+}
+

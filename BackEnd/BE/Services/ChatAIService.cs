@@ -275,7 +275,7 @@ namespace BE.Services
             var newChat = new ChatAi
             {
                 UserId = expertId,
-                Title = $"[Clone] {originalChat.Title}",
+                Title = $"[Tư vấn Expert] {originalChat.Title}",
                 IsDeleted = false,
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
                 UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)

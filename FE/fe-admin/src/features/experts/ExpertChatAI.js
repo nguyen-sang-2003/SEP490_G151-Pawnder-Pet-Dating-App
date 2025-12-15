@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../shared/context/AuthContext';
 import { chatAIService } from '../../shared/api';
 import './styles/ExpertChatAI.css';
 
 const ExpertChatAI = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -13,6 +15,7 @@ const ExpertChatAI = () => {
   const [sending, setSending] = useState(false);
   const [creatingChat, setCreatingChat] = useState(false);
   const messagesEndRef = useRef(null);
+  const clonedChatIdRef = useRef(searchParams.get('clonedChatId'));
 
   // Load all chats for the expert
   useEffect(() => {
@@ -60,9 +63,30 @@ const ExpertChatAI = () => {
         console.log('✅ Chats loaded:', sortedChats);
         setChats(sortedChats);
 
-        // Auto-select first chat if available
-        if (sortedChats.length > 0 && !selectedChat) {
-          setSelectedChat(sortedChats[0]);
+        // Check if we have a clonedChatId to auto-select
+        const clonedChatId = clonedChatIdRef.current;
+        if (clonedChatId) {
+          console.log('🔍 Looking for cloned chat with ID:', clonedChatId);
+          const clonedChat = sortedChats.find(
+            (chat) => chat.chatAiId === parseInt(clonedChatId) || chat.chatAiId === clonedChatId
+          );
+          if (clonedChat) {
+            console.log('✅ Found cloned chat, auto-selecting:', clonedChat);
+            setSelectedChat(clonedChat);
+            // Clear the query param to avoid re-triggering
+            setSearchParams({}, { replace: true });
+            clonedChatIdRef.current = null;
+          } else {
+            console.warn('⚠️ Cloned chat not found, selecting first chat');
+            if (sortedChats.length > 0) {
+              setSelectedChat(sortedChats[0]);
+            }
+          }
+        } else {
+          // Auto-select first chat if available
+          if (sortedChats.length > 0 && !selectedChat) {
+            setSelectedChat(sortedChats[0]);
+          }
         }
       } catch (err) {
         console.error('❌ Failed to load chats:', err);
@@ -74,7 +98,7 @@ const ExpertChatAI = () => {
 
     loadChats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, setSearchParams]);
 
   // Load messages when chat is selected
   useEffect(() => {

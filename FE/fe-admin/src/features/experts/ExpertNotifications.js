@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { useAuth } from '../../shared/context/AuthContext';
-import { expertService, userService } from '../../shared/api';
+import { expertService, userService, chatAIService } from '../../shared/api';
 import { mockUsers } from '../../shared/data/mockUsers';
 import './styles/ExpertNotifications.css';
 
@@ -134,6 +135,7 @@ const buildStaticAiHistory = (chatAiId, userName) => {
 };
 
 const ExpertNotifications = () => {
+  const navigate = useNavigate();
   const { updatePendingNotifications } = useNotification();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
@@ -147,6 +149,7 @@ const ExpertNotifications = () => {
   const [note, setNote] = useState('');
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cloning, setCloning] = useState(false);
   const prevPendingRef = useRef(0);
 
   const fetchUserInfo = useCallback(async (userId) => {
@@ -565,6 +568,40 @@ const ExpertNotifications = () => {
     }
   };
 
+  // Clone chat AI and navigate to ExpertChatAI page
+  const handleCloneChatAndNavigate = async (chatAiId) => {
+    if (!chatAiId || chatAiId === 0) {
+      alert('Không tìm thấy ID cuộc trò chuyện.');
+      return;
+    }
+
+    try {
+      setCloning(true);
+      console.log('🔄 Cloning chat AI:', chatAiId);
+      
+      const result = await chatAIService.cloneChat(chatAiId);
+      console.log('✅ Clone result:', result);
+      
+      // Backend returns: { success: true, data: { chatId, title, ... } }
+      const clonedChatId = result?.data?.chatId || result?.data?.chatAiId || result?.chatId;
+      
+      if (!clonedChatId) {
+        throw new Error('Không thể lấy ID chat đã clone');
+      }
+
+      console.log('📍 Navigating to ExpertChatAI with clonedChatId:', clonedChatId);
+      
+      // Close modal and navigate
+      handleCloseModal();
+      navigate(`/expert/chat-ai?clonedChatId=${clonedChatId}`);
+    } catch (err) {
+      console.error('❌ Error cloning chat:', err);
+      alert('Không thể tạo cuộc trò chuyện mới. Vui lòng thử lại.');
+    } finally {
+      setCloning(false);
+    }
+  };
+
   useEffect(() => {
     setCurrentPage(1);
   }, [filterStatus, searchTerm]);
@@ -871,6 +908,33 @@ const ExpertNotifications = () => {
                             {showChatHistory ? 'Đang mở' : 'Xem file'}
                           </div>
                         </div>
+                        {/* Clone Chat AI Button */}
+                        <button
+                          className="btn-clone-chat"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCloneChatAndNavigate(selectedNotification.chatAiId);
+                          }}
+                          disabled={cloning}
+                        >
+                          {cloning ? (
+                            <>
+                              <svg className="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="32" />
+                              </svg>
+                              Đang tạo...
+                            </>
+                          ) : (
+                            <>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                <path d="M2 17l10 5 10-5" />
+                                <path d="M2 12l10 5 10-5" />
+                              </svg>
+                              Chat với AI
+                            </>
+                          )}
+                        </button>
                       </div>
                     )}
 
@@ -902,7 +966,33 @@ const ExpertNotifications = () => {
                 {showChatHistory && selectedNotification.chatHistory.length > 0 && (
                   <div className="modal-right-panel">
                     <div className="chat-history-panel">
-                      <h3>Lịch sử chat</h3>
+                      <div className="chat-history-header">
+                        <h3>Lịch sử chat</h3>
+                        <button
+                          className="btn-clone-chat-small"
+                          onClick={() => handleCloneChatAndNavigate(selectedNotification.chatAiId)}
+                          disabled={cloning}
+                          title="Tiếp tục chat với AI dựa trên cuộc trò chuyện này"
+                        >
+                          {cloning ? (
+                            <>
+                              <svg className="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="32" />
+                              </svg>
+                              Đang tạo...
+                            </>
+                          ) : (
+                            <>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                <path d="M2 17l10 5 10-5" />
+                                <path d="M2 12l10 5 10-5" />
+                              </svg>
+                              Chat với AI
+                            </>
+                          )}
+                        </button>
+                      </div>
                       <div className="chat-history">
                         {selectedNotification.chatHistory.map((message) => (
                           <div key={message.id} className={`chat-message ${message.role}`}>
