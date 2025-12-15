@@ -7,6 +7,35 @@ import { expertService, userService, chatAIService } from '../../shared/api';
 import { mockUsers } from '../../shared/data/mockUsers';
 import './styles/ExpertNotifications.css';
 
+/**
+ * Loại bỏ markdown formatting từ text AI response
+ */
+const stripMarkdown = (text) => {
+  if (!text) return text;
+  
+  return text
+    // Loại bỏ ***text***
+    .replace(/\*{3}(.*?)\*{3}/g, '$1')
+    // Loại bỏ **text**
+    .replace(/\*{2}(.*?)\*{2}/g, '$1')
+    // Loại bỏ *text* (nhưng không phải bullet point)
+    .replace(/\*([^\s*][^*]*[^\s*])\*/g, '$1')
+    .replace(/\*([^\s*])\*/g, '$1')
+    // Chuyển bullet point * thành •
+    .replace(/^\s*\*\s+/gm, '• ')
+    // Loại bỏ _text_
+    .replace(/_(.*?)_/g, '$1')
+    // Loại bỏ # headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Loại bỏ ```code```
+    .replace(/```[\s\S]*?```/g, '')
+    // Loại bỏ `code`
+    .replace(/`([^`]+)`/g, '$1')
+    // Loại bỏ [text](url)
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .trim();
+};
+
 const ITEMS_PER_PAGE = 4;
 
 const getFallbackUserInfo = (userId) => {
@@ -1004,7 +1033,9 @@ const ExpertNotifications = () => {
                                 <span className="chat-time">{formatDate(message.timestamp)}</span>
                               )}
                             </div>
-                            <div className="chat-message-content">{message.content}</div>
+                            <div className="chat-message-content">
+                              {message.role === 'ai' ? stripMarkdown(message.content) : message.content}
+                            </div>
                           </div>
                         ))}
                       </div>

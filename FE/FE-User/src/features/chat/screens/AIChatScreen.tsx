@@ -43,6 +43,34 @@ interface Message {
   suggestions?: string[];
 }
 
+/**
+ * Loại bỏ markdown formatting từ text AI response
+ */
+const stripMarkdown = (text: string): string => {
+  if (!text) return text;
+  
+  return text
+    // Loại bỏ ***text***
+    .replace(/\*{3}(.*?)\*{3}/g, '$1')
+    // Loại bỏ **text**
+    .replace(/\*{2}(.*?)\*{2}/g, '$1')
+    // Loại bỏ *text* (nhưng không phải bullet point)
+    .replace(/\*([^\s*][^*]*[^\s*])\*/g, '$1')
+    .replace(/\*([^\s*])\*/g, '$1')
+    // Chuyển bullet point * thành •
+    .replace(/^\s*\*\s+/gm, '• ')
+    // Loại bỏ _text_
+    .replace(/_(.*?)_/g, '$1')
+    // Loại bỏ # headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Loại bỏ ```code```
+    .replace(/```[\s\S]*?```/g, '')
+    // Loại bỏ `code`
+    .replace(/`([^`]+)`/g, '$1')
+    // Loại bỏ [text](url)
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .trim();
+};
 
 const AIChatScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
@@ -440,7 +468,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.aiLabel}>{t('chat.ai.aiLabel')}</Text>
                 <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
               </View>
-              <Text style={styles.aiMessageText}>{item.text}</Text>
+              <Text style={styles.aiMessageText}>{stripMarkdown(item.text)}</Text>
 
               {/* Ask Expert Button - Hide only for specific message that was sent */}
               {item.id !== "welcome" && !sentToExpertIds.has(item.id) && (
@@ -560,11 +588,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{t('chat.ai.title')}</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? t('chat.ai.typing') : tokenUsage
-                  ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota
-                    ? t('chat.ai.limitReached')
-                    : t('chat.ai.tokenUsage', { used: tokenUsage.tokensUsed.toLocaleString(), total: tokenUsage.dailyQuota.toLocaleString() }))
-                  : "0/10,000 tokens"}
+                {isTyping ? t('chat.ai.typing') : 'Trợ lý AI thú cưng'}
               </Text>
             </View>
           </View>

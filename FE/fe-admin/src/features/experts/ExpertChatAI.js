@@ -4,6 +4,35 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { chatAIService } from '../../shared/api';
 import './styles/ExpertChatAI.css';
 
+/**
+ * Loại bỏ markdown formatting từ text AI response
+ */
+const stripMarkdown = (text) => {
+  if (!text) return text;
+  
+  return text
+    // Loại bỏ ***text***
+    .replace(/\*{3}(.*?)\*{3}/g, '$1')
+    // Loại bỏ **text**
+    .replace(/\*{2}(.*?)\*{2}/g, '$1')
+    // Loại bỏ *text* (nhưng không phải bullet point)
+    .replace(/\*([^\s*][^*]*[^\s*])\*/g, '$1')
+    .replace(/\*([^\s*])\*/g, '$1')
+    // Chuyển bullet point * thành •
+    .replace(/^\s*\*\s+/gm, '• ')
+    // Loại bỏ _text_
+    .replace(/_(.*?)_/g, '$1')
+    // Loại bỏ # headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Loại bỏ ```code```
+    .replace(/```[\s\S]*?```/g, '')
+    // Loại bỏ `code`
+    .replace(/`([^`]+)`/g, '$1')
+    // Loại bỏ [text](url)
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .trim();
+};
+
 const ExpertChatAI = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
@@ -455,7 +484,7 @@ const ExpertChatAI = () => {
                         {msg.answer && (
                           <div className="message message-received">
                             <div className="message-content">
-                              <p>{msg.answer}</p>
+                              <p>{stripMarkdown(msg.answer)}</p>
                               <span className="message-time">{formatTime(msg.createdAt)}</span>
                             </div>
                           </div>
