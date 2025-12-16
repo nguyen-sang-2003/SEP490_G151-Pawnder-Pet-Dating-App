@@ -43,7 +43,12 @@ const NotificationScreen = ({ navigation }: Props) => {
 
   // Get time ago string
   const getTimeAgo = (dateString: string): string => {
-    const date = new Date(dateString);
+    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+    let dateStr = dateString;
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      dateStr = dateStr + 'Z';
+    }
+    const date = new Date(dateStr);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
@@ -93,8 +98,17 @@ const NotificationScreen = ({ navigation }: Props) => {
 
       // Sort by createdAt descending (newest first)
       const sortedData = data.sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        let dateStrA = a.createdAt || '';
+        if (dateStrA && !dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+          dateStrA = dateStrA + 'Z';
+        }
+        let dateStrB = b.createdAt || '';
+        if (dateStrB && !dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+          dateStrB = dateStrB + 'Z';
+        }
+        const dateA = dateStrA ? new Date(dateStrA).getTime() : 0;
+        const dateB = dateStrB ? new Date(dateStrB).getTime() : 0;
         return dateB - dateA;
       });
 
@@ -150,7 +164,12 @@ const NotificationScreen = ({ navigation }: Props) => {
           setNotifications(prev => {
             // Check if notification already exists (avoid duplicates)
             const exists = prev.some(n => {
-              const createdAt = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+              // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+              let dateStr = n.createdAt || '';
+              if (dateStr && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+                dateStr = dateStr + 'Z';
+              }
+              const createdAt = dateStr ? new Date(dateStr).getTime() : 0;
               return n.title === newNotification.title && 
                 n.message === newNotification.message &&
                 createdAt > Date.now() - 5000; // Within 5 seconds
@@ -333,11 +352,20 @@ const NotificationScreen = ({ navigation }: Props) => {
           }
 
           // Find confirmation with matching timestamp (within 5 seconds of notification)
-          const notificationTime = selectedNotification.createdAt ? new Date(selectedNotification.createdAt).getTime() : 0;
+          // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+          let notifDateStr = selectedNotification.createdAt || '';
+          if (notifDateStr && !notifDateStr.endsWith('Z') && !notifDateStr.includes('+')) {
+            notifDateStr = notifDateStr + 'Z';
+          }
+          const notificationTime = notifDateStr ? new Date(notifDateStr).getTime() : 0;
 
           let matchingConfirmation = confirmations.find(c => {
             if (c.status?.toLowerCase() !== 'confirmed') return false;
-            const confirmTime = c.updatedAt ? new Date(c.updatedAt).getTime() : 0;
+            let confirmDateStr = c.updatedAt || '';
+            if (confirmDateStr && !confirmDateStr.endsWith('Z') && !confirmDateStr.includes('+')) {
+              confirmDateStr = confirmDateStr + 'Z';
+            }
+            const confirmTime = confirmDateStr ? new Date(confirmDateStr).getTime() : 0;
             const timeDiff = Math.abs(confirmTime - notificationTime);
             return timeDiff < 5000; // Within 5 seconds
           });
@@ -348,8 +376,16 @@ const NotificationScreen = ({ navigation }: Props) => {
             matchingConfirmation = confirmations
               .filter(c => c.status?.toLowerCase() === 'confirmed')
               .sort((a, b) => {
-                const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-                const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                let dateStrA = a.updatedAt || '';
+                if (dateStrA && !dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+                  dateStrA = dateStrA + 'Z';
+                }
+                let dateStrB = b.updatedAt || '';
+                if (dateStrB && !dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+                  dateStrB = dateStrB + 'Z';
+                }
+                const dateA = dateStrA ? new Date(dateStrA).getTime() : 0;
+                const dateB = dateStrB ? new Date(dateStrB).getTime() : 0;
                 return dateB - dateA;
               })[0];
           }

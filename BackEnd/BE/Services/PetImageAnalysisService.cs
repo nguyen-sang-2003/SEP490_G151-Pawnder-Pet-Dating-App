@@ -155,7 +155,7 @@ namespace BE.Services
                 }
 
                 // Sử dụng gemini-1.5-flash vì stable và hỗ trợ vision tốt
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
                 var mimeType = contentType;
                 if (string.IsNullOrEmpty(mimeType) || !mimeType.StartsWith("image/"))
@@ -188,7 +188,7 @@ namespace BE.Services
                         temperature = 0.1,  // Thấp hơn để JSON output nhất quán
                         topK = 32,
                         topP = 1,
-                        maxOutputTokens = 2048  // Giảm để nhanh hơn
+                        maxOutputTokens = 4096  // Giảm để nhanh hơn
                     }
                 };
 
@@ -249,6 +249,7 @@ namespace BE.Services
                     
                     // Parse manually to handle flexible value types
                     var result = ParseAttributeResults(jsonText);
+
                     return result;
                 }
 

@@ -73,7 +73,14 @@ export const API_ENDPOINTS = {
     UPDATE: (expertId, userId, chatId) => `/expert-confirmation/${expertId}/${userId}/${chatId}`, // PUT /expert-confirmation/{expertId}/{userId}/{chatId}
   },
   CHAT_AI: {
+    TOKEN_USAGE: '/api/chat-ai/token-usage', // GET /api/chat-ai/token-usage
+    GET_ALL_CHATS: (userId) => `/api/chat-ai/${userId}`, // GET /api/chat-ai/{userId}
+    CREATE_CHAT: (userId) => `/api/chat-ai/${userId}`, // POST /api/chat-ai/{userId}
+    UPDATE_CHAT: (chatAiId) => `/api/chat-ai/${chatAiId}`, // PUT /api/chat-ai/{chatAiId}
+    DELETE_CHAT: (chatAiId) => `/api/chat-ai/${chatAiId}`, // DELETE /api/chat-ai/{chatAiId}
     MESSAGES: (chatAiId) => `/api/chat-ai/${chatAiId}/messages`, // GET /api/chat-ai/{chatAiId}/messages
+    SEND_MESSAGE: (chatAiId) => `/api/chat-ai/${chatAiId}/messages`, // POST /api/chat-ai/{chatAiId}/messages
+    CLONE: (originalChatAiId) => `/api/chat-ai/clone/${originalChatAiId}`, // POST /api/chat-ai/clone/{originalChatAiId}
   },
   CHAT_EXPERT: {
     GET_BY_EXPERT: (expertId) => `/api/ChatExpert/expert/${expertId}`, // GET /api/ChatExpert/expert/{expertId}

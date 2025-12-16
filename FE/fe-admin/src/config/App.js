@@ -12,7 +12,7 @@ import { UsersList, UserDetail } from '../features/users';
 import { PetsList, PetDetail, Activities } from '../features/pets';
 import { ReportsList, ReportDetail } from '../features/reports';
 import { PaymentManagement } from '../features/payments';
-import { ExpertList, ExpertDetail, CreateExpert, ExpertChat, ExpertNotifications } from '../features/experts';
+import { ExpertList, ExpertDetail, CreateExpert, ExpertChat, ExpertChatAI, ExpertNotifications } from '../features/experts';
 import { AttributeManagement } from '../features/attributes';
 
 // Layout
@@ -175,6 +175,14 @@ function App() {
                 <ProtectedRoute allowedRoles={[USER_ROLES.EXPERT]}>
                   <ExpertLayout>
                     <ExpertChat />
+                  </ExpertLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/expert/chat-ai" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.EXPERT]}>
+                  <ExpertLayout>
+                    <ExpertChatAI />
                   </ExpertLayout>
                 </ProtectedRoute>
               } />

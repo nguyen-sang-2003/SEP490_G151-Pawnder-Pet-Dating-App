@@ -154,6 +154,8 @@ const ExpertChat = () => {
   const [connection, setConnection] = useState(null);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
+  const connectionRef = useRef(null); // Track connection for cleanup
+  const messageHandlerRef = useRef(null); // Track handler to remove it
 
   // Initialize SignalR connection
   useEffect(() => {
@@ -170,7 +172,119 @@ const ExpertChat = () => {
       return;
     }
 
+    // Cleanup existing connection first if any
+    if (connectionRef.current) {
+      console.log('🧹 Cleaning up existing connection before creating new one');
+      const oldConn = connectionRef.current;
+      if (messageHandlerRef.current) {
+        oldConn.off('ReceiveExpertMessage', messageHandlerRef.current);
+        console.log('✅ Removed old ReceiveExpertMessage listener');
+      }
+      oldConn.stop().catch(() => {});
+      connectionRef.current = null;
+      messageHandlerRef.current = null;
+    }
+
     let newConnection = null;
+
+    // Message handler - defined as named function so we can remove it
+    const handleReceiveExpertMessage = (messageData) => {
+      console.log('📨 [SignalR] Received expert message:', messageData);
+      
+      const chatExpertId = messageData.ChatExpertId || messageData.chatExpertId;
+      const fromId = messageData.FromId || messageData.fromId;
+      const message = messageData.Message || messageData.message;
+      const createdAt = messageData.CreatedAt || messageData.createdAt;
+      
+      console.log('📨 [SignalR] Parsed:', { chatExpertId, fromId, message, createdAt });
+      
+      // Use functional update to access latest selectedChat
+      setSelectedChat((currentSelectedChat) => {
+        console.log('📨 [SignalR] Current selected chat:', currentSelectedChat?.chatExpertId);
+        console.log('📨 [SignalR] Message for chat:', chatExpertId);
+        
+        // Only add message if it's for the currently selected chat
+        if (currentSelectedChat?.chatExpertId === chatExpertId) {
+          setMessages((prev) => {
+            // Check if message already exists (avoid duplicates)
+            // Use more strict check: same content, same fromId, and within 3 seconds
+            const exists = prev.some(m => {
+              const sameContent = m.fromId === fromId && m.message === message;
+              const sameTime = Math.abs(new Date(m.createdAt).getTime() - new Date(createdAt).getTime()) < 3000;
+              return sameContent && sameTime;
+            });
+            
+            if (exists) {
+              console.log('⚠️ [SignalR] Message already exists, skipping duplicate');
+              return prev;
+            }
+            
+            const newMessage = {
+              contentId: Date.now(),
+              chatExpertId: chatExpertId,
+              fromId: fromId,
+              message: message,
+              createdAt: createdAt
+            };
+            
+            console.log('✅ [SignalR] Adding new message:', newMessage);
+            return [...prev, newMessage];
+          });
+          
+          setTimeout(() => scrollToBottom(), 100);
+        } else {
+          console.log('⚠️ [SignalR] Message is for different chat, updating chat list');
+          // Update chat list: move chat with new message to top
+          setChats((prevChats) => {
+            const chatIndex = prevChats.findIndex(c => c.chatExpertId === chatExpertId);
+            if (chatIndex === -1) {
+              // Chat not in list, reload to get it
+              console.log('🆕 New chat detected, reloading...');
+              // Could trigger reload here if needed
+              return prevChats;
+            }
+            
+            // Update chat's updatedAt to current time and move to top
+            const updatedChats = [...prevChats];
+            const updatedChat = {
+              ...updatedChats[chatIndex],
+              updatedAt: createdAt || new Date().toISOString(),
+            };
+            
+            // Remove from current position
+            updatedChats.splice(chatIndex, 1);
+            // Add to top
+            updatedChats.unshift(updatedChat);
+            
+            // Sort to ensure correct order (newest first)
+            updatedChats.sort((a, b) => {
+              let dateStrA = a.updatedAt || a.createdAt;
+              if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
+                dateStrA = dateStrA + 'Z';
+              }
+              const dateA = new Date(dateStrA);
+              
+              let dateStrB = b.updatedAt || b.createdAt;
+              if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
+                dateStrB = dateStrB + 'Z';
+              }
+              const dateB = new Date(dateStrB);
+              
+              return dateB.getTime() - dateA.getTime();
+            });
+            
+            console.log('✅ Updated chat list and sorted by newest message');
+            return updatedChats;
+          });
+        }
+        
+        // Return unchanged to not modify selectedChat
+        return currentSelectedChat;
+      });
+    };
+
+    // Store handler in ref for cleanup
+    messageHandlerRef.current = handleReceiveExpertMessage;
 
     // Import SignalR dynamically
     import('@microsoft/signalr').then(({ HubConnectionBuilder, LogLevel }) => {
@@ -181,6 +295,9 @@ const ExpertChat = () => {
         .configureLogging(LogLevel.Information)
         .withAutomaticReconnect()
         .build();
+
+      // Store connection in ref
+      connectionRef.current = newConnection;
 
       // Register handlers BEFORE starting connection
       newConnection.onclose(() => {
@@ -200,100 +317,8 @@ const ExpertChat = () => {
         }
       });
 
-      // Listen for new expert messages
-      newConnection.on('ReceiveExpertMessage', (messageData) => {
-        console.log('📨 [SignalR] Received expert message:', messageData);
-        
-        const chatExpertId = messageData.ChatExpertId || messageData.chatExpertId;
-        const fromId = messageData.FromId || messageData.fromId;
-        const message = messageData.Message || messageData.message;
-        const createdAt = messageData.CreatedAt || messageData.createdAt;
-        
-        console.log('📨 [SignalR] Parsed:', { chatExpertId, fromId, message, createdAt });
-        
-        // Use functional update to access latest selectedChat
-        setSelectedChat((currentSelectedChat) => {
-          console.log('📨 [SignalR] Current selected chat:', currentSelectedChat?.chatExpertId);
-          console.log('📨 [SignalR] Message for chat:', chatExpertId);
-          
-          // Only add message if it's for the currently selected chat
-          if (currentSelectedChat?.chatExpertId === chatExpertId) {
-            setMessages((prev) => {
-              // Check if message already exists (avoid duplicates)
-              const exists = prev.some(m => {
-                const sameContent = m.fromId === fromId && m.message === message;
-                const sameTime = Math.abs(new Date(m.createdAt).getTime() - new Date(createdAt).getTime()) < 2000;
-                return sameContent && sameTime;
-              });
-              
-              if (exists) {
-                console.log('⚠️ [SignalR] Message already exists, skipping');
-                return prev;
-              }
-              
-              const newMessage = {
-                contentId: Date.now(),
-                chatExpertId: chatExpertId,
-                fromId: fromId,
-                message: message,
-                createdAt: createdAt
-              };
-              
-              console.log('✅ [SignalR] Adding new message:', newMessage);
-              return [...prev, newMessage];
-            });
-            
-            setTimeout(() => scrollToBottom(), 100);
-          } else {
-            console.log('⚠️ [SignalR] Message is for different chat, updating chat list');
-            // Update chat list: move chat with new message to top
-            setChats((prevChats) => {
-              const chatIndex = prevChats.findIndex(c => c.chatExpertId === chatExpertId);
-              if (chatIndex === -1) {
-                // Chat not in list, reload to get it
-                console.log('🆕 New chat detected, reloading...');
-                // Could trigger reload here if needed
-                return prevChats;
-              }
-              
-              // Update chat's updatedAt to current time and move to top
-              const updatedChats = [...prevChats];
-              const updatedChat = {
-                ...updatedChats[chatIndex],
-                updatedAt: createdAt || new Date().toISOString(),
-              };
-              
-              // Remove from current position
-              updatedChats.splice(chatIndex, 1);
-              // Add to top
-              updatedChats.unshift(updatedChat);
-              
-              // Sort to ensure correct order (newest first)
-              updatedChats.sort((a, b) => {
-                let dateStrA = a.updatedAt || a.createdAt;
-                if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
-                  dateStrA = dateStrA + 'Z';
-                }
-                const dateA = new Date(dateStrA);
-                
-                let dateStrB = b.updatedAt || b.createdAt;
-                if (!dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
-                  dateStrB = dateStrB + 'Z';
-                }
-                const dateB = new Date(dateStrB);
-                
-                return dateB.getTime() - dateA.getTime();
-              });
-              
-              console.log('✅ Updated chat list and sorted by newest message');
-              return updatedChats;
-            });
-          }
-          
-          // Return unchanged to not modify selectedChat
-          return currentSelectedChat;
-        });
-      });
+      // Listen for new expert messages - use named function so we can remove it
+      newConnection.on('ReceiveExpertMessage', handleReceiveExpertMessage);
 
       // Start connection
       newConnection
@@ -315,11 +340,24 @@ const ExpertChat = () => {
 
     // Cleanup
     return () => {
-      if (newConnection) {
-        console.log('🔌 Disconnecting SignalR...');
-        newConnection.stop().catch(err => {
+      const connToCleanup = connectionRef.current || newConnection;
+      if (connToCleanup) {
+        console.log('🔌 Disconnecting SignalR and removing listeners...');
+        // CRITICAL: Remove event listener BEFORE stopping connection
+        // This prevents duplicate listeners when reconnecting on Railway
+        try {
+          if (messageHandlerRef.current) {
+            connToCleanup.off('ReceiveExpertMessage', messageHandlerRef.current);
+            console.log('✅ Removed ReceiveExpertMessage listener');
+          }
+        } catch (err) {
+          console.warn('⚠️ Error removing event listener:', err);
+        }
+        connToCleanup.stop().catch(err => {
           console.error('Error stopping SignalR:', err);
         });
+        connectionRef.current = null;
+        messageHandlerRef.current = null;
       }
     };
   }, [user?.id]);
@@ -518,6 +556,7 @@ const ExpertChat = () => {
     if (!newMessage.trim() || !selectedChat || sending) return;
 
     const messageText = newMessage.trim();
+    const tempId = `temp_${Date.now()}`;
     const userId = user?.id;
     
     if (!userId) {
@@ -526,28 +565,35 @@ const ExpertChat = () => {
       return;
     }
 
+    // Add message IMMEDIATELY (optimistic update) - BEFORE API call
+    const optimisticMsg = {
+      contentId: tempId,
+      chatExpertId: selectedChat.chatExpertId,
+      fromId: userId,
+      message: messageText,
+      expertId: userId,
+      userId: selectedChat.userId,
+      chatAIId: null,
+      createdAt: new Date().toISOString(),
+      status: 'sending',
+    };
+    
+    setMessages((prev) => [...prev, optimisticMsg]);
     setNewMessage('');
     setSending(true);
+    scrollToBottom();
 
     try {
       if (USE_MOCK_DATA) {
-        // Sử dụng mock data - chỉ thêm vào local state
+        // Sử dụng mock data - chỉ cập nhật status
         console.log('🎭 Using MOCK DATA for sending message');
-        await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 300));
         
-        const newMsg = {
-          contentId: Date.now(),
-          chatExpertId: selectedChat.chatExpertId,
-          fromId: userId,
-          message: messageText,
-          expertId: userId,
-          userId: selectedChat.userId,
-          chatAIId: null,
-          createdAt: new Date().toISOString(),
-        };
-
-        setMessages((prev) => [...prev, newMsg]);
-        scrollToBottom();
+        setMessages((prev) => 
+          prev.map((m) => 
+            m.contentId === tempId ? { ...m, status: 'sent' } : m
+          )
+        );
         setSending(false);
         return;
       }
@@ -557,8 +603,6 @@ const ExpertChat = () => {
         chatExpertId: selectedChat.chatExpertId,
         fromId: userId,
         message: messageText,
-        expertId: userId,
-        userId: selectedChat.userId,
       });
       
       const result = await chatExpertService.sendMessage(
@@ -572,45 +616,30 @@ const ExpertChat = () => {
 
       console.log('✅ Message sent, result:', result);
 
-      // Add message to state immediately (optimistic update)
-      // SignalR will also broadcast it, but we'll handle duplicates
-      const newMsg = {
-        contentId: result?.contentId || Date.now(),
-        chatExpertId: selectedChat.chatExpertId,
-        fromId: userId,
-        message: messageText,
-        expertId: userId,
-        userId: selectedChat.userId,
-        chatAIId: null,
-        createdAt: result?.createdAt || new Date().toISOString(),
-      };
-
-      setMessages((prev) => {
-        // Check if message already exists (from SignalR)
-        const exists = prev.some(m => 
-          m.contentId === newMsg.contentId || 
-          (m.message === newMsg.message && 
-           Math.abs(new Date(m.createdAt).getTime() - new Date(newMsg.createdAt).getTime()) < 2000)
-        );
-        
-        if (exists) {
-          console.log('⚠️ Message already exists, skipping optimistic update');
-          return prev;
-        }
-        
-        return [...prev, newMsg];
-      });
-      
-      scrollToBottom();
+      // Update optimistic message with real contentId from server
+      setMessages((prev) => 
+        prev.map((m) => 
+          m.contentId === tempId 
+            ? { 
+                ...m, 
+                contentId: result?.contentId || tempId,
+                createdAt: result?.createdAt || m.createdAt,
+                status: 'sent' 
+              } 
+            : m
+        )
+      );
     } catch (err) {
       console.error('❌ Failed to send message:', err);
-      console.error('Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-      });
+      
+      // Mark message as failed
+      setMessages((prev) => 
+        prev.map((m) => 
+          m.contentId === tempId ? { ...m, status: 'failed' } : m
+        )
+      );
+      
       alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
-      setNewMessage(messageText); // Restore message
     } finally {
       setSending(false);
     }
@@ -806,4 +835,3 @@ const ExpertChat = () => {
 };
 
 export default ExpertChat;
-

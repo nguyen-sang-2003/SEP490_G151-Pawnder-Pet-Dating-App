@@ -259,6 +259,45 @@ namespace BE.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Clone an existing AI chat for Expert to continue the conversation
+        /// POST: /api/chat-ai/clone/{originalChatAiId}
+        /// </summary>
+        [HttpPost("clone/{originalChatAiId}")]
+        [Authorize(Roles = "Expert,Admin")]
+        public async Task<IActionResult> CloneChatForExpert(int originalChatAiId, CancellationToken ct = default)
+        {
+            try
+            {
+                var expertId = GetCurrentUserId();
+                
+                if (expertId == 0)
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+                Console.WriteLine($"📋 [API] Expert {expertId} cloning chat {originalChatAiId}");
+
+                var data = await _chatAIService.CloneChatForExpertAsync(originalChatAiId, expertId, ct);
+                
+                Console.WriteLine($"✅ [API] Chat cloned successfully");
+                
+                return Ok(new
+                {
+                    success = true,
+                    data = data,
+                    message = "Đã tạo bản sao cuộc trò chuyện thành công"
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ [API] Clone chat error: {ex.Message}");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 
     // DTOs

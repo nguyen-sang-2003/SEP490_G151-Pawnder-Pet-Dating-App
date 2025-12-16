@@ -43,6 +43,34 @@ interface Message {
   suggestions?: string[];
 }
 
+/**
+ * Loại bỏ markdown formatting từ text AI response
+ */
+const stripMarkdown = (text: string): string => {
+  if (!text) return text;
+  
+  return text
+    // Loại bỏ ***text***
+    .replace(/\*{3}(.*?)\*{3}/g, '$1')
+    // Loại bỏ **text**
+    .replace(/\*{2}(.*?)\*{2}/g, '$1')
+    // Loại bỏ *text* (nhưng không phải bullet point)
+    .replace(/\*([^\s*][^*]*[^\s*])\*/g, '$1')
+    .replace(/\*([^\s*])\*/g, '$1')
+    // Chuyển bullet point * thành •
+    .replace(/^\s*\*\s+/gm, '• ')
+    // Loại bỏ _text_
+    .replace(/_(.*?)_/g, '$1')
+    // Loại bỏ # headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Loại bỏ ```code```
+    .replace(/```[\s\S]*?```/g, '')
+    // Loại bỏ `code`
+    .replace(/`([^`]+)`/g, '$1')
+    // Loại bỏ [text](url)
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .trim();
+};
 
 const AIChatScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
@@ -134,12 +162,18 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       const formattedMessages: Message[] = [];
 
       chatData.messages.forEach(msg => {
+        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        let dateString = msg.createdAt;
+        if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+          dateString = dateString + 'Z';
+        }
+
         // User question
         formattedMessages.push({
           id: `${msg.contentId}-q`,
           text: msg.question,
           isAI: false,
-          timestamp: new Date(msg.createdAt),
+          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
         });
 
         // AI answer
@@ -147,7 +181,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
           id: `${msg.contentId}-a`,
           text: msg.answer,
           isAI: true,
-          timestamp: new Date(msg.createdAt),
+          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
         });
       });
 
@@ -218,11 +252,17 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       }
 
       // Add AI response to messages
+      // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+      let timestampString = response.timestamp;
+      if (typeof timestampString === 'string' && !timestampString.endsWith('Z') && !timestampString.includes('+')) {
+        timestampString = timestampString + 'Z';
+      }
+      
       const aiMessage: Message = {
         id: Date.now().toString(),
         text: response.answer,
         isAI: true,
-        timestamp: new Date(response.timestamp),
+        timestamp: new Date(timestampString), // Parse as UTC, auto converts to local time
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -428,7 +468,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.aiLabel}>{t('chat.ai.aiLabel')}</Text>
                 <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
               </View>
-              <Text style={styles.aiMessageText}>{item.text}</Text>
+              <Text style={styles.aiMessageText}>{stripMarkdown(item.text)}</Text>
 
               {/* Ask Expert Button - Hide only for specific message that was sent */}
               {item.id !== "welcome" && !sentToExpertIds.has(item.id) && (
@@ -548,11 +588,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{t('chat.ai.title')}</Text>
               <Text style={styles.headerStatus}>
-                {isTyping ? t('chat.ai.typing') : tokenUsage
-                  ? (tokenUsage.tokensUsed >= tokenUsage.dailyQuota
-                    ? t('chat.ai.limitReached')
-                    : t('chat.ai.tokenUsage', { used: tokenUsage.tokensUsed.toLocaleString(), total: tokenUsage.dailyQuota.toLocaleString() }))
-                  : "0/10,000 tokens"}
+                {isTyping ? t('chat.ai.typing') : 'Trợ lý AI thú cưng'}
               </Text>
             </View>
           </View>
@@ -608,10 +644,6 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         {/* Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.attachButton}>
-              <Icon name="camera-outline" size={28} color={colors.aiPrimary} />
-            </TouchableOpacity>
-
             <TextInput
               style={styles.input}
               placeholder={t('chat.ai.inputPlaceholder')}
@@ -932,6 +964,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         onClose={() => setShowExpertLimitModal(false)}
         message={expertLimitMessage}
         actionType="expert_confirm"
+        isVip={tokenUsage?.isVip || false}
       />
     </View>
   );
@@ -1219,10 +1252,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(255, 154, 118, 0.15)",
     ...shadows.medium,
-  },
-  attachButton: {
-    padding: 4,
-    marginRight: 4,
   },
   input: {
     flex: 1,

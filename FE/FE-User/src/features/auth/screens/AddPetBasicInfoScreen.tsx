@@ -17,7 +17,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
-import { createPet, getPetsByUserId } from "../../../api";
+import { createPet, getPetsByUserId, updatePet } from "../../../api";
 import { getItem } from "../../../services/storage";
 
 const MAX_PETS_PER_USER = 3;
@@ -26,13 +26,17 @@ type Props = NativeStackScreenProps<RootStackParamList, "AddPetBasicInfo">;
 
 const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
-  const [petName, setPetName] = useState("");
-  const [breed, setBreed] = useState("");
-  const [description, setDescription] = useState("");
+  
+  // Get params - petId will exist if user came back from step 2
+  const isFromProfile = route.params?.isFromProfile || false;
+  const existingPetId = route.params?.petId;
+  
+  // Pre-fill form with existing data if available (when coming back from step 2)
+  const [petName, setPetName] = useState(route.params?.petName || "");
+  const [breed, setBreed] = useState(route.params?.breed || "");
+  const [description, setDescription] = useState(route.params?.description || "");
   const [loading, setLoading] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-
-  const isFromProfile = route.params?.isFromProfile || false;
 
   const handleContinue = async () => {
     // Validation: Kiểm tra tên thú cưng trống
@@ -71,7 +75,36 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       const userId = parseInt(userIdStr, 10);
 
-      // Kiểm tra số lượng pet hiện tại (tối đa 3 pet)
+      // If we already have a petId (user came back from step 2), UPDATE instead of CREATE
+      if (existingPetId) {
+        const updateData = {
+          Name: petName.trim(),
+          Gender: "Male", // Keep default, will be updated in Characteristics screen
+          Breed: breed.trim() || undefined,
+          Description: description.trim() || undefined,
+        };
+
+        await updatePet(existingPetId, updateData);
+
+        showAlert({
+          type: 'success',
+          title: t('auth.addPet.basicInfo.success'),
+          message: t('auth.addPet.basicInfo.petUpdated', { name: petName }),
+          confirmText: t('common.continue'),
+          onClose: () => {
+            navigation.navigate("AddPetPhotos", { 
+              petId: existingPetId, 
+              isFromProfile,
+              petName: petName.trim(),
+              breed: breed.trim(),
+              description: description.trim(),
+            });
+          },
+        });
+        return;
+      }
+
+      // Kiểm tra số lượng pet hiện tại (tối đa 3 pet) - only for NEW pet creation
       if (isFromProfile) {
         try {
           const existingPets = await getPetsByUserId(userId);
@@ -85,11 +118,11 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
             return;
           }
         } catch (error) {
-          console.log('Could not check existing pets count:', error);
+          // Silent fail
         }
       }
 
-      // Create pet (Gender default to "Male", user will update in Characteristics screen)
+      // Create NEW pet (Gender default to "Male", user will update in Characteristics screen)
       // IsActive: false by default - user can manually set active later
       // Only first pet during registration will be auto-active (handled by backend or onboarding)
       const petData = {
@@ -101,17 +134,12 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         IsActive: isFromProfile ? false : true, // Auto-active only for first pet (registration), not when adding from profile
       };
 
-      console.log('Creating pet with data:', petData);
       const response = await createPet(petData);
-      console.log('Create pet response:', response);
-
       const petId = response.PetId || response.petId;
 
       if (!petId) {
         throw new Error('Không nhận được PetId từ server');
       }
-
-      console.log('✅ Pet created successfully. PetId:', petId);
 
       showAlert({
         type: 'success',
@@ -119,7 +147,13 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         message: t('auth.addPet.basicInfo.petCreated', { name: petName }),
         confirmText: t('common.continue'),
         onClose: () => {
-          navigation.navigate("AddPetPhotos", { petId, isFromProfile });
+          navigation.navigate("AddPetPhotos", { 
+            petId, 
+            isFromProfile,
+            petName: petName.trim(),
+            breed: breed.trim(),
+            description: description.trim(),
+          });
         },
       });
     } catch (error: any) {

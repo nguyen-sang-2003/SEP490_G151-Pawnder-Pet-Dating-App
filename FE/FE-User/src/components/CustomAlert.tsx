@@ -133,9 +133,15 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
               activeOpacity={0.8}
               onPress={() => {
                 if (onConfirm) {
+                  // Call onConfirm first, then close after a tiny delay to ensure state updates
                   onConfirm();
+                  // Use setTimeout to ensure state update is processed before closing
+                  setTimeout(() => {
+                    onClose();
+                  }, 50);
+                } else {
+                  onClose();
                 }
-                onClose();
               }}
               style={[styles.buttonShadow, showCancel && styles.confirmButtonFlex]}>
               <LinearGradient

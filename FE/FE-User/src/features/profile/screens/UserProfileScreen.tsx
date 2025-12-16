@@ -262,9 +262,16 @@ const UserProfileScreen = ({ navigation }: Props) => {
     fullAddress: fullAddress,
     isPremium: isVip, // Use actual VIP status
     email: userData?.Email || userData?.email || "",
-    memberSince: userData?.CreatedAt
-      ? new Date(userData.CreatedAt).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })
-      : (userData?.createdAt ? new Date(userData.createdAt).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' }) : ""),
+    memberSince: (() => {
+      const dateStr = userData?.CreatedAt || userData?.createdAt;
+      if (!dateStr) return "";
+      // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+      let dateString = dateStr;
+      if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+        dateString = dateString + 'Z';
+      }
+      return new Date(dateString).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+    })(),
   };
 
   // My Pets List (convert from PetResponse[] to PetItem[])

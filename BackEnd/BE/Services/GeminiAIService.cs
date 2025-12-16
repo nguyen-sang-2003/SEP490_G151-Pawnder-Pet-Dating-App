@@ -35,6 +35,7 @@ NGUYÊN TẮC TRẢ LỜI:
 ✓ Dùng bullet points khi liệt kê các bước hoặc gợi ý
 ✓ Luôn tích cực và khích lệ người nuôi mèo
 ✓ Nếu không chắc chắn, thừa nhận và gợi ý tham khảo thêm
+✓ KHÔNG sử dụng markdown formatting (**, ***, *, _, #, ```) - chỉ dùng text thuần túy và emoji
 
 LƯU Ý QUAN TRỌNG VỀ SỨC KHỎE:
 - Khi đề cập vấn đề sức khỏe nghiêm trọng (nôn mửa liên tục, tiêu chảy, không ăn uống >24h, khó thở, co giật), LUÔN đề nghị đưa mèo đến bác sĩ thú y ngay
@@ -56,13 +57,14 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
         public async Task<ChatAi> CreateChatSessionAsync(int userId, string title)
         {
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             var chatAi = new ChatAi
             {
                 UserId = userId,
                 Title = title ?? "Chat với AI",
                 IsDeleted = false,
-                CreatedAt = DateTime.Now, // Giữ nguyên DateTime.Now
-                UpdatedAt = DateTime.Now  // Giữ nguyên DateTime.Now
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             _context.ChatAis.Add(chatAi);
@@ -87,7 +89,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
 
             // Gọi Gemini API
             //var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash-exp");
-            var model = _googleAI.GenerativeModel(model: "gemini-2.0-flash");
+            var model = _googleAI.GenerativeModel(model: "gemini-2.5-flash");
             // Xây dựng prompt
             var promptBuilder = new System.Text.StringBuilder();
 
@@ -99,7 +101,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             // Lý do: History càng dài → tokens càng nhiều → Gemini càng chậm
             var recentHistory = history
                 .Where(h => !string.IsNullOrEmpty(h.Question) && !string.IsNullOrEmpty(h.Answer))
-                .TakeLast(2)
+                .TakeLast(5)
                 .ToList();
 
             if (recentHistory.Any())
@@ -154,18 +156,19 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             }
 
             // Lưu Q&A
+            var now = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
             var content = new ChatAicontent
             {
                 ChatAiid = chatAiId,
                 Question = question,
                 Answer = answer,
-                CreatedAt = DateTime.Now, // <-- ĐÃ ĐỔI
-                UpdatedAt = DateTime.Now  // <-- ĐÃ ĐỔI
+                CreatedAt = now,
+                UpdatedAt = now
             };
             _context.ChatAicontents.Add(content);
 
             // Cập nhật chat
-            chatAi.UpdatedAt = DateTime.Now; // <-- ĐÃ ĐỔI
+            chatAi.UpdatedAt = now;
 
             // Auto-generate title nếu đây là câu hỏi đầu tiên
             if (history.Count == 0 && (chatAi.Title == "Chat với AI" || chatAi.Title == "New Chat"))

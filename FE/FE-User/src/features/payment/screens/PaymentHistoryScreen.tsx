@@ -163,7 +163,12 @@ const PaymentHistoryScreen = ({ navigation }: Props) => {
 
   const formatDate = (dateString: string) => {
     try {
-      const date = new Date(dateString);
+      // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+      let dateStr = dateString;
+      if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+        dateStr = dateStr + 'Z';
+      }
+      const date = new Date(dateStr);
       return date.toLocaleDateString('vi-VN', {
         year: 'numeric',
         month: 'short',

@@ -26,10 +26,11 @@ import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { getLikesReceived, respondToLike, type LikeReceivedItem } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch, useSelector } from "react-redux";
-import { resetFavoriteBadge, showMatchModal, selectActivePetId, markChatAsRead } from "../../badge/badgeSlice";
+import { resetFavoriteBadge, showMatchModal as showGlobalMatchModal, selectActivePetId, markChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
-import { getPetsByUserId } from "../../pet/api/petApi";
+import { getPetsByUserId, getPetMatchDetails, MatchedAttribute } from "../../pet/api/petApi";
 import OptimizedImage from "../../../components/OptimizedImage";
+import { MatchDetailsModal } from "../../../components/MatchDetailsModal";
 import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
 import signalRService from "../../../services/signalr.service";
 import CustomAlert from "../../../components/CustomAlert";
@@ -53,6 +54,10 @@ interface LikeCat {
   images: any[];       // All images for carousel
   likedAt: string;
   isMatch: boolean;
+  // Match data - how well this pet matches MY preferences
+  matchPercent?: number;
+  matchedAttributes?: MatchedAttribute[];
+  totalFilters?: number;
 }
 
 const FavoriteScreen = ({ navigation }: Props) => {
@@ -67,6 +72,19 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const [activeTab, setActiveTab] = useState<'likes' | 'matches'>('likes');
   const scrollY = useRef(new Animated.Value(0)).current;
   const [reloadTrigger, setReloadTrigger] = useState(0); // Trigger for reload
+
+  // Match details modal state
+  const [showMatchModal, setShowMatchModal] = useState(false);
+  const [matchModalLoading, setMatchModalLoading] = useState(false);
+  const [selectedPetForMatch, setSelectedPetForMatch] = useState<{
+    petId: string;
+    petName: string;
+    matchPercent: number;
+    matchScore: number;
+    totalPercent: number;
+    matchedAttributes: MatchedAttribute[];
+    totalFilters: number;
+  } | null>(null);
 
   // ✅ Reload likes when activePetId changes
   useEffect(() => {
@@ -245,11 +263,30 @@ const FavoriteScreen = ({ navigation }: Props) => {
         };
       });
 
+      // 🚀 Load match details for each pet (how well they match MY preferences)
+      const petsWithMatch = await Promise.all(
+        formattedPets.map(async (pet) => {
+          try {
+            const matchDetails = await getPetMatchDetails(userId, parseInt(pet.petId));
+            return {
+              ...pet,
+              matchPercent: matchDetails?.data?.matchPercent ?? 0,
+              matchedAttributes: matchDetails?.data?.matchedAttributes ?? [],
+              totalFilters: matchDetails?.totalPreferences ?? 0,
+            };
+          } catch (error) {
+            console.log(`⚠️ Could not load match for pet ${pet.petId}`);
+            return pet; // Return pet without match data
+          }
+        })
+      );
+      console.log('✅ Loaded match details for all pets');
+
       // 🚀 OPTIMIZATION 4: Cache the result
-      cache.set(cacheKey, formattedPets);
+      cache.set(cacheKey, petsWithMatch);
       console.log('💾 Cached likes for future use');
 
-      setPets(formattedPets);
+      setPets(petsWithMatch);
     } catch (error) {
 
     } finally {
@@ -259,7 +296,12 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
   // Helper to format time ago
   const getTimeAgo = (dateString: string): string => {
-    const date = new Date(dateString);
+    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+    let dateStr = dateString;
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      dateStr = dateStr + 'Z';
+    }
+    const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -326,7 +368,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
       // Show global match modal
       const petPhotoUrl = typeof pet.image === 'string' ? pet.image : pet.image?.uri;
-      dispatch(showMatchModal({
+      dispatch(showGlobalMatchModal({
         otherUserName: pet.ownerName,
         otherUserId: pet.ownerId,
         matchId: parseInt(petId),
@@ -436,6 +478,38 @@ const FavoriteScreen = ({ navigation }: Props) => {
     navigation.navigate("PetProfile", { petId, fromFavorite: true } as any);
   }, [navigation]);
 
+  // Handler to load and show match details
+  const handleShowMatchDetails = useCallback(async (petId: string, petName: string) => {
+    try {
+      setMatchModalLoading(true);
+      setShowMatchModal(true);
+      
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) return;
+      const userId = parseInt(userIdStr);
+
+      console.log('📊 Loading match details for pet:', petId);
+      const matchDetails = await getPetMatchDetails(userId, parseInt(petId));
+      
+      if (matchDetails?.data) {
+        setSelectedPetForMatch({
+          petId,
+          petName,
+          matchPercent: matchDetails.data.matchPercent ?? 0,
+          matchScore: matchDetails.data.matchScore ?? 0,
+          totalPercent: matchDetails.data.totalPercent ?? 0,
+          matchedAttributes: matchDetails.data.matchedAttributes ?? [],
+          totalFilters: matchDetails.totalPreferences ?? 0,
+        });
+      }
+    } catch (error) {
+      console.log('⚠️ Could not load match details:', error);
+      setShowMatchModal(false);
+    } finally {
+      setMatchModalLoading(false);
+    }
+  }, []);
+
   // 🚀 OPTIMIZATION 4: Memoize renderLikeItem
   const renderLikeItem = useCallback(({ item, index }: { item: LikeCat; index: number }) => {
     const currentPhotoIndex = currentPhotoIndices[item.id] || 0;
@@ -529,6 +603,31 @@ const FavoriteScreen = ({ navigation }: Props) => {
                       {" "}{item.gender === "male" ? "♂" : "♀"}
                     </Text>
                   </Text>
+                  {/* Match % Badge - Only show if we have match data */}
+                  {item.matchPercent !== undefined && item.matchPercent > 0 && (
+                    <TouchableOpacity
+                      style={styles.matchBadgeOnCard}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        // Open modal directly with cached data
+                        setSelectedPetForMatch({
+                          petId: item.petId,
+                          petName: item.catName,
+                          matchPercent: item.matchPercent || 0,
+                          matchScore: 0,
+                          totalPercent: 0,
+                          matchedAttributes: item.matchedAttributes || [],
+                          totalFilters: item.totalFilters || 0,
+                        });
+                        setShowMatchModal(true);
+                      }}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Icon name="star" size={12} color={colors.primary} />
+                      <Text style={styles.matchBadgeOnCardText}>{item.matchPercent}%</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <View style={styles.metaRow}>
                   <Icon name="paw" size={16} color={colors.white} />
@@ -813,6 +912,30 @@ const FavoriteScreen = ({ navigation }: Props) => {
           onClose={hideAlert}
         />
       )}
+
+      {/* Match Details Modal */}
+      {showMatchModal && (
+        matchModalLoading ? (
+          <View style={styles.matchModalLoading}>
+            <View style={styles.matchModalLoadingBox}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.matchModalLoadingText}>{t('common.loading')}</Text>
+            </View>
+          </View>
+        ) : selectedPetForMatch ? (
+          <MatchDetailsModal
+            visible={showMatchModal}
+            onClose={() => {
+              setShowMatchModal(false);
+              setSelectedPetForMatch(null);
+            }}
+            petName={selectedPetForMatch.petName}
+            matchPercent={selectedPetForMatch.matchPercent}
+            matchedAttributes={selectedPetForMatch.matchedAttributes}
+            totalFilters={selectedPetForMatch.totalFilters}
+          />
+        ) : null
+      )}
     </View >
   );
 };
@@ -930,12 +1053,12 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
 
-  // Photo Navigation
+  // Photo Navigation - Reduced height to not cover info section
   photoTapLeft: {
     position: "absolute",
     left: 0,
     top: 0,
-    height: "100%",
+    height: "60%", // Only cover top 60% to leave space for pet info
     width: "35%",
     zIndex: 2,
   },
@@ -943,7 +1066,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     top: 0,
-    height: "100%",
+    height: "60%", // Only cover top 60% to leave space for pet info
     width: "35%",
     zIndex: 2,
   },
@@ -1021,6 +1144,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 20,
     paddingBottom: 14,
+    zIndex: 5, // Above photo tap areas
   },
   imageInfo: {
     gap: 6,
@@ -1028,7 +1152,8 @@ const styles = StyleSheet.create({
   petNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10, // Badge stays close to name
+    flexWrap: "wrap",
   },
   catNameOnImage: {
     fontSize: 22,
@@ -1037,6 +1162,42 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
+  },
+  matchBadgeOnCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  matchBadgeOnCardText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  matchModalLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  matchModalLoadingBox: {
+    backgroundColor: colors.white,
+    padding: 30,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  matchModalLoadingText: {
+    fontSize: 14,
+    color: colors.textMedium,
   },
   maleSymbol: {
     color: "#64B5F6",
