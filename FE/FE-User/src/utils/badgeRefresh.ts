@@ -123,7 +123,7 @@ const _refreshBadgesForActivePetImpl = async (userId: number, skipRateLimit: boo
       }));
     }
   } catch (error) {
-    console.error('❌ Badge refresh error:', error);
+    console.log('❌ Badge refresh error:', error);
     throw error;
   }
 };

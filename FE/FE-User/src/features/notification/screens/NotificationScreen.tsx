@@ -239,7 +239,7 @@ const NotificationScreen = ({ navigation }: Props) => {
           signalRService.off('NewNotification', handleNewNotification);
         };
       } catch (error) {
-        console.error('Error setting up SignalR for notifications:', error);
+        console.log('Error setting up SignalR for notifications:', error);
       }
     };
 

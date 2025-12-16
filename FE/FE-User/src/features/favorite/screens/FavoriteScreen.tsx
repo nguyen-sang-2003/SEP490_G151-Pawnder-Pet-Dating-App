@@ -161,7 +161,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
             await refreshBadgesForActivePet(userId, true);
           }
         } catch (error) {
-          console.error('❌ [FavoriteScreen] Failed to refresh badges:', error);
+          console.log('❌ [FavoriteScreen] Failed to refresh badges:', error);
         }
       };
       
@@ -320,7 +320,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
     try {
       await loadLikes(true); // Force refresh
     } catch (error) {
-      console.error('❌ Error refreshing:', error);
+      console.log('❌ Error refreshing:', error);
     } finally {
       setRefreshing(false);
     }
@@ -452,7 +452,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
             message: t('favorite.unmatch.successMessage', { name: petName }),
           });
         } catch (error: any) {
-          console.error('❌ Error unmatching:', error);
+          console.log('❌ Error unmatching:', error);
           showAlert({
             type: 'error',
             title: t('common.error'),

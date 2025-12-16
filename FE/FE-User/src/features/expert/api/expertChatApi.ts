@@ -189,7 +189,7 @@ export const getAvailableExperts = async (): Promise<Expert[]> => {
     console.log('✅ Available experts:', experts.length);
     return experts;
   } catch (error: any) {
-    console.error('❌ Error getting experts:', error);
+    console.log('❌ Error getting experts:', error);
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

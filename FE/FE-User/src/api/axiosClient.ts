@@ -89,7 +89,7 @@ export const storeTokens = async (accessToken: string, refreshToken: string): Pr
     });
     console.log('✅ Tokens stored successfully');
   } catch (error) {
-    console.error('❌ Error storing tokens:', error);
+    console.log('❌ Error storing tokens:', error);
   }
 };
 
@@ -348,7 +348,7 @@ apiClient.interceptors.response.use(
               await AsyncStorage.setItem('shouldLogout', 'true');
               console.log('🔐 Cleared all tokens and set logout flag');
             } catch (e) {
-              console.error('Error clearing tokens:', e);
+              console.log('Error clearing tokens:', e);
             }
           } else {
             console.log('⚠️ Refresh failed due to network/server error, NOT logging out - will retry later');

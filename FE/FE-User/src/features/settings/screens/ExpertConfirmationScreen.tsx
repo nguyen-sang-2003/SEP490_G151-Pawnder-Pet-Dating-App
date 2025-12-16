@@ -129,7 +129,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         expertName: "Chuyên gia"
       });
     } catch (error: any) {
-      console.error('❌ Error creating expert chat:', error);
+      console.log('❌ Error creating expert chat:', error);
       showAlert({
         type: 'error',
         title: t('common.error'),

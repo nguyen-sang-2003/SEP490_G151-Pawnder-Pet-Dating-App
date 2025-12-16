@@ -320,7 +320,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       const expertsList = await getAvailableExperts();
       setExperts(expertsList);
     } catch (error) {
-      console.error('Error loading experts:', error);
+      console.log('Error loading experts:', error);
       setErrorMessage('Không thể tải danh sách chuyên gia');
       setShowErrorAlert(true);
     } finally {
