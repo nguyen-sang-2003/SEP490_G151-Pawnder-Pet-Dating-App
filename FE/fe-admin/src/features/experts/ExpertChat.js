@@ -198,6 +198,12 @@ const ExpertChat = () => {
       
       console.log('📨 [SignalR] Parsed:', { chatExpertId, fromId, message, createdAt });
       
+      // Check if message is from current expert (skip to avoid duplicate with optimistic update)
+      if (fromId === userId) {
+        console.log('⚠️ [SignalR] Message is from current expert, skipping (already added optimistically)');
+        return;
+      }
+      
       // Use functional update to access latest selectedChat
       setSelectedChat((currentSelectedChat) => {
         console.log('📨 [SignalR] Current selected chat:', currentSelectedChat?.chatExpertId);
