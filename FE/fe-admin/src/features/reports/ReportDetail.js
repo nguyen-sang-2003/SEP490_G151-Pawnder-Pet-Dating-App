@@ -69,10 +69,14 @@ const ReportDetail = () => {
           return;
         }
         
-        const reportResponse = await reportService.getReportById(reportId);
+        // Use getReports() instead of getReportById() because getReports() returns Content (message)
+        // while getReportById() does not include Content in the response
+        const allReports = await reportService.getReports();
+        const reportsArray = Array.isArray(allReports) ? allReports : [];
+        const reportResponse = reportsArray.find(r => 
+          (r.ReportId || r.reportId) === reportId
+        );
         
-        // Backend returns: { success, message, data: ReportDto }
-        // reportService.getReportById() already unwraps response?.data || response
         if (!reportResponse) {
           setError('Không tìm thấy báo cáo');
           setLoading(false);
@@ -98,12 +102,25 @@ const ReportDetail = () => {
         const reporterLastName = reporterNameParts.slice(1).join(' ') || '';
         
         // Map report to frontend format
-        const { cleanReason, reportedUser } = extractReportedUserFromReason(reportResponse.Reason || reportResponse.reason || 'N/A');
+        const { cleanReason, reportedUser: extractedReportedUser } = extractReportedUserFromReason(reportResponse.Reason || reportResponse.reason || 'N/A');
+
+        // Use ReportedUser from backend if available (getReports() returns this), fallback to extracted
+        const backendReportedUser = reportResponse.ReportedUser || reportResponse.reportedUser;
+        const reportedUser = backendReportedUser ? {
+          userId: backendReportedUser.UserId || backendReportedUser.userId,
+          fullName: backendReportedUser.FullName || backendReportedUser.fullName || 'Unknown User',
+          firstName: (backendReportedUser.FullName || backendReportedUser.fullName || 'Unknown').split(' ')[0],
+          lastName: (backendReportedUser.FullName || backendReportedUser.fullName || '').split(' ').slice(1).join(' '),
+          email: backendReportedUser.Email || backendReportedUser.email || 'unknown@email.com',
+          username: (backendReportedUser.Email || backendReportedUser.email || 'unknown').split('@')[0],
+          phone: null,
+          avatar: null
+        } : extractedReportedUser;
 
         const mappedReport = {
           id: reportResponse.ReportId || reportResponse.reportId,
           reporterId: reporterUserId,
-          reportedUserId: null,
+          reportedUserId: reportedUser.userId,
           reason: cleanReason,
           status: reportResponse.Status || reportResponse.status || 'Pending',
           resolution: reportResponse.Resolution || reportResponse.resolution || null,
@@ -117,15 +134,15 @@ const ReportDetail = () => {
             firstName: reporterFirstName,
             lastName: reporterLastName,
             email: reportResponse.UserReport?.Email || reportResponse.userReport?.email || reporterUser?.Email || reporterUser?.email || 'unknown@email.com',
-            username: reporterUser?.Email?.split('@')[0] || reportResponse.UserReport?.Email?.split('@')[0] || 'unknown',
+            username: (reportResponse.UserReport?.Email || reportResponse.userReport?.email || reporterUser?.Email || reporterUser?.email || 'unknown').split('@')[0],
             phone: null, // Backend doesn't have phone
             avatar: null // Backend doesn't have avatar
           },
           reportedUser,
-          // Reported content from backend
+          // Reported content from backend (now available from getReports())
           reportedContent: {
             type: 'Message',
-            message: reportResponse.Content?.Message || reportResponse.content?.message || 'N/A',
+            message: reportResponse.Content?.Message || reportResponse.content?.message || 'Không có nội dung tin nhắn',
             timestamp: reportResponse.Content?.CreatedAt || reportResponse.content?.createdAt || reportResponse.CreatedAt || reportResponse.createdAt
           }
         };
