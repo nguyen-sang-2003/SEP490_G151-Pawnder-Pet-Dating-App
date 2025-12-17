@@ -51,33 +51,28 @@ namespace BE.Services
                     base64Image = Convert.ToBase64String(memoryStream.ToArray());
                 }
 
+                // Check if image contains a cat
+                var isCatResult = await CheckIfCatImageAsync(base64Image, image.ContentType);
+                if (!isCatResult.IsCat)
+                {
+                    return new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = isCatResult.Message
+                    };
+                }
+
                 // Get all attributes from database
                 var attributes = await _context.Attributes
                     .Include(a => a.AttributeOptions)
                     .Where(a => a.IsDeleted == false)
                     .ToListAsync();
 
-                // Build prompt for AI (includes cat validation)
+                // Build prompt for AI
                 var prompt = BuildAnalysisPrompt(attributes);
 
-                // Call AI API (Google Gemini) - Single call for both cat check and analysis
+                // Call AI API (Google Gemini)
                 var analysisResult = await CallGeminiVisionAPI(base64Image, prompt, image.ContentType);
-
-                // Check if it's not a cat (special response)
-                if (analysisResult != null && analysisResult.Count == 1 && 
-                    analysisResult[0].AttributeName == "__NOT_A_CAT__")
-                {
-                    var animalType = analysisResult[0].OptionName;
-                    var message = string.IsNullOrEmpty(animalType) || animalType.ToLower() == "null" || animalType.ToLower() == "không xác định"
-                        ? "Ảnh không chứa con mèo. Vui lòng tải lên ảnh mèo để phân tích."
-                        : $"Ảnh chứa {animalType}, không phải mèo. Vui lòng tải lên ảnh mèo để phân tích.";
-                    
-                    return new PetImageAnalysisResponse
-                    {
-                        Success = false,
-                        Message = message
-                    };
-                }
 
                 if (analysisResult == null || !analysisResult.Any())
                 {
@@ -112,25 +107,146 @@ namespace BE.Services
             }
         }
 
+        private class CatCheckResult
+        {
+            public bool IsCat { get; set; }
+            public string Message { get; set; } = string.Empty;
+        }
+
+        private async Task<CatCheckResult> CheckIfCatImageAsync(string base64Image, string contentType)
+        {
+            try
+            {
+                var apiKey = _configuration["GeminiAI:ApiKey"];
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    throw new Exception("Chưa cấu hình Gemini API Key");
+                }
+
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+
+                var mimeType = contentType;
+                if (string.IsNullOrEmpty(mimeType) || !mimeType.StartsWith("image/"))
+                {
+                    mimeType = "image/jpeg";
+                }
+
+                var prompt = @"Hãy xác định xem ảnh này có chứa con mèo hay không.
+CHỈ trả về JSON theo format sau, KHÔNG thêm bất kỳ text hay markdown nào:
+{
+  ""isCat"": true hoặc false,
+  ""animalType"": ""tên loại động vật nếu có""
+}
+
+Lưu ý:
+- isCat = true nếu ảnh có chứa con mèo (cat)
+- isCat = false nếu ảnh KHÔNG chứa con mèo (ví dụ: chó, chim, người, đồ vật, v.v.)
+- animalType là loại động vật được phát hiện trong ảnh (nếu có)";
+
+                var requestBody = new
+                {
+                    contents = new[]
+                    {
+                        new
+                        {
+                            parts = new object[]
+                            {
+                                new { text = prompt },
+                                new
+                                {
+                                    inline_data = new
+                                    {
+                                        mime_type = mimeType,
+                                        data = base64Image
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    generationConfig = new
+                    {
+                        temperature = 0.1,
+                        topK = 32,
+                        topP = 1,
+                        maxOutputTokens = 256
+                    }
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestBody);
+                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(url, httpContent);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"❌ Cat Check API Error: Status={response.StatusCode}, Content={responseContent}");
+                    // Nếu không thể kiểm tra, cho phép tiếp tục phân tích
+                    return new CatCheckResult { IsCat = true, Message = "" };
+                }
+
+                var geminiResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
+
+                if (!geminiResponse.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
+                {
+                    return new CatCheckResult { IsCat = true, Message = "" };
+                }
+
+                var text = candidates[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
+
+                Console.WriteLine($"🐱 Cat Check Response: {text}");
+
+                // Parse JSON response
+                var jsonStart = text?.IndexOf('{') ?? -1;
+                var jsonEnd = text?.LastIndexOf('}') ?? -1;
+
+                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                {
+                    var jsonText = text!.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                    var checkResult = JsonSerializer.Deserialize<JsonElement>(jsonText);
+
+                    if (checkResult.TryGetProperty("isCat", out var isCatProp))
+                    {
+                        var isCat = isCatProp.GetBoolean();
+                        var animalType = "";
+
+                        if (checkResult.TryGetProperty("animalType", out var animalTypeProp))
+                        {
+                            animalType = animalTypeProp.GetString() ?? "";
+                        }
+
+                        if (!isCat)
+                        {
+                            var message = string.IsNullOrEmpty(animalType) || animalType.ToLower() == "null"
+                                ? "Ảnh không chứa con mèo. Vui lòng tải lên ảnh mèo để phân tích."
+                                : $"Ảnh chứa {animalType}, không phải mèo. Vui lòng tải lên ảnh mèo để phân tích.";
+
+                            return new CatCheckResult { IsCat = false, Message = message };
+                        }
+
+                        return new CatCheckResult { IsCat = true, Message = "" };
+                    }
+                }
+
+                // Nếu không parse được, cho phép tiếp tục
+                return new CatCheckResult { IsCat = true, Message = "" };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking cat image: {ex.Message}");
+                // Nếu lỗi, cho phép tiếp tục phân tích
+                return new CatCheckResult { IsCat = true, Message = "" };
+            }
+        }
 
         private string BuildAnalysisPrompt(List<Models.Attribute> attributes)
         {
             var promptBuilder = new StringBuilder();
-            
-            // Thêm yêu cầu kiểm tra mèo trước
-            promptBuilder.AppendLine("BƯỚC 1: Kiểm tra xem ảnh có chứa con MÈO (cat) hay không.");
-            promptBuilder.AppendLine();
-            promptBuilder.AppendLine("NẾU ảnh KHÔNG chứa con mèo (ví dụ: chó, chim, người, đồ vật, v.v.), hãy trả về:");
-            promptBuilder.AppendLine("[");
-            promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"__NOT_A_CAT__\",");
-            promptBuilder.AppendLine("    \"optionName\": \"<tên loại động vật hoặc đối tượng trong ảnh>\"");
-            promptBuilder.AppendLine("  }");
-            promptBuilder.AppendLine("]");
-            promptBuilder.AppendLine();
-            promptBuilder.AppendLine("NẾU ảnh CÓ chứa con mèo, tiếp tục BƯỚC 2.");
-            promptBuilder.AppendLine();
-            promptBuilder.AppendLine("BƯỚC 2: Phân tích ảnh mèo và trả về thông tin về các đặc điểm sau dưới dạng JSON:");
+            promptBuilder.AppendLine("Hãy phân tích ảnh thú cưng này và trả về thông tin về các đặc điểm sau dưới dạng JSON:");
             promptBuilder.AppendLine();
             promptBuilder.AppendLine("Các thuộc tính cần phân tích:");
 
@@ -168,7 +284,6 @@ namespace BE.Services
             promptBuilder.AppendLine();
             promptBuilder.AppendLine("LƯU Ý:");
             promptBuilder.AppendLine("- CHỈ trả về JSON array, KHÔNG thêm markdown, text giải thích.");
-            promptBuilder.AppendLine("- Nếu KHÔNG phải mèo, chỉ trả về __NOT_A_CAT__ như BƯỚC 1.");
             promptBuilder.AppendLine("- attributeName phải KHỚP CHÍNH XÁC với danh sách trên.");
             promptBuilder.AppendLine("- optionName phải KHỚP với một trong các tùy chọn đã liệt kê.");
             promptBuilder.AppendLine("- Nếu không chắc chắn, hãy đưa ra dự đoán tốt nhất dựa trên ảnh.");
