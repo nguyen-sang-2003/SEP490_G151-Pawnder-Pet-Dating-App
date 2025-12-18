@@ -97,7 +97,7 @@ const ChatScreen = ({ navigation }: Props) => {
             await refreshBadgesForActivePet(userId, true);
           }
         } catch (error) {
-          console.error('❌ [ChatScreen] Failed to refresh badges:', error);
+          console.log('❌ [ChatScreen] Failed to refresh badges:', error);
         }
       };
       

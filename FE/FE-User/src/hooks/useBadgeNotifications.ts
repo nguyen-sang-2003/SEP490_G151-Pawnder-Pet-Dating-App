@@ -49,7 +49,7 @@ export const useBadgeNotifications = (userId: number | null) => {
         }
       } catch (error) {
         if (isMounted) {
-          console.error('❌ [useBadgeNotifications] Failed to initialize badges:', error);
+          console.log('❌ [useBadgeNotifications] Failed to initialize badges:', error);
         }
       }
     };

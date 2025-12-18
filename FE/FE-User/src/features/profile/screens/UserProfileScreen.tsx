@@ -275,19 +275,30 @@ const UserProfileScreen = ({ navigation }: Props) => {
   };
 
   // My Pets List (convert from PetResponse[] to PetItem[])
-  // Note: Age is only loaded for active pet from characteristics
-  // For inactive pets, we'll show a placeholder until they become active
-  const myPets: PetItem[] = pets.map(pet => {
+  // Sort: active pet first, then by PetId descending (newest first - higher ID = created later)
+  const sortedPets = [...pets].sort((a, b) => {
+    const aActive = a.IsActive === true || a.isActive === true;
+    const bActive = b.IsActive === true || b.isActive === true;
+    
+    // Active pet always first
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    
+    // Then sort by PetId descending (higher ID = newer pet)
+    const aId = a.PetId || a.petId || 0;
+    const bId = b.PetId || b.petId || 0;
+    return bId - aId;
+  });
+
+  const myPets: PetItem[] = sortedPets.map(pet => {
     const isThisActive = pet.IsActive === true || pet.isActive === true;
+    const petId = pet.PetId || pet.petId || 0;
+    
     return {
-      id: (pet.PetId || pet.petId || 0).toString(),
+      id: petId.toString(),
       name: pet.Name || pet.name || '',
       breed: pet.Breed || pet.breed || '',
-      age: isThisActive
-        ? getAgeFromCharacteristics(characteristics) // Get from characteristics if active
-        : pet.Age
-          ? pet.Age.toString()
-          : (pet.age ? pet.age.toString() : ''), // Return raw value
+      age: '', // Age not displayed in pet list
       gender: (pet.Gender || pet.gender || 'male').toLowerCase() as "male" | "female",
       image: pet.UrlImageAvatar || pet.urlImageAvatar
         ? { uri: pet.UrlImageAvatar || pet.urlImageAvatar }
@@ -706,7 +717,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
                       </Text>
                     </Text>
                     <Text style={styles.petBreed}>{pet.breed || t('profile.unknownBreed')}</Text>
-                    <Text style={styles.petAge}>{pet.age ? t('profile.ageYears', { age: pet.age }) : t('profile.unknownAge')}</Text>
                   </View>
 
                   {/* Edit Button */}

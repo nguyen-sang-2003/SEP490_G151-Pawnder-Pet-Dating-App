@@ -138,7 +138,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
 
         signalRService.on('ReceiveExpertMessage', handleNewMessage);
       } catch (error) {
-        console.error('❌ Error setting up SignalR in ExpertChatList:', error);
+        console.log('❌ Error setting up SignalR in ExpertChatList:', error);
       }
     };
 
@@ -191,7 +191,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       
       setExpertChats(sortedChats);
     } catch (error: any) {
-      console.error("❌ Error loading expert chats:", error);
+      console.log("❌ Error loading expert chats:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -208,7 +208,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       const experts = await getAvailableExperts();
       setAvailableExperts(experts);
     } catch (error: any) {
-      console.error("❌ Error loading experts:", error);
+      console.log("❌ Error loading experts:", error);
     } finally {
       setLoadingExperts(false);
     }
@@ -254,7 +254,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
         expertName: selectedExpert.fullName,
       });
     } catch (error: any) {
-      console.error("❌ Error creating expert chat:", error);
+      console.log("❌ Error creating expert chat:", error);
       showAlert({
         type: "error",
         title: t("common.error"),

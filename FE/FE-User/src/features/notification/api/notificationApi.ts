@@ -86,7 +86,7 @@ export const getUnreadNotificationCount = async (userId: number): Promise<number
     });
     return data.count || 0;
   } catch (error) {
-    console.error('❌ getUnreadNotificationCount error:', error);
+    console.log('❌ getUnreadNotificationCount error:', error);
     return 0; // Fail gracefully
   }
 };

@@ -89,7 +89,7 @@ export const getBadgeCounts = async (userId: number, petId?: number): Promise<Ba
 
     return data;
   } catch (error: any) {
-    console.error('❌ getBadgeCounts error:', error);
+    console.log('❌ getBadgeCounts error:', error);
     throw error;
   }
 };

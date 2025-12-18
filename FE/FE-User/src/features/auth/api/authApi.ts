@@ -75,7 +75,7 @@ export const storeAuthToken = async (token: string): Promise<void> => {
       service: 'pawnder.auth',
     });
   } catch (error) {
-    console.error('❌ Error storing auth token:', error);
+    console.log('❌ Error storing auth token:', error);
     throw error;
   }
 };
@@ -126,7 +126,7 @@ export const storeUserId = async (userId: number): Promise<void> => {
       service: 'pawnder.userId',
     });
   } catch (error) {
-    console.error('❌ Error storing userId:', error);
+    console.log('❌ Error storing userId:', error);
   }
 };
 

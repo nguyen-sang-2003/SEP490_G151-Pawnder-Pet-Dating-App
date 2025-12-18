@@ -255,7 +255,7 @@ const AppNavigator = () => {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      console.error('❌ [AppNavigator] Error checking auth:', error);
+      console.log('❌ [AppNavigator] Error checking auth:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

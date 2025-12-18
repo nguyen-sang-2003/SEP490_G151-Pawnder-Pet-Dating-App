@@ -628,7 +628,7 @@ const HomeScreen = ({ navigation }: Props) => {
                         await refreshBadgesForActivePet(userId, true); // immediate=true
                     }
                 } catch (error) {
-                    console.error('❌ [HomeScreen] Failed to refresh badges:', error);
+                    console.log('❌ [HomeScreen] Failed to refresh badges:', error);
                 }
             };
             

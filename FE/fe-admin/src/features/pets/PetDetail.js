@@ -32,6 +32,7 @@ const PetDetail = () => {
         // Fetch pet, photos, and characteristics in parallel
         // Note: PetDto_1 doesn't include UserId, so we need to fetch it separately
         // First, try to get pet details
+        let characteristicsFailed = false;
         const [petResponse, photosResponse, characteristicsResponse] = await Promise.all([
           petService.getPetById(petId).catch(err => {
             console.error('Error fetching pet:', err);
@@ -48,9 +49,9 @@ const PetDetail = () => {
               message: err?.message,
               url: err?.config?.url
             });
-            // Return empty array - we'll still show the section but with "Chưa có đặc điểm"
-            setCharacteristicsError('error');
-            return [];
+            // Mark as failed - we'll show error message instead of "Chưa có đặc điểm"
+            characteristicsFailed = true;
+            return null; // Return null to distinguish from empty array
           })
         ]);
         
@@ -153,10 +154,15 @@ const PetDetail = () => {
         }
         
         setPet(mappedPet);
-        const characteristicsArray = Array.isArray(characteristicsResponse) ? characteristicsResponse : [];
-        setCharacteristics(characteristicsArray);
-        // Reset error if we got data (even if empty)
-        if (Array.isArray(characteristicsResponse)) {
+        
+        // Handle characteristics - check if API call failed
+        if (characteristicsFailed) {
+          setCharacteristicsError('error');
+          setCharacteristics([]);
+          console.log('[PetDetail] Characteristics API failed');
+        } else {
+          const characteristicsArray = Array.isArray(characteristicsResponse) ? characteristicsResponse : [];
+          setCharacteristics(characteristicsArray);
           setCharacteristicsError(null);
           console.log('[PetDetail] Characteristics loaded:', characteristicsArray.length, 'items');
         }
