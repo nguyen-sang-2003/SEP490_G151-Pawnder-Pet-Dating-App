@@ -53,7 +53,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       if (isFromProfile) {
         navigation.navigate("Profile");
       } else {
-        navigation.replace("AddPetBasicInfo", { isFromProfile: false });
+        // Trong luồng đăng ký, thoát về màn đăng nhập
+        navigation.replace("SignIn");
       }
     }
   }, [existingPetId, isFromProfile, navigation]);
@@ -226,11 +227,17 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       // Từ profile, chưa tạo pet -> chỉ cần quay lại
       navigation.navigate("Profile");
     } else {
-      // Trong luồng đăng ký, chưa tạo pet -> không cho thoát
+      // Trong luồng đăng ký, chưa tạo pet -> confirm rồi về SignIn
       showAlert({
         type: 'warning',
-        title: t('auth.addPet.basicInfo.completeProfile'),
-        message: t('auth.addPet.basicInfo.needPetProfile'),
+        title: t('auth.addPet.exit.titleRegistration'),
+        message: t('auth.addPet.exit.messageRegistration'),
+        showCancel: true,
+        confirmText: t('auth.addPet.exit.exitButton'),
+        cancelText: t('auth.addPet.exit.stayButton'),
+        onConfirm: () => {
+          navigation.replace("SignIn");
+        },
       });
     }
   };
