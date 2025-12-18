@@ -99,9 +99,10 @@ namespace BE.Services
         private string BuildAnalysisPrompt(List<Models.Attribute> attributes)
         {
             var promptBuilder = new StringBuilder();
-            promptBuilder.AppendLine("Hãy phân tích ảnh thú cưng này và trả về thông tin về các đặc điểm sau dưới dạng JSON:");
+            promptBuilder.AppendLine("QUAN TRỌNG: Chỉ chấp nhận ảnh MÈO. Nếu không phải mèo, trả về: {\"isCat\":false}");
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine("Các thuộc tính cần phân tích:");
+            promptBuilder.AppendLine("Nếu là mèo, phân tích các đặc điểm sau và trả về JSON:");
+            promptBuilder.AppendLine();
 
             foreach (var attr in attributes)
             {
@@ -110,36 +111,19 @@ namespace BE.Services
                 if (attr.AttributeOptions.Any())
                 {
                     var options = string.Join(", ", attr.AttributeOptions.Select(o => o.Name));
-                    promptBuilder.AppendLine($"  Các tùy chọn: {options}");
+                    promptBuilder.AppendLine($"  Tùy chọn: {options}");
                 }
                 else if (attr.TypeValue == "float" || attr.TypeValue == "int")
                 {
                     promptBuilder.AppendLine($"  Đơn vị: {attr.Unit}");
                 }
-                promptBuilder.AppendLine();
             }
 
-            promptBuilder.AppendLine("QUAN TRỌNG: Trả về JSON array theo CHÍNH XÁC format này:");
-            promptBuilder.AppendLine("[");
-            promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"Giống\",");
-            promptBuilder.AppendLine("    \"optionName\": \"Mèo Ba Tư\"");
-            promptBuilder.AppendLine("  },");
-            promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"Màu lông\",");
-            promptBuilder.AppendLine("    \"optionName\": \"Trắng\"");
-            promptBuilder.AppendLine("  },");
-            promptBuilder.AppendLine("  {");
-            promptBuilder.AppendLine("    \"attributeName\": \"Cân nặng\",");
-            promptBuilder.AppendLine("    \"value\": 5");
-            promptBuilder.AppendLine("  }");
-            promptBuilder.AppendLine("]");
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine("LƯU Ý:");
-            promptBuilder.AppendLine("- CHỈ trả về JSON array, KHÔNG thêm markdown, text giải thích.");
-            promptBuilder.AppendLine("- attributeName phải KHỚP CHÍNH XÁC với danh sách trên.");
-            promptBuilder.AppendLine("- optionName phải KHỚP với một trong các tùy chọn đã liệt kê.");
-            promptBuilder.AppendLine("- Nếu không chắc chắn, hãy đưa ra dự đoán tốt nhất dựa trên ảnh.");
+            promptBuilder.AppendLine("Format nếu LÀ MÈO: {\"isCat\":true,\"attributes\":[{\"attributeName\":\"Giống\",\"optionName\":\"Mèo Ba Tư\"},{\"attributeName\":\"Cân nặng\",\"value\":5}]}");
+            promptBuilder.AppendLine("Format nếu KHÔNG PHẢI MÈO: {\"isCat\":false}");
+            promptBuilder.AppendLine();
+            promptBuilder.AppendLine("CHỈ trả về JSON, KHÔNG text giải thích.");
 
             return promptBuilder.ToString();
         }
@@ -240,17 +224,32 @@ namespace BE.Services
                 Console.WriteLine($"🤖 AI Response: {text?.Substring(0, Math.Min(200, text?.Length ?? 0))}...");
 
                 // Extract JSON from response
-                var jsonStart = text?.IndexOf('[') ?? -1;
-                var jsonEnd = text?.LastIndexOf(']') ?? -1;
+                var jsonStart = text?.IndexOf('{') ?? -1;
+                var jsonEnd = text?.LastIndexOf('}') ?? -1;
 
                 if (jsonStart >= 0 && jsonEnd > jsonStart)
                 {
                     var jsonText = text!.Substring(jsonStart, jsonEnd - jsonStart + 1);
                     
-                    // Parse manually to handle flexible value types
-                    var result = ParseAttributeResults(jsonText);
-
-                    return result;
+                    using var document = JsonDocument.Parse(jsonText);
+                    var root = document.RootElement;
+                    
+                    // Check if it's a cat
+                    if (root.TryGetProperty("isCat", out var isCatElement))
+                    {
+                        var isCat = isCatElement.GetBoolean();
+                        if (!isCat)
+                        {
+                            throw new Exception("Ảnh không phải là mèo. Vui lòng tải lên ảnh mèo.");
+                        }
+                        
+                        // Parse attributes array
+                        if (root.TryGetProperty("attributes", out var attributesElement))
+                        {
+                            var result = ParseAttributeResults(attributesElement.GetRawText());
+                            return result;
+                        }
+                    }
                 }
 
                 return null;
