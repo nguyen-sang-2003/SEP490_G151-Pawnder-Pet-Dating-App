@@ -18,7 +18,7 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
-import { uploadPetPhotosMultipart, analyzePetImage, AIAttributeResult, getPetPhotos, deletePetPhoto } from "../../../api";
+import { uploadPetPhotosMultipart, analyzePetImages, AIAttributeResult, getPetPhotos, deletePetPhoto } from "../../../api";
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 
 const { width } = Dimensions.get("window");
@@ -45,6 +45,17 @@ interface LocalPhoto {
 
 type Photo = DBPhoto | LocalPhoto;
 
+/**
+ * Tạo fingerprint từ danh sách ảnh local
+ * fingerprint = concat(uri|fileName|type) cho mỗi ảnh, sort và join
+ */
+const computeFingerprint = (localPhotos: LocalPhoto[]): string => {
+  return localPhotos
+    .map(p => `${p.uri}|${p.fileName || ''}|${p.type || ''}`)
+    .sort()
+    .join('::');
+};
+
 const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
   const { petId, isFromProfile, petName, breed, description, aiResults: previousAiResults } = route.params;
@@ -54,7 +65,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   const [loadingPhotos, setLoadingPhotos] = useState(true);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
   const [savedAiResults, setSavedAiResults] = useState<AIAttributeResult[] | undefined>(previousAiResults);
-  const maxPhotos = 6;
+  const [analysisFingerprint, setAnalysisFingerprint] = useState<string | undefined>(undefined);
+  const maxPhotos = 3;
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Update saved AI results when route params change (when coming back from Step 3)
@@ -117,7 +129,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
       if (result.assets && result.assets.length > 0) {
         const newPhotos: LocalPhoto[] = result.assets.map((asset: Asset) => ({
-          id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           uri: asset.uri || '',
           fileName: asset.fileName,
           type: asset.type,
@@ -125,6 +137,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         }));
 
         setPhotos(prev => [...prev, ...newPhotos]);
+        // Reset fingerprint vì ảnh đã thay đổi (nhưng giữ savedAiResults để có thể dùng lại nếu AI fail)
+        setAnalysisFingerprint(undefined);
       }
     } catch (error) {
       showAlert({ type: 'error', title: t('common.error'), message: t('auth.addPet.photos.selectError') });
@@ -168,18 +182,19 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         cancelText: t('common.cancel'),
         onConfirm: () => {
           setPhotos(prev => prev.filter(p => p.id !== photo.id));
+          // Reset fingerprint vì ảnh local đã thay đổi (nhưng giữ savedAiResults để có thể dùng lại nếu AI fail)
+          setAnalysisFingerprint(undefined);
         },
       });
     }
   };
 
   const handleNext = async () => {
-    // Separate DB photos from new local photos FIRST
-    const dbPhotos = photos.filter(p => p.isFromDB) as DBPhoto[];
+    // Separate new local photos from DB photos
     const newPhotos = photos.filter(p => !p.isFromDB) as LocalPhoto[];
 
     // Validation: Kiểm tra số lượng ảnh tối thiểu (tổng DB + mới)
-    if (photos.length < 3) {
+    if (photos.length < 1) {
       showAlert({
         type: 'warning',
         title: t('auth.addPet.photos.needMorePhotos'),
@@ -189,88 +204,159 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     }
 
     try {
-      // Step 1: Upload new photos if any
-      if (newPhotos.length > 0) {
+      // No new photos - use saved AI results if available
+      if (newPhotos.length === 0) {
+        navigation.navigate("AddPetCharacteristics", {
+          petId,
+          isFromProfile,
+          aiResults: savedAiResults
+        });
+        return;
+      }
+
+      // Compute fingerprint for cache check
+      const currentFingerprint = computeFingerprint(newPhotos);
+
+      // Check cache: if fingerprint matches and we have saved results, skip API call
+      if (currentFingerprint === analysisFingerprint && savedAiResults) {
+        // Use cached results - still need to upload photos
         setUploading(true);
         await uploadPetPhotosMultipart(petId, newPhotos);
         setUploading(false);
+
+        navigation.navigate("AddPetCharacteristics", {
+          petId,
+          isFromProfile,
+          aiResults: savedAiResults
+        });
+        return;
       }
 
-      // Step 2: Analyze with AI if we have new photos
-      if (newPhotos.length > 0) {
-        setAnalyzingAI(true);
-        let aiResults: AIAttributeResult[] | undefined;
-        
-        try {
-          const analysisResponse = await analyzePetImage(newPhotos[0]);
+      // Step 1: Analyze with AI FIRST (before upload)
+      setAnalyzingAI(true);
+      
+      let aiResults: AIAttributeResult[] | undefined;
+      
+      try {
+        // Call analyzePetImages with all new photos (max 3)
+        const analysisResponse = await analyzePetImages(newPhotos);
 
-          if (analysisResponse.success && analysisResponse.attributes && analysisResponse.attributes.length > 0) {
-            aiResults = analysisResponse.attributes;
-            // Lưu kết quả AI để dùng lại nếu quay lại
-            setSavedAiResults(aiResults);
-
+        if (analysisResponse.success && analysisResponse.attributes && analysisResponse.attributes.length > 0) {
+          aiResults = analysisResponse.attributes;
+          // Save results and fingerprint for cache
+          setSavedAiResults(aiResults);
+          setAnalysisFingerprint(currentFingerprint);
+        } else {
+          // AI returned success=false - check error type
+          const responseMessage = analysisResponse.message || '';
+          const is503Error = responseMessage.includes('503') || 
+                             responseMessage.includes('ServiceUnavailable') || 
+                             responseMessage.includes('UNAVAILABLE') ||
+                             responseMessage.includes('overloaded');
+          
+          if (is503Error) {
+            // Network/server error - just show network error message, NO option to use old results
             showAlert({
-              type: 'success',
-              title: t('auth.addPet.photos.aiAnalysisComplete'),
-              message: t('auth.addPet.photos.aiAnalysisMessage', { count: aiResults.length }),
-              confirmText: t('common.continue'),
-              onClose: () => {
+              type: 'error',
+              title: t('auth.addPet.photos.aiAnalysisFailed'),
+              message: t('auth.addPet.photos.networkUnstable'),
+            });
+          } else if (savedAiResults && savedAiResults.length > 0) {
+            // Not a cat / other error AND have previous results - offer to use them
+            showAlert({
+              type: 'warning',
+              title: t('auth.addPet.photos.aiAnalysisFailed'),
+              message: t('auth.addPet.photos.usePreviousResultsMessage'),
+              showCancel: true,
+              confirmText: t('auth.addPet.photos.usePreviousResults'),
+              cancelText: t('auth.addPet.photos.stayAndFix'),
+              onConfirm: () => {
                 navigation.navigate("AddPetCharacteristics", {
                   petId,
                   isFromProfile,
-                  aiResults
+                  aiResults: savedAiResults
                 });
               },
             });
           } else {
-            // AI returned but no attributes or failed
-            throw new Error(analysisResponse.message || 'AI analysis returned no attributes');
+            // No previous results - just show error
+            showAlert({
+              type: 'error',
+              title: t('auth.addPet.photos.aiAnalysisFailed'),
+              message: responseMessage || t('auth.addPet.photos.aiAnalysisFailedMessage'),
+            });
           }
-        } catch (aiError: any) {
-          // Get error message from server response
-          const serverError = aiError?.response?.data;
-          let errorMessage = t('auth.addPet.photos.aiAnalysisFailedMessage');
-          
-          if (serverError?.message) {
-            // Check for specific error types
-            if (serverError.message.includes('không khả dụng') || serverError.message.includes('region')) {
-              errorMessage = t('auth.addPet.photos.aiNotAvailable');
-            } else if (serverError.message.includes('API key')) {
-              errorMessage = t('auth.addPet.photos.aiApiKeyError');
-            } else if (serverError.message.includes('quota') || serverError.message.includes('giới hạn')) {
-              errorMessage = t('auth.addPet.photos.aiQuotaExceeded');
-            } else {
-              errorMessage = serverError.message;
-            }
-          } else if (aiError?.message) {
-            errorMessage = aiError.message;
-          }
+          return; // Do NOT upload, do NOT navigate
+        }
+      } catch (aiError: any) {
+        // API call threw an error - show error and BLOCK, do NOT upload
+        const statusCode = aiError?.response?.status;
+        const serverError = aiError?.response?.data;
+        const errorText = serverError?.message || aiError?.message || '';
+        
+        // Check if it's a 503/network error
+        const is503Error = statusCode === 503 || 
+                           errorText.includes('503') || 
+                           errorText.includes('ServiceUnavailable') || 
+                           errorText.includes('UNAVAILABLE') ||
+                           errorText.includes('overloaded');
 
+        if (is503Error) {
+          // Network/server error - just show network error message, NO option to use old results
           showAlert({
-            type: 'info',
+            type: 'error',
             title: t('auth.addPet.photos.aiAnalysisFailed'),
-            message: errorMessage,
-            confirmText: t('common.continue'),
-            onClose: () => {
-              // Nếu AI fail nhưng có kết quả cũ, vẫn dùng kết quả cũ
+            message: t('auth.addPet.photos.networkUnstable'),
+          });
+        } else if (savedAiResults && savedAiResults.length > 0) {
+          // Not a cat / other error AND have previous results - offer to use them
+          showAlert({
+            type: 'warning',
+            title: t('auth.addPet.photos.aiAnalysisFailed'),
+            message: t('auth.addPet.photos.usePreviousResultsMessage'),
+            showCancel: true,
+            confirmText: t('auth.addPet.photos.usePreviousResults'),
+            cancelText: t('auth.addPet.photos.stayAndFix'),
+            onConfirm: () => {
               navigation.navigate("AddPetCharacteristics", {
                 petId,
                 isFromProfile,
-                aiResults: savedAiResults || undefined
+                aiResults: savedAiResults
               });
             },
           });
-        } finally {
-          setAnalyzingAI(false);
+        } else {
+          // No previous results - just show error
+          showAlert({
+            type: 'error',
+            title: t('auth.addPet.photos.aiAnalysisFailed'),
+            message: errorText || t('auth.addPet.photos.aiAnalysisFailedMessage'),
+          });
         }
-      } else {
-        // No new photos - use saved AI results if available, otherwise skip AI
-        navigation.navigate("AddPetCharacteristics", {
-          petId,
-          isFromProfile,
-          aiResults: savedAiResults // Dùng kết quả AI đã lưu từ lần trước
-        });
+        return; // Do NOT upload, do NOT navigate
+      } finally {
+        setAnalyzingAI(false);
       }
+
+      // Step 2: AI passed - now upload photos to DB
+      setUploading(true);
+      await uploadPetPhotosMultipart(petId, newPhotos);
+      setUploading(false);
+
+      // Step 3: Show success and navigate
+      showAlert({
+        type: 'success',
+        title: t('auth.addPet.photos.aiAnalysisComplete'),
+        message: t('auth.addPet.photos.aiAnalysisMessage', { count: aiResults.length }),
+        confirmText: t('common.continue'),
+        onClose: () => {
+          navigation.navigate("AddPetCharacteristics", {
+            petId,
+            isFromProfile,
+            aiResults
+          });
+        },
+      });
     } catch (error: any) {
       showAlert({
         type: 'error',
@@ -420,20 +506,20 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           <View style={styles.counterContainer}>
             <View style={[
               styles.counterBadge,
-              photos.length >= 3 && styles.counterBadgeComplete
+              photos.length >= 1 && styles.counterBadgeComplete
             ]}>
               <Icon
-                name={photos.length >= 3 ? "checkmark-circle" : "images"}
+                name={photos.length >= 1 ? "checkmark-circle" : "images"}
                 size={18}
-                color={photos.length >= 3 ? colors.success : colors.textMedium}
+                color={photos.length >= 1 ? colors.success : colors.textMedium}
               />
               <Text style={[
                 styles.counterText,
-                photos.length >= 3 && styles.counterTextComplete
+                photos.length >= 1 && styles.counterTextComplete
               ]}>
-                {photos.length >= 3 
+                {photos.length >= 1 
                   ? t('auth.addPet.photos.photoCountReady', { count: photos.length, max: maxPhotos })
-                  : t('auth.addPet.photos.photoCountNeed', { count: photos.length, max: maxPhotos, need: 3 - photos.length })}
+                  : t('auth.addPet.photos.photoCountNeed', { count: photos.length, max: maxPhotos, need: 1 - photos.length })}
               </Text>
             </View>
             
@@ -472,12 +558,12 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       {/* Bottom Buttons */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
-          style={[styles.btnShadow, (photos.length < 3 || uploading || analyzingAI || loadingPhotos) && styles.btnDisabled]}
+          style={[styles.btnShadow, (photos.length < 1 || uploading || analyzingAI || loadingPhotos) && styles.btnDisabled]}
           onPress={handleNext}
-          disabled={uploading || analyzingAI || photos.length < 3 || loadingPhotos}
+          disabled={uploading || analyzingAI || photos.length < 1 || loadingPhotos}
         >
           <LinearGradient
-            colors={photos.length < 3 ? [colors.textLight, colors.textLight] : gradients.auth.buttonPrimary}
+            colors={photos.length < 1 ? [colors.textLight, colors.textLight] : gradients.auth.buttonPrimary}
             style={styles.button}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

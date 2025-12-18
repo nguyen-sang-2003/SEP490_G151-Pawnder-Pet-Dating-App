@@ -265,12 +265,17 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   };
 
   const handleBack = () => {
-    // Allow going back to photos screen, preserve AI results
-    navigation.navigate("AddPetPhotos", {
-      petId,
-      isFromProfile,
-      aiResults: aiResults, // Truyền kết quả AI hiện tại để giữ lại
-    });
+    if (isEditingExistingPet) {
+      // Editing from EditPetScreen → just go back (pop from stack)
+      navigation.goBack();
+    } else {
+      // Adding new pet flow → go back to AddPetPhotos
+      navigation.navigate("AddPetPhotos", {
+        petId,
+        isFromProfile,
+        aiResults: aiResults, // Truyền kết quả AI hiện tại để giữ lại
+      });
+    }
   };
 
   if (loading) {
