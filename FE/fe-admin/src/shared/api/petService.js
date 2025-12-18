@@ -74,24 +74,27 @@ class PetService {
 
   /**
    * Get pet characteristics
-   * Backend: GET /api/pet-characteristic/pet-characteristic/{petId}
+   * Backend: GET /api/petcharacteristic/pet-characteristic/{petId}
    * Response: Array of { attributeId, name, optionValue, value, unit, typeValue }
    */
   async getPetCharacteristics(petId) {
     try {
       const endpoint = API_ENDPOINTS.PETS.CHARACTERISTICS(petId);
-      console.log('[petService] Fetching characteristics:', { petId, endpoint });
+      console.log('[petService] Fetching characteristics from:', endpoint);
       const response = await apiClient.get(endpoint);
       console.log('[petService] Characteristics response:', response);
       const result = Array.isArray(response) ? response : [];
       console.log('[petService] Returning characteristics:', result.length, 'items');
       return result;
     } catch (error) {
-      console.error('[petService] Error fetching characteristics:', {
+      // Log detailed error for debugging
+      console.error('[petService] ❌ Error fetching characteristics:', {
         petId,
-        status: error?.response?.status,
+        endpoint: API_ENDPOINTS.PETS.CHARACTERISTICS(petId),
+        status: error?.response?.status || error?.status || 'unknown',
+        statusText: error?.response?.statusText,
         message: error?.message,
-        url: error?.config?.url
+        responseData: error?.response?.data
       });
       // Re-throw error so caller can check status code (e.g., 404)
       throw error;

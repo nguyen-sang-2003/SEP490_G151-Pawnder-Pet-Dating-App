@@ -116,13 +116,13 @@ namespace BE.Controllers
         //}
 
         /// <summary>
-        /// Phân tích nhiều ảnh thú cưng cùng lúc
+        /// Phân tích nhiều ảnh mèo cùng lúc và trả về kết quả tổng hợp
         /// </summary>
-        /// <param name="images">Danh sách file ảnh thú cưng</param>
-        /// <returns>Danh sách kết quả phân tích cho từng ảnh</returns>
+        /// <param name="images">Danh sách file ảnh mèo (tối đa 5 ảnh)</param>
+        /// <returns>Kết quả phân tích tổng hợp từ tất cả ảnh</returns>
         [HttpPost("analyze-multiple")]
         [Consumes("multipart/form-data")]
-        [ProducesResponseType(typeof(List<PetImageAnalysisResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(PetImageAnalysisResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> AnalyzeMultipleImages([FromForm] List<IFormFile> images)
         {
@@ -131,22 +131,39 @@ namespace BE.Controllers
                 return BadRequest(new { message = "Vui lòng tải lên ít nhất một ảnh" });
             }
 
-            // Giới hạn số lượng ảnh
-            if (images.Count > 5)
-            {
-                return BadRequest(new { message = "Chỉ cho phép tối đa 5 ảnh mỗi lần" });
-            }
-
-            var results = new List<PetImageAnalysisResponse>();
-
+            // Validate file types
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/webp" };
             foreach (var image in images)
             {
-                var result = await _analysisService.AnalyzeImageAsync(image);
-                result.SqlInsertScript = null;
-                results.Add(result);
+                if (!allowedTypes.Contains(image.ContentType.ToLower()))
+                {
+                    return BadRequest(new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = "Chỉ chấp nhận file ảnh định dạng JPG, PNG hoặc WEBP"
+                    });
+                }
+
+                if (image.Length > 10 * 1024 * 1024)
+                {
+                    return BadRequest(new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = "Kích thước mỗi ảnh không được vượt quá 10MB"
+                    });
+                }
             }
 
-            return Ok(results);
+            // Use new multi-image analysis method
+            var result = await _analysisService.AnalyzeImagesAsync(images);
+            result.SqlInsertScript = null;
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
         }
 
         /// <summary>
