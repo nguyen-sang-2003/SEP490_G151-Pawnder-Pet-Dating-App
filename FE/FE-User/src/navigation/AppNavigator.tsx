@@ -72,10 +72,26 @@ export type RootStackParamList = {
   };
   ForgotPassword: undefined;
   ResetPassword: { email: string };
-  AddPetBasicInfo: { isFromProfile?: boolean; petId?: number; petName?: string; breed?: string; description?: string };
+  AddPetBasicInfo: { 
+    isFromProfile?: boolean; 
+    petId?: number; 
+    petName?: string; 
+    breed?: string; 
+    description?: string;
+    aiResults?: Array<{
+      attributeName: string;
+      optionName?: string | null;
+      value?: number | null;
+      attributeId?: number | null;
+      optionId?: number | null;
+    }>;
+  };
   AddPetCharacteristics: {
     petId: number;
     isFromProfile?: boolean;
+    petName?: string;
+    breed?: string;
+    description?: string;
     aiResults?: Array<{
       attributeName: string;
       optionName?: string | null;

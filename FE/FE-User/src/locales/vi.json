@@ -204,7 +204,12 @@
         "petUpdated": "Đã cập nhật hồ sơ {{name}}. Tiếp tục thêm ảnh!",
         "createFailed": "Không thể tạo hồ sơ thú cưng. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
-        "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục."
+        "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục.",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại",
+        "deleteError": "Không thể xóa hồ sơ. Vui lòng thử lại."
       },
       "photos": {
         "title": "Thêm ảnh",
@@ -255,7 +260,11 @@
         "completeProfile": "Hoàn thành hồ sơ",
         "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
         "editBasicInfo": "Sửa thông tin cơ bản",
-        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?"
+        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại"
       },
       "characteristics": {
         "title": "Đặc điểm thú cưng",
@@ -284,7 +293,20 @@
         "saveFailed": "Không thể lưu thuộc tính. Vui lòng thử lại.",
         "updateFailed": "Không thể cập nhật thuộc tính. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
-        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục."
+        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại",
+        "deleteError": "Không thể xóa hồ sơ. Vui lòng thử lại."
+      },
+      "exit": {
+        "titleRegistration": "Thoát tạo thú cưng?",
+        "messageRegistration": "Bạn cần tạo thú cưng để sử dụng app. Nếu thoát, lần đăng nhập sau bạn sẽ phải tạo lại.",
+        "titleFromProfile": "Hủy tạo thú cưng?",
+        "messageFromProfile": "Bạn chưa hoàn thành thông tin thú cưng. Bạn có chắc muốn thoát không?",
+        "exitButton": "Thoát",
+        "stayButton": "Ở lại"
       }
     },
     "onboarding": {

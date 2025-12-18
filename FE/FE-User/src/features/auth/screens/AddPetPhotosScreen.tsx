@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,13 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  BackHandler,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -22,11 +24,10 @@ import { uploadPetPhotosMultipart, analyzePetImages, AIAttributeResult, getPetPh
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 
 const { width } = Dimensions.get("window");
-const PHOTO_SIZE = (width - 60) / 3; // 3 columns with padding
+const PHOTO_SIZE = (width - 60) / 3;
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetPhotos">;
 
-// Photo from database (already uploaded)
 interface DBPhoto {
   id: string;
   uri: string;
@@ -34,7 +35,6 @@ interface DBPhoto {
   isFromDB: true;
 }
 
-// Photo selected from device (not yet uploaded)
 interface LocalPhoto {
   id: string;
   uri: string;
@@ -45,10 +45,6 @@ interface LocalPhoto {
 
 type Photo = DBPhoto | LocalPhoto;
 
-/**
- * Tạo fingerprint từ danh sách ảnh local
- * fingerprint = concat(uri|fileName|type) cho mỗi ảnh, sort và join
- */
 const computeFingerprint = (localPhotos: LocalPhoto[]): string => {
   return localPhotos
     .map(p => `${p.uri}|${p.fileName || ''}|${p.type || ''}`)
@@ -69,14 +65,24 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   const maxPhotos = 3;
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  // Update saved AI results when route params change (when coming back from Step 3)
+  // Bắt hardware back button
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleBack();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [petId, petName, breed, description, isFromProfile, savedAiResults])
+  );
+
   useEffect(() => {
     if (previousAiResults) {
       setSavedAiResults(previousAiResults);
     }
   }, [previousAiResults]);
 
-  // Load existing photos from DB when screen mounts
   useEffect(() => {
     const loadExistingPhotos = async () => {
       try {
@@ -96,7 +102,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           setPhotos(dbPhotos);
         }
       } catch (error) {
-        // Silent fail - no photos yet
+        // Silent fail
       } finally {
         setLoadingPhotos(false);
       }
@@ -118,9 +124,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         selectionLimit: maxPhotos - photos.length,
       });
 
-      if (result.didCancel) {
-        return;
-      }
+      if (result.didCancel) return;
 
       if (result.errorCode) {
         showAlert({ type: 'error', title: t('common.error'), message: t('auth.addPet.photos.selectError') });
@@ -137,7 +141,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         }));
 
         setPhotos(prev => [...prev, ...newPhotos]);
-        // Reset fingerprint vì ảnh đã thay đổi (nhưng giữ savedAiResults để có thể dùng lại nếu AI fail)
         setAnalysisFingerprint(undefined);
       }
     } catch (error) {
@@ -147,7 +150,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
 
   const handleRemovePhoto = (photo: Photo) => {
     if (photo.isFromDB) {
-      // DB photo - confirm and delete from server
       showAlert({
         type: 'warning',
         title: t('auth.addPet.photos.removePhoto'),
@@ -172,7 +174,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         },
       });
     } else {
-      // Local photo - just remove from state
       showAlert({
         type: 'warning',
         title: t('auth.addPet.photos.removePhoto'),
@@ -182,7 +183,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         cancelText: t('common.cancel'),
         onConfirm: () => {
           setPhotos(prev => prev.filter(p => p.id !== photo.id));
-          // Reset fingerprint vì ảnh local đã thay đổi (nhưng giữ savedAiResults để có thể dùng lại nếu AI fail)
           setAnalysisFingerprint(undefined);
         },
       });
@@ -190,10 +190,8 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   };
 
   const handleNext = async () => {
-    // Separate new local photos from DB photos
     const newPhotos = photos.filter(p => !p.isFromDB) as LocalPhoto[];
 
-    // Validation: Kiểm tra số lượng ảnh tối thiểu (tổng DB + mới)
     if (photos.length < 1) {
       showAlert({
         type: 'warning',
@@ -204,22 +202,21 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
     }
 
     try {
-      // No new photos - use saved AI results if available
       if (newPhotos.length === 0) {
         navigation.navigate("AddPetCharacteristics", {
           petId,
           isFromProfile,
+          petName,
+          breed,
+          description,
           aiResults: savedAiResults
         });
         return;
       }
 
-      // Compute fingerprint for cache check
       const currentFingerprint = computeFingerprint(newPhotos);
 
-      // Check cache: if fingerprint matches and we have saved results, skip API call
       if (currentFingerprint === analysisFingerprint && savedAiResults) {
-        // Use cached results - still need to upload photos
         setUploading(true);
         await uploadPetPhotosMultipart(petId, newPhotos);
         setUploading(false);
@@ -227,27 +224,26 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         navigation.navigate("AddPetCharacteristics", {
           petId,
           isFromProfile,
+          petName,
+          breed,
+          description,
           aiResults: savedAiResults
         });
         return;
       }
 
-      // Step 1: Analyze with AI FIRST (before upload)
       setAnalyzingAI(true);
       
       let aiResults: AIAttributeResult[] | undefined;
       
       try {
-        // Call analyzePetImages with all new photos (max 3)
         const analysisResponse = await analyzePetImages(newPhotos);
 
         if (analysisResponse.success && analysisResponse.attributes && analysisResponse.attributes.length > 0) {
           aiResults = analysisResponse.attributes;
-          // Save results and fingerprint for cache
           setSavedAiResults(aiResults);
           setAnalysisFingerprint(currentFingerprint);
         } else {
-          // AI returned success=false - check error type
           const responseMessage = analysisResponse.message || '';
           const is503Error = responseMessage.includes('503') || 
                              responseMessage.includes('ServiceUnavailable') || 
@@ -255,14 +251,12 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                              responseMessage.includes('overloaded');
           
           if (is503Error) {
-            // Network/server error - just show network error message, NO option to use old results
             showAlert({
               type: 'error',
               title: t('auth.addPet.photos.aiAnalysisFailed'),
               message: t('auth.addPet.photos.networkUnstable'),
             });
           } else if (savedAiResults && savedAiResults.length > 0) {
-            // Not a cat / other error AND have previous results - offer to use them
             showAlert({
               type: 'warning',
               title: t('auth.addPet.photos.aiAnalysisFailed'),
@@ -274,27 +268,27 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                 navigation.navigate("AddPetCharacteristics", {
                   petId,
                   isFromProfile,
+                  petName,
+                  breed,
+                  description,
                   aiResults: savedAiResults
                 });
               },
             });
           } else {
-            // No previous results - just show error
             showAlert({
               type: 'error',
               title: t('auth.addPet.photos.aiAnalysisFailed'),
               message: responseMessage || t('auth.addPet.photos.aiAnalysisFailedMessage'),
             });
           }
-          return; // Do NOT upload, do NOT navigate
+          return;
         }
       } catch (aiError: any) {
-        // API call threw an error - show error and BLOCK, do NOT upload
         const statusCode = aiError?.response?.status;
         const serverError = aiError?.response?.data;
         const errorText = serverError?.message || aiError?.message || '';
         
-        // Check if it's a 503/network error
         const is503Error = statusCode === 503 || 
                            errorText.includes('503') || 
                            errorText.includes('ServiceUnavailable') || 
@@ -302,14 +296,12 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                            errorText.includes('overloaded');
 
         if (is503Error) {
-          // Network/server error - just show network error message, NO option to use old results
           showAlert({
             type: 'error',
             title: t('auth.addPet.photos.aiAnalysisFailed'),
             message: t('auth.addPet.photos.networkUnstable'),
           });
         } else if (savedAiResults && savedAiResults.length > 0) {
-          // Not a cat / other error AND have previous results - offer to use them
           showAlert({
             type: 'warning',
             title: t('auth.addPet.photos.aiAnalysisFailed'),
@@ -321,29 +313,29 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               navigation.navigate("AddPetCharacteristics", {
                 petId,
                 isFromProfile,
+                petName,
+                breed,
+                description,
                 aiResults: savedAiResults
               });
             },
           });
         } else {
-          // No previous results - just show error
           showAlert({
             type: 'error',
             title: t('auth.addPet.photos.aiAnalysisFailed'),
             message: errorText || t('auth.addPet.photos.aiAnalysisFailedMessage'),
           });
         }
-        return; // Do NOT upload, do NOT navigate
+        return;
       } finally {
         setAnalyzingAI(false);
       }
 
-      // Step 2: AI passed - now upload photos to DB
       setUploading(true);
       await uploadPetPhotosMultipart(petId, newPhotos);
       setUploading(false);
 
-      // Step 3: Show success and navigate
       showAlert({
         type: 'success',
         title: t('auth.addPet.photos.aiAnalysisComplete'),
@@ -353,6 +345,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           navigation.navigate("AddPetCharacteristics", {
             petId,
             isFromProfile,
+            petName,
+            breed,
+            description,
             aiResults
           });
         },
@@ -370,36 +365,18 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   };
 
   const handleBack = () => {
-    if (isFromProfile) {
-      navigation.navigate("AddPetBasicInfo", {
-        isFromProfile: true,
-        petId,
-        petName,
-        breed,
-        description,
-      });
-    } else {
-      showAlert({
-        type: 'info',
-        title: t('auth.addPet.photos.editBasicInfo'),
-        message: t('auth.addPet.photos.editBasicInfoMessage'),
-        showCancel: true,
-        confirmText: t('common.edit'),
-        cancelText: t('common.cancel'),
-        onConfirm: () => {
-          navigation.navigate("AddPetBasicInfo", {
-            isFromProfile: false,
-            petId,
-            petName,
-            breed,
-            description,
-          });
-        },
-      });
-    }
+    // Back giữa các bước (2->1) - không xóa pet, chỉ quay lại step trước
+    // Truyền savedAiResults để giữ lại kết quả AI khi back rồi next lại
+    navigation.navigate("AddPetBasicInfo", {
+      isFromProfile,
+      petId,
+      petName,
+      breed,
+      description,
+      aiResults: savedAiResults,
+    });
   };
 
-  // Count photos by type
   const dbPhotoCount = photos.filter(p => p.isFromDB).length;
   const newPhotoCount = photos.filter(p => !p.isFromDB).length;
 
@@ -415,13 +392,11 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
 
-          {/* Step Indicator */}
           <View style={styles.stepIndicatorContainer}>
             <View style={styles.stepBarsContainer}>
               <View style={[styles.stepBar, styles.stepBarActive]} />
@@ -434,12 +409,9 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           <Text style={styles.title}>
             {isFromProfile ? t('auth.addPet.photos.editTitle') : t('auth.addPet.photos.title')}
           </Text>
-          <Text style={styles.subtitle}>
-            {t('auth.addPet.photos.subtitle')}
-          </Text>
+          <Text style={styles.subtitle}>{t('auth.addPet.photos.subtitle')}</Text>
         </View>
 
-        {/* Photos Grid */}
         <View style={styles.photosContainer}>
           {loadingPhotos ? (
             <View style={styles.loadingContainer}>
@@ -452,21 +424,18 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                 <View key={photo.id} style={styles.photoWrapper}>
                   <Image source={{ uri: photo.uri }} style={styles.photo} />
                   
-                  {/* Badge for DB photos */}
                   {photo.isFromDB && (
                     <View style={styles.dbBadge}>
                       <Icon name="cloud-done" size={12} color={colors.white} />
                     </View>
                   )}
                   
-                  {/* Badge for new photos */}
                   {!photo.isFromDB && (
                     <View style={styles.newBadge}>
                       <Icon name="add" size={12} color={colors.white} />
                     </View>
                   )}
                   
-                  {/* Remove button */}
                   <TouchableOpacity
                     style={styles.removeButton}
                     onPress={() => handleRemovePhoto(photo)}
@@ -486,7 +455,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
                 </View>
               ))}
 
-              {/* Add Photo Button */}
               {photos.length < maxPhotos && (
                 <TouchableOpacity
                   style={styles.addPhotoButton}
@@ -502,7 +470,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
             </View>
           )}
 
-          {/* Photo Counter with breakdown */}
           <View style={styles.counterContainer}>
             <View style={[
               styles.counterBadge,
@@ -523,7 +490,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
               </Text>
             </View>
             
-            {/* Show breakdown if there are both types */}
             {dbPhotoCount > 0 && (
               <Text style={styles.photoBreakdown}>
                 {t('auth.addPet.photos.photoBreakdown', { db: dbPhotoCount, new: newPhotoCount })}
@@ -532,7 +498,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
 
-        {/* Tips Card */}
         <View style={styles.tipsCard}>
           <View style={styles.tipsIcon}>
             <Icon name="bulb" size={20} color={colors.primary} />
@@ -555,7 +520,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         </View>
       </ScrollView>
 
-      {/* Bottom Buttons */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[styles.btnShadow, (photos.length < 1 || uploading || analyzingAI || loadingPhotos) && styles.btnDisabled]}
@@ -594,7 +558,6 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         </TouchableOpacity>
       </View>
 
-      {/* Custom Alert */}
       {alertConfig && (
         <CustomAlert
           visible={visible}
@@ -612,6 +575,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -620,8 +584,6 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 140,
   },
-
-  // Header
   header: {
     paddingHorizontal: 24,
     marginBottom: 32,
@@ -674,8 +636,6 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 24,
   },
-
-  // Loading
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -686,8 +646,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMedium,
   },
-
-  // Photos
   photosContainer: {
     paddingHorizontal: 24,
     marginBottom: 32,
@@ -724,8 +682,6 @@ const styles = StyleSheet.create({
   removeButtonDisabled: {
     opacity: 0.5,
   },
-  
-  // Badges
   dbBadge: {
     position: "absolute",
     bottom: 6,
@@ -750,7 +706,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...shadows.small,
   },
-  
   addPhotoButton: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
@@ -772,8 +727,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textMedium,
   },
-
-  // Counter
   counterContainer: {
     alignItems: "center",
   },
@@ -806,8 +759,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textLabel,
   },
-
-  // Tips Card
   tipsCard: {
     marginHorizontal: 24,
     backgroundColor: 'rgba(255,255,255,0.7)',
@@ -852,8 +803,6 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 20,
   },
-
-  // Bottom Buttons
   bottomContainer: {
     position: 'absolute',
     bottom: 0,

@@ -14,11 +14,20 @@ namespace BE.Repositories
         {
         }
 
+        /// <inheritdoc />
+        public IQueryable<Pet> GetValidPetsQuery()
+        {
+            return _dbSet
+                .Where(p => p.IsDeleted == false
+                    && p.PetPhotos.Any(pp => pp.IsDeleted == false)
+                    && p.PetCharacteristics.Any());
+        }
+
         public async Task<IEnumerable<PetDto>> GetPetsByUserIdAsync(int userId, CancellationToken ct = default)
         {
-            return await _dbSet
+            return await GetValidPetsQuery()
                 .Include(p => p.PetPhotos)
-                .Where(p => p.UserId == userId && (p.IsDeleted == false))
+                .Where(p => p.UserId == userId)
                 .Select(p => new PetDto
                 {
                     PetId = p.PetId,
@@ -43,13 +52,12 @@ namespace BE.Repositories
             List<int> blockedUserIds, 
             CancellationToken ct = default)
         {
-            return await _dbSet
+            return await GetValidPetsQuery()
                 .Include(p => p.PetPhotos)
                 .Include(p => p.User)
                     .ThenInclude(u => u!.Address)
                 .Where(p => p.UserId != null
                          && p.UserId != userId
-                         && p.IsDeleted == false
                          && p.IsActive == true
                          && !excludedUserIds.Contains(p.UserId.Value)
                          && !blockedUserIds.Contains(p.UserId.Value))
