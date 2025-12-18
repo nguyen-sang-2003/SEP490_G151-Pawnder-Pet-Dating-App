@@ -9,6 +9,7 @@ namespace BE.Services
     public interface IPetImageAnalysisService
     {
         Task<PetImageAnalysisResponse> AnalyzeImageAsync(IFormFile image);
+        Task<PetImageAnalysisResponse> AnalyzeImagesAsync(List<IFormFile> images);
         Task<string> GenerateSqlInsertScript(int petId, List<AttributeAnalysisResult> attributes);
         Task<bool> InsertPetCharacteristicsAsync(int petId, List<AttributeAnalysisResult> attributes);
     }
@@ -96,12 +97,108 @@ namespace BE.Services
             }
         }
 
+        public async Task<PetImageAnalysisResponse> AnalyzeImagesAsync(List<IFormFile> images)
+        {
+            try
+            {
+                // Validate images
+                if (images == null || !images.Any())
+                {
+                    return new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = "Không có ảnh được tải lên"
+                    };
+                }
+
+                // Limit to 5 images
+                if (images.Count > 3)
+                {
+                    return new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = "Chỉ cho phép tối đa 3 ảnh"
+                    };
+                }
+
+                // Convert all images to base64
+                var imageDataList = new List<(string base64, string mimeType)>();
+                foreach (var image in images)
+                {
+                    if (image.Length > 0)
+                    {
+                        using var memoryStream = new MemoryStream();
+                        await image.CopyToAsync(memoryStream);
+                        var base64 = Convert.ToBase64String(memoryStream.ToArray());
+                        var mimeType = image.ContentType ?? "image/jpeg";
+                        imageDataList.Add((base64, mimeType));
+                    }
+                }
+
+                if (!imageDataList.Any())
+                {
+                    return new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = "Không có ảnh hợp lệ"
+                    };
+                }
+
+                // Get all attributes from database
+                var attributes = await _context.Attributes
+                    .Include(a => a.AttributeOptions)
+                    .Where(a => a.IsDeleted == false)
+                    .ToListAsync();
+
+                // Build prompt for AI
+                var prompt = BuildAnalysisPrompt(attributes);
+
+                // Call AI API with multiple images
+                var analysisResult = await CallGeminiVisionAPIMultiple(imageDataList, prompt);
+
+                if (analysisResult == null || !analysisResult.Any())
+                {
+                    return new PetImageAnalysisResponse
+                    {
+                        Success = false,
+                        Message = "Không thể phân tích ảnh"
+                    };
+                }
+
+                // Map attribute names to IDs
+                await EnrichWithDatabaseIds(analysisResult);
+
+                // Generate SQL script
+                var sqlScript = await GenerateSqlInsertScript(0, analysisResult);
+
+                return new PetImageAnalysisResponse
+                {
+                    Success = true,
+                    Message = $"Phân tích thành công {images.Count} ảnh",
+                    Attributes = analysisResult,
+                    SqlInsertScript = sqlScript
+                };
+            }
+            catch (Exception ex)
+            {
+                return new PetImageAnalysisResponse
+                {
+                    Success = false,
+                    Message = $"Lỗi khi phân tích ảnh: {ex.Message}"
+                };
+            }
+        }
+
         private string BuildAnalysisPrompt(List<Models.Attribute> attributes)
         {
             var promptBuilder = new StringBuilder();
-            promptBuilder.AppendLine("QUAN TRỌNG: Chỉ chấp nhận ảnh MÈO. Nếu không phải mèo, trả về: {\"isCat\":false}");
+            promptBuilder.AppendLine("QUAN TRỌNG: Chỉ chấp nhận ảnh MÈO.");
+            promptBuilder.AppendLine("- Kiểm tra từng ảnh theo thứ tự (ảnh 1, ảnh 2, ảnh 3...).");
+            promptBuilder.AppendLine("- TÌM ẢNH MÈO ĐẦU TIÊN và chỉ phân tích ảnh đó. Bỏ qua các ảnh còn lại.");
+            promptBuilder.AppendLine("- Nếu ảnh đó có nhiều mèo → chỉ phân tích con mèo đầu tiên từ bên trái.");
+            promptBuilder.AppendLine("- Nếu KHÔNG có ảnh mèo nào trong tất cả các ảnh → trả về: {\"isCat\":false}");
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine("Nếu là mèo, phân tích các đặc điểm sau và trả về JSON:");
+            promptBuilder.AppendLine("Nếu tìm thấy ảnh mèo, phân tích và trả về 1 JSON DUY NHẤT:");
             promptBuilder.AppendLine();
 
             foreach (var attr in attributes)
@@ -120,10 +217,13 @@ namespace BE.Services
             }
 
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine("Format nếu LÀ MÈO: {\"isCat\":true,\"attributes\":[{\"attributeName\":\"Giống\",\"optionName\":\"Mèo Ba Tư\"},{\"attributeName\":\"Cân nặng\",\"value\":5}]}");
-            promptBuilder.AppendLine("Format nếu KHÔNG PHẢI MÈO: {\"isCat\":false}");
+            promptBuilder.AppendLine("Format trả về:");
+            promptBuilder.AppendLine("{\"isCat\":true,\"attributes\":[{\"attributeName\":\"Giống\",\"optionName\":\"Mèo Ba Tư\"},{\"attributeName\":\"Cân nặng\",\"value\":5}]}");
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine("CHỈ trả về JSON, KHÔNG text giải thích.");
+            promptBuilder.AppendLine("LƯU Ý QUAN TRỌNG:");
+            promptBuilder.AppendLine("- CHỈ trả về ĐÚNG 1 JSON object, KHÔNG có text giải thích, KHÔNG có markdown code block.");
+            promptBuilder.AppendLine("- KHÔNG bọc JSON trong ```json hoặc bất kỳ ký tự nào.");
+            promptBuilder.AppendLine("- Response phải bắt đầu trực tiếp bằng ký tự { và kết thúc bằng }");
 
             return promptBuilder.ToString();
         }
@@ -257,6 +357,135 @@ namespace BE.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error calling Gemini API: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task<List<AttributeAnalysisResult>?> CallGeminiVisionAPIMultiple(List<(string base64, string mimeType)> images, string prompt)
+        {
+            try
+            {
+                var apiKey = _configuration["GeminiAI:ApiKey"];
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    throw new Exception("Chưa cấu hình Gemini API Key");
+                }
+
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+
+                // Build parts array with prompt and all images
+                var parts = new List<object> { new { text = prompt } };
+                foreach (var (base64, mimeType) in images)
+                {
+                    parts.Add(new
+                    {
+                        inline_data = new
+                        {
+                            mime_type = mimeType.StartsWith("image/") ? mimeType : "image/jpeg",
+                            data = base64
+                        }
+                    });
+                }
+
+                var requestBody = new
+                {
+                    contents = new[]
+                    {
+                        new { parts = parts.ToArray() }
+                    },
+                    generationConfig = new
+                    {
+                        temperature = 0.1,
+                        topK = 32,
+                        topP = 1,
+                        maxOutputTokens = 4096
+                    }
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestBody);
+                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync(url, httpContent);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"❌ Gemini Vision API Error: Status={response.StatusCode}, Content={responseContent}");
+                    
+                    if (responseContent.Contains("location") || responseContent.Contains("FAILED_PRECONDITION"))
+                    {
+                        throw new Exception("⚠️ Gemini API không khả dụng từ khu vực này.");
+                    }
+                    else if (responseContent.Contains("API key"))
+                    {
+                        throw new Exception("❌ API key không hợp lệ.");
+                    }
+                    else if (responseContent.Contains("quota") || responseContent.Contains("429"))
+                    {
+                        throw new Exception("⏱️ Đã vượt quá giới hạn API.");
+                    }
+                    
+                    throw new Exception($"Gemini API error ({response.StatusCode}): {responseContent}");
+                }
+
+                Console.WriteLine($"✅ Gemini Vision API Success (Multi-image). Response length: {responseContent.Length}");
+                
+                var geminiResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
+                
+                if (!geminiResponse.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
+                {
+                    throw new Exception("AI không thể phân tích ảnh này.");
+                }
+                
+                var text = candidates[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
+                
+                Console.WriteLine($"🤖 AI Response (Multi): {text?.Substring(0, Math.Min(500, text?.Length ?? 0))}...");
+
+                var jsonStart = text?.IndexOf('{') ?? -1;
+                var jsonEnd = text?.LastIndexOf('}') ?? -1;
+
+                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                {
+                    var jsonText = text!.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                    
+                    Console.WriteLine($"📄 Extracted JSON: {jsonText.Substring(0, Math.Min(300, jsonText.Length))}...");
+                    
+                    try
+                    {
+                        using var document = JsonDocument.Parse(jsonText);
+                        var root = document.RootElement;
+                        
+                        if (root.TryGetProperty("isCat", out var isCatElement))
+                        {
+                            var isCat = isCatElement.GetBoolean();
+                            if (!isCat)
+                            {
+                                throw new Exception("Không có ảnh mèo trong các ảnh đã tải lên. Vui lòng tải lên ảnh mèo.");
+                            }
+                            
+                            if (root.TryGetProperty("attributes", out var attributesElement))
+                            {
+                                return ParseAttributeResults(attributesElement.GetRawText());
+                            }
+                        }
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        Console.WriteLine($"❌ JSON Parse Error: {jsonEx.Message}");
+                        Console.WriteLine($"📄 Full AI Response: {text}");
+                        throw new Exception($"AI trả về JSON không hợp lệ. Vui lòng thử lại.");
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error calling Gemini API (Multi): {ex.Message}");
                 throw;
             }
         }
