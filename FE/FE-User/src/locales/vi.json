@@ -844,6 +844,13 @@
         "title": "Chưa tìm thấy giao dịch",
         "message": "Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền và nội dung, sau đó thử lại.",
         "tryAgain": "Thử lại"
+      },
+      "timeRemaining": "Còn lại",
+      "autoChecking": "Đang tự động kiểm tra thanh toán...",
+      "expired": {
+        "title": "Mã QR đã hết hạn",
+        "message": "Mã QR thanh toán đã hết hạn sau 10 phút. Vui lòng tạo mã mới để tiếp tục thanh toán.",
+        "button": "Quay lại"
       }
     },
     "vip": {
