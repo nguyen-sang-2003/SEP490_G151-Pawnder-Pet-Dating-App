@@ -7,7 +7,7 @@ export function navigate(name: keyof RootStackParamList, params?: any) {
   if (navigationRef.isReady()) {
     navigationRef.navigate(name as any, params);
   } else {
-    console.warn('[Navigation] Navigator not ready yet');
+    console.log('[Navigation] Navigator not ready yet');
   }
 }
 

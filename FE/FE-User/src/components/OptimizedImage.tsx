@@ -12,7 +12,7 @@ try {
   FastImage = FastImageModule.default || FastImageModule;
   ResizeMode = FastImageModule.ResizeMode;
 } catch (e) {
-  console.warn('⚠️ FastImage not available, using regular Image component');
+  console.log('⚠️ FastImage not available, using regular Image component');
   FastImage = null;
 }
 
@@ -42,7 +42,7 @@ export const preloadImages = (urls: string[]) => {
       FastImage.preload(sources);
     }
   } catch (e) {
-    console.warn('Failed to preload images:', e);
+    console.log('Failed to preload images:', e);
   }
 };
 

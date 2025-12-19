@@ -67,7 +67,7 @@ export const storeAuthToken = async (token: string): Promise<void> => {
   try {
     // ✅ Validate token before storing
     if (!token || token.trim() === '') {
-      console.warn('⚠️ Invalid token, skipping storage');
+      console.log('⚠️ Invalid token, skipping storage');
       return;
     }
     
@@ -118,7 +118,7 @@ export const storeUserId = async (userId: number): Promise<void> => {
   try {
     // ✅ Validate userId before storing
     if (!userId || userId <= 0) {
-      console.warn('⚠️ Invalid userId, skipping storage');
+      console.log('⚠️ Invalid userId, skipping storage');
       return;
     }
     
@@ -269,7 +269,7 @@ export const logout = async (): Promise<void> => {
     console.log('✅ Server logout successful');
   } catch (error) {
     // Log warning but don't throw - we still want to clear local tokens
-    console.warn('⚠️ Server logout failed, clearing local tokens anyway:', error);
+    console.log('⚠️ Server logout failed, clearing local tokens anyway:', error);
   } finally {
     // Always clear local tokens (even if API call fails)
     await removeAuthToken();

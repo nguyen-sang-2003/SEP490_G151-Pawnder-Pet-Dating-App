@@ -201,7 +201,7 @@ class SignalRService {
    */
   async joinChat(matchId: number, userId: number): Promise<void> {
     if (!this.isConnected()) {
-      console.warn('⚠️ Cannot join chat - not connected');
+      console.log('⚠️ Cannot join chat - not connected');
       return;
     }
 
@@ -233,7 +233,7 @@ class SignalRService {
    */
   async joinExpertChat(chatExpertId: number, userId: number): Promise<void> {
     if (!this.isConnected()) {
-      console.warn('⚠️ Cannot join expert chat - not connected');
+      console.log('⚠️ Cannot join expert chat - not connected');
       return;
     }
 

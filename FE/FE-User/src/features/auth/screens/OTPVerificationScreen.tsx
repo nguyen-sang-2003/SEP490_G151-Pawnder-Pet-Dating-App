@@ -228,7 +228,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
       if (!coordinates) {
         // User denied permission, skip and navigate
-        console.warn('Location permission denied');
+        console.log('Location permission denied');
         showAlert({
           type: 'warning',
           title: t('auth.otp.locationSkipped'),

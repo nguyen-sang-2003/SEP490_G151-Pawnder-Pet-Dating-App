@@ -252,10 +252,10 @@
         "notCatPhoto": "Ảnh không hợp lệ",
         "uploadFailed": "Không thể tải ảnh lên. Vui lòng thử lại.",
         "tips": {
-          "title": "Mẹo chụp ảnh",
-          "clearPhoto": "Sử dụng ảnh rõ ràng, ánh sáng tốt",
-          "showPersonality": "Thể hiện tính cách thú cưng của bạn",
-          "includeVariety": "Bao gồm ảnh toàn thân và cận cảnh"
+          "title": "Lưu ý",
+          "clearPhoto": "Hệ thống chỉ phân tích ảnh mèo đầu tiên trong danh sách",
+          "showPersonality": "Đặt ảnh rõ mặt mèo ở vị trí đầu tiên để kết quả chính xác nhất",
+          "includeVariety": "Sử dụng ảnh rõ ràng, ánh sáng tốt"
         },
         "completeProfile": "Hoàn thành hồ sơ",
         "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",

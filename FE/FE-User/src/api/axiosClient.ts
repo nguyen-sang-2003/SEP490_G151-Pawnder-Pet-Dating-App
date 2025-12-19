@@ -71,11 +71,11 @@ export const storeTokens = async (accessToken: string, refreshToken: string): Pr
   try {
     // ✅ Validate tokens before storing
     if (!accessToken || accessToken.trim() === '') {
-      console.warn('⚠️ Invalid access token, skipping storage');
+      console.log('⚠️ Invalid access token, skipping storage');
       return;
     }
     if (!refreshToken || refreshToken.trim() === '') {
-      console.warn('⚠️ Invalid refresh token, skipping storage');
+      console.log('⚠️ Invalid refresh token, skipping storage');
       return;
     }
 

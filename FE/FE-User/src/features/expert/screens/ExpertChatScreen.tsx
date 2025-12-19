@@ -156,7 +156,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         const userId = userIdStr ? parseInt(userIdStr) : null;
 
         if (!userId) {
-          console.warn('⚠️ No userId for SignalR setup');
+          console.log('⚠️ No userId for SignalR setup');
           return;
         }
 
@@ -251,7 +251,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
 
   const handleSend = async () => {
     if (inputText.trim() === "" || !chatExpertId || !currentUserId || !expertId) {
-      console.warn('⚠️ Cannot send message: missing required data');
+      console.log('⚠️ Cannot send message: missing required data');
       return;
     }
 

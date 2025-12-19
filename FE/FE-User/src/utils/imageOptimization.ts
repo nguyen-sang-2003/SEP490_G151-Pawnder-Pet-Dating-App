@@ -74,7 +74,7 @@ export const getProxyImageUrl = (imageUrl: string): string => {
     const encodedUrl = base64Encode(imageUrl);
     return `${API_BASE_URL}/api/petphoto/proxy?url=${encodeURIComponent(encodedUrl)}`;
   } catch (error) {
-    console.warn('Failed to create proxy URL:', error);
+    console.log('Failed to create proxy URL:', error);
     return imageUrl;
   }
 };
@@ -127,7 +127,7 @@ export const addImageResizeParams = (
     return url.toString();
   } catch (error) {
     // If URL parsing fails, return original
-    console.warn('Failed to parse image URL:', imageUrl);
+    console.log('Failed to parse image URL:', imageUrl);
     return imageUrl;
   }
 };
