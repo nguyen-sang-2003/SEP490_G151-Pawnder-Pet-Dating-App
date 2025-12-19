@@ -112,7 +112,7 @@ namespace BE.Services
                 }
 
                 // Limit to 5 images
-                if (images.Count > 3)
+                if (images.Count > 4)
                 {
                     return new PetImageAnalysisResponse
                     {
