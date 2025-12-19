@@ -272,7 +272,7 @@ namespace BE.Services
                         temperature = 0.1,  // Thấp hơn để JSON output nhất quán
                         topK = 32,
                         topP = 1,
-                        maxOutputTokens = 4096  // Giảm để nhanh hơn
+                        maxOutputTokens = 1024  // Giảm để nhanh hơn
                     }
                 };
 
