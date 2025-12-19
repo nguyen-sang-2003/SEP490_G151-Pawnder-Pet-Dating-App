@@ -24,7 +24,7 @@ import { uploadPetPhotosMultipart, analyzePetImages, AIAttributeResult, getPetPh
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 
 const { width } = Dimensions.get("window");
-const PHOTO_SIZE = (width - 60) / 3;
+const PHOTO_SIZE = (width - 62) / 2;
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetPhotos">;
 
@@ -62,7 +62,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
   const [savedAiResults, setSavedAiResults] = useState<AIAttributeResult[] | undefined>(previousAiResults);
   const [analysisFingerprint, setAnalysisFingerprint] = useState<string | undefined>(undefined);
-  const maxPhotos = 3;
+  const maxPhotos = 4;
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Bắt hardware back button
