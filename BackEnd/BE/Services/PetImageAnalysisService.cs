@@ -117,7 +117,7 @@ namespace BE.Services
                     return new PetImageAnalysisResponse
                     {
                         Success = false,
-                        Message = "Chỉ cho phép tối đa 3 ảnh"
+                        Message = "Chỉ cho phép tối đa 4 ảnh"
                     };
                 }
 
