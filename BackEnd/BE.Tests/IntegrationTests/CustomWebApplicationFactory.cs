@@ -196,6 +196,72 @@ namespace BE.Tests.IntegrationTests
                 });
                 db.SaveChanges();
             }
+
+            // Tạo Attributes cho UserPreference tests
+            if (!db.Attributes.Any())
+            {
+                db.Attributes.AddRange(
+                    new BE.Models.Attribute
+                    {
+                        AttributeId = 1,
+                        Name = "Giống loài",
+                        TypeValue = "string",
+                        Unit = null,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new BE.Models.Attribute
+                    {
+                        AttributeId = 2,
+                        Name = "Cân nặng",
+                        TypeValue = "float",
+                        Unit = "kg",
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new BE.Models.Attribute
+                    {
+                        AttributeId = 3,
+                        Name = "Màu lông",
+                        TypeValue = "string",
+                        Unit = null,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow
+                    }
+                );
+                db.SaveChanges();
+            }
+
+            // Tạo AttributeOptions cho string type attributes
+            if (!db.AttributeOptions.Any())
+            {
+                db.AttributeOptions.AddRange(
+                    // Options cho Giống loài (AttributeId = 1)
+                    new AttributeOption { OptionId = 5, AttributeId = 1, Name = "Chó Phốc Sóc", IsDeleted = false, CreatedAt = DateTime.UtcNow },
+                    new AttributeOption { OptionId = 6, AttributeId = 1, Name = "Chó Husky", IsDeleted = false, CreatedAt = DateTime.UtcNow },
+                    new AttributeOption { OptionId = 7, AttributeId = 1, Name = "Chó Corgi", IsDeleted = false, CreatedAt = DateTime.UtcNow },
+                    // Options cho Màu lông (AttributeId = 3)
+                    new AttributeOption { OptionId = 10, AttributeId = 3, Name = "Trắng", IsDeleted = false, CreatedAt = DateTime.UtcNow },
+                    new AttributeOption { OptionId = 11, AttributeId = 3, Name = "Đen", IsDeleted = false, CreatedAt = DateTime.UtcNow }
+                );
+                db.SaveChanges();
+            }
+
+            // Tạo UserPreferences cho test user 1 (có preferences)
+            if (!db.UserPreferences.Any(p => p.UserId == 1))
+            {
+                db.UserPreferences.Add(new UserPreference
+                {
+                    UserId = 1,
+                    AttributeId = 1,
+                    OptionId = 5, // Chó Phốc Sóc
+                    MinValue = null,
+                    MaxValue = null,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+                db.SaveChanges();
+            }
         }
     }
 }
