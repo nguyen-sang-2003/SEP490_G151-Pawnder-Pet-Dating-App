@@ -128,7 +128,74 @@ namespace BE.Tests.IntegrationTests
                 });
             }
 
+            // Tạo user cho authentication tests (UC-4.1)
+            // user@example.com với password "Test@123" (BCrypt hash)
+            if (!db.Users.Any(u => u.Email == "user@example.com"))
+            {
+                db.Users.Add(new User
+                {
+                    UserId = 100,
+                    FullName = "Test User",
+                    Email = "user@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Test@123"),
+                    RoleId = 3, // User
+                    AddressId = null,
+                    IsDeleted = false,
+                    IsProfileComplete = true,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            // admin@example.com với password "Admin@123" (BCrypt hash)
+            if (!db.Users.Any(u => u.Email == "admin@example.com"))
+            {
+                db.Users.Add(new User
+                {
+                    UserId = 101,
+                    FullName = "Admin User",
+                    Email = "admin@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+                    RoleId = 1, // Admin
+                    AddressId = null,
+                    IsDeleted = false,
+                    IsProfileComplete = true,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            // banned@example.com - user bị ban
+            if (!db.Users.Any(u => u.Email == "banned@example.com"))
+            {
+                db.Users.Add(new User
+                {
+                    UserId = 102,
+                    FullName = "Banned User",
+                    Email = "banned@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Test@123"),
+                    RoleId = 3, // User
+                    AddressId = null,
+                    IsDeleted = false,
+                    IsProfileComplete = true,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
             db.SaveChanges();
+
+            // Tạo ban history cho banned user
+            if (!db.UserBanHistories.Any(b => b.UserId == 102))
+            {
+                db.UserBanHistories.Add(new UserBanHistory
+                {
+                    UserId = 102,
+                    BanStart = new DateTime(2025, 1, 1, 0, 0, 0),
+                    BanEnd = new DateTime(2025, 12, 31, 23, 59, 59),
+                    BanReason = "Vi phạm quy định",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                });
+                db.SaveChanges();
+            }
         }
     }
 }
