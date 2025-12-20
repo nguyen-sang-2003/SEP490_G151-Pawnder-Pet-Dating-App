@@ -306,3 +306,7 @@ public interface IPhotoStorage
     Task<(string Url, string PublicId)> UploadAsync(int petId, IFormFile file, CancellationToken ct = default);
     Task DeleteAsync(string publicId, CancellationToken ct = default);
 }
+
+// This is needed for WebApplicationFactory in integration tests
+public partial class Program { }
+
