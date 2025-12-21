@@ -111,7 +111,7 @@ namespace BE.Services
                     };
                 }
 
-                // Limit to 5 images
+                // Limit to 4 images
                 if (images.Count > 4)
                 {
                     return new PetImageAnalysisResponse
@@ -398,7 +398,7 @@ namespace BE.Services
                         temperature = 0.1,
                         topK = 32,
                         topP = 1,
-                        maxOutputTokens = 4096
+                        maxOutputTokens = 1024
                     }
                 };
 
@@ -410,25 +410,25 @@ namespace BE.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"❌ Gemini Vision API Error: Status={response.StatusCode}, Content={responseContent}");
+                    Console.WriteLine($" Gemini Vision API Error: Status={response.StatusCode}, Content={responseContent}");
                     
                     if (responseContent.Contains("location") || responseContent.Contains("FAILED_PRECONDITION"))
                     {
-                        throw new Exception("⚠️ Gemini API không khả dụng từ khu vực này.");
+                        throw new Exception(" Gemini API không khả dụng từ khu vực này.");
                     }
                     else if (responseContent.Contains("API key"))
                     {
-                        throw new Exception("❌ API key không hợp lệ.");
+                        throw new Exception(" API key không hợp lệ.");
                     }
                     else if (responseContent.Contains("quota") || responseContent.Contains("429"))
                     {
-                        throw new Exception("⏱️ Đã vượt quá giới hạn API.");
+                        throw new Exception(" Đã vượt quá giới hạn API.");
                     }
                     
                     throw new Exception($"Gemini API error ({response.StatusCode}): {responseContent}");
                 }
 
-                Console.WriteLine($"✅ Gemini Vision API Success (Multi-image). Response length: {responseContent.Length}");
+                Console.WriteLine($" Gemini Vision API Success (Multi-image). Response length: {responseContent.Length}");
                 
                 var geminiResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
                 
@@ -443,7 +443,7 @@ namespace BE.Services
                     .GetProperty("text")
                     .GetString();
                 
-                Console.WriteLine($"🤖 AI Response (Multi): {text?.Substring(0, Math.Min(500, text?.Length ?? 0))}...");
+                Console.WriteLine($" AI Response (Multi): {text?.Substring(0, Math.Min(500, text?.Length ?? 0))}...");
 
                 var jsonStart = text?.IndexOf('{') ?? -1;
                 var jsonEnd = text?.LastIndexOf('}') ?? -1;
@@ -452,7 +452,7 @@ namespace BE.Services
                 {
                     var jsonText = text!.Substring(jsonStart, jsonEnd - jsonStart + 1);
                     
-                    Console.WriteLine($"📄 Extracted JSON: {jsonText.Substring(0, Math.Min(300, jsonText.Length))}...");
+                    Console.WriteLine($" Extracted JSON: {jsonText.Substring(0, Math.Min(300, jsonText.Length))}...");
                     
                     try
                     {
@@ -475,8 +475,8 @@ namespace BE.Services
                     }
                     catch (JsonException jsonEx)
                     {
-                        Console.WriteLine($"❌ JSON Parse Error: {jsonEx.Message}");
-                        Console.WriteLine($"📄 Full AI Response: {text}");
+                        Console.WriteLine($" JSON Parse Error: {jsonEx.Message}");
+                        Console.WriteLine($" Full AI Response: {text}");
                         throw new Exception($"AI trả về JSON không hợp lệ. Vui lòng thử lại.");
                     }
                 }
