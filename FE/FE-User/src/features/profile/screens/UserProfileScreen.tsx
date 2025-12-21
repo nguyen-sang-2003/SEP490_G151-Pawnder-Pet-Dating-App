@@ -76,10 +76,23 @@ const UserProfileScreen = ({ navigation }: Props) => {
       ]);
 
       setUserData(user);
-      setPets(petsData);
 
+      // Find active pet from server data
       const active = petsData.find(p => p.IsActive === true || p.isActive === true);
-      setActivePet(active || petsData[0] || null);
+      
+      // If no pet is marked as active but there are pets, mark the first one as active locally
+      if (!active && petsData.length > 0) {
+        petsData[0] = {
+          ...petsData[0],
+          IsActive: true,
+          isActive: true,
+        };
+        setActivePet(petsData[0]);
+      } else {
+        setActivePet(active || null);
+      }
+      
+      setPets(petsData);
 
       getVipStatus(userId)
         .then(vipStatus => {
@@ -322,8 +335,17 @@ const UserProfileScreen = ({ navigation }: Props) => {
             
             // If deleted pet was active, set first remaining pet as active
             if (pet.IsActive === true || pet.isActive === true) {
-              const newActivePet = updatedPets[0] || null;
-              setActivePet(newActivePet);
+              if (updatedPets.length > 0) {
+                // Update IsActive flag for the new active pet
+                updatedPets[0] = {
+                  ...updatedPets[0],
+                  IsActive: true,
+                  isActive: true,
+                };
+                setActivePet(updatedPets[0]);
+              } else {
+                setActivePet(null);
+              }
             }
             
             return updatedPets;
