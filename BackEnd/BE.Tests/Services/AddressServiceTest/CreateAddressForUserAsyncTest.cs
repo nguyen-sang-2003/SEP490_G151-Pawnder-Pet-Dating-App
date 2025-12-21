@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Moq;
+using Moq.Protected;
 using Xunit;
 
 namespace BE.Tests.Services.AddressServiceTest
@@ -17,7 +18,7 @@ namespace BE.Tests.Services.AddressServiceTest
         private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
         private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly Mock<IMemoryCache> _mockCache;
-        private readonly AddressService _addressService;
+        private AddressService? _addressService;
 
         public CreateAddressForUserAsyncTest()
         {
@@ -26,6 +27,11 @@ namespace BE.Tests.Services.AddressServiceTest
             _mockHttpClientFactory = new Mock<IHttpClientFactory>();
             _mockConfiguration = new Mock<IConfiguration>();
             _mockCache = new Mock<IMemoryCache>();
+
+            // Setup IConfiguration - LocationIQ API key
+            _mockConfiguration
+                .Setup(x => x["LocationIQ:ApiKey"])
+                .Returns("test_api_key_123");
 
             // Setup IMemoryCache
             object? cacheValue = null;
@@ -44,8 +50,11 @@ namespace BE.Tests.Services.AddressServiceTest
                 .Options;
 
             _context = new PawnderDatabaseContext(options);
+        }
 
-            // Khởi tạo service
+        private void CreateAddressService()
+        {
+            // Create the service after all mocks are configured
             _addressService = new AddressService(
                 _mockAddressRepository.Object,
                 _context,
@@ -53,6 +62,23 @@ namespace BE.Tests.Services.AddressServiceTest
                 _mockConfiguration.Object,
                 _mockCache.Object
             );
+        }
+
+        private void SetupHttpClientMock(HttpResponseMessage responseMessage)
+        {
+            var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+            mockHttpMessageHandler
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(responseMessage);
+
+            var realHttpClient = new HttpClient(mockHttpMessageHandler.Object);
+            _mockHttpClientFactory
+                .Setup(x => x.CreateClient(It.IsAny<string>()))
+                .Returns(realHttpClient);
         }
 
         public void Dispose()
@@ -70,6 +96,21 @@ namespace BE.Tests.Services.AddressServiceTest
         public async Task UTCID01_CreateAddressForUserAsync_ValidUserValidCoordinates_ReturnsSuccessResponse()
         {
             // Arrange
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent(@"{
+                    ""display_name"": ""TP.HCM"",
+                    ""address"": {
+                        ""city"": ""TP.HCM"",
+                        ""state"": ""Ho Chi Minh City"",
+                        ""country"": ""Vietnam""
+                    }
+                }")
+            };
+            SetupHttpClientMock(mockResponse);
+            CreateAddressService();
+
             var user = new User
             {
                 UserId = 1,
@@ -88,18 +129,6 @@ namespace BE.Tests.Services.AddressServiceTest
                 Longitude = 106.660172m
             };
 
-            var address = new Address
-            {
-                Latitude = locationDto.Latitude,
-                Longitude = locationDto.Longitude,
-                FullAddress = "TP.HCM",
-                City = "TP.HCM",
-                District = "Q1",
-                Ward = "P1",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
             _mockAddressRepository
                 .Setup(r => r.AddAsync(It.IsAny<Address>(), It.IsAny<CancellationToken>()))
                 .Callback<Address, CancellationToken>((a, ct) =>
@@ -113,13 +142,17 @@ namespace BE.Tests.Services.AddressServiceTest
                 });
 
             // Act
-            var result = await _addressService.CreateAddressForUserAsync(1, locationDto);
+            var result = await _addressService!.CreateAddressForUserAsync(1, locationDto);
 
             // Assert
             Assert.NotNull(result);
-            dynamic obj = result;
-            Assert.NotNull(obj.User);
-            Assert.NotNull(obj.Address);
+            var resultType = result.GetType();
+            var userProp = resultType.GetProperty("User");
+            var addressProp = resultType.GetProperty("Address");
+            Assert.NotNull(userProp);
+            Assert.NotNull(addressProp);
+            Assert.NotNull(userProp.GetValue(result));
+            Assert.NotNull(addressProp.GetValue(result));
         }
 
         /// <summary>
@@ -129,7 +162,11 @@ namespace BE.Tests.Services.AddressServiceTest
         [Fact]
         public async Task UTCID02_CreateAddressForUserAsync_UserNotFound_ThrowsKeyNotFoundException()
         {
-            // Arrange
+            // Arrange - setup minimal HTTP mock since the service constructor calls CreateClient
+            var mockResponse = new HttpResponseMessage { StatusCode = System.Net.HttpStatusCode.OK };
+            SetupHttpClientMock(mockResponse);
+            CreateAddressService();
+
             var locationDto = new LocationDto
             {
                 Latitude = 10.762622m,
@@ -148,7 +185,11 @@ namespace BE.Tests.Services.AddressServiceTest
         [Fact]
         public async Task UTCID03_CreateAddressForUserAsync_UserAlreadyHasAddress_ThrowsInvalidOperationException()
         {
-            // Arrange
+            // Arrange - setup minimal HTTP mock
+            var mockResponse = new HttpResponseMessage { StatusCode = System.Net.HttpStatusCode.OK };
+            SetupHttpClientMock(mockResponse);
+            CreateAddressService();
+
             var user = new User
             {
                 UserId = 1,
@@ -182,6 +223,14 @@ namespace BE.Tests.Services.AddressServiceTest
         public async Task UTCID04_CreateAddressForUserAsync_ZeroCoordinatesBoundary_ReturnsSuccessResponse()
         {
             // Arrange
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent(@"{""display_name"":""Atlantic Ocean"",""address"":{""country"":""International Waters""}}")
+            };
+            SetupHttpClientMock(mockResponse);
+            CreateAddressService();
+
             var user = new User
             {
                 UserId = 1,
@@ -213,13 +262,20 @@ namespace BE.Tests.Services.AddressServiceTest
                 });
 
             // Act
-            var result = await _addressService.CreateAddressForUserAsync(1, locationDto);
+            var result = await _addressService!.CreateAddressForUserAsync(1, locationDto);
 
             // Assert
             Assert.NotNull(result);
-            dynamic obj = result;
-            Assert.Equal(0m, obj.Address.Latitude);
-            Assert.Equal(0m, obj.Address.Longitude);
+            var resultType = result.GetType();
+            var addressProp = resultType.GetProperty("Address");
+            Assert.NotNull(addressProp);
+            var addressValue = addressProp.GetValue(result);
+            Assert.NotNull(addressValue);
+            var addressType = addressValue.GetType();
+            var latProp = addressType.GetProperty("Latitude");
+            var lonProp = addressType.GetProperty("Longitude");
+            Assert.Equal(0m, latProp!.GetValue(addressValue));
+            Assert.Equal(0m, lonProp!.GetValue(addressValue));
         }
 
         /// <summary>
@@ -230,6 +286,17 @@ namespace BE.Tests.Services.AddressServiceTest
         public async Task UTCID05_CreateAddressForUserAsync_GeocodeReturnsEmpty_ThrowsInvalidOperationException()
         {
             // Arrange
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent(@"{
+                    ""display_name"": """",
+                    ""address"": {}
+                }")
+            };
+            SetupHttpClientMock(mockResponse);
+            CreateAddressService();
+
             var user = new User
             {
                 UserId = 1,
@@ -263,6 +330,17 @@ namespace BE.Tests.Services.AddressServiceTest
         public async Task UTCID06_CreateAddressForUserAsync_GeocodeFailureZeroCoords_ThrowsInvalidOperationException()
         {
             // Arrange
+            var mockResponse = new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent(@"{
+                    ""display_name"": """",
+                    ""address"": {}
+                }")
+            };
+            SetupHttpClientMock(mockResponse);
+            CreateAddressService();
+
             var user = new User
             {
                 UserId = 1,
