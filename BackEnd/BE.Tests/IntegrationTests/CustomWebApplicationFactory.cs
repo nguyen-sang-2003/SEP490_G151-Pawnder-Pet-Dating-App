@@ -262,6 +262,372 @@ namespace BE.Tests.IntegrationTests
                 });
                 db.SaveChanges();
             }
+
+            // Tạo Pets cho SetActivePet integration tests
+            if (!db.Pets.Any())
+            {
+                db.Pets.AddRange(
+                    // Pet 1: Active pet của user 1
+                    new Pet
+                    {
+                        PetId = 1,
+                        UserId = 1,
+                        Name = "Buddy",
+                        Breed = "Golden Retriever",
+                        Gender = "Male",
+                        Age = 3,
+                        IsActive = true,
+                        IsDeleted = false,
+                        Description = "Friendly dog",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Pet 2: Inactive pet của user 1
+                    new Pet
+                    {
+                        PetId = 2,
+                        UserId = 1,
+                        Name = "Max",
+                        Breed = "Husky",
+                        Gender = "Male",
+                        Age = 2,
+                        IsActive = false,
+                        IsDeleted = false,
+                        Description = "Playful husky",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Pet 3: Pet của user 2
+                    new Pet
+                    {
+                        PetId = 3,
+                        UserId = 2,
+                        Name = "Luna",
+                        Breed = "Corgi",
+                        Gender = "Female",
+                        Age = 1,
+                        IsActive = true,
+                        IsDeleted = false,
+                        Description = "Cute corgi",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Pet 4: Inactive pet của user 2
+                    new Pet
+                    {
+                        PetId = 4,
+                        UserId = 2,
+                        Name = "Charlie",
+                        Breed = "Poodle",
+                        Gender = "Male",
+                        Age = 4,
+                        IsActive = false,
+                        IsDeleted = false,
+                        Description = "Smart poodle",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Pet 5: Deleted pet (cho test UC-P-5.1-TC-5)
+                    new Pet
+                    {
+                        PetId = 5,
+                        UserId = 1,
+                        Name = "Rocky",
+                        Breed = "Bulldog",
+                        Gender = "Male",
+                        Age = 5,
+                        IsActive = false,
+                        IsDeleted = true,  // Đã bị xóa
+                        Description = "Deleted pet",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                );
+                db.SaveChanges();
+            }
+
+            // Tạo PetCharacteristics cho integration tests
+            if (!db.PetCharacteristics.Any())
+            {
+                db.PetCharacteristics.AddRange(
+                    // Pet 1 có characteristic với AttributeId = 1 (string type - Giống loài)
+                    new PetCharacteristic
+                    {
+                        PetId = 1,
+                        AttributeId = 1,
+                        OptionId = 5, // Chó Phốc Sóc
+                        Value = null,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Pet 3 có multiple characteristics
+                    new PetCharacteristic
+                    {
+                        PetId = 3,
+                        AttributeId = 1,
+                        OptionId = 7, // Chó Corgi
+                        Value = null,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new PetCharacteristic
+                    {
+                        PetId = 3,
+                        AttributeId = 2, // Cân nặng (float type)
+                        OptionId = null,
+                        Value = 12,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new PetCharacteristic
+                    {
+                        PetId = 3,
+                        AttributeId = 3, // Màu lông (string type)
+                        OptionId = 10, // Trắng
+                        Value = null,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                );
+                db.SaveChanges();
+            }
+
+            // Tạo PetPhotos cho integration tests
+            if (!db.PetPhotos.Any())
+            {
+                db.PetPhotos.AddRange(
+                    // Pet 1 có 2 photos
+                    new PetPhoto
+                    {
+                        PhotoId = 1,
+                        PetId = 1,
+                        ImageUrl = "https://example.com/photo1.jpg",
+                        PublicId = "photo1",
+                        IsPrimary = true,
+                        SortOrder = 0,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new PetPhoto
+                    {
+                        PhotoId = 2,
+                        PetId = 1,
+                        ImageUrl = "https://example.com/photo2.jpg",
+                        PublicId = "photo2",
+                        IsPrimary = false,
+                        SortOrder = 1,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Pet 3 có 3 photos (1 đã bị xóa)
+                    new PetPhoto
+                    {
+                        PhotoId = 3,
+                        PetId = 3,
+                        ImageUrl = "https://example.com/photo3.jpg",
+                        PublicId = "photo3",
+                        IsPrimary = true,
+                        SortOrder = 0,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new PetPhoto
+                    {
+                        PhotoId = 4,
+                        PetId = 3,
+                        ImageUrl = "https://example.com/photo4.jpg",
+                        PublicId = "photo4",
+                        IsPrimary = false,
+                        SortOrder = 1,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new PetPhoto
+                    {
+                        PhotoId = 5,
+                        PetId = 3,
+                        ImageUrl = "https://example.com/photo5_deleted.jpg",
+                        PublicId = "photo5",
+                        IsPrimary = false,
+                        SortOrder = 2,
+                        IsDeleted = true, // Đã bị xóa
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                );
+                db.SaveChanges();
+            }
+
+            // Seed data for Report integration tests
+            // Tạo thêm users cho report tests
+            if (!db.Users.Any(u => u.UserId == 10))
+            {
+                db.Users.Add(new User
+                {
+                    UserId = 10,
+                    FullName = "Reporter User",
+                    Email = "reporter@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Test@123"),
+                    RoleId = 3,
+                    AddressId = null,
+                    IsDeleted = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            if (!db.Users.Any(u => u.UserId == 11))
+            {
+                db.Users.Add(new User
+                {
+                    UserId = 11,
+                    FullName = "Reported User",
+                    Email = "reported@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Test@123"),
+                    RoleId = 3,
+                    AddressId = null,
+                    IsDeleted = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            if (!db.Users.Any(u => u.UserId == 12))
+            {
+                db.Users.Add(new User
+                {
+                    UserId = 12,
+                    FullName = "User Without Reports",
+                    Email = "noreports@example.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Test@123"),
+                    RoleId = 3,
+                    AddressId = null,
+                    IsDeleted = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            db.SaveChanges();
+
+            // Tạo pets cho report tests
+            if (!db.Pets.Any(p => p.PetId == 10))
+            {
+                db.Pets.Add(new Pet
+                {
+                    PetId = 10,
+                    UserId = 10,
+                    Name = "Reporter Pet",
+                    Breed = "Labrador",
+                    Gender = "Male",
+                    Age = 2,
+                    IsActive = true,
+                    IsDeleted = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            if (!db.Pets.Any(p => p.PetId == 11))
+            {
+                db.Pets.Add(new Pet
+                {
+                    PetId = 11,
+                    UserId = 11,
+                    Name = "Reported Pet",
+                    Breed = "Beagle",
+                    Gender = "Female",
+                    Age = 3,
+                    IsActive = true,
+                    IsDeleted = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            db.SaveChanges();
+
+            // Tạo ChatUser (Match) cho report tests
+            if (!db.ChatUsers.Any(c => c.MatchId == 10))
+            {
+                db.ChatUsers.Add(new ChatUser
+                {
+                    MatchId = 10,
+                    FromPetId = 10,
+                    ToPetId = 11,
+                    FromUserId = 10,
+                    ToUserId = 11,
+                    Status = "Active",
+                    IsDeleted = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            db.SaveChanges();
+
+            // Tạo ChatUserContent cho report tests
+            if (!db.ChatUserContents.Any(c => c.ContentId == 10))
+            {
+                db.ChatUserContents.Add(new ChatUserContent
+                {
+                    ContentId = 10,
+                    MatchId = 10, // Reference to ChatUser match
+                    FromPetId = 11, // From reported user's pet
+                    FromUserId = 11, // From reported user
+                    Message = "Inappropriate message",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            if (!db.ChatUserContents.Any(c => c.ContentId == 11))
+            {
+                db.ChatUserContents.Add(new ChatUserContent
+                {
+                    ContentId = 11,
+                    MatchId = 10, // Reference to ChatUser match
+                    FromPetId = 11,
+                    FromUserId = 11,
+                    Message = "Another message",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            db.SaveChanges();
+
+            // Tạo Reports cho tests
+            if (!db.Reports.Any(r => r.ReportId == 1))
+            {
+                db.Reports.Add(new Report
+                {
+                    ReportId = 1,
+                    UserReportId = 10,
+                    ContentId = 10,
+                    Reason = "Nội dung không phù hợp",
+                    Status = "Pending",
+                    Resolution = null,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            if (!db.Reports.Any(r => r.ReportId == 2))
+            {
+                db.Reports.Add(new Report
+                {
+                    ReportId = 2,
+                    UserReportId = 10,
+                    ContentId = 11,
+                    Reason = "Spam",
+                    Status = "Pending",
+                    Resolution = null,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            db.SaveChanges();
         }
     }
 }
