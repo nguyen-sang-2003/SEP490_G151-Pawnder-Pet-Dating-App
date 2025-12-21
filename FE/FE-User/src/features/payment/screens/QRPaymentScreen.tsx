@@ -92,7 +92,6 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       }
     } catch (err) {
       // Silent fail - will retry on next poll
-      console.log('Payment check failed, will retry...');
     }
   }, [amount, planId, planName, duration, isExpired, navigation, showAlert, t, getMonthsFromPlanId]);
 
@@ -209,7 +208,6 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       };
       reader.readAsDataURL(qrBlob);
     } catch (err) {
-      console.log('QR generation error:', err);
       setError(t("payment.qr.generateError"));
       setLoading(false);
     }

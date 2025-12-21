@@ -78,10 +78,8 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         const userId = parseInt(userIdStr);
         const vipStatus = await getVipStatus(userId);
         setIsVip(vipStatus.isVip);
-        console.log('💎 VIP status loaded:', vipStatus.isVip);
       }
     } catch (error) {
-      console.log('⚠️ Failed to load VIP status, assuming not VIP');
       setIsVip(false);
     }
   }, []);
@@ -110,12 +108,9 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      console.log(`🔄 Loading messages for chatExpertId: ${chatExpertId}`);
       const data = await getExpertChatMessages(chatExpertId);
 
-      // Transform API messages to UI messages
       const transformedMessages: Message[] = data.map((msg: ExpertChatMessage) => {
-        // Backend trả về UTC, cần thêm 'Z' nếu chưa có
         let dateStr = msg.createdAt;
         if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
           dateStr = dateStr + 'Z';
@@ -124,14 +119,13 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         return {
           id: msg.contentId.toString(),
           text: msg.message,
-          isExpert: msg.fromId !== userId, // If fromId is not current user, it's from expert
+          isExpert: msg.fromId !== userId,
           timestamp: new Date(dateStr),
           status: "sent" as const,
         };
       });
 
       setMessages(transformedMessages);
-      console.log('✅ Loaded', transformedMessages.length, 'messages');
     } catch (error: any) {
       Alert.alert(t('alerts.error'), error.message || t('expert.chat.errors.loadFailed'));
     } finally {
@@ -156,42 +150,26 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         const userId = userIdStr ? parseInt(userIdStr) : null;
 
         if (!userId) {
-          console.log('⚠️ No userId for SignalR setup');
           return;
         }
 
-        // Ensure connected
         if (!signalRService.isConnected()) {
           await signalRService.connect(userId);
         }
 
-        // Join expert chat group
         await signalRService.joinExpertChat(chatExpertId, userId);
-        console.log(`✅ Joined expert chat group: ${chatExpertId}`);
 
-        // Listen for new messages
         const handleNewMessage = (data: any) => {
-          console.log('💬 [ExpertChat] New message received via SignalR:', data);
-          console.log('💬 [ExpertChat] Current userId:', userId);
-          console.log('💬 [ExpertChat] Current chatExpertId:', chatExpertId);
-          console.log('💬 [ExpertChat] Message fromId:', data.FromId);
-          console.log('💬 [ExpertChat] Message chatExpertId:', data.ChatExpertId);
-
-          // Check if message is for this chat
           const messageChatId = data.ChatExpertId || data.chatExpertId;
           if (messageChatId !== chatExpertId) {
-            console.log('⚠️ Message is for different chat, ignoring');
             return;
           }
 
-          // Check if message is from current user (skip to avoid duplicate with optimistic update)
           const messageFromId = data.FromId || data.fromId;
           if (messageFromId === userId) {
-            console.log('⚠️ Message is from current user, skipping (already added optimistically)');
             return;
           }
 
-          // Add message from expert
           let dateStr = data.CreatedAt || data.createdAt;
           if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
             dateStr = dateStr + 'Z';
@@ -200,28 +178,21 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
           const newMessage: Message = {
             id: `signalr_${Date.now()}`,
             text: data.Message || data.message,
-            isExpert: true, // Message from expert
+            isExpert: true,
             timestamp: new Date(dateStr),
             status: "sent" as const,
           };
 
-          console.log('✅ [ExpertChat] Adding expert message:', newMessage);
-
           setMessages((prev) => {
-            // Check if message already exists (avoid duplicates)
             const exists = prev.some(m =>
               m.text === newMessage.text &&
               Math.abs(m.timestamp.getTime() - newMessage.timestamp.getTime()) < 2000
             );
             if (exists) {
-              console.log('⚠️ Message already exists, skipping');
               return prev;
             }
-            console.log('✅ Adding message to state');
             return [...prev, newMessage];
           });
-
-          // Scroll to bottom will be handled by useEffect when messages change
         };
 
         signalRService.on('ReceiveExpertMessage', handleNewMessage);
@@ -251,7 +222,6 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
 
   const handleSend = async () => {
     if (inputText.trim() === "" || !chatExpertId || !currentUserId || !expertId) {
-      console.log('⚠️ Cannot send message: missing required data');
       return;
     }
 
@@ -274,9 +244,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
 
     try {
       setSending(true);
-      console.log(`🔄 Sending message to chatExpertId ${chatExpertId}:`, messageText);
 
-      // Send to API
       const sentMessage = await sendExpertChatMessage(chatExpertId, currentUserId, {
         message: messageText,
         expertId: expertId,
@@ -302,8 +270,6 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
             : msg
         )
       );
-
-      console.log('✅ Message sent successfully');
     } catch (error: any) {
 
 

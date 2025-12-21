@@ -183,14 +183,11 @@ const AppNavigator = () => {
   useEffect(() => {
     checkAuth();
 
-    // Listen for logout flag changes
     const checkLogoutInterval = setInterval(async () => {
       const shouldLogout = await AsyncStorage.getItem('shouldLogout');
       if (shouldLogout === 'true') {
-        console.log('🚪 Logout flag detected, redirecting to Welcome...');
         await AsyncStorage.removeItem('shouldLogout');
         setIsAuthenticated(false);
-        // Navigate to Welcome screen
         if (navigationRef.current) {
           navigationRef.current.reset({
             index: 0,
@@ -198,12 +195,11 @@ const AppNavigator = () => {
           });
         }
       }
-    }, 1000); // Check every second
+    }, 1000);
 
     return () => clearInterval(checkLogoutInterval);
   }, []);
 
-  // Setup global SignalR listener for notifications (works from any screen)
   useEffect(() => {
     let isSetup = false;
 
@@ -215,37 +211,23 @@ const AppNavigator = () => {
         if (!userIdStr || !isAuthenticated) return;
 
         const userId = parseInt(userIdStr);
-        console.log('🔔 [AppNavigator] Setting up global notification listener for userId:', userId);
 
-        // Connect to SignalR if not already connected
         if (!signalRService.isConnected()) {
           await signalRService.connect(userId);
-          console.log('✅ [AppNavigator] SignalR connected');
         }
 
-        // Listen for new notifications globally
         const handleNewNotification = (data: any) => {
-          console.log('🔔 [AppNavigator] New notification received via SignalR:', data);
-
-          // Refresh badge count immediately
-          refreshBadgesForActivePet(userId).then(() => {
-            console.log('✅ [AppNavigator] Badge refreshed after notification');
-          }).catch(err => {
-
-          });
+          refreshBadgesForActivePet(userId).catch(() => {});
         };
 
         signalRService.on('NewNotification', handleNewNotification);
         isSetup = true;
-        console.log('✅ [AppNavigator] Global notification listener setup complete');
 
-        // Cleanup on unmount
         return () => {
           signalRService.off('NewNotification', handleNewNotification);
-          console.log('🧹 [AppNavigator] Cleaned up global notification listener');
         };
       } catch (error) {
-
+        // Silent fail
       }
     };
 
@@ -258,12 +240,9 @@ const AppNavigator = () => {
     try {
       const token = await getAuthToken();
       
-      // ✅ Check both existence AND validity of token
       if (token && !isTokenExpired(token)) {
         setIsAuthenticated(true);
       } else if (token && isTokenExpired(token)) {
-        console.log('🔒 [AppNavigator] Token expired - auto logout');
-        // Clear expired token
         await AsyncStorage.removeItem('userId');
         await logout();
         setIsAuthenticated(false);
@@ -271,7 +250,6 @@ const AppNavigator = () => {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      console.log('❌ [AppNavigator] Error checking auth:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

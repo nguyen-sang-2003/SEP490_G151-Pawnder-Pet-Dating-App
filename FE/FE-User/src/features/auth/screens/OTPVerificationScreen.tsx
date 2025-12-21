@@ -118,10 +118,7 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
     setLoading(true);
     try {
-      // Step 1: Verify OTP with backend
-      console.log('🔐 Verifying OTP...');
       await verifyOtp(email, otpValue);
-      console.log('✅ OTP verified successfully');
 
       // Show OTP success message first
       showAlert({
@@ -134,7 +131,6 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
           if (userData) {
             try {
               setLoading(true);
-              console.log('OTP verified successfully. Creating account...');
               const registerResponse = await register(userData);
               const newUserId = registerResponse.userId || registerResponse.UserId;
 
@@ -142,22 +138,12 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
                 throw new Error('Không thể lấy UserId từ response');
               }
 
-              console.log('✅ Account created. UserId:', newUserId);
-
-              // Save userId to AsyncStorage for later use
               await setItem('userId', newUserId.toString());
-              console.log('💾 UserId saved to storage');
 
-              // 🔐 AUTO-LOGIN: Get access and refresh tokens
-              // This is critical because register API doesn't return tokens
-              console.log('🔐 Auto-logging in to get access tokens...');
               try {
                 await login(userData.Email, userData.Password);
-                console.log('✅ Auto-login successful - tokens stored in Keychain');
               } catch (loginError: any) {
-
-                // Don't block the flow - user can login manually later
-                // But this means subsequent API calls might fail due to missing tokens
+                // Silent fail - user can login manually later
               }
 
               setLoading(false);
@@ -222,13 +208,9 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
     try {
       setLoading(true);
 
-      // Get GPS coordinates
-      console.log('Requesting location permission...');
       const coordinates = await requestLocationAndGetCoordinates();
 
       if (!coordinates) {
-        // User denied permission, skip and navigate
-        console.log('Location permission denied');
         showAlert({
           type: 'warning',
           title: t('auth.otp.locationSkipped'),
@@ -239,8 +221,6 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      // Create address in database
-      console.log('Creating address with coordinates:', coordinates);
       await createAddressForUser(newUserId, coordinates.latitude, coordinates.longitude);
 
       showAlert({
@@ -271,7 +251,6 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
 
     setLoading(true);
     try {
-      console.log('📧 Resending OTP to:', email);
       await sendOtp(email);
 
       setResendTimer(60);

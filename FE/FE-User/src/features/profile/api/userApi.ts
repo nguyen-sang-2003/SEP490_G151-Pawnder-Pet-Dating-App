@@ -23,7 +23,6 @@ export const getUserById = async (userId: number): Promise<UserResponse> => {
       retryAttempts: 2,
     });
   } catch (error: any) {
-    console.log('❌ getUserById error:', error);
     throw error;
   }
 };
@@ -46,7 +45,6 @@ export const updateUser = async (
     
     return response.data;
   } catch (error: any) {
-    console.log('❌ updateUser error:', error);
     throw error;
   }
 };

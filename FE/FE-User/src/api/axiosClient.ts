@@ -28,9 +28,8 @@ export const apiClient = axios.create({
   },
 });
 
-/**
- * Get stored access token
- */
+
+// Get stored access token
 const getStoredToken = async (): Promise<string | null> => {
   try {
     const credentials = await Keychain.getGenericPassword({
@@ -46,9 +45,7 @@ const getStoredToken = async (): Promise<string | null> => {
   }
 };
 
-/**
- * Get stored refresh token
- */
+//Get stored refresh token
 const getStoredRefreshToken = async (): Promise<string | null> => {
   try {
     const credentials = await Keychain.getGenericPassword({
@@ -64,32 +61,25 @@ const getStoredRefreshToken = async (): Promise<string | null> => {
   }
 };
 
-/**
- * Store tokens
- */
+// Store tokens
+ 
 export const storeTokens = async (accessToken: string, refreshToken: string): Promise<void> => {
   try {
-    // ✅ Validate tokens before storing
     if (!accessToken || accessToken.trim() === '') {
-      console.log('⚠️ Invalid access token, skipping storage');
       return;
     }
     if (!refreshToken || refreshToken.trim() === '') {
-      console.log('⚠️ Invalid refresh token, skipping storage');
       return;
     }
 
-    // Store access token
     await Keychain.setGenericPassword('accessToken', accessToken, {
       service: 'pawnder.auth',
     });
-    // Store refresh token
     await Keychain.setGenericPassword('refreshToken', refreshToken, {
       service: 'pawnder.refresh',
     });
-    console.log('✅ Tokens stored successfully');
   } catch (error) {
-    console.log('❌ Error storing tokens:', error);
+    // Silent fail
   }
 };
 
@@ -138,9 +128,8 @@ const processQueue = (error: any, token: string | null = null) => {
   });
 
   failedQueue = [];
-  refreshPromise = null; // ✅ Reset promise after processing
+  refreshPromise = null;
   
-  // ✅ Reset attempts on success
   if (!error) {
     refreshAttempts = 0;
     lastRefreshAttemptTime = 0;
@@ -150,17 +139,14 @@ const processQueue = (error: any, token: string | null = null) => {
 // Response interceptor for auto-refresh token, retry logic, and cache management
 apiClient.interceptors.response.use(
   response => {
-    // Invalidate cache on mutation requests (POST, PUT, DELETE, PATCH)
     const method = response.config.method?.toUpperCase();
     if (method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
       const url = response.config.url || '';
 
-      // Extract resource type from URL (e.g., /api/pet/123 -> pet)
       const resourceMatch = url.match(/\/api\/([^\/]+)/);
       if (resourceMatch) {
         const resource = resourceMatch[1];
         apiCache.invalidatePattern(resource);
-        console.log(`🗑️ [ApiClient] Invalidated cache for resource: ${resource}`);
       }
     }
 
@@ -169,21 +155,14 @@ apiClient.interceptors.response.use(
   async error => {
     const originalRequest = error.config;
 
-    // Handle cancelled requests silently
     if (isCancel(error)) {
-      console.log('🚫 [ApiClient] Request cancelled:', originalRequest?.url);
       return Promise.reject(error);
     }
 
-    // Handle network errors gracefully
     if (!error.response && error.code) {
-      console.log(`📡 [ApiClient] Network error: ${error.code} - ${error.message}`);
-      // Don't retry network errors as aggressively (they're likely to fail again)
       if (originalRequest) {
         const retryAttempt = getRetryAttempt(originalRequest);
         if (retryAttempt >= 1) {
-          // Already retried once, fail fast
-          console.log('⚠️ [ApiClient] Network error - failing fast after 1 retry');
           return Promise.reject(error);
         }
       }
@@ -211,20 +190,9 @@ apiClient.interceptors.response.use(
           API_OPTIMIZATION_CONFIG.retry.maxDelay
         );
 
-        console.log(
-          `🔄 [ApiClient] Retry attempt ${nextAttempt}/${maxAttempts} for ${originalRequest.url} after ${delay}ms (timeout: ${originalRequest.timeout || API_CONFIG.TIMEOUT}ms)`
-        );
-
         await sleep(delay);
 
-        // IMPORTANT: Preserve the original timeout for retry
-        // This is critical for long-running requests like AI chat (50s timeout)
-        // Without this, retries would use the default 10s timeout and fail
         return apiClient(originalRequest);
-      } else {
-        console.log(
-          `❌ [ApiClient] Max retry attempts (${maxAttempts}) reached for ${originalRequest.url}`
-        );
       }
     }
 
@@ -242,8 +210,6 @@ apiClient.interceptors.response.use(
       }
 
       if (isRefreshing && refreshPromise) {
-        // ✅ Wait for ongoing refresh, then retry with new token
-        console.log('⏳ Queueing request while token refresh in progress...');
         return refreshPromise.then(token => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return apiClient(originalRequest);
@@ -254,13 +220,11 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       
-      // ✅ Exponential backoff - prevent rapid refresh attempts
       const now = Date.now();
       const timeSinceLastAttempt = now - lastRefreshAttemptTime;
-      const backoffDelay = Math.min(1000 * Math.pow(2, refreshAttempts), 30000); // Max 30s
+      const backoffDelay = Math.min(1000 * Math.pow(2, refreshAttempts), 30000);
       
       if (refreshAttempts > 0 && timeSinceLastAttempt < backoffDelay) {
-        console.log(`⏸️ Waiting ${backoffDelay - timeSinceLastAttempt}ms before retry (attempt ${refreshAttempts + 1})`);
         await new Promise(resolve => setTimeout(resolve, backoffDelay - timeSinceLastAttempt));
       }
       
@@ -268,23 +232,17 @@ apiClient.interceptors.response.use(
       lastRefreshAttemptTime = Date.now();
       isRefreshing = true;
 
-      // ✅ Create a shared promise for all waiting requests
       refreshPromise = (async () => {
         try {
           const refreshToken = await getStoredRefreshToken();
 
           if (!refreshToken) {
-            console.log('⚠️ No refresh token found in Keychain');
             throw new Error('No refresh token');
           }
 
-          console.log('🔄 Refreshing access token...');
-
-          // ✅ Add timeout to refresh call (10 seconds max)
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-          // Call refresh endpoint
           const response = await axios.post(
             `${BASE_URL}/api/refresh`,
             { RefreshToken: refreshToken },
@@ -293,8 +251,6 @@ apiClient.interceptors.response.use(
 
         clearTimeout(timeoutId);
 
-        // Backend (ASP.NET Core) mặc định trả camelCase (accessToken, refreshToken)
-        // nhưng vẫn hỗ trợ cả PascalCase nếu có cấu hình khác.
         const accessToken =
           (response.data as any).AccessToken ??
           (response.data as any).accessToken;
@@ -302,28 +258,21 @@ apiClient.interceptors.response.use(
           (response.data as any).RefreshToken ??
           (response.data as any).refreshToken;
 
-        // ✅ Validate tokens before storing
         if (!accessToken || !newRefreshToken) {
           throw new Error('Invalid tokens received from server');
         }
 
-        // Store new tokens
         await storeTokens(accessToken, newRefreshToken);
-
-        console.log('✅ Token refreshed successfully');
 
         processQueue(null, accessToken);
           isRefreshing = false;
 
-          // Trả về accessToken mới cho các request đang chờ
           return accessToken;
         } catch (refreshError: any) {
-          console.log('❌ Refresh token failed:', refreshError?.message || refreshError);
 
           processQueue(refreshError, null);
           isRefreshing = false;
 
-          // ✅ More conservative logout logic - only logout if DEFINITELY a token issue
           const isTokenError = 
             refreshError?.message === 'No refresh token' ||
             refreshError?.message === 'Invalid tokens received from server' ||
@@ -331,27 +280,21 @@ apiClient.interceptors.response.use(
             (refreshError?.response?.status === 403 && refreshError?.response?.data?.message?.includes('token'));
 
           const isNetworkError = 
-            !refreshError?.response || // No response = network issue
-            refreshError?.code === 'ECONNABORTED' || // Timeout
-            refreshError?.code === 'ERR_NETWORK'; // Network error
+            !refreshError?.response ||
+            refreshError?.code === 'ECONNABORTED' ||
+            refreshError?.code === 'ERR_NETWORK';
 
           if (isTokenError && !isNetworkError) {
-            console.log('🚪 Logging out due to invalid/missing refresh token');
-            // Clear all tokens and user data
             try {
               await Keychain.resetGenericPassword({ service: 'pawnder.auth' });
               await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
               await AsyncStorage.removeItem('userId');
               await AsyncStorage.removeItem('userEmail');
               await AsyncStorage.removeItem('userRole');
-              // Set logout flag to trigger navigation
               await AsyncStorage.setItem('shouldLogout', 'true');
-              console.log('🔐 Cleared all tokens and set logout flag');
             } catch (e) {
-              console.log('Error clearing tokens:', e);
+              // Silent fail
             }
-          } else {
-            console.log('⚠️ Refresh failed due to network/server error, NOT logging out - will retry later');
           }
 
           throw refreshError;

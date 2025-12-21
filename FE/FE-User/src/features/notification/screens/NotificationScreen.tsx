@@ -59,15 +59,12 @@ const NotificationScreen = ({ navigation }: Props) => {
     return date.toLocaleDateString();
   };
 
-  // Load notifications from API
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading notifications...');
 
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        console.log('❌ No userId found');
         setLoading(false);
         return;
       }
@@ -75,10 +72,8 @@ const NotificationScreen = ({ navigation }: Props) => {
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
 
-      console.log('🔄 Loading notifications for user:', userId);
       const data = await getNotifications(userId);
 
-      // Merge expertId from AsyncStorage for expert_confirmation notifications
       for (const notification of data) {
         if (notification.type === 'expert_confirmation') {
           const mappingKey = `notification_expert_${notification.notificationId}`;
@@ -88,7 +83,6 @@ const NotificationScreen = ({ navigation }: Props) => {
               const mapping = JSON.parse(mappingStr);
               notification.expertId = mapping.expertId;
               notification.chatId = mapping.chatId;
-              console.log(`✅ Loaded expertId ${mapping.expertId} for notification ${notification.notificationId}`);
             }
           } catch (err) {
 
@@ -113,7 +107,6 @@ const NotificationScreen = ({ navigation }: Props) => {
       });
 
       setNotifications(sortedData);
-      console.log('✅ Loaded', sortedData.length, 'notifications');
     } catch (error) {
 
       setNotifications([]);
@@ -144,13 +137,9 @@ const NotificationScreen = ({ navigation }: Props) => {
           await signalRService.connect(userId);
         }
 
-        // Listen for new notifications
         const handleNewNotification = (data: any) => {
-          console.log('🔔 [NotificationScreen] New notification received via SignalR:', data);
-
-          // ✅ Create notification object from SignalR data
           const newNotification: Notification = {
-            notificationId: 0, // Temporary, will be replaced on next full reload
+            notificationId: 0,
             title: data.Title || data.title || t('notification.title'),
             message: data.Message || data.message || '',
             type: data.Type || data.type || 'system',
@@ -160,11 +149,8 @@ const NotificationScreen = ({ navigation }: Props) => {
             chatId: data.ChatId || data.chatId,
           };
 
-          // ✅ Add to list immediately (optimistic update)
           setNotifications(prev => {
-            // Check if notification already exists (avoid duplicates)
             const exists = prev.some(n => {
-              // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
               let dateStr = n.createdAt || '';
               if (dateStr && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
                 dateStr = dateStr + 'Z';
@@ -172,29 +158,19 @@ const NotificationScreen = ({ navigation }: Props) => {
               const createdAt = dateStr ? new Date(dateStr).getTime() : 0;
               return n.title === newNotification.title && 
                 n.message === newNotification.message &&
-                createdAt > Date.now() - 5000; // Within 5 seconds
+                createdAt > Date.now() - 5000;
             });
             
-            if (exists) {
-              console.log('⚠️ Notification already in list, skipping duplicate');
-              return prev;
-            }
+            if (exists) return prev;
 
-            console.log('✅ Adding new notification to list (optimistic update)');
-            return [newNotification, ...prev]; // Add to top
+            return [newNotification, ...prev];
           });
 
-          // ⏳ Background: Reload to get real notificationId from DB
-          // This will replace the temporary notification with real data
           setTimeout(() => {
             loadNotifications().then(async () => {
-              console.log('✅ Notifications synced from API after realtime event');
-
-              // After reload, store expertId mapping if available
               if (data.ExpertId && (data.Type === 'expert_confirmation' || data.Type === 'expert_reply')) {
                 try {
                   const notifications = await getNotifications(userId);
-                  // Find the newest expert notification (just created)
                   const newestExpertNotif = notifications
                     .filter(n => n.type === 'expert_confirmation' || n.type === 'expert_reply')
                     .sort((a, b) => {
@@ -204,7 +180,6 @@ const NotificationScreen = ({ navigation }: Props) => {
                     })[0];
 
                   if (newestExpertNotif) {
-                    // Store mapping: notificationId -> expertId
                     const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
                     const mappingData = {
                       expertId: data.ExpertId,
@@ -212,34 +187,26 @@ const NotificationScreen = ({ navigation }: Props) => {
                       timestamp: Date.now()
                     };
                     await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
-                    console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
                   }
                 } catch (err) {
-                  console.error('Error storing expert mapping:', err);
+                  // Error storing expert mapping
                 }
               }
-            }).catch(err => {
-              console.error('Error reloading notifications:', err);
-            });
-          }, 1000); // Delay 1s to let backend save notification first
+            }).catch(() => {});
+          }, 1000);
 
-          // Refresh badge count (handled by useBadgeNotifications hook, but ensure it's synced)
           if (userId) {
-            refreshBadgesForActivePet(userId).catch(err => {
-              console.error('Error refreshing badges:', err);
-            });
+            refreshBadgesForActivePet(userId).catch(() => {});
           }
         };
 
         signalRService.on('NewNotification', handleNewNotification);
-        console.log('✅ SignalR listener setup for notifications');
 
-        // Cleanup
         return () => {
           signalRService.off('NewNotification', handleNewNotification);
         };
       } catch (error) {
-        console.log('Error setting up SignalR for notifications:', error);
+        // Error setting up SignalR
       }
     };
 
@@ -258,18 +225,14 @@ const NotificationScreen = ({ navigation }: Props) => {
 
     try {
       await markAllNotificationsAsRead(currentUserId);
-      // Update local state
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      console.log('✅ Marked all notifications as read');
 
-      // Refresh badge count after marking all as read
       await refreshBadgesForActivePet(currentUserId);
     } catch (error) {
 
     }
   };
 
-  // 🚀 OPTIMIZATION: Memoize helper functions with useCallback
   const getNotificationIcon = useCallback((type: string) => {
     switch (type) {
       case "expert_reply":
@@ -338,21 +301,14 @@ const NotificationScreen = ({ navigation }: Props) => {
       setCreatingChat(true);
       let expertId = selectedNotification.expertId;
 
-      // Fallback: If expertId not in AsyncStorage (old notification), try to find from ExpertConfirmation
       if (!expertId) {
-        console.log('⚠️ ExpertId not found in AsyncStorage for notification:', selectedNotification.notificationId);
-        console.log('🔄 Attempting fallback: Loading from ExpertConfirmation API...');
-
         try {
           const confirmations = await getUserExpertConfirmations(currentUserId);
-          console.log('✅ Loaded expert confirmations:', confirmations);
 
           if (confirmations.length === 0) {
             throw new Error('Không tìm thấy yêu cầu xác nhận nào.');
           }
 
-          // Find confirmation with matching timestamp (within 5 seconds of notification)
-          // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
           let notifDateStr = selectedNotification.createdAt || '';
           if (notifDateStr && !notifDateStr.endsWith('Z') && !notifDateStr.includes('+')) {
             notifDateStr = notifDateStr + 'Z';
@@ -367,12 +323,10 @@ const NotificationScreen = ({ navigation }: Props) => {
             }
             const confirmTime = confirmDateStr ? new Date(confirmDateStr).getTime() : 0;
             const timeDiff = Math.abs(confirmTime - notificationTime);
-            return timeDiff < 5000; // Within 5 seconds
+            return timeDiff < 5000;
           });
 
-          // If no exact match, use the most recent confirmed expert
           if (!matchingConfirmation) {
-            console.log('⚠️ No exact timestamp match, using most recent confirmed expert');
             matchingConfirmation = confirmations
               .filter(c => c.status?.toLowerCase() === 'confirmed')
               .sort((a, b) => {
@@ -392,9 +346,7 @@ const NotificationScreen = ({ navigation }: Props) => {
 
           if (matchingConfirmation) {
             expertId = matchingConfirmation.expertId;
-            console.log('✅ Found expertId from ExpertConfirmation:', expertId);
 
-            // Store for future use
             const mappingKey = `notification_expert_${selectedNotification.notificationId}`;
             const mappingData = {
               expertId: expertId,
@@ -402,7 +354,6 @@ const NotificationScreen = ({ navigation }: Props) => {
               timestamp: Date.now()
             };
             await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
-            console.log('💾 Stored expert mapping for future use');
           }
         } catch (err) {
 
@@ -419,13 +370,8 @@ const NotificationScreen = ({ navigation }: Props) => {
         return;
       }
 
-      console.log(`🔄 Creating chat with expert: expertId=${expertId}, userId=${currentUserId}, notificationId=${selectedNotification.notificationId}`);
-
-      // Create or get existing chat
       const chatResponse = await createOrGetExpertChat(expertId, currentUserId);
-      console.log('✅ Chat created/retrieved:', chatResponse);
 
-      // Close modal
       closeModal();
 
       // Navigate to expert chat screen
@@ -446,7 +392,6 @@ const NotificationScreen = ({ navigation }: Props) => {
     }
   };
 
-  // 🚀 OPTIMIZATION: Memoize renderNotification with useCallback
   const renderNotification = useCallback(({ item }: { item: Notification }) => {
     const type = item.type || 'system';
     const iconConfig = getNotificationIcon(type);
@@ -505,7 +450,6 @@ const NotificationScreen = ({ navigation }: Props) => {
     );
   }, [getNotificationIcon, getNotificationBgColor, handleNotificationPress]);
 
-  // 🚀 OPTIMIZATION: Memoize filtered notifications
   const filteredNotifications = useMemo(() => {
     return notifications.filter(n => {
       if (filterType === "all") return true;
@@ -516,13 +460,11 @@ const NotificationScreen = ({ navigation }: Props) => {
     });
   }, [notifications, filterType]);
 
-  // 🚀 OPTIMIZATION: Memoize unreadCount calculation
   const unreadCount = useMemo(() =>
     notifications.filter((n) => !n.isRead).length,
     [notifications]
   );
 
-  // 🚀 OPTIMIZATION: Memoize filter tabs configuration
   const filterTabs = useMemo(() => [
     { id: "all", label: t('notification.filter.all'), icon: "apps" },
     { id: "unread", label: t('notification.filter.unread'), icon: "mail-unread", badge: unreadCount },
@@ -637,7 +579,7 @@ const NotificationScreen = ({ navigation }: Props) => {
               tintColor={colors.primary}
             />
           }
-          // 🚀 OPTIMIZATION: FlatList performance props
+          // FlatList performance props
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           updateCellsBatchingPeriod={50}

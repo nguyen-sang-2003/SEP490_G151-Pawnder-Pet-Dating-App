@@ -74,7 +74,6 @@ export const getProxyImageUrl = (imageUrl: string): string => {
     const encodedUrl = base64Encode(imageUrl);
     return `${API_BASE_URL}/api/petphoto/proxy?url=${encodeURIComponent(encodedUrl)}`;
   } catch (error) {
-    console.log('Failed to create proxy URL:', error);
     return imageUrl;
   }
 };
@@ -126,8 +125,6 @@ export const addImageResizeParams = (
 
     return url.toString();
   } catch (error) {
-    // If URL parsing fails, return original
-    console.log('Failed to parse image URL:', imageUrl);
     return imageUrl;
   }
 };
@@ -209,7 +206,5 @@ export const optimizeImageSource = (
  * Useful for preloading next images in a carousel
  */
 export const preloadImages = async (imageUrls: string[]): Promise<void> => {
-  // FastImage will handle preloading automatically with its cache
-  // This is a placeholder for future enhancements
-  console.log('Preloading images:', imageUrls.length);
+  // FastImage handles preloading with its cache
 };

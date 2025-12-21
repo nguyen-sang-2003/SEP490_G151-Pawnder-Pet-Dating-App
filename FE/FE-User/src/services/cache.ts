@@ -70,15 +70,11 @@ class MemoryCache {
     fetchFn: () => Promise<T>,
     ttl?: number
   ): Promise<T> {
-    // Try to get from cache first
     const cached = this.get<T>(key, ttl);
     if (cached !== null) {
-      console.log(`✅ Cache HIT: ${key}`);
       return cached;
     }
 
-    // Cache miss - fetch fresh data
-    console.log(`❌ Cache MISS: ${key} - fetching...`);
     const data = await fetchFn();
     this.set(key, data);
     return data;

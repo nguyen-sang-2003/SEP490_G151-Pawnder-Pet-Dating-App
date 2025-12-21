@@ -100,7 +100,7 @@ const PremiumScreen = ({ navigation }: Props) => {
         setVipStatus(status);
       }
     } catch (error) {
-      console.log('Error loading VIP status:', error);
+      // Silent fail
     } finally {
       setLoadingVip(false);
     }
@@ -110,9 +110,7 @@ const PremiumScreen = ({ navigation }: Props) => {
     const plan = pricingPlans.find((p) => p.id === selectedPlan);
     if (!plan) return;
     
-    console.log("Subscribe to:", plan);
-    
-    // Parse amount from price string (e.g., "125,000₫" -> 125000)
+    // Parse amount from price string
     const amount = parseInt(plan.price.replace(/[,₫]/g, ""));
     
     // Navigate to QR payment screen with plan details

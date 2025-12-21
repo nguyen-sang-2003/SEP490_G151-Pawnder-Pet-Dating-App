@@ -75,7 +75,6 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       });
       
       setRequests(sortedData);
-      console.log("✅ Loaded expert confirmations:", sortedData.length);
     } catch (error: any) {
 
     } finally {
@@ -116,20 +115,14 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         return;
       }
 
-      console.log(`🔄 Creating chat with expert: expertId=${expertId}, userId=${userId}`);
-
-      // Create or get existing chat
       const chatResponse = await createOrGetExpertChat(expertId, userId);
-      console.log('✅ Chat created/retrieved:', chatResponse);
 
-      // Navigate to expert chat screen
       navigation.navigate("ExpertChat", {
         chatExpertId: chatResponse.chatExpertId,
         expertId: chatResponse.expertId,
         expertName: "Chuyên gia"
       });
     } catch (error: any) {
-      console.log('❌ Error creating expert chat:', error);
       showAlert({
         type: 'error',
         title: t('common.error'),

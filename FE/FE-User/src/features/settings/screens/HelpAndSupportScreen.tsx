@@ -71,7 +71,6 @@ const HelpAndSupportScreen = ({ navigation }: Props) => {
 
   const handleSendMessage = () => {
     if (message.trim()) {
-      console.log("Support message:", message);
       setMessage("");
       showAlert({ type: 'success', title: t('common.success'), message: t('settings.helpAndSupport.messageSent') });
     }
