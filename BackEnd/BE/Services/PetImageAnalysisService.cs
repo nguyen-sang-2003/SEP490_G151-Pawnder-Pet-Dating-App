@@ -284,34 +284,34 @@ namespace BE.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"❌ Gemini Vision API Error: Status={response.StatusCode}, Content={responseContent}");
+                    Console.WriteLine($"Gemini Vision API Error: Status={response.StatusCode}, Content={responseContent}");
                     
                     // Check for specific errors
                     if (responseContent.Contains("location") || responseContent.Contains("FAILED_PRECONDITION"))
                     {
-                        throw new Exception("⚠️ Gemini API không khả dụng từ khu vực này. Vui lòng kiểm tra region Azure hoặc API key.");
+                        throw new Exception("Gemini API không khả dụng từ khu vực này. Vui lòng kiểm tra region Azure hoặc API key.");
                     }
                     else if (responseContent.Contains("API key"))
                     {
-                        throw new Exception("❌ API key không hợp lệ hoặc chưa được cấu hình.");
+                        throw new Exception("API key không hợp lệ hoặc chưa được cấu hình.");
                     }
                     else if (responseContent.Contains("quota") || responseContent.Contains("429"))
                     {
-                        throw new Exception("⏱️ Đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.");
+                        throw new Exception("Đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.");
                     }
                     
                     throw new Exception($"Gemini API error ({response.StatusCode}): {responseContent}");
                 }
 
                 // Parse response
-                Console.WriteLine($"✅ Gemini Vision API Success. Response length: {responseContent.Length}");
+                Console.WriteLine($" Gemini Vision API Success. Response length: {responseContent.Length}");
                 
                 var geminiResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
                 
                 // Check if response has candidates
                 if (!geminiResponse.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
                 {
-                    Console.WriteLine($"❌ No candidates in response: {responseContent}");
+                    Console.WriteLine($" No candidates in response: {responseContent}");
                     throw new Exception("AI không thể phân tích ảnh này. Vui lòng thử ảnh khác.");
                 }
                 
@@ -321,7 +321,7 @@ namespace BE.Services
                     .GetProperty("text")
                     .GetString();
                 
-                Console.WriteLine($"🤖 AI Response: {text?.Substring(0, Math.Min(200, text?.Length ?? 0))}...");
+                Console.WriteLine($"AI Response: {text?.Substring(0, Math.Min(200, text?.Length ?? 0))}...");
 
                 // Extract JSON from response
                 var jsonStart = text?.IndexOf('{') ?? -1;
