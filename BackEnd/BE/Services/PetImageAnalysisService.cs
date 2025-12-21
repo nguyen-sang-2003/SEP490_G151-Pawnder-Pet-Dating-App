@@ -76,15 +76,12 @@ namespace BE.Services
                 // Map attribute names to IDs
                 await EnrichWithDatabaseIds(analysisResult);
 
-                // Generate SQL script
-                var sqlScript = await GenerateSqlInsertScript(0, analysisResult); // PetId = 0 as placeholder
-
                 return new PetImageAnalysisResponse
                 {
                     Success = true,
                     Message = "Phân tích ảnh thành công",
                     Attributes = analysisResult,
-                    SqlInsertScript = sqlScript
+                    SqlInsertScript = null
                 };
             }
             catch (Exception ex)
@@ -168,15 +165,12 @@ namespace BE.Services
                 // Map attribute names to IDs
                 await EnrichWithDatabaseIds(analysisResult);
 
-                // Generate SQL script
-                var sqlScript = await GenerateSqlInsertScript(0, analysisResult);
-
                 return new PetImageAnalysisResponse
                 {
                     Success = true,
                     Message = $"Phân tích thành công {images.Count} ảnh",
                     Attributes = analysisResult,
-                    SqlInsertScript = sqlScript
+                    SqlInsertScript = null
                 };
             }
             catch (Exception ex)
