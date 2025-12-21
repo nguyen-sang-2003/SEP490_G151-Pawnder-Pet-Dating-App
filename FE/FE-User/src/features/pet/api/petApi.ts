@@ -452,7 +452,7 @@ export const analyzePetImages = async (photos: { uri: string; fileName?: string;
   try {
     const formData = new FormData();
 
-    // Gửi tối đa 3 ảnh
+    
     const photosToSend = photos.slice(0, 3);
 
     photosToSend.forEach((photo) => {
