@@ -199,6 +199,7 @@ builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserRepository, BE.Re
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserContentRepository, BE.Repositories.ChatUserContentRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertRepository, BE.Repositories.ChatExpertRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertContentRepository, BE.Repositories.ChatExpertContentRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IBadWordRepository, BE.Repositories.BadWordRepository>();
 
 // ============================================
 // Register Services (Service Layer)
@@ -228,6 +229,8 @@ builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertService, BE.Service
 builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.Services.ChatExpertContentService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
 builder.Services.AddScoped<BE.Services.IPetImageAnalysisService, BE.Services.PetImageAnalysisService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IBadWordService, BE.Services.BadWordService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IBadWordManagementService, BE.Services.BadWordManagementService>();
 
 // Register Background Service để tự động update expired payments
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();

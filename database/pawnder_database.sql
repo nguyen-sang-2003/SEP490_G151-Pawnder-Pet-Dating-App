@@ -327,6 +327,24 @@ CREATE TABLE "ChatExpertContent" (
         REFERENCES "ExpertConfirmation"("ExpertId", "UserId", "ChatAIId")
 );
 
+-- ===========================
+-- TABLE: BadWord
+-- ===========================
+CREATE TABLE "BadWord" (
+    "BadWordId" SERIAL PRIMARY KEY,
+    "Word" VARCHAR(200) NOT NULL,
+    "IsRegex" BOOLEAN DEFAULT FALSE,
+    "Level" INT NOT NULL CHECK ("Level" >= 1 AND "Level" <= 3),
+    "Category" VARCHAR(50),
+    "IsActive" BOOLEAN DEFAULT TRUE,
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for BadWord
+CREATE INDEX "IX_BadWord_IsActive" ON "BadWord"("IsActive");
+CREATE INDEX "IX_BadWord_Level" ON "BadWord"("Level");
+
 -- ========================
 -- Thêm dữ liệu bảng Role
 -- ========================
@@ -712,4 +730,24 @@ VALUES
  '[ReportedUser=Lê Minh D] Người dùng này có hành vi quấy rối, gửi tin nhắn liên tục và không tôn trọng người khác.',
  'Pending',
  NULL);
+
+-- ===========================
+-- BẢNG BadWord - Dữ liệu mẫu
+-- ===========================
+-- Level 1: Từ nhẹ - sẽ được che bằng ***
+INSERT INTO "BadWord" ("Word", "IsRegex", "Level", "Category", "IsActive") VALUES
+('đm', false, 1, 'Thô tục', true),
+('clgt', false, 1, 'Thô tục', true),
+('vl', false, 1, 'Thô tục', true);
+
+-- Level 2: Từ nặng - sẽ bị block
+INSERT INTO "BadWord" ("Word", "IsRegex", "Level", "Category", "IsActive") VALUES
+('địt', false, 2, 'Thô tục', true),
+('đụ', false, 2, 'Thô tục', true);
+
+-- Level 3: Rất nặng - sẽ bị block
+INSERT INTO "BadWord" ("Word", "IsRegex", "Level", "Category", "IsActive") VALUES
+('lừa đảo', false, 3, 'Scam', true),
+('chuyển tiền', false, 3, 'Scam', true);
+
 

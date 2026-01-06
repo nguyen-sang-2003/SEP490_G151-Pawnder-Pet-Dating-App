@@ -19,6 +19,8 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<Attribute> Attributes { get; set; }
 
+    public virtual DbSet<BadWord> BadWords { get; set; }
+
     public virtual DbSet<AttributeOption> AttributeOptions { get; set; }
 
     public virtual DbSet<Block> Blocks { get; set; }
@@ -620,6 +622,29 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UserStatusName).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<BadWord>(entity =>
+        {
+            entity.HasKey(e => e.BadWordId).HasName("BadWord_pkey");
+
+            entity.ToTable("BadWord");
+
+            entity.Property(e => e.Word).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.IsRegex).HasDefaultValue(false);
+            entity.Property(e => e.Level).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(50);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Index for performance
+            entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_BadWord_IsActive");
+            entity.HasIndex(e => e.Level).HasDatabaseName("IX_BadWord_Level");
         });
 
         OnModelCreatingPartial(modelBuilder);
