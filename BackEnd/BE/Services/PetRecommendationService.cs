@@ -86,6 +86,7 @@ namespace BE.Services
                 .ToListAsync(ct)).ToHashSet();
 
             // Business logic: Load all active pets with their characteristics
+            // Valid pet filter: IsDeleted=false, has at least 1 non-deleted PetPhoto, has at least 1 PetCharacteristic
             var pets = await _context.Pets
                 .Include(p => p.PetCharacteristics)
                     .ThenInclude(pc => pc.Attribute)
@@ -98,6 +99,8 @@ namespace BE.Services
                          && p.UserId != userId
                          && p.IsDeleted == false
                          && p.IsActive == true
+                         && p.PetPhotos.Any(pp => pp.IsDeleted == false)
+                         && p.PetCharacteristics.Any()
                          && !alreadyMatchedUserIds.Contains(p.UserId.Value)
                          && !blockedUserIds.Contains(p.UserId.Value))
                 .ToListAsync(ct);
@@ -267,6 +270,7 @@ namespace BE.Services
             var preferences = user.UserPreferences.ToList();
 
             // Business logic: Get target pet with characteristics (to calculate score)
+            // Valid pet filter: IsDeleted=false, has at least 1 non-deleted PetPhoto, has at least 1 PetCharacteristic
             var targetPet = await _context.Pets
                 .Include(p => p.PetCharacteristics)
                     .ThenInclude(pc => pc.Attribute)
@@ -275,7 +279,10 @@ namespace BE.Services
                 .Include(p => p.User)
                     .ThenInclude(u => u!.Address)
                 .Include(p => p.PetPhotos.Where(photo => photo.IsDeleted == false))
-                .FirstOrDefaultAsync(p => p.PetId == targetPetId && p.IsDeleted == false, ct);
+                .FirstOrDefaultAsync(p => p.PetId == targetPetId 
+                    && p.IsDeleted == false
+                    && p.PetPhotos.Any(pp => pp.IsDeleted == false)
+                    && p.PetCharacteristics.Any(), ct);
 
             if (targetPet == null)
                 throw new KeyNotFoundException("Không tìm thấy thú cưng để tính điểm.");

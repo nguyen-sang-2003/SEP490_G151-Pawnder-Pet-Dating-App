@@ -59,11 +59,8 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         }
 
         setUserId(uid);
-        console.log('📱 Loading user data for userId:', uid);
 
-        // Fetch user data
         const userData = await getUserById(uid);
-        console.log('✅ User data loaded:', userData);
 
         // Fill form
         setName(userData.FullName || userData.fullName || '');
@@ -75,13 +72,12 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         if (addrId) {
           try {
             const address = await getAddressById(addrId);
-            console.log('📍 Address loaded in Edit Profile:', address);
             setAddressId(addrId);
             setCity(address?.City || address?.city || '');
             setDistrict(address?.District || address?.district || '');
             setWard(address?.Ward || address?.ward || '');
           } catch (error) {
-            console.log('⚠️ No address found');
+            // Address not found
           }
         }
 
@@ -116,17 +112,13 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
     try {
       setSaving(true);
-      console.log('💾 Saving user data...');
 
-      // Update user info only (address is managed via GPS)
       await updateUser(userId, {
         RoleId: 2,
         FullName: name.trim(),
         Gender: gender,
         NewPassword: undefined,
       });
-
-      console.log('✅ User updated successfully');
       showAlert({ type: 'success', title: t('common.success'), message: t('profile.edit.saveSuccess'), onClose: () => navigation.goBack() });
     } catch (error: any) {
 
@@ -141,17 +133,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
   };
 
   const handleGetGPSLocation = async () => {
-    // Prevent multiple calls
-    if (gettingLocation) {
-      console.log('⚠️ GPS request already in progress, skipping...');
-      return;
-    }
+    if (gettingLocation) return;
 
     try {
       setGettingLocation(true);
-
-      // Get GPS coordinates
-      console.log('📍 [START] Requesting location permission...');
       const coordinates = await requestLocationAndGetCoordinates();
 
       if (!coordinates) {
@@ -163,25 +148,15 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      // Update address with GPS coordinates
       if (userId) {
-        console.log('📍 [API CALL] Updating address with coordinates:', coordinates);
-        console.log('📍 Current addressId:', addressId);
-
-        // If user already has addressId, use PUT (update), else use POST (create)
         if (addressId) {
-          console.log('📍 Calling updateAddress (PUT)...');
           await updateAddress(addressId, coordinates.latitude, coordinates.longitude);
         } else {
-          console.log('📍 Calling createAddressForUser (POST)...');
           await createAddressForUser(userId, coordinates.latitude, coordinates.longitude);
         }
 
-        console.log('📍 [RELOAD] Fetching updated user data...');
-        // Reload address data
         const user = await getUserById(userId);
         const addrId = user.AddressId || user.addressId;
-        console.log('📍 User reloaded, AddressId:', addrId);
 
         if (addrId) {
           const address = await getAddressById(addrId);
@@ -189,7 +164,6 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
           setCity(address?.City || address?.city || '');
           setDistrict(address?.District || address?.district || '');
           setWard(address?.Ward || address?.ward || '');
-          console.log('✅ Address data loaded:', address);
         }
 
         showAlert({
@@ -206,7 +180,6 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       });
     } finally {
       setGettingLocation(false);
-      console.log('📍 [END] GPS location process completed');
     }
   };
 

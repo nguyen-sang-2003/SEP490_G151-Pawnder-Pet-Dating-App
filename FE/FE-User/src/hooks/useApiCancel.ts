@@ -1,6 +1,5 @@
 /**
- * 🪝 useApiCancel Hook
- * React hook for automatic request cancellation on component unmount
+ * useApiCancel Hook
  */
 
 import { useEffect, useRef } from 'react';

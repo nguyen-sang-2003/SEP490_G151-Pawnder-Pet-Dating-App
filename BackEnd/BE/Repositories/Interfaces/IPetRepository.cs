@@ -8,6 +8,11 @@ namespace BE.Repositories.Interfaces
     /// </summary>
     public interface IPetRepository : IBaseRepository<Pet>
     {
+        /// <summary>
+        /// </summary>
+        /// <returns>IQueryable of valid pets</returns>
+        IQueryable<Pet> GetValidPetsQuery();
+
         Task<IEnumerable<PetDto>> GetPetsByUserIdAsync(int userId, CancellationToken ct = default);
         Task<IEnumerable<object>> GetPetsForMatchingAsync(int userId, List<int> excludedUserIds, List<int> blockedUserIds, CancellationToken ct = default);
         Task<Pet?> GetPetByIdWithDetailsAsync(int petId, CancellationToken ct = default);

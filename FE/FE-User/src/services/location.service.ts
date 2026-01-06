@@ -25,10 +25,8 @@ export const requestLocationPermission = async (): Promise<boolean> => {
       );
 
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('✅ Location permission granted');
         return true;
       } else {
-        console.log('❌ Location permission denied');
         return false;
       }
     } else {
@@ -51,7 +49,6 @@ export const getCurrentLocation = (): Promise<LocationCoordinates> => {
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        console.log('📍 Current location:', { latitude, longitude });
         resolve({ latitude, longitude });
       },
       (error) => {

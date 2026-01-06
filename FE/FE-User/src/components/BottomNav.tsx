@@ -7,7 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { colors, gradients, shadows } from "../theme";
+import { colors, gradients } from "../theme";
 import { useAppSelector } from "../app/hooks";
 import { selectTotalChatBadge, selectFavoriteBadge, selectNotificationBadge } from "../features/badge/badgeSlice";
 
@@ -21,7 +21,6 @@ interface BottomNavProps {
   active: Tab; // tab hiện tại
 }
 
-// 🚀 OPTIMIZATION: Memoize BottomNav to prevent unnecessary re-renders
 const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -31,9 +30,6 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
   const favoriteBadge = useAppSelector(selectFavoriteBadge);
   const notificationBadge = useAppSelector(selectNotificationBadge);
   
-  // Debug logging
-
-  // 🚀 OPTIMIZATION: Memoize handlePress with useCallback
   const handlePress = useCallback((tab: Tab) => {
     if (tab === "Chat") {
       navigation.navigate("Chat", {});
@@ -42,7 +38,6 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
     }
   }, [navigation]);
 
-  // 🚀 OPTIMIZATION: Memoize navItems to prevent recreation on every render
   const navItems = useMemo(() => [
     { 
       key: "Home" as Tab, 
@@ -80,7 +75,7 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
       gradientLight: ["rgba(255, 168, 204, 0.25)", "rgba(255, 224, 240, 0.25)"],
       shadowColor: colors.profileStart,
     },
-  ], []); // Empty deps - navItems never change
+  ], []);
 
   return (
     <View style={styles.bottomNavContainer}>
@@ -88,7 +83,6 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ active }) => {
         {navItems.map((item) => {
           const isActive = active === item.key;
           
-          // 🚀 OPTIMIZATION: Calculate badge count efficiently
           const badgeCount = 
             item.key === "Home" ? notificationBadge :
             item.key === "Chat" ? chatBadge : 

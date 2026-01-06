@@ -71,13 +71,9 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      console.log('📱 Loading pet profile for petId:', petId);
-
-      // Get current user ID
       const userIdStr = await getItem('userId');
       const currentUserId = userIdStr ? parseInt(userIdStr, 10) : null;
 
-      // Load active pet if user is logged in
       if (currentUserId) {
         try {
           const userPets = await getPetsByUserId(currentUserId);
@@ -86,29 +82,22 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             setActivePetId((activePet.PetId || activePet.petId) ?? null);
           }
         } catch (e) {
-          console.log('Failed to load active pet', e);
+          // Silent fail
         }
       }
 
-      // Load pet data
       const pet = await getPetById(petId);
       setPetData(pet);
-      console.log('✅ Pet data loaded:', pet);
 
-      // Check if this is my pet
       const petUserId = pet.UserId || pet.userId;
       const isOwner = !!(currentUserId && petUserId === currentUserId);
       setIsMyPet(isOwner);
-      console.log('🔍 Is my pet:', isOwner);
 
-      // Load owner's pet avatar
       if (petUserId) {
         const avatar = await getUserPetAvatar(petUserId);
         setOwnerAvatar(avatar);
-        console.log('👤 Owner avatar loaded');
       }
 
-      // Load photos
       try {
         const photos = await getPetPhotos(petId);
         const sortedPhotos = photos.sort((a: any, b: any) => {
@@ -117,17 +106,13 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           return aSort - bSort;
         });
         setPetPhotos(sortedPhotos || []);
-        console.log('📸 Pet photos loaded:', sortedPhotos.length);
       } catch (error) {
-        console.log('⚠️ No photos found');
         setPetPhotos([]);
       }
 
-      // Load characteristics
       try {
         const chars = await getPetCharacteristics(petId);
 
-        // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
         const filteredChars = chars.filter((char: any) => {
           const name = char.name?.toLowerCase() || '';
           if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
@@ -138,14 +123,11 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
         setCharacteristics(filteredChars);
       } catch (error) {
-        console.log('⚠️ No characteristics found');
         setCharacteristics([]);
       }
 
-      // Load match details if not my pet
       if (!isOwner && currentUserId) {
         try {
-          console.log('📊 Loading match details for pet:', petId);
           const matchDetails = await getPetMatchDetails(currentUserId, petId);
           if (matchDetails?.data) {
             setMatchData({
@@ -155,36 +137,27 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               matchedAttributes: matchDetails.data.matchedAttributes ?? [],
               totalFilters: matchDetails.totalPreferences ?? 0,
             });
-            console.log('✅ Match details loaded:', matchDetails.data.matchPercent, '%, filters:', matchDetails.totalPreferences);
           }
         } catch (error) {
-          console.log('⚠️ Could not load match details:', error);
           setMatchData(null);
         }
       }
 
     } catch (error: any) {
-
       showAlert({ type: 'error', title: t('common.error'), message: error.response?.data?.message || t('profile.petProfile.loadError') });
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto reload when screen comes back into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 PetProfileScreen focused - reloading data');
       loadPetData();
     }, [petId])
   );
 
-  // Parse owner and address from API response
   const ownerData = petData?.Owner || petData?.owner;
   const addressData = ownerData?.Address || ownerData?.address;
-
-  console.log('🔍 PetProfile - ownerData:', ownerData);
-  console.log('🔍 PetProfile - addressData:', addressData);
 
   // Format location - Only show city for other people's pets for privacy
   const city = addressData?.City || addressData?.city;
@@ -202,10 +175,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   // fullAddress should only show ward + district (city already shown in location above)
   const fullAddress = rawFullAddress || formatWardDistrict(ward, district);
 
-  console.log('📍 PetProfile - location:', location);
-  console.log('📍 PetProfile - fullAddress:', fullAddress);
-
-  // Prepare photos array
   let photos;
   if (petPhotos && petPhotos.length > 0) {
     photos = petPhotos.map((photo: any) => ({
@@ -318,7 +287,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const handleSendMatchRequest = async () => {
     try {
       setSendingMatchRequest(true);
-      console.log('💘 Sending match request...');
 
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
@@ -345,8 +313,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         fromPetId: activePetId,
         toPetId: petId
       });
-
-      console.log('✅ Match request sent:', response);
 
       if (response.isMatch) {
         showAlert({
@@ -466,7 +432,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                   <TouchableOpacity 
                     style={styles.matchBadgeHero}
                     onPress={() => {
-                      console.log('📊 Match badge pressed on PetProfile!');
                       setShowMatchDetailsModal(true);
                     }}
                     activeOpacity={0.7}
@@ -608,7 +573,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               <TouchableOpacity
                 style={styles.viewProfileBtn}
                 onPress={() => {
-                  console.log('View owner profile:', pet.owner.userId);
+                  // View owner profile
                 }}
               >
                 <Icon name="arrow-forward" size={20} color={colors.primary} />

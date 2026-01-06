@@ -68,50 +68,36 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           return;
         }
 
-        console.log('📱 Loading pet data for petId:', petId);
-
-        // Fetch pet data
         const petData = await getPetById(petId);
-        console.log('✅ Pet data loaded:', petData);
 
-        // Fill form
         setName(petData.Name || petData.name || '');
         setBreed(petData.Breed || petData.breed || '');
         setAge(petData.Age?.toString() || petData.age?.toString() || '');
         setGender(petData.Gender || petData.gender || 'Male');
         setDescription(petData.Description || petData.description || '');
 
-        // Load owner's address - giống EditUserProfile
         const userId = petData.UserId || petData.userId;
-        console.log('👤 Pet UserId:', userId);
 
         if (userId) {
           try {
             const userData = await getUserById(userId);
-            console.log('✅ User data loaded:', userData);
-
             const addressId = userData.AddressId || userData.addressId;
-            console.log('🔍 User addressId:', addressId);
 
             if (addressId) {
               const address = await getAddressById(addressId);
-              console.log('📍 Address loaded:', address);
               setCity(address?.City || address?.city || '');
               setDistrict(address?.District || address?.district || '');
               setWard(address?.Ward || address?.ward || '');
             }
           } catch (error) {
-            console.log('⚠️ No address found for user');
+            // Address not found
           }
         }
 
-        // Load pet photos
         try {
           const photosData = await getPetPhotos(petId);
-          console.log('📸 Pet photos loaded:', photosData);
           setPhotos(photosData || []);
         } catch (error) {
-          console.log('⚠️ No photos found for pet');
           setPhotos([]);
         }
 
@@ -181,7 +167,6 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
     try {
       setSaving(true);
-      console.log('💾 Saving pet data...');
 
       await updatePet(petId, {
         Name: name.trim(),
@@ -192,7 +177,6 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         IsActive: true,
       });
 
-      console.log('✅ Pet updated successfully');
       showAlert({
         type: 'success',
         title: t('common.success'),
@@ -232,10 +216,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
         selectionLimit: maxPhotos - photos.length,
       });
 
-      if (result.didCancel) {
-        console.log('User cancelled image picker');
-        return;
-      }
+      if (result.didCancel) return;
 
       if (result.errorCode) {
 
@@ -257,11 +238,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
           fileName: asset.fileName,
         }));
 
-        // Upload to server
         const response = await uploadPetPhotosMultipart(petId, newPhotos);
-        console.log('✅ Photos uploaded:', response);
 
-        // Reload photos
         const photosData = await getPetPhotos(petId);
         setPhotos(photosData || []);
 
@@ -304,8 +282,6 @@ const EditPetScreen = ({ navigation, route }: Props) => {
 
       // Call API
       await reorderPetPhotos(reorderData);
-
-      console.log('✅ Photos reordered successfully');
     } catch (error: any) {
 
 
@@ -341,9 +317,6 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       confirmText: t('profile.editPet.photos.deleteConfirm'),
       onConfirm: async () => {
         try {
-          console.log('🗑️ Deleting photo:', photoId);
-
-          // Delete the photo
           await deletePetPhoto(photoId);
 
           // Reload photos (backend will auto-reorder by SortOrder)

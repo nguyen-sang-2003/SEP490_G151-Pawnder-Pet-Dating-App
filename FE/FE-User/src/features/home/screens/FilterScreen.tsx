@@ -85,7 +85,6 @@ const FilterScreen = ({ navigation }: Props) => {
 
             const userIdStr = await AsyncStorage.getItem("userId");
             if (!userIdStr) {
-                console.log("❌ No userId found in storage");
                 return;
             }
 
@@ -198,11 +197,8 @@ const FilterScreen = ({ navigation }: Props) => {
                     MaxValue: filter.maxValue,
                 }));
 
-            console.log("💾 Saving preferences:", preferences);
             await saveUserPreferencesBatch(currentUserId, preferences);
-            console.log("✅ Filters saved successfully!");
 
-            // Show success notification
             showAlert({
                 type: 'success',
                 title: t('home.filter.saveSuccess'),

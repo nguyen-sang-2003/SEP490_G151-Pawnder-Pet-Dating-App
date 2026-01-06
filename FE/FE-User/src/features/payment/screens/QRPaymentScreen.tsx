@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  AppState,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
@@ -22,6 +23,10 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "QRPayment">;
 
+// Constants
+const QR_TIMEOUT_SECONDS = 10 * 60; // 10 minutes
+const POLLING_INTERVAL_MS = 5000; // 5 seconds
+
 const QRPaymentScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
@@ -29,9 +34,149 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
   const [qrCodeUri, setQrCodeUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(QR_TIMEOUT_SECONDS);
+  const [isExpired, setIsExpired] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+
+  // Refs for intervals
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const paymentSuccessRef = useRef(false);
 
   // Payment details from route params
   const { planId, planName, amount, duration } = route.params;
+
+  // Calculate months from planId
+  const getMonthsFromPlanId = useCallback((id: string): number => {
+    const durationMonthsMap: { [key: string]: number } = {
+      '1month': 1,
+      '3months': 3,
+      '6months': 6,
+      '12months': 12,
+    };
+    return durationMonthsMap[id] || 1;
+  }, []);
+
+  // Auto verify payment (polling)
+  const checkPaymentStatus = useCallback(async () => {
+    if (paymentSuccessRef.current || isExpired) return;
+
+    try {
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) return;
+
+      const userId = parseInt(userIdStr);
+      if (!userId || isNaN(userId)) return;
+
+      const months = getMonthsFromPlanId(planId);
+      const response = await verifyPayment(amount, userId, months);
+
+      if (response.success && response.paid) {
+        // Payment verified successfully!
+        paymentSuccessRef.current = true;
+        stopPolling();
+        stopCountdown();
+
+        showAlert({
+          type: 'success',
+          title: t("payment.qr.success.title"),
+          message: t("payment.qr.success.message", { planName, duration }),
+          confirmText: t("payment.qr.success.button"),
+          onConfirm: () => {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Home" }],
+            });
+          },
+        });
+      }
+    } catch (err) {
+      // Silent fail - will retry on next poll
+    }
+  }, [amount, planId, planName, duration, isExpired, navigation, showAlert, t, getMonthsFromPlanId]);
+
+  // Start polling
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) return;
+    setIsPolling(true);
+    pollingIntervalRef.current = setInterval(checkPaymentStatus, POLLING_INTERVAL_MS);
+  }, [checkPaymentStatus]);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    setIsPolling(false);
+  }, []);
+
+  // Start countdown
+  const startCountdown = useCallback(() => {
+    if (countdownIntervalRef.current) return;
+    countdownIntervalRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          // Time's up!
+          stopPolling();
+          stopCountdown();
+          setIsExpired(true);
+          showAlert({
+            type: 'warning',
+            title: t("payment.qr.expired.title"),
+            message: t("payment.qr.expired.message"),
+            confirmText: t("payment.qr.expired.button"),
+            onConfirm: () => {
+              navigation.goBack();
+            },
+          });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [navigation, showAlert, stopPolling, t]);
+
+  // Stop countdown
+  const stopCountdown = useCallback(() => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+  }, []);
+
+  // Format time remaining
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+      stopCountdown();
+    };
+  }, [stopPolling, stopCountdown]);
+
+  // Handle app state changes (pause polling when app is in background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && !isExpired && !paymentSuccessRef.current) {
+        // App came to foreground - check immediately and resume polling
+        checkPaymentStatus();
+        startPolling();
+      } else if (nextAppState === 'background') {
+        // App went to background - stop polling to save battery
+        stopPolling();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [checkPaymentStatus, isExpired, startPolling, stopPolling]);
 
   useEffect(() => {
     loadQRCode();
@@ -41,15 +186,11 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
     try {
       setLoading(true);
       setError(null);
+      setIsExpired(false);
+      setTimeRemaining(QR_TIMEOUT_SECONDS);
+      paymentSuccessRef.current = false;
 
-      // Calculate duration in months based on planId
-      const durationMonthsMap: { [key: string]: number } = {
-        '1month': 1,
-        '3months': 3,
-        '6months': 6,
-        '12months': 12,
-      };
-      const months = durationMonthsMap[planId] || 1;
+      const months = getMonthsFromPlanId(planId);
 
       // Call API to generate QR code with amount and months
       const qrBlob = await generatePaymentQR(amount, months);
@@ -60,20 +201,30 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         const base64data = reader.result as string;
         setQrCodeUri(base64data);
         setLoading(false);
+        
+        // Start countdown and polling after QR is loaded
+        startCountdown();
+        startPolling();
       };
       reader.readAsDataURL(qrBlob);
     } catch (err) {
-
       setError(t("payment.qr.generateError"));
       setLoading(false);
     }
   };
 
   const handleRetry = () => {
+    stopPolling();
+    stopCountdown();
     loadQRCode();
   };
 
   const handleDone = async () => {
+    if (isExpired) {
+      navigation.goBack();
+      return;
+    }
+
     try {
       setProcessing(true);
 
@@ -100,23 +251,17 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      // Calculate duration in months based on planId
-      const durationMonthsMap: { [key: string]: number } = {
-        '1month': 1,
-        '3months': 3,
-        '6months': 6,
-        '12months': 12,
-      };
-      const months = durationMonthsMap[planId] || 1;
-
-      // Call new callback API to verify payment from SePay (checks last 30 minutes)
-      // Body: { transferAmount: number, content: "userIdXmonthsY" }
+      const months = getMonthsFromPlanId(planId);
       const response = await verifyPayment(amount, userId, months);
 
       setProcessing(false);
 
       if (response.success && response.paid) {
         // Payment verified successfully - VIP activated!
+        paymentSuccessRef.current = true;
+        stopPolling();
+        stopCountdown();
+        
         showAlert({
           type: 'success',
           title: t("payment.qr.success.title"),
@@ -130,7 +275,7 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
           },
         });
       } else if (!response.paid) {
-        // Payment not found in last 30 minutes
+        // Payment not found
         showAlert({
           type: 'warning',
           title: t("payment.qr.notFound.title"),
@@ -146,7 +291,6 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
       }
     } catch (err: any) {
       setProcessing(false);
-
       const errorMessage = err.response?.data?.message || t("payment.qr.error.genericError");
       showAlert({
         type: 'error',
@@ -204,6 +348,27 @@ const QRPaymentScreen = ({ navigation, route }: Props) => {
           <Text style={styles.qrSubtitle}>
             {t("payment.qr.scanSubtitle")}
           </Text>
+
+          {/* Countdown Timer */}
+          {!loading && !error && !isExpired && (
+            <View style={styles.timerContainer}>
+              <Icon name="time-outline" size={18} color={timeRemaining <= 60 ? colors.error : colors.primary} />
+              <Text style={[
+                styles.timerText,
+                timeRemaining <= 60 && styles.timerTextWarning
+              ]}>
+                {t("payment.qr.timeRemaining")}: {formatTime(timeRemaining)}
+              </Text>
+            </View>
+          )}
+
+          {/* Auto-check indicator */}
+          {isPolling && !isExpired && (
+            <View style={styles.pollingIndicator}>
+              <ActivityIndicator size="small" color={colors.success} />
+              <Text style={styles.pollingText}>{t("payment.qr.autoChecking")}</Text>
+            </View>
+          )}
 
           <View style={styles.qrContainer}>
             {loading ? (
@@ -392,8 +557,37 @@ const styles = StyleSheet.create({
   qrSubtitle: {
     fontSize: 14,
     color: colors.textMedium,
-    marginBottom: 20,
+    marginBottom: 12,
     textAlign: "center",
+  },
+  timerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.cardBackgroundLight,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    marginBottom: 8,
+  },
+  timerText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  timerTextWarning: {
+    color: colors.error,
+  },
+  pollingIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  pollingText: {
+    fontSize: 13,
+    color: colors.success,
+    fontWeight: "500",
   },
   qrContainer: {
     width: 280,
