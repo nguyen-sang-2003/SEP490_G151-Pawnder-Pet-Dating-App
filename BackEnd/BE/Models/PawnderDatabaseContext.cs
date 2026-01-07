@@ -654,6 +654,15 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.IsPetFriendly).HasDefaultValue(true);
             entity.Property(e => e.PlaceType).HasMaxLength(50);
             entity.Property(e => e.GooglePlaceId).HasMaxLength(255);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+        });
+
+        // BadWord configuration
         modelBuilder.Entity<BadWord>(entity =>
         {
             entity.HasKey(e => e.BadWordId).HasName("BadWord_pkey");
@@ -729,31 +738,6 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.InviterCheckInTime)
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.InviteeCheckInTime)
-        modelBuilder.Entity<PolicyVersion>(entity =>
-        {
-            entity.HasKey(e => e.PolicyVersionId).HasName("PolicyVersion_pkey");
-
-            entity.ToTable("PolicyVersion");
-
-            // Unique constraint: Mỗi Policy chỉ có 1 version number duy nhất
-            entity.HasIndex(e => new { e.PolicyId, e.VersionNumber }, "PolicyVersion_PolicyId_VersionNumber_key").IsUnique();
-
-            entity.Property(e => e.VersionNumber)
-                .IsRequired();
-            entity.Property(e => e.Title)
-                .HasMaxLength(300)
-                .IsRequired();
-            entity.Property(e => e.Content)
-                .HasColumnType("text")
-                .IsRequired();
-            entity.Property(e => e.ChangeLog)
-                .HasColumnType("text");
-            entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .HasDefaultValue("DRAFT");
-            entity.Property(e => e.PublishedAt)
-                .HasColumnType("timestamp without time zone");
-            entity.Property(e => e.DeactivatedAt)
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
@@ -911,6 +895,32 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("EventVote_UserId_fkey");
+        });
+
+        // PolicyVersion configuration
+        modelBuilder.Entity<PolicyVersion>(entity =>
+        {
+            entity.HasKey(e => e.PolicyVersionId).HasName("PolicyVersion_pkey");
+
+            entity.ToTable("PolicyVersion");
+
+            // Unique constraint: Mỗi Policy chỉ có 1 version number duy nhất
+            entity.HasIndex(e => new { e.PolicyId, e.VersionNumber }, "PolicyVersion_PolicyId_VersionNumber_key").IsUnique();
+
+            entity.Property(e => e.VersionNumber).IsRequired();
+            entity.Property(e => e.Title).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.Content).HasColumnType("text").IsRequired();
+            entity.Property(e => e.ChangeLog).HasColumnType("text");
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("DRAFT");
+            entity.Property(e => e.PublishedAt).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.DeactivatedAt).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
             entity.HasOne(d => d.Policy)
                 .WithMany(p => p.PolicyVersions)
                 .HasForeignKey(d => d.PolicyId)
