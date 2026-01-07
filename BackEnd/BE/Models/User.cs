@@ -72,4 +72,12 @@ public partial class User
     public virtual ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
 
     public virtual UserStatus? UserStatus { get; set; }
+
+    /// <summary>
+    /// Các policy version được user tạo (Admin)
+    /// </summary>
+    public virtual ICollection<PolicyVersion> CreatedPolicyVersions { get; set; } = new List<PolicyVersion>();
+
+    // Lịch sử xác nhận policy của user
+    public virtual ICollection<UserPolicyAccept> UserPolicyAccepts { get; set; } = new List<UserPolicyAccept>();
 }

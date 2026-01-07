@@ -345,6 +345,82 @@ CREATE TABLE "BadWord" (
 CREATE INDEX "IX_BadWord_IsActive" ON "BadWord"("IsActive");
 CREATE INDEX "IX_BadWord_Level" ON "BadWord"("Level");
 
+-- =============================================
+-- 1. Bảng Policy - Lưu thông tin chính sách
+-- =============================================
+CREATE TABLE IF NOT EXISTS "Policy" (
+    "PolicyId" SERIAL PRIMARY KEY,
+    "PolicyCode" VARCHAR(50) NOT NULL UNIQUE,
+    "PolicyName" VARCHAR(200) NOT NULL,
+    "Description" TEXT,
+    "DisplayOrder" INTEGER DEFAULT 0,
+    "RequireConsent" BOOLEAN DEFAULT TRUE,
+    "IsActive" BOOLEAN DEFAULT TRUE,
+    "IsDeleted" BOOLEAN DEFAULT FALSE,
+    "CreatedAt" TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+);
+
+-- Index cho tìm kiếm nhanh
+CREATE INDEX IF NOT EXISTS "IX_Policy_PolicyCode" ON "Policy" ("PolicyCode");
+CREATE INDEX IF NOT EXISTS "IX_Policy_IsActive" ON "Policy" ("IsActive") WHERE "IsDeleted" = FALSE;
+
+-- =============================================
+-- 2. Bảng PolicyVersion - Lưu các phiên bản của Policy
+-- =============================================
+CREATE TABLE IF NOT EXISTS "PolicyVersion" (
+    "PolicyVersionId" SERIAL PRIMARY KEY,
+    "PolicyId" INTEGER NOT NULL,
+    "VersionNumber" INTEGER NOT NULL,
+    "Title" VARCHAR(300) NOT NULL,
+    "Content" TEXT NOT NULL,
+    "ChangeLog" TEXT,
+    "Status" VARCHAR(20) DEFAULT 'DRAFT' CHECK ("Status" IN ('DRAFT', 'ACTIVE', 'INACTIVE')),
+    "PublishedAt" TIMESTAMP WITHOUT TIME ZONE,
+    "DeactivatedAt" TIMESTAMP WITHOUT TIME ZONE,
+    "CreatedByUserId" INTEGER,
+    "CreatedAt" TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT "PolicyVersion_PolicyId_fkey" 
+        FOREIGN KEY ("PolicyId") REFERENCES "Policy"("PolicyId") ON DELETE CASCADE,
+    CONSTRAINT "PolicyVersion_CreatedByUserId_fkey" 
+        FOREIGN KEY ("CreatedByUserId") REFERENCES "User"("UserId") ON DELETE SET NULL,
+    CONSTRAINT "PolicyVersion_PolicyId_VersionNumber_key" 
+        UNIQUE ("PolicyId", "VersionNumber")
+);
+
+-- Index cho tìm kiếm nhanh
+CREATE INDEX IF NOT EXISTS "IX_PolicyVersion_PolicyId_Status" ON "PolicyVersion" ("PolicyId", "Status");
+CREATE INDEX IF NOT EXISTS "IX_PolicyVersion_Status" ON "PolicyVersion" ("Status");
+
+-- =============================================
+-- 3. Bảng UserPolicyAccept - Lưu lịch sử xác nhận của User
+-- =============================================
+CREATE TABLE IF NOT EXISTS "UserPolicyAccept" (
+    "AcceptId" BIGSERIAL PRIMARY KEY,
+    "UserId" INTEGER NOT NULL,
+    "PolicyVersionId" INTEGER NOT NULL,
+    "AcceptedAt" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    "IsValid" BOOLEAN DEFAULT TRUE,
+    "InvalidatedAt" TIMESTAMP WITHOUT TIME ZONE,
+    "CreatedAt" TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT "UserPolicyAccept_UserId_fkey" 
+        FOREIGN KEY ("UserId") REFERENCES "User"("UserId") ON DELETE CASCADE,
+    CONSTRAINT "UserPolicyAccept_PolicyVersionId_fkey" 
+        FOREIGN KEY ("PolicyVersionId") REFERENCES "PolicyVersion"("PolicyVersionId") ON DELETE CASCADE
+);
+
+-- Index cho tìm kiếm nhanh
+CREATE INDEX IF NOT EXISTS "IX_UserPolicyAccept_UserId_PolicyVersionId_IsValid" 
+    ON "UserPolicyAccept" ("UserId", "PolicyVersionId", "IsValid");
+CREATE INDEX IF NOT EXISTS "IX_UserPolicyAccept_UserId_IsValid" 
+    ON "UserPolicyAccept" ("UserId", "IsValid");
+CREATE INDEX IF NOT EXISTS "IX_UserPolicyAccept_PolicyVersionId" 
+    ON "UserPolicyAccept" ("PolicyVersionId");
+
+
 -- ========================
 -- Thêm dữ liệu bảng Role
 -- ========================
@@ -750,4 +826,190 @@ INSERT INTO "BadWord" ("Word", "IsRegex", "Level", "Category", "IsActive") VALUE
 ('lừa đảo', false, 3, 'Scam', true),
 ('chuyển tiền', false, 3, 'Scam', true);
 
+-- 1. Seed Data - Tạo các Policy mặc định
+-- =============================================
+INSERT INTO "Policy" ("PolicyCode", "PolicyName", "Description", "DisplayOrder", "RequireConsent", "IsActive")
+VALUES 
+    ('TERMS_OF_SERVICE', 'Điều khoản sử dụng', 'Điều khoản và điều kiện sử dụng ứng dụng Pawnder', 1, TRUE, TRUE),
+    ('PRIVACY_POLICY', 'Chính sách quyền riêng tư', 'Chính sách bảo vệ thông tin cá nhân của người dùng', 2, TRUE, TRUE)
+ON CONFLICT ("PolicyCode") DO NOTHING;
+
+-- =============================================
+-- 2. Seed Sample Version (DRAFT) - Admin có thể chỉnh sửa sau
+-- =============================================
+INSERT INTO "PolicyVersion" ("PolicyId", "VersionNumber", "Title", "Content", "ChangeLog", "Status")
+SELECT 
+    p."PolicyId",
+    1,
+    CASE p."PolicyCode"
+        WHEN 'TERMS_OF_SERVICE' THEN 'Điều khoản sử dụng Pawnder v1.0'
+        WHEN 'PRIVACY_POLICY' THEN 'Chính sách quyền riêng tư Pawnder v1.0'
+    END,
+    CASE p."PolicyCode"
+        WHEN 'TERMS_OF_SERVICE' THEN '
+# ĐIỀU KHOẢN SỬ DỤNG (TERMS OF SERVICE)
+
+**Phiên bản:** 1.0  
+**Ngày hiệu lực:** Theo ngày phát hành  
+**Áp dụng cho:** Toàn bộ người dùng ứng dụng
+
+## 1. Chấp nhận điều khoản
+
+Bằng việc đăng ký tài khoản, đăng nhập hoặc sử dụng ứng dụng Pawnder, người dùng xác nhận rằng đã đọc, hiểu và đồng ý với toàn bộ Điều khoản sử dụng này.
+
+Trong trường hợp người dùng không đồng ý với bất kỳ nội dung nào, người dùng phải chấm dứt ngay việc sử dụng ứng dụng.
+
+Việc tiếp tục sử dụng ứng dụng được xem là sự chấp thuận ràng buộc pháp lý đối với Điều khoản này.
+
+## 2. Điều kiện sử dụng dịch vụ
+
+Người dùng phải đủ 18 tuổi trở lên hoặc đủ năng lực hành vi dân sự theo quy định pháp luật.
+
+Người dùng cam kết:
+
+- Cung cấp thông tin chính xác, trung thực, đầy đủ
+- Chịu trách nhiệm về mọi hoạt động phát sinh từ tài khoản
+
+Pawnder có quyền từ chối cung cấp dịch vụ nếu phát hiện thông tin không chính xác hoặc có dấu hiệu gian lận.
+
+## 3. Tài khoản người dùng
+
+Mỗi người dùng chỉ được đăng ký 01 tài khoản.
+
+Người dùng chịu trách nhiệm bảo mật:
+
+- Tên đăng nhập
+- Mật khẩu
+- Mã xác thực (nếu có)
+
+Pawnder không chịu trách nhiệm đối với thiệt hại phát sinh do người dùng làm lộ thông tin tài khoản.
+
+## 4. Hành vi bị nghiêm cấm
+
+Người dùng không được phép:
+
+- Sử dụng ứng dụng cho mục đích trái pháp luật
+- Đăng tải hoặc chia sẻ nội dung:
+  - Vi phạm pháp luật
+  - Khiêu dâm, phản cảm, bạo lực
+  - Xúc phạm, quấy rối, phân biệt đối xử
+- Giả mạo danh tính hoặc thông tin
+- Can thiệp, phá hoại, khai thác trái phép hệ thống
+- Thu thập dữ liệu người dùng khác khi chưa được cho phép
+
+Mọi hành vi vi phạm có thể dẫn đến khóa tài khoản ngay lập tức mà không cần thông báo trước.
+
+## 5. Quyền của Pawnder
+
+Pawnder có toàn quyền:
+
+- Chỉnh sửa, tạm ngưng hoặc chấm dứt dịch vụ
+- Gỡ bỏ hoặc hạn chế nội dung vi phạm
+- Khóa tạm thời hoặc vĩnh viễn tài khoản người dùng
+- Áp dụng các biện pháp kỹ thuật để bảo vệ hệ thống
+
+Quyết định của Pawnder trong các trường hợp này là cuối cùng.
+
+## 6. Giới hạn trách nhiệm
+
+Pawnder không chịu trách nhiệm đối với:
+
+- Thiệt hại gián tiếp, ngẫu nhiên hoặc hệ quả
+- Gián đoạn dịch vụ do sự cố kỹ thuật, bảo trì, hoặc yếu tố bất khả kháng
+- Hành vi hoặc nội dung do người dùng tạo ra
+
+Trong mọi trường hợp, trách nhiệm (nếu có) của Pawnder không vượt quá chi phí người dùng đã thanh toán cho dịch vụ (nếu có).
+
+## 7. Thay đổi điều khoản
+
+Pawnder có quyền sửa đổi Điều khoản sử dụng bất kỳ lúc nào.
+
+- Phiên bản mới sẽ được công bố chính thức
+- Người dùng bắt buộc xác nhận lại
+- Không xác nhận → không được tiếp tục sử dụng ứng dụng
+
+## 8. Luật áp dụng và giải quyết tranh chấp
+
+Điều khoản này được điều chỉnh theo pháp luật Việt Nam.
+
+Mọi tranh chấp phát sinh sẽ được ưu tiên giải quyết thông qua thương lượng. Trường hợp không đạt được thỏa thuận, tranh chấp sẽ được đưa ra Tòa án có thẩm quyền tại Việt Nam.
+'
+        WHEN 'PRIVACY_POLICY' THEN '
+# CHÍNH SÁCH QUYỀN RIÊNG TƯ (PRIVACY POLICY)
+
+**Phiên bản:** 1.0  
+**Ngày hiệu lực:** Theo ngày phát hành
+
+## 1. Nguyên tắc bảo vệ dữ liệu
+
+Pawnder cam kết bảo vệ dữ liệu cá nhân của người dùng theo đúng quy định pháp luật hiện hành và áp dụng các biện pháp kỹ thuật, tổ chức phù hợp nhằm đảm bảo an toàn thông tin.
+
+## 2. Thông tin thu thập
+
+Chúng tôi có thể thu thập các loại thông tin sau:
+
+- **Thông tin định danh:** họ tên, email, số điện thoại
+- **Thông tin tài khoản và xác thực**
+- **Nội dung người dùng cung cấp:** hình ảnh, mô tả, dữ liệu thú cưng
+- **Dữ liệu kỹ thuật:** IP, log truy cập, thiết bị, hành vi sử dụng
+
+## 3. Mục đích sử dụng dữ liệu
+
+Dữ liệu cá nhân được sử dụng để:
+
+- Cung cấp và duy trì dịch vụ
+- Xác thực danh tính và bảo mật tài khoản
+- Cải thiện chất lượng sản phẩm
+- Phòng chống gian lận và hành vi vi phạm
+- Tuân thủ nghĩa vụ pháp lý
+
+## 4. Lưu trữ và bảo mật dữ liệu
+
+Dữ liệu được lưu trữ trong thời gian cần thiết cho mục đích sử dụng.
+
+Áp dụng các biện pháp:
+
+- Mã hóa
+- Phân quyền truy cập
+- Giám sát và ghi log
+
+Pawnder không đảm bảo an toàn tuyệt đối nhưng cam kết nỗ lực tối đa để bảo vệ dữ liệu.
+
+## 5. Chia sẻ dữ liệu
+
+Dữ liệu cá nhân không được chia sẻ cho bên thứ ba, trừ các trường hợp:
+
+- Có sự đồng ý rõ ràng của người dùng
+- Theo yêu cầu của cơ quan nhà nước có thẩm quyền
+- Phục vụ mục đích bảo mật, phòng chống gian lận
+- Đối tác kỹ thuật cần thiết để vận hành hệ thống
+
+## 6. Quyền của người dùng
+
+Người dùng có quyền:
+
+- Yêu cầu truy cập, chỉnh sửa dữ liệu cá nhân
+- Yêu cầu xóa tài khoản và dữ liệu liên quan
+- Rút lại sự đồng ý (điều này có thể làm gián đoạn dịch vụ)
+
+Yêu cầu sẽ được xử lý trong thời hạn hợp lý theo quy định pháp luật.
+
+## 7. Thay đổi chính sách quyền riêng tư
+
+Chính sách này có thể được cập nhật theo thời gian.
+
+- Mọi thay đổi quan trọng sẽ yêu cầu người dùng xác nhận lại
+- Không xác nhận → tạm ngưng quyền sử dụng dịch vụ
+
+## 8. Hiệu lực
+
+Chính sách quyền riêng tư có hiệu lực kể từ thời điểm được phát hành và thay thế cho các phiên bản trước đó.
+'
+    END,
+    'Phiên bản đầu tiên',
+    'DRAFT'
+FROM "Policy" p
+WHERE NOT EXISTS (
+    SELECT 1 FROM "PolicyVersion" pv WHERE pv."PolicyId" = p."PolicyId"
+);
 

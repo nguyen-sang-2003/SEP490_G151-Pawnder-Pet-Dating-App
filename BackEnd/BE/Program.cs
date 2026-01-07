@@ -46,9 +46,13 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Register OData + Controllers
+// Register OData + Controllers with Global Policy Accept Filter
 builder.Services
-    .AddControllers()
+    .AddControllers(options =>
+    {
+        // Thêm Global Policy Accept Filter để kiểm tra accept cho mọi request
+        options.Filters.Add<BE.Filters.GlobalPolicyAcceptFilter>();
+    })
     .AddOData(opt => opt.Select().Expand().Filter().OrderBy().Count().SetMaxTop(100));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -200,6 +204,7 @@ builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserContentRepository
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertRepository, BE.Repositories.ChatExpertRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertContentRepository, BE.Repositories.ChatExpertContentRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IBadWordRepository, BE.Repositories.BadWordRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IPolicyRepository, BE.Repositories.PolicyRepository>();
 
 // ============================================
 // Register Services (Service Layer)
@@ -231,6 +236,10 @@ builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.Mat
 builder.Services.AddScoped<BE.Services.IPetImageAnalysisService, BE.Services.PetImageAnalysisService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IBadWordService, BE.Services.BadWordService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IBadWordManagementService, BE.Services.BadWordManagementService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IPolicyService, BE.Services.PolicyService>();
+
+// Register Global Policy Accept Filter
+builder.Services.AddScoped<BE.Filters.GlobalPolicyAcceptFilter>();
 
 // Register Background Service để tự động update expired payments
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
