@@ -1013,3 +1013,170 @@ WHERE NOT EXISTS (
     SELECT 1 FROM "PolicyVersion" pv WHERE pv."PolicyId" = p."PolicyId"
 );
 
+-- =============================================
+-- CHỨC NĂNG 1: PET APPOINTMENT (Hẹn gặp mặt)
+-- =============================================
+
+-- ===========================
+-- TABLE: PetAppointmentLocation (Địa điểm hẹn gặp Pet-Friendly)
+-- ===========================
+CREATE TABLE "PetAppointmentLocation" (
+    "LocationId" SERIAL PRIMARY KEY,
+    "Name" VARCHAR(200) NOT NULL,
+    "Address" TEXT NOT NULL,
+    "Latitude" DECIMAL(9,6) NOT NULL,
+    "Longitude" DECIMAL(9,6) NOT NULL,
+    "City" VARCHAR(100),
+    "District" VARCHAR(100),
+    "IsPetFriendly" BOOLEAN DEFAULT TRUE,
+    "PlaceType" VARCHAR(50),              -- park, pet_cafe, vet_clinic, custom
+    "GooglePlaceId" VARCHAR(255),          -- Google Maps integration
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- Index for location queries
+CREATE INDEX "IX_PetAppointmentLocation_City" ON "PetAppointmentLocation"("City");
+CREATE INDEX "IX_PetAppointmentLocation_IsPetFriendly" ON "PetAppointmentLocation"("IsPetFriendly");
+
+-- ===========================
+-- TABLE: PetAppointment (Cuộc hẹn gặp giữa 2 thú cưng)
+-- ===========================
+CREATE TABLE "PetAppointment" (
+    "AppointmentId" SERIAL PRIMARY KEY,
+    "MatchId" INT NOT NULL REFERENCES "ChatUser"("MatchId"),
+    
+    -- Pet & User info
+    "InviterPetId" INT NOT NULL REFERENCES "Pet"("PetId"),
+    "InviteePetId" INT NOT NULL REFERENCES "Pet"("PetId"),
+    "InviterUserId" INT NOT NULL REFERENCES "User"("UserId"),
+    "InviteeUserId" INT NOT NULL REFERENCES "User"("UserId"),
+    
+    -- Appointment details
+    "AppointmentDateTime" TIMESTAMP NOT NULL,
+    "LocationId" INT REFERENCES "PetAppointmentLocation"("LocationId"),
+    "ActivityType" VARCHAR(50) NOT NULL,   -- walk, cafe, playdate
+    
+    -- Status: pending, confirmed, rejected, cancelled, on_going, completed, no_show
+    "Status" VARCHAR(30) DEFAULT 'pending',
+    
+    -- Decision tracking
+    "CurrentDecisionUserId" INT REFERENCES "User"("UserId"),
+    "CounterOfferCount" INT DEFAULT 0,     -- Max 3 lần
+    
+    -- Check-in tracking
+    "InviterCheckedIn" BOOLEAN DEFAULT FALSE,
+    "InviteeCheckedIn" BOOLEAN DEFAULT FALSE,
+    "InviterCheckInTime" TIMESTAMP,
+    "InviteeCheckInTime" TIMESTAMP,
+    
+    -- Cancellation info
+    "CancelledBy" INT REFERENCES "User"("UserId"),
+    "CancelReason" TEXT,
+    
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for PetAppointment
+CREATE INDEX "IX_PetAppointment_MatchId" ON "PetAppointment"("MatchId");
+CREATE INDEX "IX_PetAppointment_Status" ON "PetAppointment"("Status");
+CREATE INDEX "IX_PetAppointment_DateTime" ON "PetAppointment"("AppointmentDateTime");
+CREATE INDEX "IX_PetAppointment_InviterUserId" ON "PetAppointment"("InviterUserId");
+CREATE INDEX "IX_PetAppointment_InviteeUserId" ON "PetAppointment"("InviteeUserId");
+
+-- =============================================
+-- CHỨC NĂNG 2: ONLINE EVENT (Sự kiện cuộc thi ảnh/video)
+-- =============================================
+
+-- ===========================
+-- TABLE: PetEvent (Sự kiện cuộc thi)
+-- ===========================
+CREATE TABLE "PetEvent" (
+    "EventId" SERIAL PRIMARY KEY,
+    "Title" VARCHAR(200) NOT NULL,
+    "Description" TEXT,
+    "CoverImageUrl" VARCHAR(500),          -- Poster/Cover image
+    
+    -- Thời gian
+    "StartTime" TIMESTAMP NOT NULL,        -- Bắt đầu event
+    "SubmissionDeadline" TIMESTAMP NOT NULL, -- Hết hạn đăng bài
+    "EndTime" TIMESTAMP NOT NULL,          -- Kết thúc vote + tính kết quả
+    
+    -- Status: upcoming, active, submission_closed, voting_ended, completed, cancelled
+    "Status" VARCHAR(30) DEFAULT 'upcoming',
+    
+    -- Phần thưởng
+    "PrizeDescription" TEXT,
+    "PrizePoints" INT DEFAULT 0,
+    
+    -- Admin creator
+    "CreatedBy" INT NOT NULL REFERENCES "User"("UserId"),
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "UpdatedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for PetEvent
+CREATE INDEX "idx_event_status" ON "PetEvent"("Status");
+CREATE INDEX "idx_event_endtime" ON "PetEvent"("EndTime");
+
+-- ===========================
+-- TABLE: EventSubmission (Bài dự thi)
+-- ===========================
+CREATE TABLE "EventSubmission" (
+    "SubmissionId" SERIAL PRIMARY KEY,
+    "EventId" INT NOT NULL REFERENCES "PetEvent"("EventId"),
+    "UserId" INT NOT NULL REFERENCES "User"("UserId"),
+    "PetId" INT NOT NULL REFERENCES "Pet"("PetId"),
+    
+    -- Media content
+    "MediaUrl" VARCHAR(500) NOT NULL,
+    "MediaType" VARCHAR(20) NOT NULL,      -- image, video
+    "ThumbnailUrl" VARCHAR(500),
+    "Caption" VARCHAR(500),
+    
+    -- Vote tracking (denormalized for fast query)
+    "VoteCount" INT DEFAULT 0,
+    
+    -- Kết quả sau khi tính
+    "Rank" INT,                            -- 1, 2, 3 cho top 3
+    "IsWinner" BOOLEAN DEFAULT FALSE,
+    
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    "IsDeleted" BOOLEAN DEFAULT FALSE,
+    
+    -- Mỗi user chỉ được đăng 1 bài / event
+    UNIQUE ("EventId", "UserId")
+);
+
+-- Indexes for EventSubmission
+CREATE INDEX "idx_submission_event" ON "EventSubmission"("EventId");
+CREATE INDEX "idx_submission_votes" ON "EventSubmission"("EventId", "VoteCount" DESC);
+
+-- ===========================
+-- TABLE: EventVote (Vote cho bài dự thi)
+-- ===========================
+CREATE TABLE "EventVote" (
+    "VoteId" SERIAL PRIMARY KEY,
+    "SubmissionId" INT NOT NULL REFERENCES "EventSubmission"("SubmissionId") ON DELETE CASCADE,
+    "UserId" INT NOT NULL REFERENCES "User"("UserId"),
+    "CreatedAt" TIMESTAMP DEFAULT NOW(),
+    
+    -- Mỗi user chỉ được vote 1 lần / bài
+    UNIQUE ("SubmissionId", "UserId")
+);
+
+-- Indexes for EventVote
+CREATE INDEX "idx_vote_submission" ON "EventVote"("SubmissionId");
+CREATE INDEX "idx_vote_user" ON "EventVote"("UserId");
+
+-- ===========================
+-- SAMPLE DATA: PetAppointmentLocation (Địa điểm Pet-Friendly)
+-- ===========================
+INSERT INTO "PetAppointmentLocation" ("Name", "Address", "Latitude", "Longitude", "City", "District", "IsPetFriendly", "PlaceType") VALUES
+('Pet Café Chó Mèo Thành Phố', '123 Nguyễn Huệ, Quận 1', 10.773831, 106.704895, 'Hồ Chí Minh', 'Quận 1', TRUE, 'pet_cafe'),
+('Công Viên Tao Đàn', 'Cách Mạng Tháng 8, Quận 3', 10.775320, 106.692320, 'Hồ Chí Minh', 'Quận 3', TRUE, 'park'),
+('Puppy Station Coffee', '456 Lê Văn Sỹ, Quận 3', 10.786547, 106.678123, 'Hồ Chí Minh', 'Quận 3', TRUE, 'pet_cafe'),
+('Công Viên Gia Định', 'Hoàng Minh Giám, Phú Nhuận', 10.800123, 106.685432, 'Hồ Chí Minh', 'Phú Nhuận', TRUE, 'park'),
+('The Paw House', '789 Phan Xích Long, Phú Nhuận', 10.795678, 106.680234, 'Hồ Chí Minh', 'Phú Nhuận', TRUE, 'pet_cafe');
+
