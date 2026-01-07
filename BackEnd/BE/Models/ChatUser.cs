@@ -28,4 +28,7 @@ public partial class ChatUser
     public virtual Pet? FromPet { get; set; }
 
     public virtual Pet? ToPet { get; set; }
+
+    // PetAppointment navigation property
+    public virtual ICollection<PetAppointment> PetAppointments { get; set; } = new List<PetAppointment>();
 }

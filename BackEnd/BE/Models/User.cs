@@ -72,4 +72,13 @@ public partial class User
     public virtual ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
 
     public virtual UserStatus? UserStatus { get; set; }
+
+    // PetAppointment navigation properties
+    public virtual ICollection<PetAppointment> PetAppointmentsAsInviter { get; set; } = new List<PetAppointment>();
+
+    public virtual ICollection<PetAppointment> PetAppointmentsAsInvitee { get; set; } = new List<PetAppointment>();
+
+    public virtual ICollection<PetAppointment> PetAppointmentsAsDecider { get; set; } = new List<PetAppointment>();
+
+    public virtual ICollection<PetAppointment> PetAppointmentsCancelled { get; set; } = new List<PetAppointment>();
 }

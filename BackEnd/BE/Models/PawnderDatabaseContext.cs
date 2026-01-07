@@ -61,6 +61,10 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<UserStatus> UserStatuses { get; set; }
 
+    public virtual DbSet<PetAppointment> PetAppointments { get; set; }
+
+    public virtual DbSet<PetAppointmentLocation> PetAppointmentLocations { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Address>(entity =>
@@ -620,6 +624,100 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UserStatusName).HasMaxLength(50);
+        });
+
+        // PetAppointmentLocation configuration
+        modelBuilder.Entity<PetAppointmentLocation>(entity =>
+        {
+            entity.HasKey(e => e.LocationId).HasName("PetAppointmentLocation_pkey");
+
+            entity.ToTable("PetAppointmentLocation");
+
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Latitude).HasPrecision(9, 6);
+            entity.Property(e => e.Longitude).HasPrecision(9, 6);
+            entity.Property(e => e.City).HasMaxLength(100);
+            entity.Property(e => e.District).HasMaxLength(100);
+            entity.Property(e => e.IsPetFriendly).HasDefaultValue(true);
+            entity.Property(e => e.PlaceType).HasMaxLength(50);
+            entity.Property(e => e.GooglePlaceId).HasMaxLength(255);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+        });
+
+        // PetAppointment configuration
+        modelBuilder.Entity<PetAppointment>(entity =>
+        {
+            entity.HasKey(e => e.AppointmentId).HasName("PetAppointment_pkey");
+
+            entity.ToTable("PetAppointment");
+
+            entity.Property(e => e.AppointmentDateTime)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ActivityType).HasMaxLength(50);
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .HasDefaultValue("pending");
+            entity.Property(e => e.CounterOfferCount).HasDefaultValue(0);
+            entity.Property(e => e.InviterCheckedIn).HasDefaultValue(false);
+            entity.Property(e => e.InviteeCheckedIn).HasDefaultValue(false);
+            entity.Property(e => e.InviterCheckInTime)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.InviteeCheckInTime)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Indexes
+            entity.HasIndex(e => e.MatchId).HasDatabaseName("IX_PetAppointment_MatchId");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_PetAppointment_Status");
+            entity.HasIndex(e => e.AppointmentDateTime).HasDatabaseName("IX_PetAppointment_DateTime");
+
+            // Relationships
+            entity.HasOne(d => d.Match).WithMany(p => p.PetAppointments)
+                .HasForeignKey(d => d.MatchId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_MatchId_fkey");
+
+            entity.HasOne(d => d.InviterPet).WithMany(p => p.PetAppointmentsAsInviter)
+                .HasForeignKey(d => d.InviterPetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviterPetId_fkey");
+
+            entity.HasOne(d => d.InviteePet).WithMany(p => p.PetAppointmentsAsInvitee)
+                .HasForeignKey(d => d.InviteePetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviteePetId_fkey");
+
+            entity.HasOne(d => d.InviterUser).WithMany(p => p.PetAppointmentsAsInviter)
+                .HasForeignKey(d => d.InviterUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviterUserId_fkey");
+
+            entity.HasOne(d => d.InviteeUser).WithMany(p => p.PetAppointmentsAsInvitee)
+                .HasForeignKey(d => d.InviteeUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviteeUserId_fkey");
+
+            entity.HasOne(d => d.CurrentDecisionUser).WithMany(p => p.PetAppointmentsAsDecider)
+                .HasForeignKey(d => d.CurrentDecisionUserId)
+                .HasConstraintName("PetAppointment_CurrentDecisionUserId_fkey");
+
+            entity.HasOne(d => d.CancelledByUser).WithMany(p => p.PetAppointmentsCancelled)
+                .HasForeignKey(d => d.CancelledBy)
+                .HasConstraintName("PetAppointment_CancelledBy_fkey");
+
+            entity.HasOne(d => d.Location).WithMany(p => p.PetAppointments)
+                .HasForeignKey(d => d.LocationId)
+                .HasConstraintName("PetAppointment_LocationId_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

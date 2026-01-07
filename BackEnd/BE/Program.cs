@@ -62,14 +62,15 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API for Pawnder Pet Dating App"
     });
 
-    // Add JWT Authorization
+    // Add JWT Authorization - Fixed configuration
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.\n\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"",
+        Description = "JWT Authorization header. Enter your token (without 'Bearer' prefix).\n\nExample: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -199,6 +200,8 @@ builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserRepository, BE.Re
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserContentRepository, BE.Repositories.ChatUserContentRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertRepository, BE.Repositories.ChatExpertRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertContentRepository, BE.Repositories.ChatExpertContentRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentRepository, BE.Repositories.AppointmentRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentLocationRepository, BE.Repositories.AppointmentLocationRepository>();
 
 // ============================================
 // Register Services (Service Layer)
@@ -228,6 +231,7 @@ builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertService, BE.Service
 builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.Services.ChatExpertContentService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
 builder.Services.AddScoped<BE.Services.IPetImageAnalysisService, BE.Services.PetImageAnalysisService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IAppointmentService, BE.Services.AppointmentService>();
 
 // Register Background Service để tự động update expired payments
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
