@@ -88,4 +88,11 @@ public partial class User
     public virtual ICollection<EventSubmission> EventSubmissions { get; set; } = new List<EventSubmission>();
 
     public virtual ICollection<EventVote> EventVotes { get; set; } = new List<EventVote>();
+    /// <summary>
+    /// Các policy version được user tạo (Admin)
+    /// </summary>
+    public virtual ICollection<PolicyVersion> CreatedPolicyVersions { get; set; } = new List<PolicyVersion>();
+
+    // Lịch sử xác nhận policy của user
+    public virtual ICollection<UserPolicyAccept> UserPolicyAccepts { get; set; } = new List<UserPolicyAccept>();
 }

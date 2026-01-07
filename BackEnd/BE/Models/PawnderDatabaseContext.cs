@@ -19,6 +19,8 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<Attribute> Attributes { get; set; }
 
+    public virtual DbSet<BadWord> BadWords { get; set; }
+
     public virtual DbSet<AttributeOption> AttributeOptions { get; set; }
 
     public virtual DbSet<Block> Blocks { get; set; }
@@ -70,6 +72,11 @@ public partial class PawnderDatabaseContext : DbContext
     public virtual DbSet<EventSubmission> EventSubmissions { get; set; }
 
     public virtual DbSet<EventVote> EventVotes { get; set; }
+    public virtual DbSet<Policy> Policies { get; set; }
+
+    public virtual DbSet<PolicyVersion> PolicyVersions { get; set; }
+
+    public virtual DbSet<UserPolicyAccept> UserPolicyAccepts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -647,6 +654,54 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.IsPetFriendly).HasDefaultValue(true);
             entity.Property(e => e.PlaceType).HasMaxLength(50);
             entity.Property(e => e.GooglePlaceId).HasMaxLength(255);
+        modelBuilder.Entity<BadWord>(entity =>
+        {
+            entity.HasKey(e => e.BadWordId).HasName("BadWord_pkey");
+
+            entity.ToTable("BadWord");
+
+            entity.Property(e => e.Word).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.IsRegex).HasDefaultValue(false);
+            entity.Property(e => e.Level).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(50);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Index for performance
+            entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_BadWord_IsActive");
+            entity.HasIndex(e => e.Level).HasDatabaseName("IX_BadWord_Level");
+        });
+
+        // ====== Policy System ======
+        modelBuilder.Entity<Policy>(entity =>
+        {
+            entity.HasKey(e => e.PolicyId).HasName("Policy_pkey");
+
+            entity.ToTable("Policy");
+
+            entity.HasIndex(e => e.PolicyCode, "Policy_PolicyCode_key").IsUnique();
+
+            entity.Property(e => e.PolicyCode)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.PolicyName)
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.Description)
+                .HasColumnType("text");
+            entity.Property(e => e.DisplayOrder)
+                .HasDefaultValue(0);
+            entity.Property(e => e.RequireConsent)
+                .HasDefaultValue(true);
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true);
+            entity.Property(e => e.IsDeleted)
+                .HasDefaultValue(false);
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
@@ -674,6 +729,31 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.InviterCheckInTime)
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.InviteeCheckInTime)
+        modelBuilder.Entity<PolicyVersion>(entity =>
+        {
+            entity.HasKey(e => e.PolicyVersionId).HasName("PolicyVersion_pkey");
+
+            entity.ToTable("PolicyVersion");
+
+            // Unique constraint: Mỗi Policy chỉ có 1 version number duy nhất
+            entity.HasIndex(e => new { e.PolicyId, e.VersionNumber }, "PolicyVersion_PolicyId_VersionNumber_key").IsUnique();
+
+            entity.Property(e => e.VersionNumber)
+                .IsRequired();
+            entity.Property(e => e.Title)
+                .HasMaxLength(300)
+                .IsRequired();
+            entity.Property(e => e.Content)
+                .HasColumnType("text")
+                .IsRequired();
+            entity.Property(e => e.ChangeLog)
+                .HasColumnType("text");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValue("DRAFT");
+            entity.Property(e => e.PublishedAt)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.DeactivatedAt)
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
@@ -831,6 +911,54 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("EventVote_UserId_fkey");
+            entity.HasOne(d => d.Policy)
+                .WithMany(p => p.PolicyVersions)
+                .HasForeignKey(d => d.PolicyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("PolicyVersion_PolicyId_fkey");
+
+            entity.HasOne(d => d.CreatedByUser)
+                .WithMany(p => p.CreatedPolicyVersions)
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("PolicyVersion_CreatedByUserId_fkey");
+
+            // Index for quick lookup of active versions
+            entity.HasIndex(e => new { e.PolicyId, e.Status })
+                .HasDatabaseName("IX_PolicyVersion_PolicyId_Status");
+        });
+
+        modelBuilder.Entity<UserPolicyAccept>(entity =>
+        {
+            entity.HasKey(e => e.AcceptId).HasName("UserPolicyAccept_pkey");
+
+            entity.ToTable("UserPolicyAccept");
+
+            // Index for checking if user has accepted a specific version
+            entity.HasIndex(e => new { e.UserId, e.PolicyVersionId, e.IsValid }, "IX_UserPolicyAccept_UserId_PolicyVersionId_IsValid");
+
+            entity.Property(e => e.AcceptedAt)
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+            entity.Property(e => e.IsValid)
+                .HasDefaultValue(true);
+            entity.Property(e => e.InvalidatedAt)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.UserPolicyAccepts)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("UserPolicyAccept_UserId_fkey");
+
+            entity.HasOne(d => d.PolicyVersion)
+                .WithMany(p => p.UserPolicyAccepts)
+                .HasForeignKey(d => d.PolicyVersionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("UserPolicyAccept_PolicyVersionId_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

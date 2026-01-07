@@ -46,9 +46,13 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Register OData + Controllers
+// Register OData + Controllers with Global Policy Accept Filter
 builder.Services
-    .AddControllers()
+    .AddControllers(options =>
+    {
+        // Thêm Global Policy Accept Filter để kiểm tra accept cho mọi request
+        options.Filters.Add<BE.Filters.GlobalPolicyAcceptFilter>();
+    })
     .AddOData(opt => opt.Select().Expand().Filter().OrderBy().Count().SetMaxTop(100));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -204,6 +208,8 @@ builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentRepository, BE
 builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentLocationRepository, BE.Repositories.AppointmentLocationRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IEventRepository, BE.Repositories.EventRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.ISubmissionRepository, BE.Repositories.SubmissionRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IBadWordRepository, BE.Repositories.BadWordRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IPolicyRepository, BE.Repositories.PolicyRepository>();
 
 // ============================================
 // Register Services (Service Layer)
@@ -235,6 +241,12 @@ builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.Mat
 builder.Services.AddScoped<BE.Services.IPetImageAnalysisService, BE.Services.PetImageAnalysisService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IAppointmentService, BE.Services.AppointmentService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IEventService, BE.Services.EventService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IBadWordService, BE.Services.BadWordService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IBadWordManagementService, BE.Services.BadWordManagementService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IPolicyService, BE.Services.PolicyService>();
+
+// Register Global Policy Accept Filter
+builder.Services.AddScoped<BE.Filters.GlobalPolicyAcceptFilter>();
 
 // Register Background Services
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
@@ -314,3 +326,7 @@ public interface IPhotoStorage
     Task<(string Url, string PublicId)> UploadAsync(int petId, IFormFile file, CancellationToken ct = default);
     Task DeleteAsync(string publicId, CancellationToken ct = default);
 }
+
+// This is needed for WebApplicationFactory in integration tests
+public partial class Program { }
+
