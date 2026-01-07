@@ -81,4 +81,11 @@ public partial class User
     public virtual ICollection<PetAppointment> PetAppointmentsAsDecider { get; set; } = new List<PetAppointment>();
 
     public virtual ICollection<PetAppointment> PetAppointmentsCancelled { get; set; } = new List<PetAppointment>();
+
+    // Event navigation properties
+    public virtual ICollection<PetEvent> CreatedEvents { get; set; } = new List<PetEvent>();
+
+    public virtual ICollection<EventSubmission> EventSubmissions { get; set; } = new List<EventSubmission>();
+
+    public virtual ICollection<EventVote> EventVotes { get; set; } = new List<EventVote>();
 }

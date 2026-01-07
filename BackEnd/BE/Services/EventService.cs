@@ -1,0 +1,392 @@
+using BE.DTO;
+using BE.Models;
+using BE.Repositories.Interfaces;
+using BE.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace BE.Services;
+
+public class EventService : IEventService
+{
+    private readonly IEventRepository _eventRepository;
+    private readonly ISubmissionRepository _submissionRepository;
+    private readonly INotificationService _notificationService;
+    private readonly PawnderDatabaseContext _context;
+
+    public EventService(
+        IEventRepository eventRepository,
+        ISubmissionRepository submissionRepository,
+        INotificationService notificationService,
+        PawnderDatabaseContext context)
+    {
+        _eventRepository = eventRepository;
+        _submissionRepository = submissionRepository;
+        _notificationService = notificationService;
+        _context = context;
+    }
+
+    #region Admin Operations
+
+    public async Task<EventResponse> CreateEventAsync(int adminId, CreateEventRequest request, CancellationToken ct = default)
+    {
+        // Validation
+        if (request.StartTime >= request.SubmissionDeadline)
+            throw new ArgumentException("Thời gian bắt đầu phải trước thời gian đóng nhận bài");
+        
+        if (request.SubmissionDeadline >= request.EndTime)
+            throw new ArgumentException("Thời gian đóng nhận bài phải trước thời gian kết thúc");
+
+        if (request.StartTime < DateTime.Now)
+            throw new ArgumentException("Thời gian bắt đầu phải trong tương lai");
+
+        var petEvent = new PetEvent
+        {
+            Title = request.Title,
+            Description = request.Description,
+            CoverImageUrl = request.CoverImageUrl,
+            StartTime = request.StartTime,
+            SubmissionDeadline = request.SubmissionDeadline,
+            EndTime = request.EndTime,
+            Status = request.StartTime <= DateTime.Now ? "active" : "upcoming",
+            PrizeDescription = request.PrizeDescription,
+            PrizePoints = request.PrizePoints ?? 0,
+            CreatedBy = adminId,
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now
+        };
+
+        await _eventRepository.AddAsync(petEvent, ct);
+
+        // Note: Có thể thêm logic gửi notification cho tất cả users ở đây
+        // nếu INotificationService có method SendToAllUsersAsync
+
+        return MapToResponse(petEvent);
+    }
+
+    public async Task<EventResponse> UpdateEventAsync(int eventId, UpdateEventRequest request, CancellationToken ct = default)
+    {
+        var petEvent = await _eventRepository.GetByIdAsync(eventId, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy sự kiện");
+
+        if (petEvent.Status == "completed" || petEvent.Status == "cancelled")
+            throw new InvalidOperationException("Không thể cập nhật sự kiện đã hoàn thành hoặc đã hủy");
+
+        if (request.Title != null) petEvent.Title = request.Title;
+        if (request.Description != null) petEvent.Description = request.Description;
+        if (request.CoverImageUrl != null) petEvent.CoverImageUrl = request.CoverImageUrl;
+        if (request.StartTime.HasValue) petEvent.StartTime = request.StartTime.Value;
+        if (request.SubmissionDeadline.HasValue) petEvent.SubmissionDeadline = request.SubmissionDeadline.Value;
+        if (request.EndTime.HasValue) petEvent.EndTime = request.EndTime.Value;
+        if (request.PrizeDescription != null) petEvent.PrizeDescription = request.PrizeDescription;
+        if (request.PrizePoints.HasValue) petEvent.PrizePoints = request.PrizePoints.Value;
+
+        petEvent.UpdatedAt = DateTime.Now;
+
+        await _eventRepository.UpdateAsync(petEvent, ct);
+
+        return MapToResponse(petEvent);
+    }
+
+    public async Task CancelEventAsync(int eventId, string? reason, CancellationToken ct = default)
+    {
+        var petEvent = await _eventRepository.GetByIdAsync(eventId, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy sự kiện");
+
+        if (petEvent.Status == "completed")
+            throw new InvalidOperationException("Không thể hủy sự kiện đã hoàn thành");
+
+        petEvent.Status = "cancelled";
+        petEvent.UpdatedAt = DateTime.Now;
+
+        await _eventRepository.UpdateAsync(petEvent, ct);
+
+        // Thông báo cho users đã tham gia
+        var participantIds = await _context.EventSubmissions
+            .Where(s => s.EventId == eventId && s.IsDeleted != true)
+            .Select(s => s.UserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        foreach (var userId in participantIds)
+        {
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = userId,
+                Title = "⚠️ Sự kiện đã bị hủy",
+                Message = $"Sự kiện '{petEvent.Title}' đã bị hủy. {reason ?? ""}",
+                Type = "event_cancelled"
+            }, ct);
+        }
+    }
+
+    #endregion
+
+    #region User Operations
+
+    public async Task<IEnumerable<EventResponse>> GetActiveEventsAsync(CancellationToken ct = default)
+    {
+        var events = await _eventRepository.GetActiveEventsAsync(ct);
+        return events.Select(MapToResponse);
+    }
+
+    public async Task<EventDetailResponse?> GetEventByIdAsync(int eventId, int? currentUserId = null, CancellationToken ct = default)
+    {
+        var petEvent = await _eventRepository.GetEventWithSubmissionsAsync(eventId, ct);
+        if (petEvent == null) return null;
+
+        var response = new EventDetailResponse
+        {
+            EventId = petEvent.EventId,
+            Title = petEvent.Title,
+            Description = petEvent.Description,
+            CoverImageUrl = petEvent.CoverImageUrl,
+            StartTime = petEvent.StartTime,
+            SubmissionDeadline = petEvent.SubmissionDeadline,
+            EndTime = petEvent.EndTime,
+            Status = petEvent.Status,
+            PrizeDescription = petEvent.PrizeDescription,
+            PrizePoints = petEvent.PrizePoints ?? 0,
+            SubmissionCount = petEvent.Submissions?.Count ?? 0,
+            TotalVotes = petEvent.Submissions?.Sum(s => s.VoteCount ?? 0) ?? 0,
+            CreatedAt = petEvent.CreatedAt ?? DateTime.Now,
+            CreatedByName = petEvent.CreatedByUser?.FullName,
+            Submissions = petEvent.Submissions?
+                .OrderByDescending(s => s.VoteCount)
+                .Select(s => MapSubmissionToResponse(s, currentUserId)),
+            Winners = petEvent.Submissions?
+                .Where(s => s.IsWinner == true)
+                .OrderBy(s => s.Rank)
+                .Select(s => MapSubmissionToResponse(s, currentUserId))
+        };
+
+        return response;
+    }
+
+    public async Task<SubmissionResponse> SubmitEntryAsync(int userId, SubmitEntryRequest request, CancellationToken ct = default)
+    {
+        var petEvent = await _eventRepository.GetByIdAsync(request.EventId, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy sự kiện");
+
+        // Validation
+        if (petEvent.Status != "active")
+            throw new InvalidOperationException("Sự kiện không ở trạng thái nhận bài dự thi");
+
+        if (DateTime.Now > petEvent.SubmissionDeadline)
+            throw new InvalidOperationException("Đã quá thời gian nhận bài dự thi");
+
+        if (await _submissionRepository.HasUserSubmittedAsync(request.EventId, userId, ct))
+            throw new InvalidOperationException("Bạn đã đăng bài dự thi cho sự kiện này rồi");
+
+        // Validate pet belongs to user
+        var pet = await _context.Pets
+            .FirstOrDefaultAsync(p => p.PetId == request.PetId && p.UserId == userId && p.IsDeleted != true, ct);
+        
+        if (pet == null)
+            throw new ArgumentException("Thú cưng không hợp lệ hoặc không thuộc về bạn");
+
+        var submission = new EventSubmission
+        {
+            EventId = request.EventId,
+            UserId = userId,
+            PetId = request.PetId,
+            MediaUrl = request.MediaUrl,
+            MediaType = request.MediaType,
+            ThumbnailUrl = request.ThumbnailUrl,
+            Caption = request.Caption,
+            VoteCount = 0,
+            CreatedAt = DateTime.Now
+        };
+
+        await _submissionRepository.AddAsync(submission, ct);
+
+        // Reload with details
+        var result = await _submissionRepository.GetByIdWithDetailsAsync(submission.SubmissionId, ct);
+        return MapSubmissionToResponse(result!, userId);
+    }
+
+    public async Task VoteAsync(int userId, int submissionId, CancellationToken ct = default)
+    {
+        var submission = await _submissionRepository.GetByIdWithDetailsAsync(submissionId, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy bài dự thi");
+
+        // Validation
+        if (submission.Event.Status != "active" && submission.Event.Status != "submission_closed")
+            throw new InvalidOperationException("Sự kiện không ở trạng thái cho phép vote");
+
+        if (submission.UserId == userId)
+            throw new InvalidOperationException("Bạn không thể vote cho bài dự thi của chính mình");
+
+        if (await _submissionRepository.HasUserVotedAsync(submissionId, userId, ct))
+            throw new InvalidOperationException("Bạn đã vote cho bài này rồi");
+
+        await _submissionRepository.AddVoteAsync(submissionId, userId, ct);
+
+        // Notify submission owner
+        await _notificationService.CreateNotificationAsync(new NotificationDto_1
+        {
+            UserId = submission.UserId,
+            Title = "❤️ Bài dự thi được yêu thích!",
+            Message = $"Bài dự thi của bé {submission.Pet?.Name} vừa nhận được 1 vote!",
+            Type = "event_vote"
+        }, ct);
+    }
+
+    public async Task UnvoteAsync(int userId, int submissionId, CancellationToken ct = default)
+    {
+        var submission = await _submissionRepository.GetByIdWithDetailsAsync(submissionId, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy bài dự thi");
+
+        if (submission.Event.Status == "voting_ended" || submission.Event.Status == "completed")
+            throw new InvalidOperationException("Không thể bỏ vote khi sự kiện đã kết thúc");
+
+        if (!await _submissionRepository.HasUserVotedAsync(submissionId, userId, ct))
+            throw new InvalidOperationException("Bạn chưa vote cho bài này");
+
+        await _submissionRepository.RemoveVoteAsync(submissionId, userId, ct);
+    }
+
+    public async Task<IEnumerable<LeaderboardResponse>> GetLeaderboardAsync(int eventId, int? currentUserId = null, CancellationToken ct = default)
+    {
+        var submissions = await _submissionRepository.GetLeaderboardAsync(eventId, 10, ct);
+        
+        int rank = 1;
+        return submissions.Select(s => new LeaderboardResponse
+        {
+            Rank = rank++,
+            Submission = MapSubmissionToResponse(s, currentUserId)
+        });
+    }
+
+    #endregion
+
+    #region Background Job
+
+    public async Task ProcessEventTransitionsAsync(CancellationToken ct = default)
+    {
+        var eventsToTransition = await _eventRepository.GetEventsToTransitionAsync(ct);
+        var now = DateTime.Now;
+
+        foreach (var petEvent in eventsToTransition)
+        {
+            var oldStatus = petEvent.Status;
+
+            if (petEvent.Status == "upcoming" && petEvent.StartTime <= now)
+            {
+                petEvent.Status = "active";
+            }
+            else if (petEvent.Status == "active" && petEvent.SubmissionDeadline <= now)
+            {
+                petEvent.Status = "submission_closed";
+            }
+            else if (petEvent.Status == "submission_closed" && petEvent.EndTime <= now)
+            {
+                petEvent.Status = "voting_ended";
+                // Tính kết quả
+                await ProcessEventResultsAsync(petEvent.EventId, ct);
+            }
+
+            petEvent.UpdatedAt = now;
+            await _eventRepository.UpdateAsync(petEvent, ct);
+
+            Console.WriteLine($"[EventService] Event {petEvent.EventId} transitioned from {oldStatus} to {petEvent.Status}");
+        }
+    }
+
+    public async Task ProcessEventResultsAsync(int eventId, CancellationToken ct = default)
+    {
+        var petEvent = await _eventRepository.GetEventWithSubmissionsAsync(eventId, ct);
+        if (petEvent == null) return;
+
+        // Lấy Top 3
+        var topSubmissions = petEvent.Submissions?
+            .Where(s => s.IsDeleted != true)
+            .OrderByDescending(s => s.VoteCount)
+            .ThenBy(s => s.CreatedAt)
+            .Take(3)
+            .ToList();
+
+        if (topSubmissions == null || !topSubmissions.Any()) return;
+
+        int rank = 1;
+        foreach (var submission in topSubmissions)
+        {
+            submission.Rank = rank;
+            submission.IsWinner = true;
+
+            // Cộng điểm cho winner (nếu có)
+            if (petEvent.PrizePoints > 0 && rank == 1)
+            {
+                // Có thể thêm logic cộng điểm uy tín cho user ở đây
+            }
+
+            // Thông báo cho winner
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = submission.UserId,
+                Title = rank == 1 ? "🏆 Chúc mừng! Bạn đạt Quán quân!" : $"🎉 Chúc mừng! Bạn đạt Top {rank}!",
+                Message = $"Bé {submission.Pet?.Name} đã giành vị trí Top {rank} trong '{petEvent.Title}'!",
+                Type = "event_winner"
+            }, ct);
+
+            rank++;
+        }
+
+        petEvent.Status = "completed";
+        petEvent.UpdatedAt = DateTime.Now;
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    #endregion
+
+    #region Private Helpers
+
+    private static EventResponse MapToResponse(PetEvent e)
+    {
+        return new EventResponse
+        {
+            EventId = e.EventId,
+            Title = e.Title,
+            Description = e.Description,
+            CoverImageUrl = e.CoverImageUrl,
+            StartTime = e.StartTime,
+            SubmissionDeadline = e.SubmissionDeadline,
+            EndTime = e.EndTime,
+            Status = e.Status,
+            PrizeDescription = e.PrizeDescription,
+            PrizePoints = e.PrizePoints ?? 0,
+            SubmissionCount = e.Submissions?.Count ?? 0,
+            TotalVotes = e.Submissions?.Sum(s => s.VoteCount ?? 0) ?? 0,
+            CreatedAt = e.CreatedAt ?? DateTime.Now
+        };
+    }
+
+    private static SubmissionResponse MapSubmissionToResponse(EventSubmission s, int? currentUserId)
+    {
+        var primaryPhoto = s.Pet?.PetPhotos?.FirstOrDefault(p => p.IsPrimary == true);
+        
+        return new SubmissionResponse
+        {
+            SubmissionId = s.SubmissionId,
+            EventId = s.EventId,
+            UserId = s.UserId,
+            UserName = s.User?.FullName,
+            UserAvatar = null, // User không có avatar trong model hiện tại
+            PetId = s.PetId,
+            PetName = s.Pet?.Name,
+            PetPhotoUrl = primaryPhoto?.ImageUrl,
+            MediaUrl = s.MediaUrl,
+            MediaType = s.MediaType,
+            ThumbnailUrl = s.ThumbnailUrl,
+            Caption = s.Caption,
+            VoteCount = s.VoteCount ?? 0,
+            Rank = s.Rank,
+            IsWinner = s.IsWinner ?? false,
+            HasVoted = currentUserId.HasValue && s.Votes?.Any(v => v.UserId == currentUserId.Value) == true,
+            IsOwner = currentUserId.HasValue && s.UserId == currentUserId.Value,
+            CreatedAt = s.CreatedAt ?? DateTime.Now
+        };
+    }
+
+    #endregion
+}

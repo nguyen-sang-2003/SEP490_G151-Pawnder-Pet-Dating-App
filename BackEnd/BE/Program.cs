@@ -202,6 +202,8 @@ builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertRepository, BE.
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertContentRepository, BE.Repositories.ChatExpertContentRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentRepository, BE.Repositories.AppointmentRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentLocationRepository, BE.Repositories.AppointmentLocationRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IEventRepository, BE.Repositories.EventRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.ISubmissionRepository, BE.Repositories.SubmissionRepository>();
 
 // ============================================
 // Register Services (Service Layer)
@@ -232,9 +234,11 @@ builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.
 builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
 builder.Services.AddScoped<BE.Services.IPetImageAnalysisService, BE.Services.PetImageAnalysisService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IAppointmentService, BE.Services.AppointmentService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IEventService, BE.Services.EventService>();
 
-// Register Background Service để tự động update expired payments
+// Register Background Services
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
+builder.Services.AddHostedService<BE.Services.EventCompletionBackgroundService>();
 
 var app = builder.Build();
 

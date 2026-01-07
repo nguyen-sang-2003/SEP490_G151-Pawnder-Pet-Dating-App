@@ -65,6 +65,12 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<PetAppointmentLocation> PetAppointmentLocations { get; set; }
 
+    public virtual DbSet<PetEvent> PetEvents { get; set; }
+
+    public virtual DbSet<EventSubmission> EventSubmissions { get; set; }
+
+    public virtual DbSet<EventVote> EventVotes { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Address>(entity =>
@@ -718,6 +724,113 @@ public partial class PawnderDatabaseContext : DbContext
             entity.HasOne(d => d.Location).WithMany(p => p.PetAppointments)
                 .HasForeignKey(d => d.LocationId)
                 .HasConstraintName("PetAppointment_LocationId_fkey");
+        });
+
+        // PetEvent configuration
+        modelBuilder.Entity<PetEvent>(entity =>
+        {
+            entity.HasKey(e => e.EventId).HasName("PetEvent_pkey");
+
+            entity.ToTable("PetEvent");
+
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.CoverImageUrl).HasMaxLength(500);
+            entity.Property(e => e.StartTime).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.SubmissionDeadline).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.EndTime).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .HasDefaultValue("upcoming");
+            entity.Property(e => e.PrizePoints).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Indexes
+            entity.HasIndex(e => e.Status).HasDatabaseName("idx_event_status");
+            entity.HasIndex(e => e.EndTime).HasDatabaseName("idx_event_endtime");
+
+            // Relationships
+            entity.HasOne(d => d.CreatedByUser).WithMany(p => p.CreatedEvents)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetEvent_CreatedBy_fkey");
+        });
+
+        // EventSubmission configuration
+        modelBuilder.Entity<EventSubmission>(entity =>
+        {
+            entity.HasKey(e => e.SubmissionId).HasName("EventSubmission_pkey");
+
+            entity.ToTable("EventSubmission");
+
+            entity.Property(e => e.MediaUrl).HasMaxLength(500);
+            entity.Property(e => e.MediaType).HasMaxLength(20);
+            entity.Property(e => e.ThumbnailUrl).HasMaxLength(500);
+            entity.Property(e => e.Caption).HasMaxLength(500);
+            entity.Property(e => e.VoteCount).HasDefaultValue(0);
+            entity.Property(e => e.IsWinner).HasDefaultValue(false);
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Unique constraint: mỗi user chỉ 1 bài/event
+            entity.HasIndex(e => new { e.EventId, e.UserId })
+                .IsUnique()
+                .HasDatabaseName("EventSubmission_EventId_UserId_key");
+
+            // Indexes
+            entity.HasIndex(e => e.EventId).HasDatabaseName("idx_submission_event");
+            entity.HasIndex(e => new { e.EventId, e.VoteCount })
+                .HasDatabaseName("idx_submission_votes");
+
+            // Relationships
+            entity.HasOne(d => d.Event).WithMany(p => p.Submissions)
+                .HasForeignKey(d => d.EventId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventSubmission_EventId_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.EventSubmissions)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventSubmission_UserId_fkey");
+
+            entity.HasOne(d => d.Pet).WithMany(p => p.EventSubmissions)
+                .HasForeignKey(d => d.PetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventSubmission_PetId_fkey");
+        });
+
+        // EventVote configuration
+        modelBuilder.Entity<EventVote>(entity =>
+        {
+            entity.HasKey(e => e.VoteId).HasName("EventVote_pkey");
+
+            entity.ToTable("EventVote");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Unique constraint: mỗi user chỉ vote 1 lần/bài
+            entity.HasIndex(e => new { e.SubmissionId, e.UserId })
+                .IsUnique()
+                .HasDatabaseName("EventVote_SubmissionId_UserId_key");
+
+            // Relationships
+            entity.HasOne(d => d.Submission).WithMany(p => p.Votes)
+                .HasForeignKey(d => d.SubmissionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("EventVote_SubmissionId_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.EventVotes)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventVote_UserId_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);
