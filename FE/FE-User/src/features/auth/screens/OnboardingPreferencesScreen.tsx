@@ -68,7 +68,6 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
 
       const { attributes: attrs } = await getAttributesForFilter();
       setAttributes(attrs);
-      console.log('📋 Loaded attributes:', attrs);
     } catch (error: any) {
 
       showAlert({ type: 'error', title: t('auth.onboarding.error'), message: t('auth.onboarding.loadFailed') });
@@ -170,9 +169,7 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
         }));
 
       if (preferences.length > 0) {
-        console.log("💾 Saving onboarding preferences:", preferences);
         await saveUserPreferencesBatch(userId, preferences);
-        console.log("✅ Preferences saved successfully!");
       }
 
       showAlert({

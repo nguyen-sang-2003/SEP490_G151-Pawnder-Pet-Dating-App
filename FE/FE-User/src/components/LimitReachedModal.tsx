@@ -27,7 +27,6 @@ interface LimitReachedModalProps {
   isVip?: boolean;
 }
 
-// 🚀 OPTIMIZATION: Memoize LimitReachedModal to prevent unnecessary re-renders
 export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
   visible,
   onClose,
@@ -39,7 +38,6 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  // 🚀 OPTIMIZATION: Memoize feature icon calculation
   const featureIcon = useMemo(() => {
     switch (actionType) {
       case 'match':
@@ -56,7 +54,6 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
     }
   }, [actionType]);
 
-  // 🚀 OPTIMIZATION: Memoize feature title calculation
   const featureTitle = useMemo(() => {
     const titleKey = `limitModal.titles.${actionType}`;
     const translatedTitle = t(titleKey);
@@ -72,7 +69,6 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = React.memo(({
     return message || t('limitModal.defaultMessage');
   }, [message, t]);
 
-  // 🚀 OPTIMIZATION: Memoize handleUpgrade with useCallback
   const handleUpgrade = useCallback(() => {
     onClose();
     navigation.navigate('Settings');

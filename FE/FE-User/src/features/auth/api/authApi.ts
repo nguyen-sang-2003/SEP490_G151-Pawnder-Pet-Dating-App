@@ -65,9 +65,7 @@ export interface UserResponse {
  */
 export const storeAuthToken = async (token: string): Promise<void> => {
   try {
-    // ✅ Validate token before storing
     if (!token || token.trim() === '') {
-      console.warn('⚠️ Invalid token, skipping storage');
       return;
     }
     
@@ -75,7 +73,6 @@ export const storeAuthToken = async (token: string): Promise<void> => {
       service: 'pawnder.auth',
     });
   } catch (error) {
-    console.log('❌ Error storing auth token:', error);
     throw error;
   }
 };
@@ -116,9 +113,7 @@ export const removeAuthToken = async (): Promise<void> => {
  */
 export const storeUserId = async (userId: number): Promise<void> => {
   try {
-    // ✅ Validate userId before storing
     if (!userId || userId <= 0) {
-      console.warn('⚠️ Invalid userId, skipping storage');
       return;
     }
     
@@ -126,7 +121,7 @@ export const storeUserId = async (userId: number): Promise<void> => {
       service: 'pawnder.userId',
     });
   } catch (error) {
-    console.log('❌ Error storing userId:', error);
+    // Silent fail
   }
 };
 
@@ -264,18 +259,13 @@ export const register = async (data: RegisterRequest): Promise<UserResponse> => 
  */
 export const logout = async (): Promise<void> => {
   try {
-    // Call API logout to invalidate tokens on server
     await apiClient.post('/api/logout');
-    console.log('✅ Server logout successful');
   } catch (error) {
-    // Log warning but don't throw - we still want to clear local tokens
-    console.warn('⚠️ Server logout failed, clearing local tokens anyway:', error);
+    // Server logout failed, clearing local tokens anyway
   } finally {
-    // Always clear local tokens (even if API call fails)
     await removeAuthToken();
     await Keychain.resetGenericPassword({ service: 'pawnder.refresh' });
     await removeUserId();
-    console.log('✅ Local tokens cleared');
   }
 };
 

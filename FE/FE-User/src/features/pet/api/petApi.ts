@@ -155,7 +155,6 @@ export const uploadPetPhotosMultipart = async (petId: number, photos: any[]) => 
 /**
  * Get pet photos
  * GET /api/petphoto/{petId}
- * 🚀 OPTIMIZED: With caching
  */
 export const getPetPhotos = async (petId: number) => {
   try {
@@ -171,7 +170,6 @@ export const getPetPhotos = async (petId: number) => {
 /**
  * Get all pets for a user
  * GET /api/pet/user/{userId}
- * 🚀 OPTIMIZED: With caching, retry, and deduplication
  */
 export const getPetsByUserId = async (userId: number, useCache: boolean = true): Promise<PetResponse[]> => {
   try {
@@ -189,7 +187,6 @@ export const getPetsByUserId = async (userId: number, useCache: boolean = true):
 /**
  * Get pet by ID
  * GET /api/pet/{petId}
- * 🚀 OPTIMIZED: With caching
  */
 export const getPetById = async (petId: number): Promise<PetResponse> => {
   try {
@@ -233,7 +230,6 @@ export interface PetCharacteristic {
 /**
  * Get pet characteristics
  * GET /api/petcharacteristic/pet-characteristic/{petId}
- * 🚀 OPTIMIZED: With caching
  */
 export const getPetCharacteristics = async (petId: number): Promise<PetCharacteristic[]> => {
   try {
@@ -287,7 +283,6 @@ export interface PetForMatching {
 /**
  * Get pets for matching (exclude current user's pets)
  * GET /api/pet/match/{userId}
- * 🚀 OPTIMIZED: With caching
  */
 export const getPetsForMatching = async (userId: number): Promise<PetForMatching[]> => {
   try {
@@ -352,7 +347,6 @@ export interface RecommendedPetsResponse {
 /**
  * Get recommended pets based on user preferences
  * GET /api/PetRecommendation/{userId}
- * 🚀 OPTIMIZED: With caching
  */
 export const getRecommendedPets = async (userId: number): Promise<RecommendedPetsResponse> => {
   try {
@@ -450,31 +444,34 @@ export interface AnalyzePetImageResponse {
 }
 
 /**
- * Analyze pet image using AI
- * POST /api/PetImageAnalysis/analyze
+ * Analyze multiple pet images using AI
+ * POST /api/PetImageAnalysis/analyze-multiple
+ * Backend sẽ tự tìm ảnh mèo đầu tiên trong danh sách để phân tích
  */
-export const analyzePetImage = async (photo: any): Promise<AnalyzePetImageResponse> => {
+export const analyzePetImages = async (photos: { uri: string; fileName?: string; type?: string }[]): Promise<AnalyzePetImageResponse> => {
   try {
     const formData = new FormData();
-    formData.append('image', {
-      uri: photo.uri,
-      type: photo.type || 'image/jpeg',
-      name: photo.fileName || 'pet_photo.jpg',
-    } as any);
 
-    console.log('🤖 Analyzing pet image with AI...');
+    
+    const photosToSend = photos.slice(0, 3);
 
-    const response = await apiClient.post('/api/PetImageAnalysis/analyze', formData, {
+    photosToSend.forEach((photo) => {
+      formData.append('images', {
+        uri: photo.uri,
+        type: photo.type || 'image/jpeg',
+        name: photo.fileName || `pet_photo_${Date.now()}.jpg`,
+      } as any);
+    });
+
+    const response = await apiClient.post('/api/PetImageAnalysis/analyze-multiple', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       timeout: 30000, // 30 seconds for AI processing
     });
 
-    console.log('✅ AI analysis completed:', response.data);
     return response.data;
   } catch (error: any) {
-
     throw error;
   }
 };

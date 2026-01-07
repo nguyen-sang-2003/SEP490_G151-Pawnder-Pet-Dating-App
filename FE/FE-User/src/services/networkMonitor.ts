@@ -11,12 +11,8 @@ let listeners: ((online: boolean) => void)[] = [];
  * Note: Basic implementation - can be enhanced with @react-native-community/netinfo if needed
  */
 export const initNetworkMonitor = () => {
-  // For now, assume online by default
-  // Can be enhanced later with NetInfo library
-  console.log('📡 Network monitor initialized (basic mode)');
-  
   return () => {
-    // Cleanup function
+    // Cleanup
   };
 };
 

@@ -144,7 +144,6 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     try {
       const usage = await getTokenUsage();
       setTokenUsage(usage);
-      console.log('📊 Initial token usage:', usage);
     } catch (error) {
 
     }
@@ -153,7 +152,6 @@ const AIChatScreen = ({ navigation, route }: Props) => {
   const loadChatHistory = async () => {
     try {
       setLoading(true);
-      console.log('📞 Loading AI chat history:', chatId);
 
       const chatData = await getChatAIHistory(parseInt(chatId));
       setChatTitle(chatData.chatTitle);
@@ -232,22 +230,15 @@ const AIChatScreen = ({ navigation, route }: Props) => {
     setIsTyping(true);
 
     try {
-      console.log('📞 Sending message to AI:', { chatId, messageText });
-
-      // Call API
       const response = await sendMessageToAI(parseInt(chatId), messageText);
 
-      // Update token usage
       if (response.usage) {
         setTokenUsage(response.usage);
-        console.log('📊 Token usage:', response.usage);
-        console.log('📊 Token details:', response.tokenDetails);
 
-        // Check nếu vượt quota sau khi trả lời → hiện modal
         if (response.usage.exceededQuota) {
           setTimeout(() => {
             setShowTokenLimitModal(true);
-          }, 1000); // Delay 1s để user đọc câu trả lời trước
+          }, 1000);
         }
       }
 
@@ -282,7 +273,6 @@ const AIChatScreen = ({ navigation, route }: Props) => {
         // Update token usage from error response
         if (errorData?.usage) {
           setTokenUsage(errorData.usage);
-          console.log('📊 Token usage (from error):', errorData.usage);
         }
 
         setShowTokenLimitModal(true);
@@ -320,7 +310,6 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       const expertsList = await getAvailableExperts();
       setExperts(expertsList);
     } catch (error) {
-      console.log('Error loading experts:', error);
       setErrorMessage('Không thể tải danh sách chuyên gia');
       setShowErrorAlert(true);
     } finally {
@@ -376,16 +365,7 @@ const AIChatScreen = ({ navigation, route }: Props) => {
       const chatAiId = parseInt(currentChatId);
 
       setSubmittingExpert(true);
-      
-      console.log('📤 Requesting expert confirmation:', {
-        userId,
-        chatAiId,
-        expertId: selectedExpert.userId,
-        question: userQuestion.trim(),
-        aiResponse: selectedMessage.text
-      });
 
-      // Create expert confirmation request with selected expert
       await createExpertConfirmation(userId, chatAiId, {
         expertId: selectedExpert.userId,
         userQuestion: userQuestion.trim(),

@@ -26,8 +26,7 @@ interface ReportMessageModalProps {
   userName: string;
 }
 
-// 🚀 OPTIMIZATION: Move REPORT_REASONS outside component to prevent recreation
-// Report reasons based on popular dating apps (Tinder, Bumble, Hinge)
+// Move REPORT_REASONS outside component to prevent recreation
 const REPORT_REASONS = [
   {
     id: "inappropriateContent",
@@ -94,7 +93,6 @@ const REPORT_REASONS = [
   },
 ];
 
-// 🚀 OPTIMIZATION: Memoize ReportMessageModal to prevent unnecessary re-renders
 const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
   visible,
   onClose,
@@ -106,7 +104,6 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
   const [otherReason, setOtherReason] = useState("");
   const [step, setStep] = useState<"select" | "confirm">("select");
 
-  // 🚀 OPTIMIZATION: Memoize callbacks with useCallback
   const handleReasonSelect = useCallback((reasonId: string) => {
     setSelectedReason(reasonId);
   }, []);
@@ -147,7 +144,6 @@ const ReportMessageModal: React.FC<ReportMessageModalProps> = React.memo(({
     onClose();
   }, [onClose]);
 
-  // 🚀 OPTIMIZATION: Memoize selectedReasonData calculation
   const selectedReasonData = useMemo(() => 
     REPORT_REASONS.find((r) => r.id === selectedReason),
     [selectedReason]

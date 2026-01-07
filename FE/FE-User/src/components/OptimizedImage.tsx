@@ -12,15 +12,12 @@ try {
   FastImage = FastImageModule.default || FastImageModule;
   ResizeMode = FastImageModule.ResizeMode;
 } catch (e) {
-  console.warn('⚠️ FastImage not available, using regular Image component');
   FastImage = null;
 }
 
-// DISABLED: Proxy feature - backend doesn't have proxy endpoint
-// Images load directly from Cloudinary
-let cloudinaryBlocked = false; // Keep false - don't use proxy
+// Proxy disabled - load directly from Cloudinary
+let cloudinaryBlocked = false;
 
-// Timeout in milliseconds (not used when proxy is disabled)
 const CLOUDINARY_TIMEOUT = 5000;
 
 // Preload images using FastImage
@@ -30,19 +27,18 @@ export const preloadImages = (urls: string[]) => {
   try {
     const sources = urls
       .filter(url => url && typeof url === 'string')
-      .slice(0, 5) // Only preload first 5 images
+      .slice(0, 5)
       .map(url => ({
-        uri: url, // Load directly from Cloudinary
+        uri: url,
         priority: FastImage.priority?.high,
         cache: FastImage.cacheControl?.immutable,
       }));
     
     if (sources.length > 0) {
-      console.log(`🖼️ Preloading ${sources.length} images...`);
       FastImage.preload(sources);
     }
   } catch (e) {
-    console.warn('Failed to preload images:', e);
+    // Silent fail
   }
 };
 
@@ -56,12 +52,10 @@ interface OptimizedImageProps {
 }
 
 /**
- * Optimized Image Component with Auto-Proxy Detection
- * Features:
- * - Auto-detect if Cloudinary is blocked (with 3s timeout)
- * - Automatically fallback to proxy when blocked
+ * Optimized Image Component
  * - Better caching (memory + disk)
  * - Loading indicator
+ * - Error fallback
  */
 const OptimizedImage: React.FC<OptimizedImageProps> = ({
   source,
@@ -92,7 +86,6 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   // Handle load failure - show error state (proxy disabled)
   const handleLoadFailure = () => {
-    console.log('❌ Image load failed:', originalUri?.substring(0, 50));
     retryCount.current += 1;
     if (retryCount.current >= maxRetries) {
       setLoading(false);
@@ -129,11 +122,9 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       clearTimeout(timeoutRef.current);
     }
 
-    // Set timeout for slow loading images
     timeoutRef.current = setTimeout(() => {
       if (!loadedRef.current) {
-        console.log('⏱️ Image load timeout:', originalUri?.substring(0, 50));
-        // Don't show error yet, let it continue loading
+        // Timeout - let it continue loading
       }
     }, CLOUDINARY_TIMEOUT);
   };

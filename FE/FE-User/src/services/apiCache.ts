@@ -1,6 +1,5 @@
 /**
- * 🚀 API Response Cache Utility
- * Cache API responses to reduce redundant network calls
+ * API Response Cache Utility
  */
 
 interface CacheEntry<T> {
@@ -35,14 +34,11 @@ class ApiCache {
     expiresIn: number = 5 * 60 * 1000, // Default 5 minutes
     tags?: string[]
   ): Promise<T> {
-    // Check if there's a pending request for this key (deduplication)
     const pendingRequest = this.pendingRequests.get(key);
     if (pendingRequest) {
-      console.log('🔄 [ApiCache] Reusing pending request:', key);
       return pendingRequest;
     }
 
-    // Check cache
     const cached = this.cache.get(key);
     if (cached) {
       const now = Date.now();
@@ -50,26 +46,20 @@ class ApiCache {
       
       if (age < cached.expiresIn) {
         this.stats.hits++;
-        console.log('✅ [ApiCache] Cache hit:', key, `(${Math.round(age / 1000)}s old)`);
         return cached.data;
       } else {
-        console.log('⏰ [ApiCache] Cache expired:', key);
         this.cache.delete(key);
       }
     }
 
-    // Fetch new data
     this.stats.misses++;
-    console.log('🌐 [ApiCache] Cache miss, fetching:', key);
     const promise = fetchFn();
     
-    // Store pending request for deduplication
     this.pendingRequests.set(key, promise);
 
     try {
       const data = await promise;
       
-      // Store in cache
       this.cache.set(key, {
         data,
         timestamp: Date.now(),
@@ -77,10 +67,8 @@ class ApiCache {
         tags,
       });
       
-      console.log('💾 [ApiCache] Cached:', key);
       return data;
     } finally {
-      // Remove from pending requests
       this.pendingRequests.delete(key);
     }
   }
@@ -90,7 +78,6 @@ class ApiCache {
    */
   invalidate(key: string): void {
     this.cache.delete(key);
-    console.log('🗑️ [ApiCache] Invalidated:', key);
   }
 
   /**
@@ -106,7 +93,6 @@ class ApiCache {
     });
     
     keysToDelete.forEach(key => this.cache.delete(key));
-    console.log('🗑️ [ApiCache] Invalidated pattern:', pattern, `(${keysToDelete.length} keys)`);
   }
 
   /**
@@ -115,7 +101,6 @@ class ApiCache {
   clear(): void {
     this.cache.clear();
     this.pendingRequests.clear();
-    console.log('🗑️ [ApiCache] Cleared all cache');
   }
 
   /**
@@ -131,7 +116,6 @@ class ApiCache {
     });
     
     keysToDelete.forEach(key => this.cache.delete(key));
-    console.log('🗑️ [ApiCache] Invalidated tags:', tags, `(${keysToDelete.length} keys)`);
   }
 
   /**
@@ -156,7 +140,6 @@ class ApiCache {
   resetStats(): void {
     this.stats.hits = 0;
     this.stats.misses = 0;
-    console.log('📊 [ApiCache] Stats reset');
   }
 }
 

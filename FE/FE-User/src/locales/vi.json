@@ -204,12 +204,17 @@
         "petUpdated": "Đã cập nhật hồ sơ {{name}}. Tiếp tục thêm ảnh!",
         "createFailed": "Không thể tạo hồ sơ thú cưng. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
-        "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục."
+        "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục.",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại",
+        "deleteError": "Không thể xóa hồ sơ. Vui lòng thử lại."
       },
       "photos": {
         "title": "Thêm ảnh",
         "editTitle": "Ảnh thú cưng",
-        "subtitle": "Thêm ít nhất 3 ảnh để giới thiệu thú cưng của bạn",
+        "subtitle": "Thêm ít nhất 1 ảnh để giới thiệu thú cưng của bạn",
         "step": "Bước 2 / 3",
         "addPhoto": "Thêm ảnh",
         "photoLimit": "Giới hạn ảnh",
@@ -225,7 +230,7 @@
         "noNewPhotosMessage": "Bạn chưa thêm ảnh mới. Tiếp tục để chỉnh sửa đặc điểm.",
         "photoBreakdown": "{{db}} ảnh đã lưu • {{new}} ảnh mới",
         "needMorePhotos": "Cần thêm ảnh",
-        "minPhotosMessage": "Vui lòng thêm ít nhất 3 ảnh (Hiện tại: {{current}}/3)",
+        "minPhotosMessage": "Vui lòng thêm ít nhất 1 ảnh (Hiện tại: {{current}}/3)",
         "photoCount": "{{count}}/{{max}} ảnh",
         "photoCountReady": "{{count}}/{{max}} ảnh (Sẵn sàng!)",
         "photoCountNeed": "{{count}}/{{max}} ảnh (Cần {{need}} ảnh nữa)",
@@ -238,19 +243,28 @@
         "aiAnalysisFailedMessage": "Phân tích AI không khả dụng. Bạn có thể thêm đặc điểm thủ công.",
         "aiNotAvailable": "Tính năng phân tích AI hiện không khả dụng từ khu vực này. Bạn có thể tiếp tục và thêm đặc điểm thủ công.",
         "aiApiKeyError": "Lỗi cấu hình AI. Vui lòng thử lại sau.",
+        "networkUnstable": "Có vẻ như đường truyền của bạn không được tốt. Vui lòng thử lại sau.",
+        "usePreviousResults": "Dùng kết quả cũ",
+        "stayAndFix": "Ở lại sửa ảnh",
+        "usePreviousResultsMessage": "Phân tích ảnh mới không thành công. Bạn có muốn dùng kết quả AI từ lần trước để tiếp tục?",
         "aiQuotaExceeded": "Đã vượt quá giới hạn phân tích AI. Vui lòng thử lại sau.",
+        "notACatTitle": "Không phải ảnh mèo",
         "notCatPhoto": "Ảnh không hợp lệ",
         "uploadFailed": "Không thể tải ảnh lên. Vui lòng thử lại.",
         "tips": {
-          "title": "Mẹo chụp ảnh",
-          "clearPhoto": "Sử dụng ảnh rõ ràng, ánh sáng tốt",
-          "showPersonality": "Thể hiện tính cách thú cưng của bạn",
-          "includeVariety": "Bao gồm ảnh toàn thân và cận cảnh"
+          "title": "Lưu ý",
+          "clearPhoto": "Hệ thống chỉ phân tích ảnh mèo đầu tiên trong danh sách",
+          "showPersonality": "Đặt ảnh rõ mặt mèo ở vị trí đầu tiên để kết quả chính xác nhất",
+          "includeVariety": "Sử dụng ảnh rõ ràng, ánh sáng tốt"
         },
         "completeProfile": "Hoàn thành hồ sơ",
         "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
         "editBasicInfo": "Sửa thông tin cơ bản",
-        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?"
+        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại"
       },
       "characteristics": {
         "title": "Đặc điểm thú cưng",
@@ -279,7 +293,20 @@
         "saveFailed": "Không thể lưu thuộc tính. Vui lòng thử lại.",
         "updateFailed": "Không thể cập nhật thuộc tính. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
-        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục."
+        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại",
+        "deleteError": "Không thể xóa hồ sơ. Vui lòng thử lại."
+      },
+      "exit": {
+        "titleRegistration": "Thoát tạo thú cưng?",
+        "messageRegistration": "Bạn cần tạo thú cưng để sử dụng app. Nếu thoát, lần đăng nhập sau bạn sẽ phải tạo lại.",
+        "titleFromProfile": "Hủy tạo thú cưng?",
+        "messageFromProfile": "Bạn chưa hoàn thành thông tin thú cưng. Bạn có chắc muốn thoát không?",
+        "exitButton": "Thoát",
+        "stayButton": "Ở lại"
       }
     },
     "onboarding": {
@@ -839,6 +866,13 @@
         "title": "Chưa tìm thấy giao dịch",
         "message": "Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền và nội dung, sau đó thử lại.",
         "tryAgain": "Thử lại"
+      },
+      "timeRemaining": "Còn lại",
+      "autoChecking": "Đang tự động kiểm tra thanh toán...",
+      "expired": {
+        "title": "Mã QR đã hết hạn",
+        "message": "Mã QR thanh toán đã hết hạn sau 10 phút. Vui lòng tạo mã mới để tiếp tục thanh toán.",
+        "button": "Quay lại"
       }
     },
     "vip": {
