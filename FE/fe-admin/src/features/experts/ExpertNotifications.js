@@ -504,6 +504,17 @@ const ExpertNotifications = () => {
     });
   };
 
+  const formatDateOnly = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
+
   const getStatusBadge = (status) => {
     const normalized = (status || 'pending').toLowerCase();
     const map = {
@@ -720,7 +731,7 @@ const ExpertNotifications = () => {
               <th>#</th>
               <th>Người dùng</th>
               <th>Câu hỏi người dùng</th>
-              <th>Nội dung</th>
+              {filterStatus !== 'pending' && <th>Nội dung</th>}
               <th>Ngày tạo</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
@@ -729,7 +740,7 @@ const ExpertNotifications = () => {
           <tbody>
             {currentNotifications.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan={filterStatus === 'pending' ? 6 : 7} style={{ textAlign: 'center', padding: '2rem' }}>
                   {filterStatus === 'pending'
                     ? 'Không có thông báo nào chờ xử lý'
                     : 'Không có thông báo nào đã xử lý'}
@@ -748,12 +759,12 @@ const ExpertNotifications = () => {
                   <td className="content-cell">
                     {notification.UserQuestion || notification.aiQuestion || notification.requestMessage || 'Không có'}
                   </td>
-                  <td className="content-cell">
-                    {notification.status === 'pending' 
-                      ? '-' 
-                      : (notification.expertNote || notification.content || 'Không có')}
-                  </td>
-                  <td>{formatDate(notification.createdAt)}</td>
+                  {filterStatus !== 'pending' && (
+                    <td className="content-cell">
+                      {notification.expertNote || notification.content || 'Không có'}
+                    </td>
+                  )}
+                  <td>{formatDateOnly(notification.createdAt)}</td>
                   <td>{getStatusBadge(notification.status)}</td>
                   <td>
                     {notification.status === 'pending' ? (

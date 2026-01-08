@@ -19,6 +19,8 @@ public partial class PawnderDatabaseContext : DbContext
 
     public virtual DbSet<Attribute> Attributes { get; set; }
 
+    public virtual DbSet<BadWord> BadWords { get; set; }
+
     public virtual DbSet<AttributeOption> AttributeOptions { get; set; }
 
     public virtual DbSet<Block> Blocks { get; set; }
@@ -60,6 +62,21 @@ public partial class PawnderDatabaseContext : DbContext
     public virtual DbSet<UserPreference> UserPreferences { get; set; }
 
     public virtual DbSet<UserStatus> UserStatuses { get; set; }
+
+    public virtual DbSet<PetAppointment> PetAppointments { get; set; }
+
+    public virtual DbSet<PetAppointmentLocation> PetAppointmentLocations { get; set; }
+
+    public virtual DbSet<PetEvent> PetEvents { get; set; }
+
+    public virtual DbSet<EventSubmission> EventSubmissions { get; set; }
+
+    public virtual DbSet<EventVote> EventVotes { get; set; }
+    public virtual DbSet<Policy> Policies { get; set; }
+
+    public virtual DbSet<PolicyVersion> PolicyVersions { get; set; }
+
+    public virtual DbSet<UserPolicyAccept> UserPolicyAccepts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -620,6 +637,338 @@ public partial class PawnderDatabaseContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UserStatusName).HasMaxLength(50);
+        });
+
+        // PetAppointmentLocation configuration
+        modelBuilder.Entity<PetAppointmentLocation>(entity =>
+        {
+            entity.HasKey(e => e.LocationId).HasName("PetAppointmentLocation_pkey");
+
+            entity.ToTable("PetAppointmentLocation");
+
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Latitude).HasPrecision(9, 6);
+            entity.Property(e => e.Longitude).HasPrecision(9, 6);
+            entity.Property(e => e.City).HasMaxLength(100);
+            entity.Property(e => e.District).HasMaxLength(100);
+            entity.Property(e => e.IsPetFriendly).HasDefaultValue(true);
+            entity.Property(e => e.PlaceType).HasMaxLength(50);
+            entity.Property(e => e.GooglePlaceId).HasMaxLength(255);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+        });
+
+        // BadWord configuration
+        modelBuilder.Entity<BadWord>(entity =>
+        {
+            entity.HasKey(e => e.BadWordId).HasName("BadWord_pkey");
+
+            entity.ToTable("BadWord");
+
+            entity.Property(e => e.Word).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.IsRegex).HasDefaultValue(false);
+            entity.Property(e => e.Level).IsRequired();
+            entity.Property(e => e.Category).HasMaxLength(50);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Index for performance
+            entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_BadWord_IsActive");
+            entity.HasIndex(e => e.Level).HasDatabaseName("IX_BadWord_Level");
+        });
+
+        // ====== Policy System ======
+        modelBuilder.Entity<Policy>(entity =>
+        {
+            entity.HasKey(e => e.PolicyId).HasName("Policy_pkey");
+
+            entity.ToTable("Policy");
+
+            entity.HasIndex(e => e.PolicyCode, "Policy_PolicyCode_key").IsUnique();
+
+            entity.Property(e => e.PolicyCode)
+                .HasMaxLength(50)
+                .IsRequired();
+            entity.Property(e => e.PolicyName)
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(e => e.Description)
+                .HasColumnType("text");
+            entity.Property(e => e.DisplayOrder)
+                .HasDefaultValue(0);
+            entity.Property(e => e.RequireConsent)
+                .HasDefaultValue(true);
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true);
+            entity.Property(e => e.IsDeleted)
+                .HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+        });
+
+        // PetAppointment configuration
+        modelBuilder.Entity<PetAppointment>(entity =>
+        {
+            entity.HasKey(e => e.AppointmentId).HasName("PetAppointment_pkey");
+
+            entity.ToTable("PetAppointment");
+
+            entity.Property(e => e.AppointmentDateTime)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ActivityType).HasMaxLength(50);
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .HasDefaultValue("pending");
+            entity.Property(e => e.CounterOfferCount).HasDefaultValue(0);
+            entity.Property(e => e.InviterCheckedIn).HasDefaultValue(false);
+            entity.Property(e => e.InviteeCheckedIn).HasDefaultValue(false);
+            entity.Property(e => e.InviterCheckInTime)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.InviteeCheckInTime)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Indexes
+            entity.HasIndex(e => e.MatchId).HasDatabaseName("IX_PetAppointment_MatchId");
+            entity.HasIndex(e => e.Status).HasDatabaseName("IX_PetAppointment_Status");
+            entity.HasIndex(e => e.AppointmentDateTime).HasDatabaseName("IX_PetAppointment_DateTime");
+
+            // Relationships
+            entity.HasOne(d => d.Match).WithMany(p => p.PetAppointments)
+                .HasForeignKey(d => d.MatchId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_MatchId_fkey");
+
+            entity.HasOne(d => d.InviterPet).WithMany(p => p.PetAppointmentsAsInviter)
+                .HasForeignKey(d => d.InviterPetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviterPetId_fkey");
+
+            entity.HasOne(d => d.InviteePet).WithMany(p => p.PetAppointmentsAsInvitee)
+                .HasForeignKey(d => d.InviteePetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviteePetId_fkey");
+
+            entity.HasOne(d => d.InviterUser).WithMany(p => p.PetAppointmentsAsInviter)
+                .HasForeignKey(d => d.InviterUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviterUserId_fkey");
+
+            entity.HasOne(d => d.InviteeUser).WithMany(p => p.PetAppointmentsAsInvitee)
+                .HasForeignKey(d => d.InviteeUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetAppointment_InviteeUserId_fkey");
+
+            entity.HasOne(d => d.CurrentDecisionUser).WithMany(p => p.PetAppointmentsAsDecider)
+                .HasForeignKey(d => d.CurrentDecisionUserId)
+                .HasConstraintName("PetAppointment_CurrentDecisionUserId_fkey");
+
+            entity.HasOne(d => d.CancelledByUser).WithMany(p => p.PetAppointmentsCancelled)
+                .HasForeignKey(d => d.CancelledBy)
+                .HasConstraintName("PetAppointment_CancelledBy_fkey");
+
+            entity.HasOne(d => d.Location).WithMany(p => p.PetAppointments)
+                .HasForeignKey(d => d.LocationId)
+                .HasConstraintName("PetAppointment_LocationId_fkey");
+        });
+
+        // PetEvent configuration
+        modelBuilder.Entity<PetEvent>(entity =>
+        {
+            entity.HasKey(e => e.EventId).HasName("PetEvent_pkey");
+
+            entity.ToTable("PetEvent");
+
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.CoverImageUrl).HasMaxLength(500);
+            entity.Property(e => e.StartTime).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.SubmissionDeadline).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.EndTime).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Status)
+                .HasMaxLength(30)
+                .HasDefaultValue("upcoming");
+            entity.Property(e => e.PrizePoints).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Indexes
+            entity.HasIndex(e => e.Status).HasDatabaseName("idx_event_status");
+            entity.HasIndex(e => e.EndTime).HasDatabaseName("idx_event_endtime");
+
+            // Relationships
+            entity.HasOne(d => d.CreatedByUser).WithMany(p => p.CreatedEvents)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("PetEvent_CreatedBy_fkey");
+        });
+
+        // EventSubmission configuration
+        modelBuilder.Entity<EventSubmission>(entity =>
+        {
+            entity.HasKey(e => e.SubmissionId).HasName("EventSubmission_pkey");
+
+            entity.ToTable("EventSubmission");
+
+            entity.Property(e => e.MediaUrl).HasMaxLength(500);
+            entity.Property(e => e.MediaType).HasMaxLength(20);
+            entity.Property(e => e.ThumbnailUrl).HasMaxLength(500);
+            entity.Property(e => e.Caption).HasMaxLength(500);
+            entity.Property(e => e.VoteCount).HasDefaultValue(0);
+            entity.Property(e => e.IsWinner).HasDefaultValue(false);
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Unique constraint: mỗi user chỉ 1 bài/event
+            entity.HasIndex(e => new { e.EventId, e.UserId })
+                .IsUnique()
+                .HasDatabaseName("EventSubmission_EventId_UserId_key");
+
+            // Indexes
+            entity.HasIndex(e => e.EventId).HasDatabaseName("idx_submission_event");
+            entity.HasIndex(e => new { e.EventId, e.VoteCount })
+                .HasDatabaseName("idx_submission_votes");
+
+            // Relationships
+            entity.HasOne(d => d.Event).WithMany(p => p.Submissions)
+                .HasForeignKey(d => d.EventId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventSubmission_EventId_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.EventSubmissions)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventSubmission_UserId_fkey");
+
+            entity.HasOne(d => d.Pet).WithMany(p => p.EventSubmissions)
+                .HasForeignKey(d => d.PetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventSubmission_PetId_fkey");
+        });
+
+        // EventVote configuration
+        modelBuilder.Entity<EventVote>(entity =>
+        {
+            entity.HasKey(e => e.VoteId).HasName("EventVote_pkey");
+
+            entity.ToTable("EventVote");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            // Unique constraint: mỗi user chỉ vote 1 lần/bài
+            entity.HasIndex(e => new { e.SubmissionId, e.UserId })
+                .IsUnique()
+                .HasDatabaseName("EventVote_SubmissionId_UserId_key");
+
+            // Relationships
+            entity.HasOne(d => d.Submission).WithMany(p => p.Votes)
+                .HasForeignKey(d => d.SubmissionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("EventVote_SubmissionId_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.EventVotes)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("EventVote_UserId_fkey");
+        });
+
+        // PolicyVersion configuration
+        modelBuilder.Entity<PolicyVersion>(entity =>
+        {
+            entity.HasKey(e => e.PolicyVersionId).HasName("PolicyVersion_pkey");
+
+            entity.ToTable("PolicyVersion");
+
+            // Unique constraint: Mỗi Policy chỉ có 1 version number duy nhất
+            entity.HasIndex(e => new { e.PolicyId, e.VersionNumber }, "PolicyVersion_PolicyId_VersionNumber_key").IsUnique();
+
+            entity.Property(e => e.VersionNumber).IsRequired();
+            entity.Property(e => e.Title).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.Content).HasColumnType("text").IsRequired();
+            entity.Property(e => e.ChangeLog).HasColumnType("text");
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("DRAFT");
+            entity.Property(e => e.PublishedAt).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.DeactivatedAt).HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.Policy)
+                .WithMany(p => p.PolicyVersions)
+                .HasForeignKey(d => d.PolicyId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("PolicyVersion_PolicyId_fkey");
+
+            entity.HasOne(d => d.CreatedByUser)
+                .WithMany(p => p.CreatedPolicyVersions)
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("PolicyVersion_CreatedByUserId_fkey");
+
+            // Index for quick lookup of active versions
+            entity.HasIndex(e => new { e.PolicyId, e.Status })
+                .HasDatabaseName("IX_PolicyVersion_PolicyId_Status");
+        });
+
+        modelBuilder.Entity<UserPolicyAccept>(entity =>
+        {
+            entity.HasKey(e => e.AcceptId).HasName("UserPolicyAccept_pkey");
+
+            entity.ToTable("UserPolicyAccept");
+
+            // Index for checking if user has accepted a specific version
+            entity.HasIndex(e => new { e.UserId, e.PolicyVersionId, e.IsValid }, "IX_UserPolicyAccept_UserId_PolicyVersionId_IsValid");
+
+            entity.Property(e => e.AcceptedAt)
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+            entity.Property(e => e.IsValid)
+                .HasDefaultValue(true);
+            entity.Property(e => e.InvalidatedAt)
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.UserPolicyAccepts)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("UserPolicyAccept_UserId_fkey");
+
+            entity.HasOne(d => d.PolicyVersion)
+                .WithMany(p => p.UserPolicyAccepts)
+                .HasForeignKey(d => d.PolicyVersionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("UserPolicyAccept_PolicyVersionId_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

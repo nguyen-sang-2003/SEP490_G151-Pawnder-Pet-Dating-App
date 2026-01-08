@@ -46,9 +46,13 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Register OData + Controllers
+// Register OData + Controllers with Global Policy Accept Filter
 builder.Services
-    .AddControllers()
+    .AddControllers(options =>
+    {
+        // Thêm Global Policy Accept Filter để kiểm tra accept cho mọi request
+        options.Filters.Add<BE.Filters.GlobalPolicyAcceptFilter>();
+    })
     .AddOData(opt => opt.Select().Expand().Filter().OrderBy().Count().SetMaxTop(100));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -62,14 +66,15 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API for Pawnder Pet Dating App"
     });
 
-    // Add JWT Authorization
+    // Add JWT Authorization - Fixed configuration
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.\n\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"",
+        Description = "JWT Authorization header. Enter your token (without 'Bearer' prefix).\n\nExample: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -199,6 +204,12 @@ builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserRepository, BE.Re
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatUserContentRepository, BE.Repositories.ChatUserContentRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertRepository, BE.Repositories.ChatExpertRepository>();
 builder.Services.AddScoped<BE.Repositories.Interfaces.IChatExpertContentRepository, BE.Repositories.ChatExpertContentRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentRepository, BE.Repositories.AppointmentRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IAppointmentLocationRepository, BE.Repositories.AppointmentLocationRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IEventRepository, BE.Repositories.EventRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.ISubmissionRepository, BE.Repositories.SubmissionRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IBadWordRepository, BE.Repositories.BadWordRepository>();
+builder.Services.AddScoped<BE.Repositories.Interfaces.IPolicyRepository, BE.Repositories.PolicyRepository>();
 
 // ============================================
 // Register Services (Service Layer)
@@ -228,9 +239,18 @@ builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertService, BE.Service
 builder.Services.AddScoped<BE.Services.Interfaces.IChatExpertContentService, BE.Services.ChatExpertContentService>();
 builder.Services.AddScoped<BE.Services.Interfaces.IMatchService, BE.Services.MatchService>();
 builder.Services.AddScoped<BE.Services.IPetImageAnalysisService, BE.Services.PetImageAnalysisService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IAppointmentService, BE.Services.AppointmentService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IEventService, BE.Services.EventService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IBadWordService, BE.Services.BadWordService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IBadWordManagementService, BE.Services.BadWordManagementService>();
+builder.Services.AddScoped<BE.Services.Interfaces.IPolicyService, BE.Services.PolicyService>();
 
-// Register Background Service để tự động update expired payments
+// Register Global Policy Accept Filter
+builder.Services.AddScoped<BE.Filters.GlobalPolicyAcceptFilter>();
+
+// Register Background Services
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
+builder.Services.AddHostedService<BE.Services.EventCompletionBackgroundService>();
 
 var app = builder.Build();
 
@@ -306,3 +326,7 @@ public interface IPhotoStorage
     Task<(string Url, string PublicId)> UploadAsync(int petId, IFormFile file, CancellationToken ct = default);
     Task DeleteAsync(string publicId, CancellationToken ct = default);
 }
+
+// This is needed for WebApplicationFactory in integration tests
+public partial class Program { }
+

@@ -57,7 +57,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [showAllCharacteristics, setShowAllCharacteristics] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  // 🚀 OPTIMIZED: Fetch user and pets data with progressive loading
   const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true);
@@ -70,52 +69,50 @@ const UserProfileScreen = ({ navigation }: Props) => {
       }
 
       const userId = parseInt(userIdStr, 10);
-      console.log('📱 Loading profile for userId:', userId);
 
-      // 🚀 OPTIMIZATION 1: Parallel loading - Load user and pets simultaneously
       const [user, petsData] = await Promise.all([
         getUserById(userId),
         getPetsByUserId(userId)
       ]);
 
       setUserData(user);
-      setPets(petsData);
-      console.log('👤 User data loaded:', user);
-      console.log('🐾 Pets data loaded:', petsData);
 
-      // Find active pet (IsActive = true)
+      // Find active pet from server data
       const active = petsData.find(p => p.IsActive === true || p.isActive === true);
-      setActivePet(active || petsData[0] || null);
-      console.log('✅ Active pet:', active);
+      
+      // If no pet is marked as active but there are pets, mark the first one as active locally
+      if (!active && petsData.length > 0) {
+        petsData[0] = {
+          ...petsData[0],
+          IsActive: true,
+          isActive: true,
+        };
+        setActivePet(petsData[0]);
+      } else {
+        setActivePet(active || null);
+      }
+      
+      setPets(petsData);
 
-      // 🚀 OPTIMIZATION 2: Load VIP status and address in background (non-blocking)
-      // VIP status
       getVipStatus(userId)
         .then(vipStatus => {
           setIsVip(vipStatus.isVip);
-          console.log('💎 VIP status:', vipStatus.isVip);
         })
         .catch(() => {
-          console.log('⚠️ Failed to get VIP status, assuming not VIP');
           setIsVip(false);
         });
 
-      // Address data
       const addressId = user.AddressId || user.addressId;
-      console.log('🔍 User addressId:', addressId);
 
       if (addressId) {
         getAddressById(addressId)
           .then(address => {
-            console.log('📍 Address data loaded:', address);
             setAddressData(address);
           })
           .catch((error: any) => {
-
             setAddressData(null);
           });
       } else {
-        console.log('⚠️ User has no addressId');
         setAddressData(null);
       }
 
@@ -151,7 +148,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
         const petId = activePet.PetId || activePet.petId;
         if (!petId) return;
 
-        // 🚀 OPTIMIZATION 3: Parallel loading - Load characteristics and photos simultaneously
         const [chars, photos] = await Promise.all([
           getPetCharacteristics(petId),
           getPetPhotos(petId)
@@ -176,9 +172,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
         });
 
         setPetPhotos(sortedPhotos || []);
-        console.log('📸 Pet photos loaded:', sortedPhotos.length, 'photos');
       } catch (error: any) {
-        console.log('⚠️ No characteristics found for pet');
         setCharacteristics([]);
         setPetPhotos([]);
       }
@@ -336,14 +330,22 @@ const UserProfileScreen = ({ navigation }: Props) => {
         try {
           await deletePet(petId);
 
-          // ✅ Remove pet from state immediately (optimistic update)
           setPets(prevPets => {
             const updatedPets = prevPets.filter(p => (p.PetId || p.petId) !== petId);
             
             // If deleted pet was active, set first remaining pet as active
             if (pet.IsActive === true || pet.isActive === true) {
-              const newActivePet = updatedPets[0] || null;
-              setActivePet(newActivePet);
+              if (updatedPets.length > 0) {
+                // Update IsActive flag for the new active pet
+                updatedPets[0] = {
+                  ...updatedPets[0],
+                  IsActive: true,
+                  isActive: true,
+                };
+                setActivePet(updatedPets[0]);
+              } else {
+                setActivePet(null);
+              }
             }
             
             return updatedPets;
@@ -407,8 +409,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
 
-            // ✅ CLEAR ALL CACHE khi đổi pet
-            console.log('🗑️ Clearing all cache after switching pet...');
             invalidateCache.all();
 
             const petsData = await getPetsByUserId(userId);
@@ -419,7 +419,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
             setActivePet(newActivePet || null);
 
             // Refresh badges for the new active pet
-            console.log('🔄 Refreshing badges after setting active pet...');
             await refreshBadgesForActivePet(userId);
           }
 

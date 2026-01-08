@@ -100,7 +100,7 @@ const PremiumScreen = ({ navigation }: Props) => {
         setVipStatus(status);
       }
     } catch (error) {
-      console.log('Error loading VIP status:', error);
+      // Silent fail
     } finally {
       setLoadingVip(false);
     }
@@ -110,9 +110,7 @@ const PremiumScreen = ({ navigation }: Props) => {
     const plan = pricingPlans.find((p) => p.id === selectedPlan);
     if (!plan) return;
     
-    console.log("Subscribe to:", plan);
-    
-    // Parse amount from price string (e.g., "125,000₫" -> 125000)
+    // Parse amount from price string
     const amount = parseInt(plan.price.replace(/[,₫]/g, ""));
     
     // Navigate to QR payment screen with plan details
@@ -126,44 +124,44 @@ const PremiumScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={["#1a1a2e", "#16213e", "#0f3460"]}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="close" size={28} color="#fff" />
-        </TouchableOpacity>
-
-        <View style={styles.headerContent}>
-          <LinearGradient
-            colors={["#FFD700", "#FFA500", "#FF8C00"]}
-            style={styles.crownIconGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Icon name="diamond" size={48} color="#fff" />
-          </LinearGradient>
-          <Text style={styles.headerTitle}>{t("payment.premium.title")}</Text>
-          <Text style={styles.headerSubtitle}>
-            {t("payment.premium.subtitle")}
-          </Text>
-          <View style={styles.priceTag}>
-            <Text style={styles.priceAmount}>{t("payment.premium.price")}</Text>
-            <Text style={styles.priceMonth}>{t("payment.premium.pricePerMonth")}</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        bounces={true}
       >
+        {/* Header */}
+        <LinearGradient
+          colors={["#1a1a2e", "#16213e", "#0f3460"]}
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+
+          <View style={styles.headerContent}>
+            <LinearGradient
+              colors={["#FFD700", "#FFA500", "#FF8C00"]}
+              style={styles.crownIconGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Icon name="diamond" size={48} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.headerTitle}>{t("payment.premium.title")}</Text>
+            <Text style={styles.headerSubtitle}>
+              {t("payment.premium.subtitle")}
+            </Text>
+            <View style={styles.priceTag}>
+              <Text style={styles.priceAmount}>{t("payment.premium.price")}</Text>
+              <Text style={styles.priceMonth}>{t("payment.premium.pricePerMonth")}</Text>
+            </View>
+          </View>
+        </LinearGradient>
         {/* Premium Benefits */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t("payment.premium.sectionFeatures")}</Text>

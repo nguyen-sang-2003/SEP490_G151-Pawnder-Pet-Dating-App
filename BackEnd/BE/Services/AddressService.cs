@@ -163,7 +163,16 @@ namespace BE.Services
             if (!string.IsNullOrEmpty(dto.Ward))
                 address.Ward = dto.Ward;
 
-            address.FullAddress = $"{dto.Ward}, {dto.District}, {dto.City}".Trim(' ', ',');
+            // Build FullAddress from address entity values (after updates), not from DTO
+            var addressParts = new List<string>();
+            if (!string.IsNullOrEmpty(address.Ward))
+                addressParts.Add(address.Ward);
+            if (!string.IsNullOrEmpty(address.District))
+                addressParts.Add(address.District);
+            if (!string.IsNullOrEmpty(address.City))
+                addressParts.Add(address.City);
+            
+            address.FullAddress = string.Join(", ", addressParts);
             address.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 
             await _addressRepository.UpdateAsync(address, ct);

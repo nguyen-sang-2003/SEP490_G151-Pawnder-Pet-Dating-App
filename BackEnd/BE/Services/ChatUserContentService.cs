@@ -12,17 +12,20 @@ namespace BE.Services
         private readonly IChatUserRepository _chatUserRepository;
         private readonly PawnderDatabaseContext _context;
         private readonly IHubContext<ChatHub> _hubContext;
+        private readonly IBadWordService _badWordService;
 
         public ChatUserContentService(
             IChatUserContentRepository contentRepository,
             IChatUserRepository chatUserRepository,
             PawnderDatabaseContext context,
-            IHubContext<ChatHub> hubContext)
+            IHubContext<ChatHub> hubContext,
+            IBadWordService badWordService)
         {
             _contentRepository = contentRepository;
             _chatUserRepository = chatUserRepository;
             _context = context;
             _hubContext = hubContext;
+            _badWordService = badWordService;
         }
 
         public async Task<IEnumerable<object>> GetChatMessagesAsync(int matchId, CancellationToken ct = default)
@@ -42,6 +45,17 @@ namespace BE.Services
         {
             if (string.IsNullOrWhiteSpace(message))
                 throw new ArgumentException("Tin nhắn không được để trống.");
+
+            // Business logic: Kiểm tra từ cấm
+            var (isBlocked, filteredMessage, violationLevel) = await _badWordService.CheckAndFilterMessageAsync(message, ct);
+            
+            if (isBlocked)
+            {
+                throw new InvalidOperationException("Tin nhắn của bạn chứa nội dung không phù hợp và không thể gửi.");
+            }
+
+            // Sử dụng filteredMessage (đã che từ Level 1)
+            message = filteredMessage;
 
             // Business logic: Validate match exists and is accepted
             var match = await _context.ChatUsers
