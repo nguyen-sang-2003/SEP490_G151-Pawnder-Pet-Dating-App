@@ -13,6 +13,7 @@ import MatchModal from "./src/features/match/components/MatchModal";
 import { selectMatchModal, hideMatchModal } from "./src/features/badge/badgeSlice";
 import { AppDispatch } from "./src/app/store";
 import { navigate, navigationRef } from "./src/services/navigation.service";
+import PolicyModalProvider from "./src/components/PolicyModalProvider";
 
 /**
  * App Wrapper with Badge Notifications and Match Modal
@@ -162,7 +163,9 @@ function AppWithBadges(): React.JSX.Element {
 
   return (
     <>
-      <AppNavigator />
+      <PolicyModalProvider>
+        <AppNavigator />
+      </PolicyModalProvider>
       <MatchModal
         visible={matchModal.visible}
         otherUserName={matchModal.otherUserName}

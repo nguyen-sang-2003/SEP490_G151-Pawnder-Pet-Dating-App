@@ -108,21 +108,29 @@ export const getChatMessages = async (matchId: number): Promise<ChatMessage[]> =
   }
 };
 
+export interface SendMessageResponse {
+  message: string;
+  contentId: number;
+  createdAt: string;
+  filteredMessage?: string; // Message after bad word filter (if different from original)
+}
+
 /**
  * Send a message
  * POST /api/ChatUserContent/chat-user-content/{matchId}/{fromUserId}
  * 
  * Note: Backend expects raw string in body, not JSON object
+ * Returns the saved message (may be filtered if contains bad words level 1)
  */
 export const sendMessage = async (
   matchId: number,
   fromUserId: number,
   message: string
-): Promise<void> => {
+): Promise<SendMessageResponse> => {
   try {
 
     // Backend expects raw string, not JSON
-    const response = await apiClient.post(
+    const response = await apiClient.post<SendMessageResponse>(
       `/api/ChatUserContent/chat-user-content/${matchId}/${fromUserId}`,
       `"${message}"`, // Send as raw string with quotes
       {
@@ -132,6 +140,7 @@ export const sendMessage = async (
       }
     );
 
+    return response.data;
 
   } catch (error: any) {
 
