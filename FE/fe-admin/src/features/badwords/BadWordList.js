@@ -447,9 +447,6 @@ const BadWordList = () => {
                   placeholder="Nhập từ cấm..."
                   autoFocus
                 />
-                {form.isRegex && (
-                  <div className="hint">💡 Đang ở chế độ Regex. Ví dụ: \\b(từ1|từ2)\\b</div>
-                )}
               </div>
 
               <div className="form-row">
@@ -477,17 +474,6 @@ const BadWordList = () => {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.isRegex}
-                    onChange={(e) => setForm({ ...form, isRegex: e.target.checked })}
-                  />
-                  Sử dụng Regex (biểu thức chính quy)
-                </label>
               </div>
 
               <div className="form-group">

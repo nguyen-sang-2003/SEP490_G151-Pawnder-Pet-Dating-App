@@ -25,6 +25,7 @@ import { getItem } from "../../../services/storage";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
 import { getPendingPolicies } from "../../policy/api/policyApi";
+import { enablePolicyCheck } from "../../../services/policyEventEmitter";
 
 const { width } = Dimensions.get("window");
 
@@ -126,6 +127,9 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
   };
 
   const handleSkip = () => {
+    // Re-enable policy checks after registration flow
+    enablePolicyCheck();
+    
     // Bỏ qua trực tiếp đến Home mà không lưu sở thích
     navigation.replace("Home");
   };
@@ -172,6 +176,10 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
       if (preferences.length > 0) {
         await saveUserPreferencesBatch(userId, preferences);
       }
+
+      // Re-enable policy checks after registration flow is complete
+      // This ensures policy modal only shows AFTER user has created pet and set preferences
+      enablePolicyCheck();
 
       // Check for pending policies after registration completion
       try {

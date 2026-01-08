@@ -370,19 +370,6 @@ const BadWordManagement = () => {
               </div>
 
               <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.isRegex}
-                    onChange={(e) =>
-                      setForm({ ...form, isRegex: e.target.checked })
-                    }
-                  />
-                  Sử dụng Regex
-                </label>
-              </div>
-
-              <div className="form-group">
                 <label>Mức độ</label>
                 <select
                   value={form.level}

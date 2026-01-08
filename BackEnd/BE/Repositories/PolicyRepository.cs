@@ -224,18 +224,25 @@ public class PolicyRepository : IPolicyRepository
 
     public async Task<int> CountAcceptedUsersAsync(int policyVersionId, CancellationToken ct = default)
     {
+        // Chỉ đếm user có RoleId = 3 (User - người dùng thường) đã accept policy
         return await _context.UserPolicyAccepts
             .Where(a => a.PolicyVersionId == policyVersionId && a.IsValid)
-            .Select(a => a.UserId)
+            .Join(_context.Users, 
+                accept => accept.UserId,
+                user => user.UserId,
+                (accept, user) => user)
+            .Where(u => u.RoleId == 3 && u.IsDeleted != true)
+            .Select(u => u.UserId)
             .Distinct()
             .CountAsync(ct);
     }
 
     public async Task<int> CountActiveUsersAsync(CancellationToken ct = default)
     {
-        // Đếm tất cả users không bị xóa (không phụ thuộc vào UserStatus)
+        // Chỉ đếm user có RoleId = 3 (User - người dùng thường) và đang hoạt động (không bị xóa)
+        // Admin và Expert không tính vào policy acceptance rate
         return await _context.Users
-            .Where(u => u.IsDeleted != true)
+            .Where(u => u.IsDeleted != true && u.RoleId == 3)
             .CountAsync(ct);
     }
 }

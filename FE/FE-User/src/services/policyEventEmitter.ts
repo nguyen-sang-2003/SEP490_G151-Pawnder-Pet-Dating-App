@@ -98,6 +98,36 @@ class PolicyEventEmitter {
 // Singleton instance
 const policyEventEmitter = new PolicyEventEmitter();
 
+// =============== Policy Check Control ===============
+
+/**
+ * Global flag to temporarily disable policy checks during registration flow
+ */
+let policyCheckEnabled = true;
+
+/**
+ * Temporarily disable policy checks (e.g., during registration flow)
+ */
+export const disablePolicyCheck = (): void => {
+  policyCheckEnabled = false;
+  console.log('[PolicyEmitter] Policy checks disabled (registration flow)');
+};
+
+/**
+ * Re-enable policy checks
+ */
+export const enablePolicyCheck = (): void => {
+  policyCheckEnabled = true;
+  console.log('[PolicyEmitter] Policy checks enabled');
+};
+
+/**
+ * Check if policy checks are enabled
+ */
+export const isPolicyCheckEnabled = (): boolean => {
+  return policyCheckEnabled;
+};
+
 // =============== Exported Functions ===============
 
 /**
@@ -112,10 +142,14 @@ export const subscribeToPolicyRequired = (
 };
 
 /**
- * Emit POLICY_REQUIRED event
+ * Emit POLICY_REQUIRED event (only if policy checks are enabled)
  * @param payload - The policy required payload
  */
 export const emitPolicyRequired = (payload: PolicyRequiredPayload): void => {
+  if (!policyCheckEnabled) {
+    console.log('[PolicyEmitter] Policy event suppressed (registration flow)');
+    return;
+  }
   policyEventEmitter.emit('POLICY_REQUIRED', payload);
 };
 

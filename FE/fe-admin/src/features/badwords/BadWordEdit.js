@@ -69,16 +69,6 @@ const BadWordEdit = () => {
       return;
     }
 
-    // Validate regex if enabled
-    if (form.isRegex) {
-      try {
-        new RegExp(form.word);
-      } catch (err) {
-        setFeedback({ type: 'error', message: 'Biểu thức Regex không hợp lệ.' });
-        return;
-      }
-    }
-
     setSaving(true);
     try {
       await badWordService.updateBadWord(id, {
@@ -152,11 +142,6 @@ const BadWordEdit = () => {
                 onChange={(e) => handleChange('word', e.target.value)}
                 placeholder="Nhập từ cấm..."
               />
-              {form.isRegex && (
-                <div className="hint">
-                  💡 Đang ở chế độ Regex. Ví dụ: \b(từ1|từ2)\b
-                </div>
-              )}
             </div>
 
             <div className="form-row">
@@ -191,46 +176,12 @@ const BadWordEdit = () => {
               <label className="checkbox-label">
                 <input
                   type="checkbox"
-                  checked={form.isRegex}
-                  onChange={(e) => handleChange('isRegex', e.target.checked)}
-                />
-                Sử dụng Regex (biểu thức chính quy)
-              </label>
-              <div className="hint">
-                Regex cho phép khớp nhiều biến thể của từ cấm. Chỉ bật nếu bạn hiểu cú pháp Regex.
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
                   checked={form.isActive}
                   onChange={(e) => handleChange('isActive', e.target.checked)}
                 />
                 Kích hoạt từ cấm này
               </label>
             </div>
-
-            {form.isRegex && (
-              <div className="form-group" style={{ 
-                background: 'var(--bw-hover)', 
-                padding: '1rem', 
-                borderRadius: '8px',
-                marginTop: '1rem'
-              }}>
-                <label style={{ marginBottom: '0.5rem', display: 'block' }}>
-                  📖 Hướng dẫn Regex
-                </label>
-                <div style={{ fontSize: '0.875rem', color: 'var(--bw-subtext)' }}>
-                  <p style={{ margin: '0.25rem 0' }}>• <code>\b</code> - Ranh giới từ (word boundary)</p>
-                  <p style={{ margin: '0.25rem 0' }}>• <code>(a|b|c)</code> - Khớp a hoặc b hoặc c</p>
-                  <p style={{ margin: '0.25rem 0' }}>• <code>.*</code> - Khớp bất kỳ ký tự nào</p>
-                  <p style={{ margin: '0.25rem 0' }}>• <code>\d+</code> - Khớp một hoặc nhiều số</p>
-                  <p style={{ margin: '0.25rem 0' }}>• <code>[aàáảãạ]</code> - Khớp các biến thể có dấu</p>
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="detail-actions">

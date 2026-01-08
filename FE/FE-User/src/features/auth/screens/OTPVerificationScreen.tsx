@@ -21,6 +21,7 @@ import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import { sendOtp, verifyOtp, register, createAddressForUser, login } from "../../../api";
 import { requestLocationAndGetCoordinates } from "../../../services/location.service";
 import { setItem } from "../../../services/storage";
+import { disablePolicyCheck } from "../../../services/policyEventEmitter";
 
 type Props = NativeStackScreenProps<RootStackParamList, "OTPVerification">;
 
@@ -139,6 +140,10 @@ const OTPVerificationScreen = ({ navigation, route }: Props) => {
               }
 
               await setItem('userId', newUserId.toString());
+
+              // Disable policy checks during registration flow
+              // Policy will be checked AFTER user completes pet creation and preferences
+              disablePolicyCheck();
 
               try {
                 await login(userData.Email, userData.Password);
