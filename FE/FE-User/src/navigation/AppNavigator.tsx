@@ -14,6 +14,7 @@ import {
 } from "./navigationConfig";
 import signalRService from "../services/signalr.service";
 import { refreshBadgesForActivePet } from "../utils/badgeRefresh";
+import { PendingPolicy } from "../features/policy/api/policyApi";
 
 // Import critical screens immediately (needed for initial render)
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
@@ -55,6 +56,12 @@ const BlockedUsersScreen = lazy(() => import("../features/report/screens/Blocked
 const PaymentHistoryScreen = lazy(() => import("../features/payment/screens/PaymentHistoryScreen"));
 const QRPaymentScreen = lazy(() => import("../features/payment/screens/QRPaymentScreen"));
 const ChangePasswordScreen = lazy(() => import("../features/settings/screens/ChangePasswordScreen"));
+
+// Lazy load policy screens
+const PolicyAcceptanceScreen = lazy(() => import("../features/policy/screens/PolicyAcceptanceScreen"));
+const PolicyListScreen = lazy(() => import("../features/policy/screens/PolicyListScreen"));
+const PolicyDetailScreen = lazy(() => import("../features/policy/screens/PolicyDetailScreen"));
+const PolicyHistoryScreen = lazy(() => import("../features/policy/screens/PolicyHistoryScreen"));
 
 
 export type RootStackParamList = {
@@ -151,6 +158,17 @@ export type RootStackParamList = {
     duration: string;
   };
   ChangePassword: undefined;
+  // Policy screens
+  PolicyAcceptance: {
+    pendingPolicies: PendingPolicy[];
+    fromRegistration?: boolean;
+  };
+  PolicyList: undefined;
+  PolicyDetail: {
+    policyCode: string;
+    policyName: string;
+  };
+  PolicyHistory: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -345,6 +363,20 @@ const AppNavigator = () => {
           options={modalScreenOptions}
         />
         <Stack.Screen name="ChangePassword" component={LazyScreen(ChangePasswordScreen)} />
+
+        {/* Lazy-loaded policy screens */}
+        <Stack.Screen
+          name="PolicyAcceptance"
+          component={LazyScreen(PolicyAcceptanceScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen name="PolicyList" component={LazyScreen(PolicyListScreen)} />
+        <Stack.Screen
+          name="PolicyDetail"
+          component={LazyScreen(PolicyDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen name="PolicyHistory" component={LazyScreen(PolicyHistoryScreen)} />
       </Stack.Navigator>
     </NavigationContainer>
   );

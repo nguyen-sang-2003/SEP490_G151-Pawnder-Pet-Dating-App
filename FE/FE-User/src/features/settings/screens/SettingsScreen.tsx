@@ -128,6 +128,12 @@ const SettingsScreen = ({ navigation }: Props) => {
       subtitle: t('settings.supportSection.privacyDesc'),
       onPress: () => navigation.navigate("ResourceDetail", { type: "privacy" }),
     },
+    {
+      icon: "reader-outline",
+      title: t('settings.supportSection.policies'),
+      subtitle: t('settings.supportSection.policiesDesc'),
+      onPress: () => navigation.navigate("PolicyList"),
+    },
   ];
 
   const premiumSettings: SettingsItem[] = [
