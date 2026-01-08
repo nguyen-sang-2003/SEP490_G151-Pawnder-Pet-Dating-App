@@ -38,8 +38,8 @@ public class PolicyRepository : IPolicyRepository
 
     public async Task<Policy> CreatePolicyAsync(Policy policy, CancellationToken ct = default)
     {
-        policy.CreatedAt = DateTime.UtcNow;
-        policy.UpdatedAt = DateTime.UtcNow;
+        policy.CreatedAt = DateTime.Now;
+        policy.UpdatedAt = DateTime.Now;
         _context.Policies.Add(policy);
         await _context.SaveChangesAsync(ct);
         return policy;
@@ -47,7 +47,7 @@ public class PolicyRepository : IPolicyRepository
 
     public async Task<Policy> UpdatePolicyAsync(Policy policy, CancellationToken ct = default)
     {
-        policy.UpdatedAt = DateTime.UtcNow;
+        policy.UpdatedAt = DateTime.Now;
         _context.Policies.Update(policy);
         await _context.SaveChangesAsync(ct);
         return policy;
@@ -60,7 +60,7 @@ public class PolicyRepository : IPolicyRepository
 
         policy.IsDeleted = true;
         policy.IsActive = false;
-        policy.UpdatedAt = DateTime.UtcNow;
+        policy.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync(ct);
         return true;
     }
@@ -107,8 +107,8 @@ public class PolicyRepository : IPolicyRepository
 
     public async Task<PolicyVersion> CreateVersionAsync(PolicyVersion version, CancellationToken ct = default)
     {
-        version.CreatedAt = DateTime.UtcNow;
-        version.UpdatedAt = DateTime.UtcNow;
+        version.CreatedAt = DateTime.Now;
+        version.UpdatedAt = DateTime.Now;
         _context.PolicyVersions.Add(version);
         await _context.SaveChangesAsync(ct);
         return version;
@@ -116,7 +116,7 @@ public class PolicyRepository : IPolicyRepository
 
     public async Task<PolicyVersion> UpdateVersionAsync(PolicyVersion version, CancellationToken ct = default)
     {
-        version.UpdatedAt = DateTime.UtcNow;
+        version.UpdatedAt = DateTime.Now;
         _context.PolicyVersions.Update(version);
         await _context.SaveChangesAsync(ct);
         return version;
@@ -182,8 +182,8 @@ public class PolicyRepository : IPolicyRepository
 
     public async Task<UserPolicyAccept> CreateAcceptAsync(UserPolicyAccept accept, CancellationToken ct = default)
     {
-        accept.CreatedAt = DateTime.UtcNow;
-        accept.AcceptedAt = DateTime.UtcNow;
+        accept.CreatedAt = DateTime.Now;
+        accept.AcceptedAt = DateTime.Now;
         _context.UserPolicyAccepts.Add(accept);
         await _context.SaveChangesAsync(ct);
         return accept;
@@ -201,7 +201,7 @@ public class PolicyRepository : IPolicyRepository
         foreach (var accept in oldAccepts)
         {
             accept.IsValid = false;
-            accept.InvalidatedAt = DateTime.UtcNow;
+            accept.InvalidatedAt = DateTime.Now;
         }
 
         await _context.SaveChangesAsync(ct);
@@ -216,7 +216,7 @@ public class PolicyRepository : IPolicyRepository
         foreach (var accept in accepts)
         {
             accept.IsValid = false;
-            accept.InvalidatedAt = DateTime.UtcNow;
+            accept.InvalidatedAt = DateTime.Now;
         }
 
         await _context.SaveChangesAsync(ct);
@@ -233,8 +233,9 @@ public class PolicyRepository : IPolicyRepository
 
     public async Task<int> CountActiveUsersAsync(CancellationToken ct = default)
     {
+        // Đếm tất cả users không bị xóa (không phụ thuộc vào UserStatus)
         return await _context.Users
-            .Where(u => u.IsDeleted != true && u.UserStatus != null && u.UserStatus.UserStatusName == "Active")
+            .Where(u => u.IsDeleted != true)
             .CountAsync(ct);
     }
 }

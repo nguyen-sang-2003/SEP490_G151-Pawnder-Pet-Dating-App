@@ -168,14 +168,14 @@ public class PolicyService : IPolicyService
         if (oldActiveVersion != null)
         {
             oldActiveVersion.Status = "INACTIVE";
-            oldActiveVersion.DeactivatedAt = DateTime.UtcNow;
+            oldActiveVersion.DeactivatedAt = DateTime.Now;
             await _policyRepository.UpdateVersionAsync(oldActiveVersion, ct);
 
             await _policyRepository.InvalidateAllAcceptsForVersionAsync(oldActiveVersion.PolicyVersionId, ct);
         }
 
         version.Status = "ACTIVE";
-        version.PublishedAt = DateTime.UtcNow;
+        version.PublishedAt = DateTime.Now;
         await _policyRepository.UpdateVersionAsync(version, ct);
 
         return MapToVersionResponse(version, version.Policy.PolicyCode);

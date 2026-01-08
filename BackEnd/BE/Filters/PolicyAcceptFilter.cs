@@ -97,6 +97,10 @@ public class GlobalPolicyAcceptFilter : IAsyncActionFilter
         "/api/policies/active",
         "/api/policies/history",
         
+        // Policy admin endpoints - Admin quản lý policy
+        "/api/policies/admin",
+        "/api/policies/admin/stats",
+        
         // OTP endpoints
         "/api/otp",
         "/api/verify-otp"
@@ -106,6 +110,7 @@ public class GlobalPolicyAcceptFilter : IAsyncActionFilter
     private static readonly string[] AllowedPrefixes = new[]
     {
         "/api/policies/active/",  // GET /api/policies/active/{policyCode}
+        "/api/policies/admin/",   // All admin policy endpoints
         "/swagger",
         "/health"
     };
@@ -141,9 +146,9 @@ public class GlobalPolicyAcceptFilter : IAsyncActionFilter
             return;
         }
 
-        // Kiểm tra role của user - Expert không cần xác nhận Policy
+        // Kiểm tra role của user - Expert và Admin không cần xác nhận Policy
         var userRole = context.HttpContext.User.FindFirstValue(ClaimTypes.Role);
-        if (userRole == "Expert")
+        if (userRole == "Expert" || userRole == "Admin")
         {
             await next();
             return;

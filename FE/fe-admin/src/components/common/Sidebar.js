@@ -1,8 +1,17 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import './styles/Sidebar.css';
 
 const Sidebar = () => {
+  const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState({
+    policies: location.pathname.startsWith('/policies'),
+  });
+
+  const toggleMenu = (key) => {
+    setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const menuItems = [
     {
       path: '/dashboard',
@@ -44,6 +53,34 @@ const Sidebar = () => {
         </svg>
       ),
       label: 'Quản lý thuộc tính'
+    },
+    {
+      key: 'policies',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+          <line x1="9" y1="9" x2="10" y2="9"/>
+          <line x1="9" y1="13" x2="15" y2="13"/>
+          <line x1="9" y1="17" x2="15" y2="17"/>
+        </svg>
+      ),
+      label: 'Quản lý Policy',
+      isGroup: true,
+      children: [
+        { path: '/policies', label: 'Policies', exact: true },
+        { path: '/policies/drafts', label: 'Draft Versions' },
+      ]
+    },
+    {
+      path: '/badwords',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+      ),
+      label: 'Quản lý từ cấm'
     },
     {
       path: '/reports',
@@ -99,18 +136,50 @@ const Sidebar = () => {
       <nav className="sidebar-nav">
         <ul className="nav-list">
           {menuItems.map((item) => (
-            <li key={item.path} className="nav-item">
-              <NavLink
-                to={item.path}
-                className={({ isActive }) => 
-                  `nav-link ${isActive ? 'active' : ''}`
-                }
-                end={item.exact}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-label">{item.label}</span>
-              </NavLink>
-            </li>
+            item.isGroup ? (
+              <li key={item.key} className="nav-item nav-group">
+                <button
+                  className={`nav-link nav-group-toggle ${expandedMenus[item.key] ? 'expanded' : ''}`}
+                  onClick={() => toggleMenu(item.key)}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-label">{item.label}</span>
+                  <span className="nav-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </span>
+                </button>
+                {expandedMenus[item.key] && (
+                  <ul className="nav-submenu">
+                    {item.children.map((child) => (
+                      <li key={child.path} className="nav-subitem">
+                        <NavLink
+                          to={child.path}
+                          className={({ isActive }) => `nav-sublink ${isActive ? 'active' : ''}`}
+                          end={child.exact}
+                        >
+                          {child.label}
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ) : (
+              <li key={item.path} className="nav-item">
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) => 
+                    `nav-link ${isActive ? 'active' : ''}`
+                  }
+                  end={item.exact}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span className="nav-label">{item.label}</span>
+                </NavLink>
+              </li>
+            )
           ))}
         </ul>
       </nav>
