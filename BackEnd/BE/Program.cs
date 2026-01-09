@@ -251,6 +251,7 @@ builder.Services.AddScoped<BE.Filters.GlobalPolicyAcceptFilter>();
 // Register Background Services
 builder.Services.AddHostedService<BE.Services.PaymentExpirationBackgroundService>();
 builder.Services.AddHostedService<BE.Services.EventCompletionBackgroundService>();
+builder.Services.AddHostedService<BE.Services.AppointmentExpirationBackgroundService>();
 
 var app = builder.Build();
 

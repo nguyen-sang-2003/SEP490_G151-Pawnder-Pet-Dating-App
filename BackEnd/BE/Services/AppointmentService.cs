@@ -20,6 +20,10 @@ public class AppointmentService : IAppointmentService
     private const int MIN_HOURS_ADVANCE = 2; // Số giờ tối thiểu trước cuộc hẹn
     private const int MAX_COUNTER_OFFERS = 3; // Số lần counter-offer tối đa
     private const double CHECK_IN_RADIUS_METERS = 100; // Bán kính check-in (mét)
+    private const int CHECK_IN_BEFORE_MINUTES = 30; // Check-in trước giờ hẹn (phút)
+    private const int CHECK_IN_AFTER_MINUTES = 90; // Check-in sau giờ hẹn (phút)
+    private const int AUTO_NO_SHOW_MINUTES = 90; // Tự động NO_SHOW sau X phút
+    private const int AUTO_COMPLETE_MINUTES = 90; // Tự động COMPLETED sau X phút
 
     public AppointmentService(
         IAppointmentRepository appointmentRepository,
@@ -43,6 +47,10 @@ public class AppointmentService : IAppointmentService
         int inviteePetId,
         CancellationToken ct = default)
     {
+        // 0. Kiểm tra không tự hẹn với chính mình
+        if (inviterPetId == inviteePetId)
+            return (false, "Không thể tạo cuộc hẹn với chính thú cưng của bạn");
+
         // 1. Kiểm tra Match tồn tại và đã Accepted
         var match = await _chatUserRepository.GetChatUserByMatchIdAsync(matchId, ct);
         if (match == null)
@@ -112,7 +120,14 @@ public class AppointmentService : IAppointmentService
 
         // Xử lý địa điểm
         int? locationId = request.LocationId;
-        if (locationId == null && request.CustomLocation != null)
+        if (locationId.HasValue)
+        {
+            // Validate LocationId tồn tại
+            var existingLocation = await _locationRepository.GetByIdAsync(locationId.Value, ct);
+            if (existingLocation == null)
+                throw new ArgumentException("Địa điểm không tồn tại");
+        }
+        else if (request.CustomLocation != null)
         {
             var newLocation = await CreateLocationAsync(request.CustomLocation, ct);
             locationId = newLocation.LocationId;
@@ -202,17 +217,42 @@ public class AppointmentService : IAppointmentService
         if (appointment.Status != "pending")
             throw new InvalidOperationException($"Cuộc hẹn đang ở trạng thái '{appointment.Status}', không thể phản hồi");
 
+        // Validate DeclineReason nếu từ chối
+        if (!request.Accept && string.IsNullOrWhiteSpace(request.DeclineReason))
+            throw new ArgumentException("Vui lòng nhập lý do từ chối");
+
         if (request.Accept)
         {
             appointment.Status = "confirmed";
             appointment.CurrentDecisionUserId = null;
 
-            // Thông báo cho inviter
+            // Xác định ai là người xác nhận và ai là người nhận thông báo
+            var confirmerId = userId;
+            var otherUserId = userId == appointment.InviterUserId 
+                ? appointment.InviteeUserId 
+                : appointment.InviterUserId;
+            var confirmerPetName = userId == appointment.InviterUserId 
+                ? appointment.InviterPet?.Name 
+                : appointment.InviteePet?.Name;
+            var otherPetName = userId == appointment.InviterUserId 
+                ? appointment.InviteePet?.Name 
+                : appointment.InviterPet?.Name;
+
+            // Thông báo cho người còn lại (người nhận được xác nhận)
             await _notificationService.CreateNotificationAsync(new NotificationDto_1
             {
-                UserId = appointment.InviterUserId,
+                UserId = otherUserId,
                 Title = "Cuộc hẹn được xác nhận! 🎉",
-                Message = $"Bé {appointment.InviteePet?.Name} đã đồng ý gặp gỡ vào {appointment.AppointmentDateTime:dd/MM/yyyy HH:mm}",
+                Message = $"Bé {confirmerPetName} đã đồng ý gặp gỡ vào {appointment.AppointmentDateTime:dd/MM/yyyy HH:mm}",
+                Type = "appointment_accepted"
+            }, ct);
+
+            // Thông báo cho người xác nhận (xác nhận đã xác nhận thành công)
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = confirmerId,
+                Title = "Bạn đã xác nhận cuộc hẹn! 🎉",
+                Message = $"Cuộc hẹn với bé {otherPetName} vào {appointment.AppointmentDateTime:dd/MM/yyyy HH:mm} đã được xác nhận",
                 Type = "appointment_accepted"
             }, ct);
         }
@@ -222,12 +262,33 @@ public class AppointmentService : IAppointmentService
             appointment.CancelReason = request.DeclineReason;
             appointment.CancelledBy = userId;
 
-            // Thông báo cho inviter
+            // Xác định ai là người từ chối và ai là người nhận thông báo
+            var rejecterId = userId;
+            var otherUserId = userId == appointment.InviterUserId 
+                ? appointment.InviteeUserId 
+                : appointment.InviterUserId;
+            var rejecterPetName = userId == appointment.InviterUserId 
+                ? appointment.InviterPet?.Name 
+                : appointment.InviteePet?.Name;
+            var otherPetName = userId == appointment.InviterUserId 
+                ? appointment.InviteePet?.Name 
+                : appointment.InviterPet?.Name;
+
+            // Thông báo cho người còn lại (người bị từ chối)
             await _notificationService.CreateNotificationAsync(new NotificationDto_1
             {
-                UserId = appointment.InviterUserId,
+                UserId = otherUserId,
                 Title = "Cuộc hẹn bị từ chối 😢",
-                Message = $"Bé {appointment.InviteePet?.Name} không thể tham gia cuộc hẹn. Lý do: {request.DeclineReason ?? "Không có"}",
+                Message = $"Bé {rejecterPetName} không thể tham gia cuộc hẹn. Lý do: {request.DeclineReason ?? "Không có"}",
+                Type = "appointment_rejected"
+            }, ct);
+
+            // Thông báo cho người từ chối (xác nhận đã từ chối)
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = rejecterId,
+                Title = "Bạn đã từ chối cuộc hẹn",
+                Message = $"Bạn đã từ chối cuộc hẹn với bé {otherPetName}",
                 Type = "appointment_rejected"
             }, ct);
         }
@@ -256,6 +317,18 @@ public class AppointmentService : IAppointmentService
         // Kiểm tra giới hạn counter-offer
         if (appointment.CounterOfferCount >= MAX_COUNTER_OFFERS)
             throw new InvalidOperationException($"Đã đạt giới hạn {MAX_COUNTER_OFFERS} lần đề xuất lại");
+
+        // Validate phải có ít nhất 1 thay đổi
+        if (!request.NewDateTime.HasValue && !request.NewLocationId.HasValue && request.NewCustomLocation == null)
+            throw new ArgumentException("Vui lòng đề xuất thời gian hoặc địa điểm mới");
+
+        // Validate LocationId nếu có
+        if (request.NewLocationId.HasValue)
+        {
+            var existingLocation = await _locationRepository.GetByIdAsync(request.NewLocationId.Value, ct);
+            if (existingLocation == null)
+                throw new ArgumentException("Địa điểm không tồn tại");
+        }
 
         // Cập nhật thông tin
         if (request.NewDateTime.HasValue)
@@ -360,6 +433,17 @@ public class AppointmentService : IAppointmentService
         if (appointment.Status != "confirmed" && appointment.Status != "on_going")
             throw new InvalidOperationException("Cuộc hẹn chưa được xác nhận hoặc đã kết thúc");
 
+        // Kiểm tra thời gian check-in (30 phút trước - 90 phút sau giờ hẹn)
+        var now = DateTime.Now;
+        var earliestCheckIn = appointment.AppointmentDateTime.AddMinutes(-CHECK_IN_BEFORE_MINUTES);
+        var latestCheckIn = appointment.AppointmentDateTime.AddMinutes(CHECK_IN_AFTER_MINUTES);
+
+        if (now < earliestCheckIn)
+            throw new InvalidOperationException($"Chưa đến giờ check-in. Bạn có thể check-in từ {earliestCheckIn:HH:mm} (trước giờ hẹn {CHECK_IN_BEFORE_MINUTES} phút)");
+
+        if (now > latestCheckIn)
+            throw new InvalidOperationException($"Đã quá thời gian check-in. Thời hạn check-in là {latestCheckIn:HH:mm} (sau giờ hẹn {CHECK_IN_AFTER_MINUTES} phút)");
+
         // Kiểm tra vị trí (nếu có location)
         if (appointment.Location != null)
         {
@@ -372,28 +456,34 @@ public class AppointmentService : IAppointmentService
         }
 
         // Cập nhật check-in
-        var now = DateTime.Now;
+        var otherUserId = 0;
+        var checkedInPetName = "";
+        
         if (userId == appointment.InviterUserId)
         {
             appointment.InviterCheckedIn = true;
             appointment.InviterCheckInTime = now;
+            otherUserId = appointment.InviteeUserId;
+            checkedInPetName = appointment.InviterPet?.Name ?? "Bé nhà bạn";
         }
         else if (userId == appointment.InviteeUserId)
         {
             appointment.InviteeCheckedIn = true;
             appointment.InviteeCheckInTime = now;
+            otherUserId = appointment.InviterUserId;
+            checkedInPetName = appointment.InviteePet?.Name ?? "Đối phương";
         }
         else
         {
             throw new UnauthorizedAccessException("Bạn không phải thành viên của cuộc hẹn này");
         }
 
-        // Nếu cả 2 đã check-in -> chuyển sang on_going hoặc completed
+        // Nếu cả 2 đã check-in -> chuyển sang on_going
         if (appointment.InviterCheckedIn == true && appointment.InviteeCheckedIn == true)
         {
             appointment.Status = "on_going";
 
-            // Thông báo cho cả 2
+            // Thông báo cho cả 2 - cuộc hẹn bắt đầu
             await _notificationService.CreateNotificationAsync(new NotificationDto_1
             {
                 UserId = appointment.InviterUserId,
@@ -410,11 +500,179 @@ public class AppointmentService : IAppointmentService
                 Type = "appointment_ongoing"
             }, ct);
         }
+        else
+        {
+            // Chỉ một người check-in - thông báo cho người còn lại
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = otherUserId,
+                Title = "Đối phương đã check-in! 📍",
+                Message = $"Bé {checkedInPetName} đã đến địa điểm hẹn. Hãy nhanh chân check-in nhé!",
+                Type = "appointment_checkin"
+            }, ct);
+        }
 
         appointment.UpdatedAt = now;
         await _appointmentRepository.UpdateAsync(appointment, ct);
 
         return MapToResponse(appointment);
+    }
+
+    public async Task<AppointmentResponse> CompleteAppointmentAsync(
+        int userId,
+        int appointmentId,
+        CancellationToken ct = default)
+    {
+        var appointment = await _appointmentRepository.GetByIdWithDetailsAsync(appointmentId, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy cuộc hẹn");
+
+        // Kiểm tra quyền (inviter hoặc invitee)
+        if (appointment.InviterUserId != userId && appointment.InviteeUserId != userId)
+            throw new UnauthorizedAccessException("Bạn không có quyền kết thúc cuộc hẹn này");
+
+        if (appointment.Status != "on_going")
+            throw new InvalidOperationException("Chỉ có thể kết thúc cuộc hẹn đang diễn ra");
+
+        // Kiểm tra thời gian: chỉ cho kết thúc sau giờ hẹn
+        if (DateTime.Now < appointment.AppointmentDateTime)
+            throw new InvalidOperationException("Chưa đến giờ hẹn, không thể kết thúc");
+
+        appointment.Status = "completed";
+        appointment.UpdatedAt = DateTime.Now;
+
+        await _appointmentRepository.UpdateAsync(appointment, ct);
+
+        // Thông báo cho người còn lại
+        var otherUserId = userId == appointment.InviterUserId 
+            ? appointment.InviteeUserId 
+            : appointment.InviterUserId;
+
+        await _notificationService.CreateNotificationAsync(new NotificationDto_1
+        {
+            UserId = otherUserId,
+            Title = "Cuộc hẹn đã kết thúc 🎊",
+            Message = "Cuộc hẹn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!",
+            Type = "appointment_completed"
+        }, ct);
+
+        // Thông báo cho người kết thúc
+        await _notificationService.CreateNotificationAsync(new NotificationDto_1
+        {
+            UserId = userId,
+            Title = "Cuộc hẹn đã kết thúc 🎊",
+            Message = "Cuộc hẹn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!",
+            Type = "appointment_completed"
+        }, ct);
+
+        return MapToResponse(appointment);
+    }
+
+    /// <summary>
+    /// Xử lý các cuộc hẹn quá hạn (gọi từ Background Service)
+    /// </summary>
+    public async Task ProcessExpiredAppointmentsAsync(CancellationToken ct = default)
+    {
+        // Sử dụng Vietnam timezone (UTC+7) vì database lưu giờ Vietnam
+        var now = GetVietnamTime();
+        var noShowThreshold = now.AddMinutes(-AUTO_NO_SHOW_MINUTES);
+        var completeThreshold = now.AddMinutes(-AUTO_COMPLETE_MINUTES);
+
+        Console.WriteLine($"[AppointmentExpiration] Checking at Vietnam time: {now:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"[AppointmentExpiration] NO_SHOW threshold: {noShowThreshold:yyyy-MM-dd HH:mm:ss}");
+
+        // 1. Xử lý NO_SHOW: Cuộc hẹn confirmed nhưng thiếu người check-in sau 90 phút
+        var confirmedAppointments = await _context.Set<PetAppointment>()
+            .Where(a => a.Status == "confirmed" && a.AppointmentDateTime <= noShowThreshold)
+            .ToListAsync(ct);
+
+        Console.WriteLine($"[AppointmentExpiration] Found {confirmedAppointments.Count} confirmed appointments to mark as NO_SHOW");
+
+        foreach (var appointment in confirmedAppointments)
+        {
+            Console.WriteLine($"[AppointmentExpiration] Marking appointment {appointment.AppointmentId} as NO_SHOW (scheduled: {appointment.AppointmentDateTime:yyyy-MM-dd HH:mm:ss})");
+            
+            appointment.Status = "no_show";
+            appointment.UpdatedAt = now;
+
+            // Thông báo cho cả 2
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = appointment.InviterUserId,
+                Title = "Cuộc hẹn không thành ⚠️",
+                Message = "Cuộc hẹn đã bị hủy do không có ai check-in đúng giờ",
+                Type = "appointment_no_show"
+            }, ct);
+
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = appointment.InviteeUserId,
+                Title = "Cuộc hẹn không thành ⚠️",
+                Message = "Cuộc hẹn đã bị hủy do không có ai check-in đúng giờ",
+                Type = "appointment_no_show"
+            }, ct);
+        }
+
+        // 2. Xử lý AUTO_COMPLETE: Cuộc hẹn on_going sau 90 phút
+        var ongoingAppointments = await _context.Set<PetAppointment>()
+            .Where(a => a.Status == "on_going" && a.AppointmentDateTime <= completeThreshold)
+            .ToListAsync(ct);
+
+        Console.WriteLine($"[AppointmentExpiration] Found {ongoingAppointments.Count} on_going appointments to auto-complete");
+
+        foreach (var appointment in ongoingAppointments)
+        {
+            Console.WriteLine($"[AppointmentExpiration] Auto-completing appointment {appointment.AppointmentId}");
+            
+            appointment.Status = "completed";
+            appointment.UpdatedAt = now;
+
+            // Thông báo cho cả 2
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = appointment.InviterUserId,
+                Title = "Cuộc hẹn hoàn thành 🎊",
+                Message = "Cuộc hẹn đã tự động hoàn thành. Cảm ơn bạn!",
+                Type = "appointment_completed"
+            }, ct);
+
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = appointment.InviteeUserId,
+                Title = "Cuộc hẹn hoàn thành 🎊",
+                Message = "Cuộc hẹn đã tự động hoàn thành. Cảm ơn bạn!",
+                Type = "appointment_completed"
+            }, ct);
+        }
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Get current time in Vietnam timezone (UTC+7)
+    /// Works on both Windows and Linux
+    /// </summary>
+    private static DateTime GetVietnamTime()
+    {
+        try
+        {
+            // Try Windows timezone ID first
+            var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            try
+            {
+                // Try Linux/IANA timezone ID
+                var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                // Fallback: manually add 7 hours to UTC
+                return DateTime.UtcNow.AddHours(7);
+            }
+        }
     }
 
     #endregion

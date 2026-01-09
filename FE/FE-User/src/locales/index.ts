@@ -5,6 +5,7 @@ import vi from './vi.json';
 i18n
   .use(initReactI18next)
   .init({
+    compatibilityJSON: 'v3', // Fix for React Native
     resources: {
       vi: { translation: vi }
     },
@@ -16,6 +17,9 @@ i18n
     // Return key if translation not found
     returnNull: false,
     returnEmptyString: false,
+    react: {
+      useSuspense: false, // Disable suspense to avoid warning
+    },
   });
 
 export default i18n;

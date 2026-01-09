@@ -9,16 +9,19 @@ namespace BE.DTO;
 /// </summary>
 public class CreateAppointmentRequest
 {
-    [Required]
+    [Required(ErrorMessage = "MatchId là bắt buộc")]
+    [Range(1, int.MaxValue, ErrorMessage = "MatchId không hợp lệ")]
     public int MatchId { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "InviterPetId là bắt buộc")]
+    [Range(1, int.MaxValue, ErrorMessage = "InviterPetId không hợp lệ")]
     public int InviterPetId { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "InviteePetId là bắt buộc")]
+    [Range(1, int.MaxValue, ErrorMessage = "InviteePetId không hợp lệ")]
     public int InviteePetId { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "Thời gian hẹn là bắt buộc")]
     public DateTime AppointmentDateTime { get; set; }
 
     public int? LocationId { get; set; }
@@ -31,8 +34,8 @@ public class CreateAppointmentRequest
     /// <summary>
     /// Loại hoạt động: walk, cafe, playdate
     /// </summary>
-    [Required]
-    [StringLength(50)]
+    [Required(ErrorMessage = "Loại hoạt động là bắt buộc")]
+    [RegularExpression("^(walk|cafe|playdate|park|other)$", ErrorMessage = "Loại hoạt động không hợp lệ (walk, cafe, playdate, park, other)")]
     public string ActivityType { get; set; } = null!;
 }
 
@@ -82,10 +85,11 @@ public class CounterOfferRequest
 /// </summary>
 public class CancelAppointmentRequest
 {
-    [Required]
+    [Required(ErrorMessage = "AppointmentId là bắt buộc")]
     public int AppointmentId { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "Lý do hủy là bắt buộc")]
+    [StringLength(500, MinimumLength = 5, ErrorMessage = "Lý do hủy từ 5-500 ký tự")]
     public string Reason { get; set; } = null!;
 }
 
@@ -94,13 +98,15 @@ public class CancelAppointmentRequest
 /// </summary>
 public class CheckInRequest
 {
-    [Required]
+    [Required(ErrorMessage = "AppointmentId là bắt buộc")]
     public int AppointmentId { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "Latitude là bắt buộc")]
+    [Range(-90, 90, ErrorMessage = "Latitude phải từ -90 đến 90")]
     public decimal Latitude { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "Longitude là bắt buộc")]
+    [Range(-180, 180, ErrorMessage = "Longitude phải từ -180 đến 180")]
     public decimal Longitude { get; set; }
 }
 
@@ -109,25 +115,32 @@ public class CheckInRequest
 /// </summary>
 public class CreateLocationRequest
 {
-    [Required]
-    [StringLength(200)]
+    [Required(ErrorMessage = "Tên địa điểm là bắt buộc")]
+    [StringLength(200, MinimumLength = 2, ErrorMessage = "Tên địa điểm từ 2-200 ký tự")]
     public string Name { get; set; } = null!;
 
-    [Required]
+    [Required(ErrorMessage = "Địa chỉ là bắt buộc")]
+    [StringLength(500, MinimumLength = 5, ErrorMessage = "Địa chỉ từ 5-500 ký tự")]
     public string Address { get; set; } = null!;
 
-    [Required]
+    [Required(ErrorMessage = "Latitude là bắt buộc")]
+    [Range(-90, 90, ErrorMessage = "Latitude phải từ -90 đến 90")]
     public decimal Latitude { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "Longitude là bắt buộc")]
+    [Range(-180, 180, ErrorMessage = "Longitude phải từ -180 đến 180")]
     public decimal Longitude { get; set; }
 
+    [StringLength(100)]
     public string? City { get; set; }
 
+    [StringLength(100)]
     public string? District { get; set; }
 
+    [StringLength(50)]
     public string? PlaceType { get; set; }
 
+    [StringLength(255)]
     public string? GooglePlaceId { get; set; }
 }
 

@@ -116,17 +116,12 @@ const LocationPickerScreen = ({ navigation, route }: Props) => {
     };
 
     dispatch(setSelectedLocation(selection));
-    route.params?.onSelect?.(selection);
     navigation.goBack();
   };
 
   const handleOpenMap = () => {
     navigation.navigate('MapPicker', {
       city: cityQuery,
-      onSelect: (selection) => {
-        route.params?.onSelect?.(selection);
-        navigation.goBack();
-      },
     });
   };
 

@@ -203,6 +203,24 @@ export const AppointmentService = {
   },
 
   /**
+   * Kết thúc cuộc hẹn (Complete)
+   */
+  completeAppointment: async (
+    appointmentId: number
+  ): Promise<AppointmentResponse> => {
+    try {
+      const response = await apiClient.put<{ data: AppointmentResponse }>(
+        `${APPOINTMENT_BASE_URL}/${appointmentId}/complete`
+      );
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(
+        error?.response?.data?.message || 'Lỗi khi kết thúc cuộc hẹn'
+      );
+    }
+  },
+
+  /**
    * Lấy danh sách địa điểm Pet-Friendly gợi ý
    */
   getSuggestedLocations: async (

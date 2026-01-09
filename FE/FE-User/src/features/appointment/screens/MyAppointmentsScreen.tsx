@@ -1,9 +1,9 @@
 /**
  * My Appointments Screen
- * Displays list of all user's appointments with filters
+ * Quản lý lịch hẹn - Giao diện tối ưu
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Image,
+  ScrollView,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,6 +27,8 @@ import {
   selectAppointmentLoading,
   selectUpcomingAppointments,
   selectPastAppointments,
+  selectOngoingAppointments,
+  selectCompletedAppointments,
 } from '../appointmentSlice';
 import {
   AppointmentResponse,
@@ -34,244 +36,281 @@ import {
   ACTIVITY_TYPES,
 } from '../../../types/appointment.types';
 import { colors, gradients, radius, shadows } from '../../../theme';
-import BottomNav from '../../../components/BottomNav';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyAppointments'>;
 
-type FilterType = 'upcoming' | 'past' | 'all';
+type FilterType = 'upcoming' | 'ongoing' | 'completed' | 'past' | 'all';
+
+// Activity icons
+const ACTIVITY_ICONS: Record<string, { icon: string; color: string; bg: string }> = {
+  walk: { icon: 'walk', color: '#4CAF50', bg: '#E8F5E9' },
+  cafe: { icon: 'cafe', color: '#795548', bg: '#EFEBE9' },
+  playdate: { icon: 'game-controller', color: '#2196F3', bg: '#E3F2FD' },
+};
 
 const MyAppointmentsScreen = ({ navigation }: Props) => {
   const dispatch = useDispatch<AppDispatch>();
   const appointments = useSelector(selectAppointments);
   const upcomingAppointments = useSelector(selectUpcomingAppointments);
   const pastAppointments = useSelector(selectPastAppointments);
+  const ongoingAppointments = useSelector(selectOngoingAppointments);
+  const completedAppointments = useSelector(selectCompletedAppointments);
   const loading = useSelector(selectAppointmentLoading);
 
-  const [filter, setFilter] = useState<FilterType>('upcoming');
+  const [filter, setFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Load appointments when screen focuses
   useFocusEffect(
     useCallback(() => {
       dispatch(fetchMyAppointments());
     }, [dispatch])
   );
 
-  // Handle refresh
   const onRefresh = async () => {
     setRefreshing(true);
     await dispatch(fetchMyAppointments());
     setRefreshing(false);
   };
 
-  // Get filtered appointments
   const getFilteredAppointments = (): AppointmentResponse[] => {
+    let result: AppointmentResponse[];
     switch (filter) {
       case 'upcoming':
-        return upcomingAppointments;
+        result = upcomingAppointments;
+        break;
+      case 'ongoing':
+        result = ongoingAppointments;
+        break;
+      case 'completed':
+        result = completedAppointments;
+        break;
       case 'past':
-        return pastAppointments;
-      case 'all':
+        result = pastAppointments;
+        break;
       default:
-        return appointments;
+        result = [...appointments].sort((a, b) => 
+          new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime()
+        );
     }
+    return result;
   };
 
   const filteredAppointments = getFilteredAppointments();
 
-  // Format date/time
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const isToday = date.toDateString() === today.toDateString();
-    const isTomorrow = date.toDateString() === tomorrow.toDateString();
+    if (date.toDateString() === today.toDateString()) return 'Hôm nay';
+    if (date.toDateString() === tomorrow.toDateString()) return 'Ngày mai';
 
-    if (isToday) return 'Hôm nay';
-    if (isTomorrow) return 'Ngày mai';
-
-    return date.toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    return `${days[date.getDay()]}, ${date.getDate()}/${date.getMonth() + 1}`;
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  // Render appointment card
+  const getStatusStyle = (status: string) => {
+    const config = APPOINTMENT_STATUS_CONFIG[status as keyof typeof APPOINTMENT_STATUS_CONFIG];
+    return config || { label: status, color: '#666', bgColor: '#F5F5F5', icon: '📋' };
+  };
+
   const renderAppointmentCard = ({ item }: { item: AppointmentResponse }) => {
-    const statusConfig = APPOINTMENT_STATUS_CONFIG[item.status];
-    const activityType = ACTIVITY_TYPES[item.activityType as keyof typeof ACTIVITY_TYPES];
+    const statusConfig = getStatusStyle(item.status);
+    const activityConfig = ACTIVITY_ICONS[item.activityType] || ACTIVITY_ICONS.playdate;
+    const isPending = item.status === 'pending';
+    const isConfirmed = item.status === 'confirmed';
 
     return (
       <TouchableOpacity
-        style={[styles.card, shadows.medium]}
+        style={styles.card}
         onPress={() => navigation.navigate('AppointmentDetail', { appointmentId: item.appointmentId })}
         activeOpacity={0.7}
       >
-        {/* Status Badge */}
-        <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
-          <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>
-            {statusConfig.icon} {statusConfig.label}
-          </Text>
+        {/* Header với status */}
+        <View style={styles.cardHeader}>
+          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
+            <Text style={styles.statusIcon}>{statusConfig.icon}</Text>
+            <Text style={[styles.statusText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
+          </View>
+          <View style={styles.dateTimeBadge}>
+            <Text style={styles.dateText}>{formatDate(item.appointmentDateTime)}</Text>
+            <Text style={styles.timeText}>{formatTime(item.appointmentDateTime)}</Text>
+          </View>
         </View>
 
-        {/* Pets Info */}
-        <View style={styles.petsContainer}>
-          <View style={styles.petInfo}>
-            <View style={styles.petAvatar}>
-              <Icon name="paw" size={24} color={colors.primary} />
+        {/* Pet match info */}
+        <View style={styles.matchSection}>
+          <View style={styles.petCard}>
+            <LinearGradient colors={['#FFE4EC', '#FFF0F5']} style={styles.petAvatar}>
+              <Icon name="paw" size={22} color={colors.primary} />
+            </LinearGradient>
+            <Text style={styles.petName} numberOfLines={1}>{item.inviterPetName}</Text>
+            <Text style={styles.petRole}>Bé nhà bạn</Text>
+          </View>
+
+          <View style={styles.matchIconContainer}>
+            <LinearGradient colors={['#FF6B6B', '#FF8E8E']} style={styles.heartBadge}>
+              <Icon name="heart" size={14} color="#FFF" />
+            </LinearGradient>
+          </View>
+
+          <View style={styles.petCard}>
+            <LinearGradient colors={['#E3F2FD', '#E8F4FD']} style={styles.petAvatar}>
+              <Icon name="paw" size={22} color="#2196F3" />
+            </LinearGradient>
+            <Text style={styles.petName} numberOfLines={1}>{item.inviteePetName}</Text>
+            <Text style={styles.petRole}>Đối phương</Text>
+          </View>
+        </View>
+
+        {/* Activity & Location */}
+        <View style={styles.detailsSection}>
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIcon, { backgroundColor: activityConfig.bg }]}>
+              <Icon name={activityConfig.icon} size={16} color={activityConfig.color} />
             </View>
-            <Text style={styles.petName} numberOfLines={1}>
-              {item.inviterPetName}
+            <Text style={styles.detailText}>
+              {ACTIVITY_TYPES[item.activityType as keyof typeof ACTIVITY_TYPES]?.label || item.activityType}
             </Text>
           </View>
 
-          <Icon name="heart" size={20} color={colors.error} />
-
-          <View style={styles.petInfo}>
-            <View style={styles.petAvatar}>
-              <Icon name="paw" size={24} color={colors.secondary} />
+          {item.location && (
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="location" size={16} color="#4CAF50" />
+              </View>
+              <Text style={styles.detailText} numberOfLines={1}>{item.location.name}</Text>
             </View>
-            <Text style={styles.petName} numberOfLines={1}>
-              {item.inviteePetName}
-            </Text>
-          </View>
+          )}
         </View>
 
-        {/* Date & Time */}
-        <View style={styles.dateTimeContainer}>
-          <View style={styles.dateTimeRow}>
-            <Icon name="calendar-outline" size={16} color={colors.textSecondary} />
-            <Text style={styles.dateTimeText}>{formatDate(item.appointmentDateTime)}</Text>
-          </View>
-          <View style={styles.dateTimeRow}>
-            <Icon name="time-outline" size={16} color={colors.textSecondary} />
-            <Text style={styles.dateTimeText}>{formatTime(item.appointmentDateTime)}</Text>
-          </View>
-        </View>
-
-        {/* Activity Type */}
-        <View style={styles.activityContainer}>
-          <Text style={styles.activityIcon}>{activityType?.icon || '🎾'}</Text>
-          <Text style={styles.activityText}>{activityType?.label || item.activityType}</Text>
-        </View>
-
-        {/* Location */}
-        {item.location && (
-          <View style={styles.locationContainer}>
-            <Icon name="location-outline" size={16} color={colors.textSecondary} />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {item.location.name}
-            </Text>
+        {/* Check-in status */}
+        {(isConfirmed || item.status === 'on_going') && (
+          <View style={styles.checkInSection}>
+            <Text style={styles.checkInTitle}>Check-in</Text>
+            <View style={styles.checkInRow}>
+              <View style={styles.checkInItem}>
+                <Icon
+                  name={item.inviterCheckedIn ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={18}
+                  color={item.inviterCheckedIn ? '#4CAF50' : '#DDD'}
+                />
+                <Text style={[styles.checkInName, item.inviterCheckedIn && styles.checkInDone]}>
+                  {item.inviterPetName}
+                </Text>
+              </View>
+              <View style={styles.checkInItem}>
+                <Icon
+                  name={item.inviteeCheckedIn ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={18}
+                  color={item.inviteeCheckedIn ? '#4CAF50' : '#DDD'}
+                />
+                <Text style={[styles.checkInName, item.inviteeCheckedIn && styles.checkInDone]}>
+                  {item.inviteePetName}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
-        {/* Check-in status for confirmed appointments */}
-        {item.status === 'confirmed' || item.status === 'on_going' ? (
-          <View style={styles.checkInContainer}>
-            <View style={styles.checkInStatus}>
-              <Icon
-                name={item.inviterCheckedIn ? 'checkmark-circle' : 'ellipse-outline'}
-                size={16}
-                color={item.inviterCheckedIn ? colors.success : colors.border}
-              />
-              <Text style={styles.checkInText}>{item.inviterPetName}</Text>
-            </View>
-            <View style={styles.checkInStatus}>
-              <Icon
-                name={item.inviteeCheckedIn ? 'checkmark-circle' : 'ellipse-outline'}
-                size={16}
-                color={item.inviteeCheckedIn ? colors.success : colors.border}
-              />
-              <Text style={styles.checkInText}>{item.inviteePetName}</Text>
-            </View>
-          </View>
-        ) : null}
+        {/* Action hint */}
+        <View style={styles.cardFooter}>
+          <Text style={styles.tapHint}>Nhấn để xem chi tiết</Text>
+          <Icon name="chevron-forward" size={16} color={colors.textLight} />
+        </View>
       </TouchableOpacity>
     );
   };
 
-  // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Icon name="calendar-outline" size={80} color={colors.border} />
+      <LinearGradient colors={['#FFE4EC', '#FFF0F5']} style={styles.emptyIcon}>
+        <Icon name="calendar-outline" size={48} color={colors.primary} />
+      </LinearGradient>
       <Text style={styles.emptyTitle}>
-        {filter === 'upcoming' ? 'Chưa có cuộc hẹn sắp tới' : 
-         filter === 'past' ? 'Chưa có cuộc hẹn đã qua' : 
-         'Chưa có cuộc hẹn nào'}
+        {filter === 'upcoming' ? 'Chưa có lịch hẹn sắp tới' :
+         filter === 'ongoing' ? 'Không có cuộc hẹn đang diễn ra' :
+         filter === 'completed' ? 'Chưa có cuộc hẹn hoàn thành' :
+         filter === 'past' ? 'Chưa có lịch hẹn đã qua' :
+         'Chưa có lịch hẹn nào'}
       </Text>
       <Text style={styles.emptyText}>
-        {filter === 'upcoming' 
-          ? 'Hãy tạo lịch hẹn với những match của bạn để gặp gỡ!' 
-          : 'Các cuộc hẹn của bạn sẽ hiển thị ở đây'}
+        {filter === 'upcoming'
+          ? 'Hãy tạo lịch hẹn với những match của bạn!'
+          : 'Các cuộc hẹn sẽ hiển thị ở đây'}
       </Text>
     </View>
   );
 
-  // Render filter tabs
-  const renderFilterTabs = () => (
-    <View style={styles.filterContainer}>
-      <TouchableOpacity
-        style={[styles.filterTab, filter === 'upcoming' && styles.filterTabActive]}
-        onPress={() => setFilter('upcoming')}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.filterText, filter === 'upcoming' && styles.filterTextActive]}>
-          Sắp tới ({upcomingAppointments.length})
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.filterTab, filter === 'past' && styles.filterTabActive]}
-        onPress={() => setFilter('past')}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.filterText, filter === 'past' && styles.filterTextActive]}>
-          Đã qua ({pastAppointments.length})
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
-        onPress={() => setFilter('all')}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
-          Tất cả ({appointments.length})
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const filterTabs = [
+    { id: 'all' as FilterType, label: 'Tất cả', count: appointments.length, icon: 'list' },
+    { id: 'upcoming' as FilterType, label: 'Sắp tới', count: upcomingAppointments.length, icon: 'time' },
+    { id: 'ongoing' as FilterType, label: 'Đang diễn ra', count: ongoingAppointments.length, icon: 'play-circle' },
+    { id: 'completed' as FilterType, label: 'Hoàn thành', count: completedAppointments.length, icon: 'checkmark-circle' },
+    { id: 'past' as FilterType, label: 'Đã qua', count: pastAppointments.length, icon: 'archive' },
+  ];
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={gradients.primary} style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+      <LinearGradient colors={gradients.chat} style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
           <Icon name="arrow-back" size={24} color={colors.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Lịch hẹn của bạn</Text>
-        <View style={styles.backButton} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Lịch hẹn</Text>
+          <Text style={styles.headerSubtitle}>{appointments.length} cuộc hẹn</Text>
+        </View>
+        <TouchableOpacity onPress={onRefresh} style={styles.headerBtn}>
+          <Icon name="refresh" size={22} color={colors.white} />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Filter Tabs */}
-      {renderFilterTabs()}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterScroll}
+        style={styles.filterContainer}
+      >
+        {filterTabs.map((tab) => {
+          const isActive = filter === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.filterTab, isActive && styles.filterTabActive]}
+              onPress={() => setFilter(tab.id)}
+              activeOpacity={0.7}
+            >
+              <Icon
+                name={tab.icon}
+                size={16}
+                color={isActive ? colors.white : colors.textMedium}
+              />
+              <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                {tab.label}
+              </Text>
+              <View style={[styles.filterBadge, isActive && styles.filterBadgeActive]}>
+                <Text style={[styles.filterBadgeText, isActive && styles.filterBadgeTextActive]}>
+                  {tab.count}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
-      {/* Appointments List */}
+      {/* Content */}
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <Text style={styles.loadingText}>Đang tải lịch hẹn...</Text>
         </View>
       ) : (
         <FlatList
@@ -291,166 +330,269 @@ const MyAppointmentsScreen = ({ navigation }: Props) => {
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      {/* Bottom Navigation */}
-      <BottomNav navigation={navigation} />
     </View>
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F8F9FA',
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
   },
-  backButton: {
+  headerBtn: {
     width: 40,
     height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.white,
   },
+  headerSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+
+  // Filter
   filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  filterScroll: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   filterTab: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: radius.medium,
-    backgroundColor: colors.background,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    gap: 5,
+    height: 36,
   },
   filterTabActive: {
     backgroundColor: colors.primary,
   },
   filterText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.textMedium,
   },
   filterTextActive: {
     color: colors.white,
   },
+  filterBadge: {
+    backgroundColor: '#E0E0E0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 18,
+    alignItems: 'center',
+  },
+  filterBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMedium,
+  },
+  filterBadgeTextActive: {
+    color: colors.white,
+  },
+
+  // List
   listContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
+
+  // Card
   card: {
     backgroundColor: colors.white,
-    borderRadius: radius.large,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    marginBottom: 14,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
   },
   statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.small,
-    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
   },
-  statusBadgeText: {
+  statusIcon: {
+    fontSize: 12,
+  },
+  statusText: {
     fontSize: 12,
     fontWeight: '600',
   },
-  petsContainer: {
+  dateTimeBadge: {
+    alignItems: 'flex-end',
+  },
+  dateText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textDark,
+  },
+  timeText: {
+    fontSize: 12,
+    color: colors.textMedium,
+    marginTop: 1,
+  },
+
+  // Match section
+  matchSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    padding: 16,
   },
-  petInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  petCard: {
     flex: 1,
+    alignItems: 'center',
   },
   petAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.background,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  petName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textDark,
+    textAlign: 'center',
+  },
+  petRole: {
+    fontSize: 11,
+    color: colors.textLight,
+    marginTop: 1,
+  },
+  matchIconContainer: {
+    paddingHorizontal: 12,
+  },
+  heartBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  petName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  dateTimeContainer: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 8,
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dateTimeText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  activityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  // Details
+  detailsSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     gap: 8,
-    marginBottom: 8,
   },
-  activityIcon: {
-    fontSize: 20,
-  },
-  activityText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  locationContainer: {
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
+    gap: 10,
   },
-  locationText: {
-    fontSize: 13,
-    color: colors.textSecondary,
+  detailIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailText: {
     flex: 1,
+    fontSize: 13,
+    color: colors.textMedium,
   },
-  checkInContainer: {
+
+  // Check-in
+  checkInSection: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 10,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 10,
+  },
+  checkInTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textLight,
+    marginBottom: 6,
+  },
+  checkInRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    justifyContent: 'space-around',
   },
-  checkInStatus: {
+  checkInItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  checkInText: {
+  checkInName: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.textMedium,
   },
+  checkInDone: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+
+  // Footer
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+    gap: 4,
+  },
+  tapHint: {
+    fontSize: 12,
+    color: colors.textLight,
+  },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -459,23 +601,31 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textMedium,
   },
+
+  // Empty
   emptyContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 60,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
+    fontWeight: '700',
+    color: colors.textDark,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textMedium,
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 20,

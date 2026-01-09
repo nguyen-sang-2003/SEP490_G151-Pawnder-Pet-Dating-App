@@ -43,14 +43,24 @@ const NotificationScreen = ({ navigation }: Props) => {
 
   // Get time ago string
   const getTimeAgo = (dateString: string): string => {
-    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+    // Backend stores time in Vietnam timezone (UTC+7)
+    // Parse the date string and treat it as Vietnam local time
     let dateStr = dateString;
+    
+    // If the date string doesn't have timezone info, treat it as Vietnam time (UTC+7)
     if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
-      dateStr = dateStr + 'Z';
+      // Add Vietnam timezone offset (+07:00)
+      dateStr = dateStr + '+07:00';
     }
+    
     const date = new Date(dateStr);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    // Handle negative seconds (future dates or timezone issues)
+    if (seconds < 0) {
+      return t('notification.time.justNow');
+    }
 
     if (seconds < 60) return t('notification.time.justNow');
     if (seconds < 3600) return t('notification.time.minutesAgo', { count: Math.floor(seconds / 60) });
@@ -92,14 +102,14 @@ const NotificationScreen = ({ navigation }: Props) => {
 
       // Sort by createdAt descending (newest first)
       const sortedData = data.sort((a, b) => {
-        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        // Backend stores time in Vietnam timezone (UTC+7)
         let dateStrA = a.createdAt || '';
         if (dateStrA && !dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
-          dateStrA = dateStrA + 'Z';
+          dateStrA = dateStrA + '+07:00';
         }
         let dateStrB = b.createdAt || '';
         if (dateStrB && !dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
-          dateStrB = dateStrB + 'Z';
+          dateStrB = dateStrB + '+07:00';
         }
         const dateA = dateStrA ? new Date(dateStrA).getTime() : 0;
         const dateB = dateStrB ? new Date(dateStrB).getTime() : 0;
@@ -139,7 +149,7 @@ const NotificationScreen = ({ navigation }: Props) => {
 
         const handleNewNotification = (data: any) => {
           const newNotification: Notification = {
-            notificationId: 0,
+            notificationId: data.NotificationId || data.notificationId || Date.now(),
             title: data.Title || data.title || t('notification.title'),
             message: data.Message || data.message || '',
             type: data.Type || data.type || 'system',
@@ -149,11 +159,13 @@ const NotificationScreen = ({ navigation }: Props) => {
             chatId: data.ChatId || data.chatId,
           };
 
+          // Thêm notification mới vào đầu danh sách (không cần reload)
           setNotifications(prev => {
+            // Kiểm tra trùng lặp
             const exists = prev.some(n => {
               let dateStr = n.createdAt || '';
               if (dateStr && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
-                dateStr = dateStr + 'Z';
+                dateStr = dateStr + '+07:00';
               }
               const createdAt = dateStr ? new Date(dateStr).getTime() : 0;
               return n.title === newNotification.title && 
@@ -166,35 +178,18 @@ const NotificationScreen = ({ navigation }: Props) => {
             return [newNotification, ...prev];
           });
 
-          setTimeout(() => {
-            loadNotifications().then(async () => {
-              if (data.ExpertId && (data.Type === 'expert_confirmation' || data.Type === 'expert_reply')) {
-                try {
-                  const notifications = await getNotifications(userId);
-                  const newestExpertNotif = notifications
-                    .filter(n => n.type === 'expert_confirmation' || n.type === 'expert_reply')
-                    .sort((a, b) => {
-                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                      return dateB - dateA;
-                    })[0];
+          // Chỉ lưu mapping cho expert notification, không reload toàn bộ
+          if (data.ExpertId && (data.Type === 'expert_confirmation' || data.Type === 'expert_reply')) {
+            const mappingKey = `notification_expert_temp_${Date.now()}`;
+            const mappingData = {
+              expertId: data.ExpertId,
+              chatId: data.ChatId,
+              timestamp: Date.now()
+            };
+            AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData)).catch(() => {});
+          }
 
-                  if (newestExpertNotif) {
-                    const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
-                    const mappingData = {
-                      expertId: data.ExpertId,
-                      chatId: data.ChatId,
-                      timestamp: Date.now()
-                    };
-                    await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
-                  }
-                } catch (err) {
-                  // Error storing expert mapping
-                }
-              }
-            }).catch(() => {});
-          }, 1000);
-
+          // Cập nhật badge count
           if (userId) {
             refreshBadgesForActivePet(userId).catch(() => {});
           }
@@ -334,7 +329,7 @@ const NotificationScreen = ({ navigation }: Props) => {
 
           let notifDateStr = selectedNotification.createdAt || '';
           if (notifDateStr && !notifDateStr.endsWith('Z') && !notifDateStr.includes('+')) {
-            notifDateStr = notifDateStr + 'Z';
+            notifDateStr = notifDateStr + '+07:00';
           }
           const notificationTime = notifDateStr ? new Date(notifDateStr).getTime() : 0;
 
@@ -342,7 +337,7 @@ const NotificationScreen = ({ navigation }: Props) => {
             if (c.status?.toLowerCase() !== 'confirmed') return false;
             let confirmDateStr = c.updatedAt || '';
             if (confirmDateStr && !confirmDateStr.endsWith('Z') && !confirmDateStr.includes('+')) {
-              confirmDateStr = confirmDateStr + 'Z';
+              confirmDateStr = confirmDateStr + '+07:00';
             }
             const confirmTime = confirmDateStr ? new Date(confirmDateStr).getTime() : 0;
             const timeDiff = Math.abs(confirmTime - notificationTime);
@@ -355,11 +350,11 @@ const NotificationScreen = ({ navigation }: Props) => {
               .sort((a, b) => {
                 let dateStrA = a.updatedAt || '';
                 if (dateStrA && !dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
-                  dateStrA = dateStrA + 'Z';
+                  dateStrA = dateStrA + '+07:00';
                 }
                 let dateStrB = b.updatedAt || '';
                 if (dateStrB && !dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
-                  dateStrB = dateStrB + 'Z';
+                  dateStrB = dateStrB + '+07:00';
                 }
                 const dateA = dateStrA ? new Date(dateStrA).getTime() : 0;
                 const dateB = dateStrB ? new Date(dateStrB).getTime() : 0;

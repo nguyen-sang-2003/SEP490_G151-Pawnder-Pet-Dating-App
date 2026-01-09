@@ -11,7 +11,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   Linking,
@@ -33,10 +32,12 @@ import {
   respondToAppointment,
   cancelAppointment,
   checkInAppointment,
+  completeAppointment,
   selectCurrentAppointment,
   selectIsResponding,
   selectIsCancelling,
   selectIsCheckingIn,
+  selectIsCompleting,
 } from '../appointmentSlice';
 import {
   APPOINTMENT_STATUS_CONFIG,
@@ -44,17 +45,21 @@ import {
   APPOINTMENT_RULES,
 } from '../../../types/appointment.types';
 import { colors, gradients, radius, shadows } from '../../../theme';
+import CustomAlert from '../../../components/CustomAlert';
+import { useCustomAlert } from '../../../hooks/useCustomAlert';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppointmentDetail'>;
 
 const AppointmentDetailScreen = ({ navigation, route }: Props) => {
   const { appointmentId } = route.params;
   const dispatch = useDispatch<AppDispatch>();
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const appointment = useSelector(selectCurrentAppointment);
   const isResponding = useSelector(selectIsResponding);
   const isCancelling = useSelector(selectIsCancelling);
   const isCheckingIn = useSelector(selectIsCheckingIn);
+  const isCompleting = useSelector(selectIsCompleting);
 
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,6 +112,14 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
     return isParticipant && !['cancelled', 'completed', 'no_show'].includes(appointment.status);
   };
 
+  const canComplete = () => {
+    if (!appointment || !currentUserId) return false;
+    const isParticipant =
+      appointment.inviterUserId === currentUserId || appointment.inviteeUserId === currentUserId;
+    // Chỉ cho kết thúc khi đang diễn ra (cả 2 đã check-in)
+    return isParticipant && appointment.status === 'on_going';
+  };
+
   const isUserCheckedIn = () => {
     if (!appointment || !currentUserId) return false;
     return appointment.inviterUserId === currentUserId
@@ -116,23 +129,48 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
 
 
   const handleAccept = () => {
-    Alert.alert('Xác nhận cuộc hẹn', 'Bạn có chắc chắn muốn chấp nhận?', [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Chấp nhận',
-        onPress: async () => {
+    showAlert({
+      type: 'warning',
+      title: 'Xác nhận cuộc hẹn',
+      message: 'Bạn có chắc chắn muốn chấp nhận?',
+      confirmText: 'Chấp nhận',
+      showCancel: true,
+      cancelText: 'Hủy',
+      onConfirm: () => {
+        hideAlert();
+        // Delay để alert đóng xong
+        setTimeout(async () => {
           const result = await dispatch(
             respondToAppointment({ appointmentId, request: { appointmentId, accept: true } })
           );
-          if (result.type.endsWith('/fulfilled')) Alert.alert('Thành công', 'Đã xác nhận! 🎉');
-        },
+          if (result.type.endsWith('/fulfilled')) {
+            showAlert({
+              type: 'success',
+              title: 'Thành công',
+              message: 'Đã xác nhận! 🎉',
+              confirmText: 'OK',
+            });
+          } else {
+            showAlert({
+              type: 'error',
+              title: 'Lỗi',
+              message: 'Không thể xác nhận cuộc hẹn. Vui lòng thử lại.',
+              confirmText: 'OK',
+            });
+          }
+        }, 350);
       },
-    ]);
+    });
   };
 
   const submitDecline = async () => {
     if (!declineReason.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập lý do từ chối');
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Vui lòng nhập lý do từ chối',
+        confirmText: 'OK',
+      });
       return;
     }
     setShowDeclineModal(false);
@@ -143,7 +181,12 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
       })
     );
     if (result.type.endsWith('/fulfilled')) {
-      Alert.alert('Đã từ chối', 'Bạn đã từ chối cuộc hẹn');
+      showAlert({
+        type: 'success',
+        title: 'Đã từ chối',
+        message: 'Bạn đã từ chối cuộc hẹn',
+        confirmText: 'OK',
+      });
       setDeclineReason('');
     }
   };
@@ -152,10 +195,18 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
     const appointmentDate = new Date(appointment!.appointmentDateTime);
     const hoursUntil = (appointmentDate.getTime() - Date.now()) / 3600000;
     if (hoursUntil < 2 && hoursUntil > 0) {
-      Alert.alert('Cảnh báo', 'Cuộc hẹn sắp diễn ra. Bạn có chắc muốn hủy?', [
-        { text: 'Không', style: 'cancel' },
-        { text: 'Vẫn hủy', style: 'destructive', onPress: () => setShowCancelModal(true) },
-      ]);
+      showAlert({
+        type: 'warning',
+        title: 'Cảnh báo',
+        message: 'Cuộc hẹn sắp diễn ra. Bạn có chắc muốn hủy?',
+        confirmText: 'Vẫn hủy',
+        showCancel: true,
+        cancelText: 'Không',
+        onConfirm: () => {
+          hideAlert();
+          setShowCancelModal(true);
+        },
+      });
     } else {
       setShowCancelModal(true);
     }
@@ -163,7 +214,12 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
 
   const submitCancel = async () => {
     if (!cancelReason.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập lý do hủy');
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Vui lòng nhập lý do hủy',
+        confirmText: 'OK',
+      });
       return;
     }
     setShowCancelModal(false);
@@ -171,19 +227,61 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
       cancelAppointment({ appointmentId, request: { appointmentId, reason: cancelReason.trim() } })
     );
     if (result.type.endsWith('/fulfilled')) {
-      Alert.alert('Đã hủy', 'Cuộc hẹn đã được hủy');
+      showAlert({
+        type: 'success',
+        title: 'Đã hủy',
+        message: 'Cuộc hẹn đã được hủy',
+        confirmText: 'OK',
+      });
       setCancelReason('');
     }
   };
 
   const handleCheckIn = async () => {
+    // Validate thời gian check-in
+    if (appointment) {
+      const appointmentTime = new Date(appointment.appointmentDateTime).getTime();
+      const now = Date.now();
+      const minCheckInTime = appointmentTime - APPOINTMENT_RULES.CHECK_IN_BEFORE_MINUTES * 60 * 1000;
+      const maxCheckInTime = appointmentTime + APPOINTMENT_RULES.CHECK_IN_AFTER_MINUTES * 60 * 1000;
+
+      if (now < minCheckInTime) {
+        const minutesUntil = Math.ceil((minCheckInTime - now) / 60000);
+        const timeText = minutesUntil >= 60 
+          ? `${Math.floor(minutesUntil / 60)} giờ ${minutesUntil % 60} phút`
+          : `${minutesUntil} phút`;
+        showAlert({
+          type: 'warning',
+          title: 'Chưa đến giờ',
+          message: `Bạn chỉ có thể check-in trước giờ hẹn ${APPOINTMENT_RULES.CHECK_IN_BEFORE_MINUTES} phút. Còn ${timeText} nữa.`,
+          confirmText: 'OK',
+        });
+        return;
+      }
+
+      if (now > maxCheckInTime) {
+        showAlert({
+          type: 'error',
+          title: 'Quá giờ',
+          message: `Đã quá thời gian check-in. Chỉ được check-in trong vòng ${APPOINTMENT_RULES.CHECK_IN_AFTER_MINUTES} phút sau giờ hẹn.`,
+          confirmText: 'OK',
+        });
+        return;
+      }
+    }
+
     const permission =
       Platform.OS === 'ios'
         ? await request(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE)
         : await request(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
 
     if (permission !== RESULTS.GRANTED) {
-      Alert.alert('Lỗi', 'Cần cấp quyền vị trí để check-in');
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Cần cấp quyền vị trí để check-in',
+        confirmText: 'OK',
+      });
       return;
     }
 
@@ -198,18 +296,96 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
             Number(appointment.location.longitude)
           );
           if (dist > APPOINTMENT_RULES.CHECK_IN_RADIUS_METERS) {
-            Alert.alert('Quá xa', `Bạn cách ${Math.round(dist)}m. Cần trong ${APPOINTMENT_RULES.CHECK_IN_RADIUS_METERS}m.`);
+            // Format khoảng cách: >= 1000m thì hiển thị km
+            const distText = dist >= 1000 
+              ? `${(dist / 1000).toFixed(1)}km` 
+              : `${Math.round(dist)}m`;
+            const radiusText = APPOINTMENT_RULES.CHECK_IN_RADIUS_METERS >= 1000
+              ? `${(APPOINTMENT_RULES.CHECK_IN_RADIUS_METERS / 1000).toFixed(1)}km`
+              : `${APPOINTMENT_RULES.CHECK_IN_RADIUS_METERS}m`;
+            showAlert({
+              type: 'warning',
+              title: 'Quá xa',
+              message: `Bạn cách ${distText}. Cần trong ${radiusText}.`,
+              confirmText: 'OK',
+            });
             return;
           }
         }
         const result = await dispatch(
           checkInAppointment({ appointmentId, request: { appointmentId, latitude, longitude } })
         );
-        if (result.type.endsWith('/fulfilled')) Alert.alert('Thành công', 'Check-in thành công! 🎉');
+        if (result.type.endsWith('/fulfilled')) {
+          showAlert({
+            type: 'success',
+            title: 'Thành công',
+            message: 'Check-in thành công! 🎉',
+            confirmText: 'OK',
+          });
+        }
       },
-      (err) => Alert.alert('Lỗi', err.message),
+      (err) => {
+        showAlert({
+          type: 'error',
+          title: 'Lỗi',
+          message: err.message,
+          confirmText: 'OK',
+        });
+      },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
+  };
+
+  const handleComplete = () => {
+    // Validate: chỉ cho kết thúc sau giờ hẹn
+    if (appointment) {
+      const appointmentTime = new Date(appointment.appointmentDateTime).getTime();
+      const now = Date.now();
+      
+      if (now < appointmentTime) {
+        const minutesUntil = Math.ceil((appointmentTime - now) / 60000);
+        const timeText = minutesUntil >= 60 
+          ? `${Math.floor(minutesUntil / 60)} giờ ${minutesUntil % 60} phút`
+          : `${minutesUntil} phút`;
+        showAlert({
+          type: 'warning',
+          title: 'Chưa đến giờ hẹn',
+          message: `Bạn chỉ có thể kết thúc cuộc hẹn sau giờ hẹn. Còn ${timeText} nữa mới đến giờ.`,
+          confirmText: 'OK',
+        });
+        return;
+      }
+    }
+
+    showAlert({
+      type: 'warning',
+      title: 'Kết thúc cuộc hẹn',
+      message: 'Bạn có chắc chắn muốn kết thúc cuộc hẹn này? Đối phương sẽ được thông báo.',
+      confirmText: 'Kết thúc',
+      showCancel: true,
+      cancelText: 'Hủy',
+      onConfirm: () => {
+        hideAlert();
+        setTimeout(async () => {
+          const result = await dispatch(completeAppointment(appointmentId));
+          if (result.type.endsWith('/fulfilled')) {
+            showAlert({
+              type: 'success',
+              title: 'Hoàn thành',
+              message: 'Cuộc hẹn đã kết thúc! Cảm ơn bạn đã sử dụng dịch vụ 🎊',
+              confirmText: 'OK',
+            });
+          } else {
+            showAlert({
+              type: 'error',
+              title: 'Lỗi',
+              message: 'Không thể kết thúc cuộc hẹn. Vui lòng thử lại.',
+              confirmText: 'OK',
+            });
+          }
+        }, 350);
+      },
+    });
   };
 
   const calcDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -405,6 +581,14 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.checkName}>{appointment.inviteePetName}</Text>
               </View>
             </View>
+            {/* Thông báo khi cả 2 đã check-in */}
+            {appointment.inviterCheckedIn && appointment.inviteeCheckedIn && (
+              <View style={styles.bothCheckedInBanner}>
+                <Text style={styles.bothCheckedInText}>
+                  🎉 Cả hai đã có mặt! Chúc các bạn có buổi hẹn vui vẻ!
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -473,6 +657,22 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
                 <>
                   <Icon name="location" size={20} color={colors.white} />
                   <Text style={styles.actionText}>Check-in</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+          {canComplete() && (
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.success }]}
+              onPress={handleComplete}
+              disabled={isCompleting}
+            >
+              {isCompleting ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <>
+                  <Icon name="checkmark-done" size={20} color={colors.white} />
+                  <Text style={styles.actionText}>Kết thúc cuộc hẹn</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -562,6 +762,21 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
       </Modal>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          cancelText={alertConfig.cancelText}
+          showCancel={alertConfig.showCancel}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+        />
+      )}
     </View>
   );
 };
@@ -617,6 +832,19 @@ const styles = StyleSheet.create({
   checkRow: { flexDirection: 'row', justifyContent: 'space-around' },
   checkItem: { alignItems: 'center', gap: 6 },
   checkName: { fontSize: 13, fontWeight: '600', color: colors.textDark },
+  bothCheckedInBanner: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: colors.success + '15',
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  bothCheckedInText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+    textAlign: 'center',
+  },
   actions: { gap: 10, marginTop: 8 },
   actionBtn: {
     flexDirection: 'row',

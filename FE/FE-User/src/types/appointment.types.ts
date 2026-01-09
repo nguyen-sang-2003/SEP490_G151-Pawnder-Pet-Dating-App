@@ -260,6 +260,10 @@ export const APPOINTMENT_RULES = {
   MIN_HOURS_ADVANCE: 2,
   MAX_COUNTER_OFFERS: 3,
   CHECK_IN_RADIUS_METERS: 100,
+  CHECK_IN_BEFORE_MINUTES: 30,  // Có thể check-in trước giờ hẹn 30 phút
+  CHECK_IN_AFTER_MINUTES: 90,   // Có thể check-in sau giờ hẹn 90 phút
+  AUTO_NO_SHOW_MINUTES: 90,     // Tự động NO_SHOW sau 90 phút nếu thiếu người check-in
+  AUTO_COMPLETE_MINUTES: 90,    // Tự động COMPLETED sau 90 phút nếu đang ON_GOING
 };
 
 // ============================================

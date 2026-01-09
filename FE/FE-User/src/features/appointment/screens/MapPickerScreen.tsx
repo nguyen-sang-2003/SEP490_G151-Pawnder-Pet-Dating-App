@@ -113,15 +113,6 @@ const MapPickerScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  // Hàm bỏ dấu tiếng Việt để tìm kiếm tốt hơn
-  const removeVietnameseTones = (str: string): string => {
-    return str
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D');
-  };
-
   // Search địa điểm bằng Nominatim
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -269,7 +260,6 @@ const MapPickerScreen = ({ navigation, route }: Props) => {
       displayName: name.trim() || address.trim(),
     };
 
-    route.params?.onSelect?.(selection);
     dispatch(setSelectedLocation(selection));
     navigation.goBack();
   };

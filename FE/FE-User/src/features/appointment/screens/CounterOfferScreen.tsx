@@ -11,10 +11,10 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -26,19 +26,24 @@ import {
   counterOfferAppointment,
   selectCurrentAppointment,
   selectIsCounterOffering,
+  selectSelectedLocation,
+  clearSelectedLocation,
 } from '../appointmentSlice';
 import { CounterOfferRequest, APPOINTMENT_RULES } from '../../../types/appointment.types';
-import { LocationSelectionResult } from '../../../types/location.types';
 import { colors, gradients, radius, shadows } from '../../../theme';
+import CustomAlert from '../../../components/CustomAlert';
+import { useCustomAlert } from '../../../hooks/useCustomAlert';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CounterOffer'>;
 
 const CounterOfferScreen = ({ navigation, route }: Props) => {
   const { appointmentId } = route.params;
   const dispatch = useDispatch<AppDispatch>();
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const appointment = useSelector(selectCurrentAppointment);
   const isCounterOffering = useSelector(selectIsCounterOffering);
+  const selectedLocation = useSelector(selectSelectedLocation);
 
   const [loading, setLoading] = useState(true);
   const [changeDate, setChangeDate] = useState(false);
@@ -47,30 +52,39 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
   // New date/time state
   const [newDate, setNewDate] = useState<Date | null>(null);
   const [newTime, setNewTime] = useState<Date | null>(null);
-  const [newLocation, setNewLocation] = useState<LocationSelectionResult | null>(null);
 
   const newLocationName =
-    newLocation?.type === 'PRESET'
-      ? newLocation.location?.name || `Dia diem #${newLocation.locationId}`
-      : newLocation?.type === 'CUSTOM'
-        ? newLocation.customLocation.name
+    selectedLocation?.type === 'PRESET'
+      ? selectedLocation.location?.name || `Địa điểm #${selectedLocation.locationId}`
+      : selectedLocation?.type === 'CUSTOM'
+        ? selectedLocation.customLocation.name
         : '';
 
   const newLocationAddress =
-    newLocation?.type === 'PRESET'
-      ? newLocation.location?.address
-      : newLocation?.type === 'CUSTOM'
-        ? newLocation.customLocation.address
+    selectedLocation?.type === 'PRESET'
+      ? selectedLocation.location?.address
+      : selectedLocation?.type === 'CUSTOM'
+        ? selectedLocation.customLocation.address
         : '';
 
   // Date/Time picker visibility
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Load appointment
+  // Load appointment & clear location on mount
   useEffect(() => {
+    dispatch(clearSelectedLocation());
     loadAppointment();
   }, []);
+
+  // Listen for location selection when returning from LocationPicker
+  useFocusEffect(
+    React.useCallback(() => {
+      if (selectedLocation && changeLocation) {
+        // Location was selected
+      }
+    }, [selectedLocation, changeLocation])
+  );
 
   const loadAppointment = async () => {
     setLoading(true);
@@ -93,11 +107,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
   };
 
   const handleLocationSelect = () => {
-    navigation.navigate('LocationPicker', {
-      onSelect: (location: any) => {
-        setNewLocation(location);
-      },
-    });
+    navigation.navigate('LocationPicker', {});
   };
 
   const isDateTimeValid = (): boolean => {
@@ -116,25 +126,42 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
   const handleSubmit = async () => {
     // Validate
     if (changeDate && (!newDate || !newTime)) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngày và giờ mới');
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng chọn ngày và giờ mới',
+        confirmText: 'OK',
+      });
       return;
     }
 
-    if (changeLocation && !newLocation) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng chọn địa điểm mới');
+    if (changeLocation && !selectedLocation) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng chọn địa điểm mới',
+        confirmText: 'OK',
+      });
       return;
     }
 
     if (!changeDate && !changeLocation) {
-      Alert.alert('Chưa chọn', 'Vui lòng chọn ít nhất một thông tin để đề xuất lại');
+      showAlert({
+        type: 'warning',
+        title: 'Chưa chọn',
+        message: 'Vui lòng chọn ít nhất một thông tin để đề xuất lại',
+        confirmText: 'OK',
+      });
       return;
     }
 
     if (changeDate && !isDateTimeValid()) {
-      Alert.alert(
-        'Thời gian không hợp lệ',
-        `Thời gian hẹn phải cách hiện tại ít nhất ${APPOINTMENT_RULES.MIN_HOURS_ADVANCE} giờ`
-      );
+      showAlert({
+        type: 'error',
+        title: 'Thời gian không hợp lệ',
+        message: `Thời gian hẹn phải cách hiện tại ít nhất ${APPOINTMENT_RULES.MIN_HOURS_ADVANCE} giờ`,
+        confirmText: 'OK',
+      });
       return;
     }
 
@@ -150,25 +177,35 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
       request.newDateTime = appointmentDateTime.toISOString();
     }
 
-    if (changeLocation && newLocation) {
-      if (newLocation.type === 'PRESET') {
-        request.newLocationId = newLocation.locationId;
-      } else if (newLocation.type === 'CUSTOM') {
-        request.newCustomLocation = newLocation.customLocation;
+    if (changeLocation && selectedLocation) {
+      if (selectedLocation.type === 'PRESET') {
+        request.newLocationId = selectedLocation.locationId;
+      } else if (selectedLocation.type === 'CUSTOM') {
+        request.newCustomLocation = selectedLocation.customLocation;
       }
     }
 
     const result = await dispatch(counterOfferAppointment({ appointmentId, request }));
 
     if (result.type.endsWith('/fulfilled')) {
-      Alert.alert('Đã gửi', 'Đề xuất mới đã được gửi! Đợi đối phương phản hồi nhé 📝', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
+      showAlert({
+        type: 'success',
+        title: 'Đã gửi',
+        message: 'Đề xuất mới đã được gửi! Đợi đối phương phản hồi nhé 📝',
+        confirmText: 'OK',
+        onConfirm: () => {
+          hideAlert();
+          dispatch(clearSelectedLocation());
+          navigation.goBack();
         },
-      ]);
+      });
     } else {
-      Alert.alert('Lỗi', 'Không thể gửi đề xuất. Vui lòng thử lại.');
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Không thể gửi đề xuất. Vui lòng thử lại.',
+        confirmText: 'OK',
+      });
     }
   };
 
@@ -341,13 +378,13 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
 
           {changeLocation && (
             <View style={styles.inputsContainer}>
-              {newLocation ? (
+              {selectedLocation ? (
                 <View style={styles.locationSelected}>
                   <View style={styles.locationInfo}>
                     <Icon name="location" size={20} color={colors.primary} />
                     <View style={styles.locationText}>
                       <Text style={styles.locationBadge}>
-                        {newLocation.type === 'CUSTOM' ? 'Custom' : 'Goi y'}
+                        {selectedLocation.type === 'CUSTOM' ? 'Custom' : 'Gợi ý'}
                       </Text>
                       <Text style={styles.locationName}>{newLocationName}</Text>
                       <Text style={styles.locationAddress} numberOfLines={2}>
@@ -399,6 +436,19 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Custom Alert */}
+      {alertConfig && (
+        <CustomAlert
+          visible={visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          confirmText={alertConfig.confirmText}
+          onClose={hideAlert}
+          onConfirm={alertConfig.onConfirm}
+        />
+      )}
     </View>
   );
 };

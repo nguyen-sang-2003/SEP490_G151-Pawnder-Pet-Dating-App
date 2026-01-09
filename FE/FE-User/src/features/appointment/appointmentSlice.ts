@@ -40,6 +40,7 @@ interface AppointmentState {
   cancelling: boolean;
   checkingIn: boolean;
   counterOffering: boolean;
+  completing: boolean;
   
   // Error handling
   error: string | null;
@@ -61,6 +62,7 @@ const initialState: AppointmentState = {
   cancelling: false,
   checkingIn: false,
   counterOffering: false,
+  completing: false,
   error: null,
   validationError: null,
   validationChecked: false,
@@ -217,6 +219,21 @@ export const checkInAppointment = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to check-in');
+    }
+  }
+);
+
+/**
+ * Complete appointment (kết thúc cuộc hẹn)
+ */
+export const completeAppointment = createAsyncThunk(
+  'appointment/complete',
+  async (appointmentId: number, { rejectWithValue }) => {
+    try {
+      const response = await AppointmentService.completeAppointment(appointmentId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to complete appointment');
     }
   }
 );
@@ -497,6 +514,29 @@ const appointmentSlice = createSlice({
         state.error = action.payload as string;
       });
     
+    // Complete Appointment
+    builder
+      .addCase(completeAppointment.pending, (state) => {
+        state.completing = true;
+        state.error = null;
+      })
+      .addCase(completeAppointment.fulfilled, (state, action) => {
+        state.completing = false;
+        state.currentAppointment = action.payload;
+        
+        // Update in list
+        const index = state.appointments.findIndex(
+          apt => apt.appointmentId === action.payload.appointmentId
+        );
+        if (index !== -1) {
+          state.appointments[index] = action.payload;
+        }
+      })
+      .addCase(completeAppointment.rejected, (state, action) => {
+        state.completing = false;
+        state.error = action.payload as string;
+      });
+    
     // Fetch Locations
     builder
       .addCase(fetchSuggestedLocations.pending, (state) => {
@@ -564,6 +604,7 @@ export const selectIsResponding = (state: RootState) => state.appointment.respon
 export const selectIsCancelling = (state: RootState) => state.appointment.cancelling;
 export const selectIsCheckingIn = (state: RootState) => state.appointment.checkingIn;
 export const selectIsCounterOffering = (state: RootState) => state.appointment.counterOffering;
+export const selectIsCompleting = (state: RootState) => state.appointment.completing;
 
 // Filtered selectors (memoized)
 export const selectAppointmentsByStatus = (status: AppointmentStatus) => 
@@ -577,11 +618,10 @@ export const selectUpcomingAppointments = createSelector(
   (appointments) => 
     appointments
       .filter(apt => 
-        ['pending', 'confirmed'].includes(apt.status) &&
-        new Date(apt.appointmentDateTime) > new Date()
+        ['pending', 'confirmed', 'on_going'].includes(apt.status)
       )
       .sort((a, b) => 
-        new Date(a.appointmentDateTime).getTime() - new Date(b.appointmentDateTime).getTime()
+        new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime()
       )
 );
 
@@ -590,9 +630,28 @@ export const selectPastAppointments = createSelector(
   (appointments) => 
     appointments
       .filter(apt => 
-        ['completed', 'cancelled', 'no_show'].includes(apt.status) ||
-        (new Date(apt.appointmentDateTime) < new Date() && apt.status !== 'on_going')
+        ['completed', 'cancelled', 'no_show', 'rejected'].includes(apt.status)
       )
+      .sort((a, b) => 
+        new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime()
+      )
+);
+
+export const selectOngoingAppointments = createSelector(
+  [selectAppointments],
+  (appointments) => 
+    appointments
+      .filter(apt => apt.status === 'on_going')
+      .sort((a, b) => 
+        new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime()
+      )
+);
+
+export const selectCompletedAppointments = createSelector(
+  [selectAppointments],
+  (appointments) => 
+    appointments
+      .filter(apt => apt.status === 'completed')
       .sort((a, b) => 
         new Date(b.appointmentDateTime).getTime() - new Date(a.appointmentDateTime).getTime()
       )

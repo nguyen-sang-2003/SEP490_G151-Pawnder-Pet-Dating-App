@@ -193,14 +193,12 @@ export type RootStackParamList = {
     | undefined
     | {
         city?: string;
-        onSelect?: (location: LocationSelectionResult) => void;
         allowCustomLocation?: boolean;
       };
   MapPicker:
     | undefined
     | {
         city?: string;
-        onSelect?: (location: LocationSelectionResult) => void;
         initialCoordinate?: Coordinates;
         initialAddress?: string;
         initialName?: string;
