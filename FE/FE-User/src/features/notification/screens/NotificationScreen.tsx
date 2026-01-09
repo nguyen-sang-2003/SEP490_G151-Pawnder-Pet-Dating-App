@@ -240,6 +240,13 @@ const NotificationScreen = ({ navigation }: Props) => {
         return { name: "medical", color: "#FFFFFF" };
       case "system":
         return { name: "sparkles", color: "#FFFFFF" };
+      case "appointment_invite":
+      case "appointment_accepted":
+      case "appointment_rejected":
+      case "appointment_cancelled":
+      case "appointment_counter_offer":
+      case "appointment_ongoing":
+        return { name: "calendar", color: "#FFFFFF" };
       default:
         return { name: "notifications", color: "#FFFFFF" };
     }
@@ -252,9 +259,25 @@ const NotificationScreen = ({ navigation }: Props) => {
         return ["#FF6EA7", "#FF9BC0"]; // Pink gradient for expert
       case "system":
         return ["#FFB8D6", "#FF8FB7"]; // Lighter pink for system
+      case "appointment_invite":
+        return ["#4CAF50", "#66BB6A"]; // Green for invite
+      case "appointment_accepted":
+        return ["#2196F3", "#42A5F5"]; // Blue for accepted
+      case "appointment_rejected":
+      case "appointment_cancelled":
+        return ["#FF5252", "#FF8A80"]; // Red for rejected/cancelled
+      case "appointment_counter_offer":
+        return ["#FF9800", "#FFB74D"]; // Orange for counter offer
+      case "appointment_ongoing":
+        return ["#9C27B0", "#BA68C8"]; // Purple for ongoing
       default:
         return ["#FFB8D6", "#FF8FB7"];
     }
+  }, []);
+
+  // Check if notification is appointment related
+  const isAppointmentNotification = useCallback((type: string) => {
+    return type?.startsWith('appointment_');
   }, []);
 
   const handleNotificationPress = async (item: Notification) => {
@@ -430,6 +453,11 @@ const NotificationScreen = ({ navigation }: Props) => {
                 <Icon name="shield-checkmark" size={12} color="#FF6EA7" />
                 <Text style={styles.expertBadgeText}>{t('badges.expert')}</Text>
               </View>
+            ) : type?.startsWith('appointment_') ? (
+              <View style={[styles.expertBadge, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="calendar" size={12} color="#4CAF50" />
+                <Text style={[styles.expertBadgeText, { color: '#4CAF50' }]}>Lịch hẹn</Text>
+              </View>
             ) : null}
           </View>
           <Text
@@ -456,6 +484,7 @@ const NotificationScreen = ({ navigation }: Props) => {
       if (filterType === "unread") return !n.isRead;
       if (filterType === "system") return n.type === "system";
       if (filterType === "expert") return n.type === "expert_reply" || n.type === "expert" || n.type === "expert_confirmation";
+      if (filterType === "appointment") return n.type?.startsWith('appointment_');
       return true;
     });
   }, [notifications, filterType]);
@@ -468,6 +497,7 @@ const NotificationScreen = ({ navigation }: Props) => {
   const filterTabs = useMemo(() => [
     { id: "all", label: t('notification.filter.all'), icon: "apps" },
     { id: "unread", label: t('notification.filter.unread'), icon: "mail-unread", badge: unreadCount },
+    { id: "appointment", label: "Lịch hẹn", icon: "calendar" },
     { id: "system", label: t('notification.filter.system'), icon: "notifications" },
     { id: "expert", label: t('notification.filter.expert'), icon: "medical" },
   ], [unreadCount, t]);
@@ -761,6 +791,32 @@ const NotificationScreen = ({ navigation }: Props) => {
                           <Text style={styles.modalButtonText}>{t('notification.modal.chatWithExpert')}</Text>
                         </>
                       )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalSecondaryButton}
+                    onPress={closeModal}
+                  >
+                    <Text style={styles.modalSecondaryButtonText}>{t('notification.modal.close')}</Text>
+                  </TouchableOpacity>
+                </>
+              ) : isAppointmentNotification(selectedNotification?.type || '') ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => {
+                      closeModal();
+                      navigation.navigate('MyAppointments');
+                    }}
+                  >
+                    <LinearGradient
+                      colors={["#4CAF50", "#66BB6A"]}
+                      style={styles.modalButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Icon name="calendar" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                      <Text style={styles.modalButtonText}>Xem lịch hẹn</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                   <TouchableOpacity

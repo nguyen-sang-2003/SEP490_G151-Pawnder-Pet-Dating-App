@@ -54,12 +54,24 @@ public class AppointmentService : IAppointmentService
                 return (false, "Hai người chưa match hoặc match không hợp lệ");
         }
 
-        // 2. Kiểm tra số tin nhắn tối thiểu
+        // 2. Kiểm tra đã có cuộc hẹn pending/confirmed chưa
+        var existingAppointment = await _context.Set<PetAppointment>()
+            .FirstOrDefaultAsync(a => 
+                a.MatchId == matchId && 
+                (a.Status == "pending" || a.Status == "confirmed"), ct);
+        
+        if (existingAppointment != null)
+        {
+            var statusText = existingAppointment.Status == "pending" ? "đang chờ phản hồi" : "đã được xác nhận";
+            return (false, $"Đã có cuộc hẹn {statusText} với người này. Vui lòng xem trong danh sách lịch hẹn.");
+        }
+
+        // 3. Kiểm tra số tin nhắn tối thiểu
         var messageCount = await _appointmentRepository.CountMessagesBetweenUsersAsync(matchId, ct);
         if (messageCount < MIN_MESSAGES_REQUIRED)
             return (false, $"Cần ít nhất {MIN_MESSAGES_REQUIRED} tin nhắn trước khi tạo cuộc hẹn. Hiện có: {messageCount}");
 
-        // 3. Kiểm tra pet profile đầy đủ
+        // 4. Kiểm tra pet profile đầy đủ
         var inviterProfileComplete = await _appointmentRepository.IsPetProfileCompleteAsync(inviterPetId, ct);
         if (!inviterProfileComplete)
             return (false, "Hồ sơ thú cưng của bạn chưa đầy đủ (cần có tên, giống loài và ảnh)");
@@ -88,8 +100,14 @@ public class AppointmentService : IAppointmentService
             throw new InvalidOperationException(errorMessage);
 
         // Validate thời gian (tối thiểu 2 tiếng từ hiện tại)
-        var minDateTime = DateTime.Now.AddHours(MIN_HOURS_ADVANCE);
-        if (request.AppointmentDateTime < minDateTime)
+        // Chuyển về giờ Việt Nam (GMT+7) để so sánh
+        var nowVietnam = DateTime.UtcNow.AddHours(7);
+        var appointmentVietnam = request.AppointmentDateTime.Kind == DateTimeKind.Utc
+            ? request.AppointmentDateTime.AddHours(7)
+            : request.AppointmentDateTime;
+        var minDateTime = nowVietnam.AddHours(MIN_HOURS_ADVANCE);
+
+        if (appointmentVietnam < minDateTime)
             throw new ArgumentException($"Thời gian hẹn phải cách hiện tại ít nhất {MIN_HOURS_ADVANCE} tiếng");
 
         // Xử lý địa điểm
@@ -110,6 +128,11 @@ public class AppointmentService : IAppointmentService
             throw new InvalidOperationException("Không tìm thấy thông tin thú cưng hoặc chủ");
 
         // Tạo cuộc hẹn
+        // Chuyển DateTime về local time (không có UTC kind) để lưu vào PostgreSQL
+        var appointmentDateTimeLocal = request.AppointmentDateTime.Kind == DateTimeKind.Utc
+            ? DateTime.SpecifyKind(request.AppointmentDateTime.AddHours(7), DateTimeKind.Unspecified)
+            : DateTime.SpecifyKind(request.AppointmentDateTime, DateTimeKind.Unspecified);
+            
         var appointment = new PetAppointment
         {
             MatchId = request.MatchId,
@@ -117,7 +140,7 @@ public class AppointmentService : IAppointmentService
             InviteePetId = request.InviteePetId,
             InviterUserId = inviterPet.UserId!.Value,
             InviteeUserId = inviteePet.UserId!.Value,
-            AppointmentDateTime = request.AppointmentDateTime,
+            AppointmentDateTime = appointmentDateTimeLocal,
             LocationId = locationId,
             ActivityType = request.ActivityType,
             Status = "pending",
@@ -129,12 +152,12 @@ public class AppointmentService : IAppointmentService
 
         await _appointmentRepository.AddAsync(appointment, ct);
 
-        // Gửi thông báo cho invitee
+        // Gửi thông báo cho invitee - dùng giờ Việt Nam
         await _notificationService.CreateNotificationAsync(new NotificationDto_1
         {
             UserId = inviteePet.UserId,
             Title = "Lời mời gặp gỡ mới! 🐾",
-            Message = $"Bé {inviterPet.Name} muốn hẹn gặp bé {inviteePet.Name} vào {request.AppointmentDateTime:dd/MM/yyyy HH:mm}",
+            Message = $"Bé {inviterPet.Name} muốn hẹn gặp bé {inviteePet.Name} vào {appointmentDateTimeLocal:dd/MM/yyyy HH:mm}",
             Type = "appointment_invite"
         }, ct);
 
@@ -237,11 +260,20 @@ public class AppointmentService : IAppointmentService
         // Cập nhật thông tin
         if (request.NewDateTime.HasValue)
         {
-            var minDateTime = DateTime.Now.AddHours(MIN_HOURS_ADVANCE);
-            if (request.NewDateTime.Value < minDateTime)
+            var nowVietnam = DateTime.UtcNow.AddHours(7);
+            var newDateTimeVietnam = request.NewDateTime.Value.Kind == DateTimeKind.Utc
+                ? request.NewDateTime.Value.AddHours(7)
+                : request.NewDateTime.Value;
+            var minDateTime = nowVietnam.AddHours(MIN_HOURS_ADVANCE);
+
+            if (newDateTimeVietnam < minDateTime)
                 throw new ArgumentException($"Thời gian hẹn phải cách hiện tại ít nhất {MIN_HOURS_ADVANCE} tiếng");
-            
-            appointment.AppointmentDateTime = request.NewDateTime.Value;
+
+            // Chuyển về local time để lưu vào PostgreSQL
+            var newDateTimeLocal = request.NewDateTime.Value.Kind == DateTimeKind.Utc
+                ? DateTime.SpecifyKind(request.NewDateTime.Value.AddHours(7), DateTimeKind.Unspecified)
+                : DateTime.SpecifyKind(request.NewDateTime.Value, DateTimeKind.Unspecified);
+            appointment.AppointmentDateTime = newDateTimeLocal;
         }
 
         if (request.NewLocationId.HasValue)

@@ -84,6 +84,13 @@ const SettingsScreen = ({ navigation }: Props) => {
 
   const appSettings: SettingsItem[] = [
     {
+      icon: "calendar-outline",
+      title: t('settings.appSettings.myAppointments', 'Lịch hẹn của tôi'),
+      subtitle: t('settings.appSettings.myAppointmentsDesc', 'Xem và quản lý các cuộc hẹn'),
+      onPress: () => navigation.navigate("MyAppointments"),
+      iconColor: colors.chatStart,
+    },
+    {
       icon: "shield-checkmark-outline",
       title: t('settings.appSettings.expertConfirmation'),
       subtitle: t('settings.appSettings.expertConfirmationDesc'),

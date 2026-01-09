@@ -27,7 +27,7 @@ import { getChatMessages, sendMessage, deleteChat, ChatMessage, getChats, ChatUs
 import { blockUser } from "../../report/api/blockApi";
 import { reportMessage } from "../../report/api/reportApi";
 import { getUserById } from "../../profile/api/userApi";
-import { getPetsByUserId } from "../../pet/api/petApi";
+import { getPetsByUserId, getPetById } from "../../pet/api/petApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -71,6 +71,11 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [myAvatar, setMyAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const [otherUserAvatar, setOtherUserAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const [userName, setUserName] = useState<string>(initialUserName || "Loading...");
+  // Pet info for appointment
+  const [myPetId, setMyPetId] = useState<number | null>(null);
+  const [otherPetId, setOtherPetId] = useState<number | null>(null);
+  const [myPetName, setMyPetName] = useState<string>("");
+  const [otherPetName, setOtherPetName] = useState<string>("");
   const flatListRef = useRef<FlatList>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -346,17 +351,33 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       const currentMatch = chats.find((chat: ChatUser) => chat.matchId === matchId);
       
       if (currentMatch) {
-        const myPetId = currentMatch.fromUserId === userId ? currentMatch.fromPetId : currentMatch.toPetId;
-        const otherPetId = currentMatch.fromUserId === userId ? currentMatch.toPetId : currentMatch.fromPetId;
+        const myPetIdValue = currentMatch.fromUserId === userId ? currentMatch.fromPetId : currentMatch.toPetId;
+        const otherPetIdValue = currentMatch.fromUserId === userId ? currentMatch.toPetId : currentMatch.fromPetId;
 
-        const myAvatarResult = myPetId 
-          ? await getPetAvatar(myPetId).catch(() => getUserPetAvatar(userId))
+        // Save pet IDs for appointment feature
+        if (myPetIdValue) setMyPetId(myPetIdValue);
+        if (otherPetIdValue) setOtherPetId(otherPetIdValue);
+
+        // Fetch pet names for appointment
+        if (myPetIdValue) {
+          getPetById(myPetIdValue)
+            .then(pet => setMyPetName(pet.name || pet.Name || ''))
+            .catch(() => {});
+        }
+        if (otherPetIdValue) {
+          getPetById(otherPetIdValue)
+            .then(pet => setOtherPetName(pet.name || pet.Name || ''))
+            .catch(() => {});
+        }
+
+        const myAvatarResult = myPetIdValue 
+          ? await getPetAvatar(myPetIdValue).catch(() => getUserPetAvatar(userId))
           : await getUserPetAvatar(userId);
         
         setMyAvatar(myAvatarResult);
 
-        if (otherPetId) {
-          getPetAvatar(otherPetId)
+        if (otherPetIdValue) {
+          getPetAvatar(otherPetIdValue)
             .then(otherAvatar => {
               setOtherUserAvatar(otherAvatar);
             })
@@ -521,6 +542,24 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleMenuPress = () => {
     setShowMenuModal(true);
+  };
+
+  const handleCreateAppointment = () => {
+    if (!myPetId || !otherPetId) {
+      showAlert({
+        type: 'warning',
+        title: t('common.error'),
+        message: t('chat.appointment.noPetInfo') || 'Không tìm thấy thông tin thú cưng',
+      });
+      return;
+    }
+    navigation.navigate('CreateAppointment', {
+      matchId,
+      inviterPetId: myPetId,
+      inviteePetId: otherPetId,
+      inviterPetName: myPetName || t('fallback.unknown'),
+      inviteePetName: otherPetName || t('fallback.unknown'),
+    });
   };
 
   const closeMenu = () => {
@@ -845,6 +884,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               </Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.appointmentButton}
+            onPress={handleCreateAppointment}
+          >
+            <Icon name="calendar-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.menuButton}
@@ -1175,6 +1221,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
+    ...shadows.small,
+  },
+  appointmentButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.whiteWarm,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
     ...shadows.small,
   },
 
