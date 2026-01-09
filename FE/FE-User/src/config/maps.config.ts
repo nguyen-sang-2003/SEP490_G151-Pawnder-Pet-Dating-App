@@ -1,11 +1,13 @@
 import { Coordinates } from '../types/location.types';
+import Config from 'react-native-config';
 
 export const MAPS_CONFIG: {
   GOOGLE_MAPS_API_KEY: string;
   DEFAULT_CITY_CENTER: Coordinates;
   CITY_CENTERS: Record<string, Coordinates>;
 } = {
-  GOOGLE_MAPS_API_KEY: 'AIzaSyBgLB3lJ4bUtQPfLfIdHifQwwLmxcfsou0', // Reverse geocoding + Maps SDK
+  // Lấy từ .env file - KHÔNG hardcode API key
+  GOOGLE_MAPS_API_KEY: Config.GOOGLE_MAPS_API_KEY || '',
   DEFAULT_CITY_CENTER: {
     latitude: 10.7769,
     longitude: 106.7009,

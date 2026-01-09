@@ -2,6 +2,11 @@
 #
 .DS_Store
 
+# Environment variables - QUAN TRỌNG: không commit API keys
+.env
+.env.local
+.env.*.local
+
 # Xcode
 #
 build/
