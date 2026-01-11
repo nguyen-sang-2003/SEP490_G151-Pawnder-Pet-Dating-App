@@ -1,4 +1,4 @@
-﻿namespace BE.DTO
+namespace BE.DTO
 {
     public class NotificationDto
     {

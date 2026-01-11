@@ -60,6 +60,9 @@ namespace BE.Services
             if (!userExists)
                 throw new ArgumentException($"User với UserId {notificationDto.UserId.Value} không tồn tại hoặc đã bị xóa", nameof(notificationDto));
 
+            // Use Vietnam timezone (UTC+7) for consistency with existing data
+            var vietnamNow = GetVietnamTime();
+            
             var notification = new Notification
             {
                 UserId = notificationDto.UserId.Value,
@@ -67,8 +70,8 @@ namespace BE.Services
                 Message = notificationDto.Message,
                 Type = notificationDto.Type ?? "expert_confirmation", // Allow custom type, default expert_confirmation
                 IsRead = false,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                CreatedAt = vietnamNow,
+                UpdatedAt = vietnamNow
             };
 
             await _notificationRepository.AddAsync(notification, ct);
@@ -102,9 +105,38 @@ namespace BE.Services
                 return false;
 
             notification.IsRead = true;
-            notification.UpdatedAt = DateTime.Now;
+            // Use Vietnam timezone (UTC+7) for consistency
+            notification.UpdatedAt = GetVietnamTime();
             await _notificationRepository.UpdateAsync(notification, ct);
             return true;
+        }
+
+        /// <summary>
+        /// Get current time in Vietnam timezone (UTC+7)
+        /// Works on both Windows and Linux
+        /// </summary>
+        private static DateTime GetVietnamTime()
+        {
+            try
+            {
+                // Try Windows timezone ID first
+                var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                try
+                {
+                    // Try Linux/IANA timezone ID
+                    var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+                    return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                    // Fallback: manually add 7 hours to UTC
+                    return DateTime.UtcNow.AddHours(7);
+                }
+            }
         }
 
         public async Task<int> MarkAllAsReadAsync(int userId, CancellationToken ct = default)

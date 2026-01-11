@@ -1,5 +1,7 @@
 import {configureStore} from '@reduxjs/toolkit';
 import badgeReducer from '../features/badge/badgeSlice';
+import appointmentReducer from '../features/appointment/appointmentSlice';
+import eventReducer from '../features/event/eventSlice';
 
 // Import your reducers here
 // import authReducer from '../features/auth/authSlice';
@@ -9,6 +11,8 @@ export const store = configureStore({
     // Add your reducers here
     // auth: authReducer,
     badge: badgeReducer,
+    appointment: appointmentReducer,
+    event: eventReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

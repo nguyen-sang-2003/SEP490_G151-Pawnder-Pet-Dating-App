@@ -553,6 +553,9 @@
       "emptyQuestion": "Vui lòng nhập câu hỏi của bạn",
       "saveChatFirst": "Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia",
       "submitError": "Không thể gửi yêu cầu. Vui lòng thử lại."
+    },
+    "appointment": {
+      "noPetInfo": "Không tìm thấy thông tin thú cưng để tạo lịch hẹn"
     }
   },
 

@@ -79,6 +79,21 @@ public interface IAppointmentService
         CheckInRequest request, 
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Kết thúc cuộc hẹn (user bấm thủ công)
+    /// </summary>
+    Task<AppointmentResponse> CompleteAppointmentAsync(
+        int userId,
+        int appointmentId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Xử lý các cuộc hẹn quá hạn (gọi từ Background Service)
+    /// - NO_SHOW: confirmed nhưng thiếu check-in sau 90 phút
+    /// - AUTO_COMPLETE: on_going sau 90 phút
+    /// </summary>
+    Task ProcessExpiredAppointmentsAsync(CancellationToken ct = default);
+
     #endregion
 
     #region Location

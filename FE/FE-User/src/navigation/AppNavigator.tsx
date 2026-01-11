@@ -15,6 +15,7 @@ import {
 import signalRService from "../services/signalr.service";
 import { refreshBadgesForActivePet } from "../utils/badgeRefresh";
 import { PendingPolicy } from "../features/policy/api/policyApi";
+import { Coordinates, LocationSelectionResult } from "../types/location.types";
 
 // Import critical screens immediately (needed for initial render)
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
@@ -63,6 +64,19 @@ const PolicyListScreen = lazy(() => import("../features/policy/screens/PolicyLis
 const PolicyDetailScreen = lazy(() => import("../features/policy/screens/PolicyDetailScreen"));
 const PolicyHistoryScreen = lazy(() => import("../features/policy/screens/PolicyHistoryScreen"));
 
+// Lazy load appointment screens
+const MyAppointmentsScreen = lazy(() => import("../features/appointment/screens/MyAppointmentsScreen"));
+const AppointmentDetailScreen = lazy(() => import("../features/appointment/screens/AppointmentDetailScreen"));
+const CreateAppointmentScreen = lazy(() => import("../features/appointment/screens/CreateAppointmentScreen"));
+const CounterOfferScreen = lazy(() => import("../features/appointment/screens/CounterOfferScreen"));
+const LocationPickerScreen = lazy(() => import("../features/appointment/screens/LocationPickerScreen"));
+const MapPickerScreen = lazy(() => import("../features/appointment/screens/MapPickerScreen"));
+
+// Lazy load event screens
+const EventListScreen = lazy(() => import("../features/event/screens/EventListScreen"));
+const EventDetailScreen = lazy(() => import("../features/event/screens/EventDetailScreen"));
+const SubmitEntryScreen = lazy(() => import("../features/event/screens/SubmitEntryScreen"));
+
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -79,11 +93,11 @@ export type RootStackParamList = {
   };
   ForgotPassword: undefined;
   ResetPassword: { email: string };
-  AddPetBasicInfo: { 
-    isFromProfile?: boolean; 
-    petId?: number; 
-    petName?: string; 
-    breed?: string; 
+  AddPetBasicInfo: {
+    isFromProfile?: boolean;
+    petId?: number;
+    petName?: string;
+    breed?: string;
     description?: string;
     aiResults?: Array<{
       attributeName: string;
@@ -107,11 +121,11 @@ export type RootStackParamList = {
       optionId?: number | null;
     }>;
   };
-  AddPetPhotos: { 
-    petId: number; 
-    isFromProfile?: boolean; 
-    petName?: string; 
-    breed?: string; 
+  AddPetPhotos: {
+    petId: number;
+    isFromProfile?: boolean;
+    petName?: string;
+    breed?: string;
     description?: string;
     aiResults?: Array<{
       attributeName: string;
@@ -169,6 +183,35 @@ export type RootStackParamList = {
     policyName: string;
   };
   PolicyHistory: undefined;
+  // Appointment screens
+  MyAppointments: undefined;
+  AppointmentDetail: { appointmentId: number };
+  CreateAppointment: {
+    matchId: number;
+    inviterPetId: number;
+    inviteePetId: number;
+    inviterPetName: string;
+    inviteePetName: string;
+  };
+  CounterOffer: { appointmentId: number };
+  LocationPicker:
+    | undefined
+    | {
+        city?: string;
+        allowCustomLocation?: boolean;
+      };
+  MapPicker:
+    | undefined
+    | {
+        city?: string;
+        initialCoordinate?: Coordinates;
+        initialAddress?: string;
+        initialName?: string;
+      };
+  // Event screens
+  EventList: undefined;
+  EventDetail: { eventId: number };
+  SubmitEntry: { eventId: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -235,7 +278,7 @@ const AppNavigator = () => {
         }
 
         const handleNewNotification = (data: any) => {
-          refreshBadgesForActivePet(userId).catch(() => {});
+          refreshBadgesForActivePet(userId).catch(() => { });
         };
 
         signalRService.on('NewNotification', handleNewNotification);
@@ -257,7 +300,7 @@ const AppNavigator = () => {
   const checkAuth = async () => {
     try {
       const token = await getAuthToken();
-      
+
       if (token && !isTokenExpired(token)) {
         setIsAuthenticated(true);
       } else if (token && isTokenExpired(token)) {
@@ -377,6 +420,47 @@ const AppNavigator = () => {
           options={detailScreenOptions}
         />
         <Stack.Screen name="PolicyHistory" component={LazyScreen(PolicyHistoryScreen)} />
+
+        {/* Lazy-loaded appointment screens */}
+        <Stack.Screen name="MyAppointments" component={LazyScreen(MyAppointmentsScreen)} />
+        <Stack.Screen
+          name="AppointmentDetail"
+          component={LazyScreen(AppointmentDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen
+          name="CreateAppointment"
+          component={LazyScreen(CreateAppointmentScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen
+          name="CounterOffer"
+          component={LazyScreen(CounterOfferScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen
+          name="LocationPicker"
+          component={LazyScreen(LocationPickerScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen
+          name="MapPicker"
+          component={LazyScreen(MapPickerScreen)}
+          options={modalScreenOptions}
+        />
+
+        {/* Lazy-loaded event screens */}
+        <Stack.Screen name="EventList" component={LazyScreen(EventListScreen)} />
+        <Stack.Screen
+          name="EventDetail"
+          component={LazyScreen(EventDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen
+          name="SubmitEntry"
+          component={LazyScreen(SubmitEntryScreen)}
+          options={modalScreenOptions}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

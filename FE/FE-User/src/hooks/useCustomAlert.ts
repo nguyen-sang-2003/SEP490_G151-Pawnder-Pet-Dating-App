@@ -6,7 +6,7 @@ interface AlertConfig {
   message: string;
   confirmText?: string;
   onClose?: () => void;
-  onConfirm?: () => void;
+  onConfirm?: () => void | Promise<void>;
   cancelText?: string;
   showCancel?: boolean;
 }
@@ -23,12 +23,9 @@ export const useCustomAlert = () => {
   const hideAlert = useCallback(() => {
     setVisible(false);
     setTimeout(() => {
-      if (alertConfig?.onClose) {
-        alertConfig.onClose();
-      }
       setAlertConfig(null);
     }, 300);
-  }, [alertConfig]);
+  }, []);
 
   return {
     alertConfig,
