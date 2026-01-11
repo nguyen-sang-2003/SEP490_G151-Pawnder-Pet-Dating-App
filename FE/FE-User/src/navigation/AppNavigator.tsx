@@ -207,6 +207,7 @@ export type RootStackParamList = {
         initialCoordinate?: Coordinates;
         initialAddress?: string;
         initialName?: string;
+        returnToCreate?: boolean; // Flag để back 2 màn hình về CreateAppointment
       };
   // Event screens
   EventList: undefined;

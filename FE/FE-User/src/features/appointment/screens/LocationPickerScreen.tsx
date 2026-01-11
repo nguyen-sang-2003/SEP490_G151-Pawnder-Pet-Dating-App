@@ -1,6 +1,6 @@
 /**
  * Location Picker Screen
- * Chọn địa điểm cho cuộc hẹn - Giao diện tối ưu
+ * Chọn địa điểm cho cuộc hẹn - Vị trí gần đây + Tự chọn trên bản đồ
  */
 
 import React, { useEffect, useState } from 'react';
@@ -9,110 +9,59 @@ import {
   FlatList,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../../../navigation/AppNavigator';
 import { AppDispatch } from '../../../app/store';
-import {
-  fetchSuggestedLocations,
-  selectLocations,
-  selectLocationsLoading,
-  setSelectedLocation,
-} from '../appointmentSlice';
-import { LocationResponse } from '../../../types/appointment.types';
+import { setSelectedLocation } from '../appointmentSlice';
 import { LocationSelectionResult } from '../../../types/location.types';
-import {
-  ensureLocationPermission,
-  getCurrentLocation,
-} from '../../../services/location.service';
+import { CreateLocationRequest, LocationResponse } from '../../../types/appointment.types';
 import { colors, gradients, radius, shadows } from '../../../theme';
-import CustomAlert from '../../../components/CustomAlert';
-import { useCustomAlert } from '../../../hooks/useCustomAlert';
+import { AppointmentService } from '../../../services/appointment.service';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LocationPicker'>;
 
 const LocationPickerScreen = ({ navigation, route }: Props) => {
   const dispatch = useDispatch<AppDispatch>();
-  const locations = useSelector(selectLocations);
-  const locationsLoading = useSelector(selectLocationsLoading);
-  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-
-  const [cityQuery, setCityQuery] = useState(route.params?.city || '');
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [recentLocations, setRecentLocations] = useState<LocationResponse[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadNearbySuggestions();
+    loadRecentLocations();
   }, []);
 
-  const loadNearbySuggestions = async () => {
-    setStatusMessage(null);
-
+  const loadRecentLocations = async () => {
+    setLoading(true);
     try {
-      const permission = await ensureLocationPermission();
-
-      if (!permission.granted) {
-        setStatusMessage('Đang tải địa điểm tại Hồ Chí Minh...');
-        await dispatch(fetchSuggestedLocations({ city: 'Ho Chi Minh' })).unwrap();
-        setStatusMessage('Bật định vị để xem địa điểm gần bạn');
-        return;
-      }
-
-      setStatusMessage('Đang lấy vị trí của bạn...');
-      const coords = await getCurrentLocation();
-
-      setStatusMessage('Đang tìm địa điểm gần bạn...');
-      await dispatch(
-        fetchSuggestedLocations({
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-        })
-      ).unwrap();
-      setStatusMessage(null);
-    } catch (error: any) {
-      setStatusMessage('Nhập tên thành phố để tìm địa điểm');
-      try {
-        await dispatch(fetchSuggestedLocations({ city: 'Ho Chi Minh' })).unwrap();
-      } catch {
-        // Silent fail
-      }
+      const locations = await AppointmentService.getMyRecentLocations(10);
+      setRecentLocations(locations);
+    } catch (error) {
+      console.log('Error loading recent locations:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const searchByCity = async () => {
-    if (!cityQuery.trim()) {
-      showAlert({
-        type: 'warning',
-        title: 'Thiếu thông tin',
-        message: 'Vui lòng nhập tên thành phố để tìm kiếm',
-      });
-      return;
-    }
+  const handleSelectRecentLocation = (location: LocationResponse) => {
+    const customLocation: CreateLocationRequest = {
+      name: location.name,
+      address: location.address,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      city: location.city,
+      district: location.district,
+      placeType: location.placeType || 'custom',
+    };
 
-    setStatusMessage('Đang tìm kiếm...');
-    try {
-      await dispatch(fetchSuggestedLocations({ city: cityQuery.trim() })).unwrap();
-      setStatusMessage(null);
-    } catch (error: any) {
-      showAlert({
-        type: 'error',
-        title: 'Không tìm thấy',
-        message: 'Không tìm thấy địa điểm nào. Thử tên thành phố khác hoặc chọn trên bản đồ.',
-      });
-      setStatusMessage(null);
-    }
-  };
-
-  const handleSelectLocation = (location: LocationResponse) => {
     const selection: LocationSelectionResult = {
-      type: 'PRESET',
-      locationId: location.locationId,
-      location,
+      type: 'CUSTOM',
+      customLocation,
+      displayName: location.name || location.address,
     };
 
     dispatch(setSelectedLocation(selection));
@@ -120,40 +69,43 @@ const LocationPickerScreen = ({ navigation, route }: Props) => {
   };
 
   const handleOpenMap = () => {
+    // Navigate to MapPicker, khi confirm sẽ back 2 màn hình
     navigation.navigate('MapPicker', {
-      city: cityQuery,
+      city: route.params?.city,
+      returnToCreate: true, // Flag để MapPicker biết cần back 2 lần
     });
   };
 
-  const renderLocationItem = ({ item }: { item: LocationResponse }) => (
+  const renderRecentItem = ({ item }: { item: LocationResponse }) => (
     <TouchableOpacity
       style={styles.locationItem}
-      onPress={() => handleSelectLocation(item)}
+      onPress={() => handleSelectRecentLocation(item)}
       activeOpacity={0.7}
     >
       <View style={styles.locationIcon}>
-        <Icon name="location" size={20} color={colors.primary} />
+        <Icon name="time-outline" size={20} color={colors.primary} />
       </View>
       <View style={styles.locationInfo}>
         <Text style={styles.locationName} numberOfLines={1}>
-          {item.name}
+          {item.name || 'Vị trí tùy chọn'}
         </Text>
         <Text style={styles.locationAddress} numberOfLines={2}>
           {item.address}
         </Text>
-        <View style={styles.locationTags}>
-          {item.city && (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{item.city}</Text>
-            </View>
-          )}
-          {item.isPetFriendly && (
-            <View style={[styles.tag, styles.tagPetFriendly]}>
-              <Icon name="paw" size={10} color={colors.success} />
-              <Text style={[styles.tagText, { color: colors.success }]}>Pet Friendly</Text>
-            </View>
-          )}
-        </View>
+        {(item.city || item.district) && (
+          <View style={styles.locationTags}>
+            {item.district && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{item.district}</Text>
+              </View>
+            )}
+            {item.city && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{item.city}</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
       <Icon name="chevron-forward" size={20} color={colors.textLight} />
     </TouchableOpacity>
@@ -170,95 +122,56 @@ const LocationPickerScreen = ({ navigation, route }: Props) => {
         <View style={styles.headerBtn} />
       </LinearGradient>
 
-      {/* Search Section */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBox}>
-          <Icon name="search" size={20} color={colors.textLight} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Nhập tên thành phố (VD: Hà Nội, Đà Nẵng...)"
-            placeholderTextColor={colors.textLight}
-            value={cityQuery}
-            onChangeText={setCityQuery}
-            onSubmitEditing={searchByCity}
-            returnKeyType="search"
-          />
-          {cityQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setCityQuery('')}>
-              <Icon name="close-circle" size={20} color={colors.textLight} />
-            </TouchableOpacity>
-          )}
-        </View>
-        <TouchableOpacity style={styles.searchBtn} onPress={searchByCity}>
-          <Text style={styles.searchBtnText}>Tìm</Text>
+      {/* Main Action - Chọn trên bản đồ */}
+      <View style={styles.mainAction}>
+        <TouchableOpacity style={styles.mapBtn} onPress={handleOpenMap} activeOpacity={0.85}>
+          <LinearGradient colors={gradients.chat} style={styles.mapBtnGradient}>
+            <View style={styles.mapBtnIcon}>
+              <Icon name="map" size={24} color={colors.white} />
+            </View>
+            <View style={styles.mapBtnContent}>
+              <Text style={styles.mapBtnTitle}>Chọn vị trí trên bản đồ</Text>
+              <Text style={styles.mapBtnSubtitle}>Tìm kiếm hoặc ghim vị trí bất kỳ</Text>
+            </View>
+            <Icon name="chevron-forward" size={22} color={colors.white} />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickBtn} onPress={loadNearbySuggestions}>
-          <Icon name="locate" size={18} color={colors.primary} />
-          <Text style={styles.quickBtnText}>Gần tôi</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.quickBtn, styles.quickBtnMap]} onPress={handleOpenMap}>
-          <Icon name="map" size={18} color={colors.white} />
-          <Text style={[styles.quickBtnText, { color: colors.white }]}>Chọn trên bản đồ</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Status Message */}
-      {statusMessage && (
-        <View style={styles.statusBar}>
-          <Icon name="information-circle" size={16} color={colors.textMedium} />
-          <Text style={styles.statusText}>{statusMessage}</Text>
+      {/* Recent Locations */}
+      <View style={styles.recentSection}>
+        <View style={styles.recentHeader}>
+          <Text style={styles.recentTitle}>
+            <Icon name="time-outline" size={16} color={colors.textMedium} /> Vị trí gần đây
+          </Text>
         </View>
-      )}
 
-      {/* Location List */}
-      <View style={styles.listSection}>
-        <Text style={styles.listTitle}>
-          Địa điểm thân thiện với thú cưng ({locations.length})
-        </Text>
-
-        {locationsLoading ? (
+        {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Đang tải danh sách...</Text>
+            <Text style={styles.loadingText}>Đang tải...</Text>
           </View>
-        ) : (
+        ) : recentLocations.length > 0 ? (
           <FlatList
-            data={locations}
+            data={recentLocations}
             keyExtractor={(item) => item.locationId.toString()}
-            renderItem={renderLocationItem}
+            renderItem={renderRecentItem}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
-            ListEmptyComponent={() => (
-              <View style={styles.emptyBox}>
-                <Icon name="location-outline" size={48} color={colors.border} />
-                <Text style={styles.emptyTitle}>Chưa có địa điểm</Text>
-                <Text style={styles.emptyText}>
-                  Thử tìm theo thành phố khác hoặc chọn vị trí trên bản đồ
-                </Text>
-              </View>
-            )}
           />
+        ) : (
+          <View style={styles.emptyBox}>
+            <Icon name="location-outline" size={48} color={colors.border} />
+            <Text style={styles.emptyTitle}>Chưa có vị trí gần đây</Text>
+            <Text style={styles.emptyText}>
+              Các địa điểm từ cuộc hẹn trước sẽ hiển thị ở đây để chọn nhanh
+            </Text>
+          </View>
         )}
       </View>
-
-      {/* Custom Alert */}
-      {alertConfig && (
-        <CustomAlert
-          visible={visible}
-          type={alertConfig.type}
-          title={alertConfig.title}
-          message={alertConfig.message}
-          onClose={hideAlert}
-        />
-      )}
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -287,91 +200,55 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
   },
-  searchSection: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-    backgroundColor: colors.white,
-    ...shadows.small,
+  mainAction: {
+    padding: 16,
   },
-  searchBox: {
-    flex: 1,
+  mapBtn: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  mapBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.whiteWarm,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    gap: 8,
+    padding: 16,
+    gap: 12,
   },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.textDark,
-  },
-  searchBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    borderRadius: radius.md,
+  mapBtnIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  searchBtnText: {
+  mapBtnContent: {
+    flex: 1,
+  },
+  mapBtnTitle: {
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.white,
-    fontWeight: '600',
   },
-  quickActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  quickBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  quickBtnMap: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  quickBtnText: {
+  mapBtnSubtitle: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
   },
-  statusBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: colors.warning + '15',
-    borderRadius: radius.sm,
-  },
-  statusText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.textMedium,
-  },
-  listSection: {
+  recentSection: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 12,
   },
-  listTitle: {
+  recentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  recentTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textMedium,
-    marginBottom: 12,
   },
   listContent: {
     paddingBottom: 20,
@@ -414,16 +291,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     backgroundColor: colors.bgGradientStart,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.sm,
-  },
-  tagPetFriendly: {
-    backgroundColor: colors.success + '15',
   },
   tagText: {
     fontSize: 11,
@@ -441,7 +312,9 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
   },
   emptyBox: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 40,
   },
   emptyTitle: {

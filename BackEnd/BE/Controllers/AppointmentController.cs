@@ -328,19 +328,21 @@ public class AppointmentController : ControllerBase
     #region Location
 
     /// <summary>
-    /// Lấy danh sách địa điểm Pet-Friendly gợi ý
+    /// Lấy danh sách địa điểm gần đây của user (từ các cuộc hẹn đã tạo)
     /// </summary>
-    [HttpGet("locations")]
+    [HttpGet("my-locations")]
     [Authorize(Roles = "User")]
-    public async Task<IActionResult> GetSuggestedLocations(
-        [FromQuery] decimal? latitude,
-        [FromQuery] decimal? longitude,
-        [FromQuery] string? city,
+    public async Task<IActionResult> GetMyRecentLocations(
+        [FromQuery] int limit = 10,
         CancellationToken ct = default)
     {
         try
         {
-            var result = await _appointmentService.GetSuggestedLocationsAsync(latitude, longitude, city, ct);
+            var userId = GetCurrentUserId();
+            if (userId == 0)
+                return Unauthorized(new { message = "Vui lòng đăng nhập" });
+
+            var result = await _appointmentService.GetRecentLocationsAsync(userId, limit, ct);
             return Ok(result);
         }
         catch (Exception ex)

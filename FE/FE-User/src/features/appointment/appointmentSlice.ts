@@ -238,40 +238,6 @@ export const completeAppointment = createAsyncThunk(
   }
 );
 
-/**
- * Fetch suggested locations
- */
-export const fetchSuggestedLocations = createAsyncThunk(
-  'appointment/fetchLocations',
-  async (params: { latitude?: number; longitude?: number; city?: string }, { rejectWithValue }) => {
-    try {
-      const response = await AppointmentService.getSuggestedLocations(
-        params.latitude,
-        params.longitude,
-        params.city
-      );
-      return response;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch locations');
-    }
-  }
-);
-
-/**
- * Create new location
- */
-export const createLocation = createAsyncThunk(
-  'appointment/createLocation',
-  async (request: CreateLocationRequest, { rejectWithValue }) => {
-    try {
-      const response = await AppointmentService.createLocation(request);
-      return response;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to create location');
-    }
-  }
-);
-
 // ============================================
 // SLICE
 // ============================================
@@ -534,36 +500,6 @@ const appointmentSlice = createSlice({
       })
       .addCase(completeAppointment.rejected, (state, action) => {
         state.completing = false;
-        state.error = action.payload as string;
-      });
-    
-    // Fetch Locations
-    builder
-      .addCase(fetchSuggestedLocations.pending, (state) => {
-        state.locationsLoading = true;
-        state.error = null;
-      })
-      .addCase(fetchSuggestedLocations.fulfilled, (state, action) => {
-        state.locationsLoading = false;
-        state.locations = action.payload;
-      })
-      .addCase(fetchSuggestedLocations.rejected, (state, action) => {
-        state.locationsLoading = false;
-        state.error = action.payload as string;
-      });
-    
-    // Create Location
-    builder
-      .addCase(createLocation.pending, (state) => {
-        state.locationsLoading = true;
-        state.error = null;
-      })
-      .addCase(createLocation.fulfilled, (state, action) => {
-        state.locationsLoading = false;
-        state.locations.push(action.payload);
-      })
-      .addCase(createLocation.rejected, (state, action) => {
-        state.locationsLoading = false;
         state.error = action.payload as string;
       });
   },

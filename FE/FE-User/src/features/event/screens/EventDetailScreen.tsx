@@ -86,6 +86,29 @@ const EventDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [votingSubmissionId, setVotingSubmissionId] = useState<number | null>(null);
   const [showCoverImage, setShowCoverImage] = useState(false);
 
+  // Sync selectedSubmission với Redux store khi submissions thay đổi (sau vote/unvote)
+  useEffect(() => {
+    if (selectedSubmission) {
+      // Tìm trong submissions
+      const fromSubmissions = submissions.find(
+        s => s.submissionId === selectedSubmission.submissionId
+      );
+      // Tìm trong leaderboard
+      const fromLeaderboard = leaderboard.find(
+        l => l.submission.submissionId === selectedSubmission.submissionId
+      )?.submission;
+      
+      const updatedSubmission = fromSubmissions || fromLeaderboard;
+      
+      if (updatedSubmission && (
+        updatedSubmission.hasVoted !== selectedSubmission.hasVoted ||
+        updatedSubmission.voteCount !== selectedSubmission.voteCount
+      )) {
+        setSelectedSubmission(updatedSubmission);
+      }
+    }
+  }, [submissions, leaderboard, selectedSubmission]);
+
   useEffect(() => {
     dispatch(fetchEventById(eventId));
     return () => {
@@ -170,9 +193,22 @@ const EventDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const isSubmissionAllowed = currentStatus === 'active';
   const isCompleted = currentStatus === 'completed' || currentStatus === 'voting_ended';
 
+  // Rate limit cho vote - tối đa 1 lần mỗi 2 giây cho mỗi submission
+  const voteTimestamps = React.useRef<Map<number, number>>(new Map());
+  const VOTE_COOLDOWN_MS = 2000; // 2 giây
+
   const handleVote = useCallback(
     async (submissionId: number) => {
       if (votingSubmissionId) return;
+      
+      // Check rate limit
+      const lastVoteTime = voteTimestamps.current.get(submissionId) || 0;
+      const now = Date.now();
+      if (now - lastVoteTime < VOTE_COOLDOWN_MS) {
+        return; // Đang trong cooldown, bỏ qua
+      }
+      voteTimestamps.current.set(submissionId, now);
+
       const isAuth = await requireAuth('EventDetail', { eventId });
       if (!isAuth) return;
 

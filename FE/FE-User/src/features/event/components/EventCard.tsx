@@ -34,15 +34,38 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
 const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
   const [showFullImage, setShowFullImage] = useState(false);
   const [timeLeft, setTimeLeft] = useState<{ prefix: string; timeStr: string } | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState(event.status);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const statusConfig = STATUS_CONFIG[event.status] || STATUS_CONFIG.completed;
   
-  const calculateTimeLeft = () => {
+  // Tính realtime status dựa trên thời gian thực
+  const calculateRealtimeStatus = () => {
+    // Nếu event đã cancelled hoặc completed thì giữ nguyên
+    if (event.status === 'cancelled' || event.status === 'completed') {
+      return event.status;
+    }
+    
+    const now = new Date().getTime();
+    const startTime = new Date(event.startTime).getTime();
+    const submissionDeadline = new Date(event.submissionDeadline).getTime();
+    const endTime = new Date(event.endTime).getTime();
+    
+    if (now < startTime) {
+      return 'upcoming';
+    } else if (now < submissionDeadline) {
+      return 'active';
+    } else if (now < endTime) {
+      return 'submission_closed';
+    } else {
+      return 'voting_ended';
+    }
+  };
+  
+  const calculateTimeLeft = (status: string) => {
     const now = new Date();
     let targetDate: Date;
     let prefix = '';
     
-    switch (event.status) {
+    switch (status) {
       case 'upcoming':
         targetDate = new Date(event.startTime);
         prefix = 'Bắt đầu';
@@ -81,14 +104,17 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
     return { prefix, timeStr };
   };
 
-  // Realtime countdown
+  // Realtime countdown và status update
   useEffect(() => {
-    setTimeLeft(calculateTimeLeft());
+    const updateTimeAndStatus = () => {
+      const newStatus = calculateRealtimeStatus();
+      setRealtimeStatus(newStatus);
+      setTimeLeft(calculateTimeLeft(newStatus));
+    };
     
-    timerRef.current = setInterval(() => {
-      const newTime = calculateTimeLeft();
-      setTimeLeft(newTime);
-    }, 1000);
+    updateTimeAndStatus();
+    
+    timerRef.current = setInterval(updateTimeAndStatus, 1000);
     
     return () => {
       if (timerRef.current) {
@@ -97,7 +123,9 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
     };
   }, [event.status, event.startTime, event.submissionDeadline, event.endTime]);
 
-  const isActive = event.status === 'active';
+  // Sử dụng realtime status thay vì event.status
+  const statusConfig = STATUS_CONFIG[realtimeStatus] || STATUS_CONFIG.completed;
+  const isActive = realtimeStatus === 'active';
 
   return (
     <>
@@ -224,10 +252,10 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
           
           <View style={styles.modalInfo}>
             <Text style={styles.modalTitle}>{event.title}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
-              <Icon name={statusConfig.icon} size={12} color={statusConfig.color} />
-              <Text style={[styles.statusText, { color: statusConfig.color }]}>
-                {statusConfig.label}
+            <View style={[styles.statusBadge, { backgroundColor: STATUS_CONFIG[realtimeStatus]?.bgColor || statusConfig.bgColor }]}>
+              <Icon name={STATUS_CONFIG[realtimeStatus]?.icon || statusConfig.icon} size={12} color={STATUS_CONFIG[realtimeStatus]?.color || statusConfig.color} />
+              <Text style={[styles.statusText, { color: STATUS_CONFIG[realtimeStatus]?.color || statusConfig.color }]}>
+                {STATUS_CONFIG[realtimeStatus]?.label || statusConfig.label}
               </Text>
             </View>
           </View>

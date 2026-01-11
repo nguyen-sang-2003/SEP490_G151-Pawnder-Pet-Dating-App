@@ -711,32 +711,6 @@ public class AppointmentService : IAppointmentService
 
     #region Location
 
-    public async Task<IEnumerable<LocationResponse>> GetSuggestedLocationsAsync(
-        decimal? latitude,
-        decimal? longitude,
-        string? city,
-        CancellationToken ct = default)
-    {
-        IEnumerable<PetAppointmentLocation> locations;
-
-        if (latitude.HasValue && longitude.HasValue)
-        {
-            locations = await _locationRepository.GetNearbyLocationsAsync(
-                latitude.Value, longitude.Value, 10, ct);
-        }
-        else if (!string.IsNullOrEmpty(city))
-        {
-            locations = await _locationRepository.GetByCityAsync(city, ct);
-        }
-        else
-        {
-            locations = await _locationRepository.GetAllAsync(ct);
-            locations = locations.Where(l => l.IsPetFriendly == true).Take(20);
-        }
-
-        return locations.Select(MapLocationToResponse);
-    }
-
     public async Task<LocationResponse> CreateLocationAsync(CreateLocationRequest request, CancellationToken ct = default)
     {
         // Kiểm tra trùng lặp theo GooglePlaceId
@@ -764,6 +738,22 @@ public class AppointmentService : IAppointmentService
 
         await _locationRepository.AddAsync(location, ct);
         return MapLocationToResponse(location);
+    }
+
+    public async Task<IEnumerable<LocationResponse>> GetRecentLocationsAsync(int userId, int limit = 10, CancellationToken ct = default)
+    {
+        // Lấy các locations từ appointments của user (distinct, sắp xếp theo thời gian mới nhất)
+        var recentLocations = await _context.Set<PetAppointment>()
+            .Where(a => (a.InviterUserId == userId || a.InviteeUserId == userId) 
+                        && a.LocationId != null 
+                        && a.Location != null)
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => a.Location!)
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return recentLocations.Select(MapLocationToResponse);
     }
 
     #endregion

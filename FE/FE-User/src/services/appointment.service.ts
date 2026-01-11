@@ -221,50 +221,19 @@ export const AppointmentService = {
   },
 
   /**
-   * Lấy danh sách địa điểm Pet-Friendly gợi ý
+   * Lấy danh sách địa điểm gần đây của user (từ các cuộc hẹn đã tạo)
    */
-  getSuggestedLocations: async (
-    latitude?: number,
-    longitude?: number,
-    city?: string
-  ): Promise<LocationResponse[]> => {
+  getMyRecentLocations: async (limit: number = 10): Promise<LocationResponse[]> => {
     try {
-      const params: any = {};
-      if (latitude !== undefined) params.latitude = latitude;
-      if (longitude !== undefined) params.longitude = longitude;
-      if (city) params.city = city;
-
       const response = await apiClient.get<LocationResponse[]>(
-        `${APPOINTMENT_BASE_URL}/locations`,
-        { params }
+        `${APPOINTMENT_BASE_URL}/my-locations`,
+        { params: { limit } }
       );
-      // Backend trả về array trực tiếp
       return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
-      console.error('[AppointmentService] getSuggestedLocations error:', error);
-      throw new Error(
-        error?.response?.data?.message ||
-          'Lỗi khi lấy danh sách địa điểm gợi ý'
-      );
-    }
-  },
-
-  /**
-   * Tạo địa điểm mới
-   */
-  createLocation: async (
-    request: CreateLocationRequest
-  ): Promise<LocationResponse> => {
-    try {
-      const response = await apiClient.post<{ data: LocationResponse }>(
-        `${APPOINTMENT_BASE_URL}/locations`,
-        request
-      );
-      return response.data.data;
-    } catch (error: any) {
-      throw new Error(
-        error?.response?.data?.message || 'Lỗi khi tạo địa điểm'
-      );
+      console.error('[AppointmentService] getMyRecentLocations error:', error);
+      // Trả về mảng rỗng nếu lỗi (không throw để không block UI)
+      return [];
     }
   },
 };

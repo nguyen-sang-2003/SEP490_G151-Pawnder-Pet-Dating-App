@@ -99,18 +99,14 @@ public interface IAppointmentService
     #region Location
 
     /// <summary>
-    /// Lấy danh sách địa điểm Pet-Friendly gợi ý
-    /// </summary>
-    Task<IEnumerable<LocationResponse>> GetSuggestedLocationsAsync(
-        decimal? latitude, 
-        decimal? longitude, 
-        string? city,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Tạo địa điểm mới
     /// </summary>
     Task<LocationResponse> CreateLocationAsync(CreateLocationRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lấy danh sách địa điểm gần đây của user (từ các cuộc hẹn đã tạo)
+    /// </summary>
+    Task<IEnumerable<LocationResponse>> GetRecentLocationsAsync(int userId, int limit = 10, CancellationToken ct = default);
 
     #endregion
 }

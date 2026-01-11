@@ -275,12 +275,13 @@ const NotificationScreen = ({ navigation }: Props) => {
     return type?.startsWith('appointment_');
   }, []);
 
-  const handleNotificationPress = async (item: Notification) => {
-    // Show modal with notification details
-    setSelectedNotification(item);
-    setModalVisible(true);
+  // Check if notification is event-related
+  const isEventNotification = useCallback((type: string | null | undefined) => {
+    return type?.startsWith('event_');
+  }, []);
 
-    // Mark as read
+  const handleNotificationPress = async (item: Notification) => {
+    // Mark as read first
     if (!item.isRead) {
       try {
         await markNotificationAsRead(item.notificationId);
@@ -294,9 +295,20 @@ const NotificationScreen = ({ navigation }: Props) => {
           await refreshBadgesForActivePet(currentUserId);
         }
       } catch (error) {
-
+        // Silent fail
       }
     }
+
+    // Navigate based on notification type
+    if (isEventNotification(item.type)) {
+      // Navigate to Event List for event notifications
+      navigation.navigate('EventList');
+      return;
+    }
+
+    // Show modal for other notification types
+    setSelectedNotification(item);
+    setModalVisible(true);
   };
 
   const closeModal = () => {

@@ -261,7 +261,13 @@ const MapPickerScreen = ({ navigation, route }: Props) => {
     };
 
     dispatch(setSelectedLocation(selection));
-    navigation.goBack();
+    
+    // Nếu được gọi từ LocationPicker với flag returnToCreate, back 2 lần
+    if (route.params?.returnToCreate) {
+      navigation.pop(2); // Back qua LocationPicker về CreateAppointment
+    } else {
+      navigation.goBack();
+    }
   };
 
   const renderSearchResult = ({ item }: { item: SearchResult }) => (

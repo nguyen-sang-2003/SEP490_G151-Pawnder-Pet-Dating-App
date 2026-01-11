@@ -65,22 +65,51 @@ public class EventService : IEventService
 
         // Gửi notification cho tất cả users về sự kiện mới
         var allUserIds = await _context.Users
-            .Where(u => u.IsDeleted != true && u.RoleId == 1) // RoleId 1 = User thường
+            .Where(u => u.IsDeleted != true && u.RoleId == 3)
             .Select(u => u.UserId)
             .ToListAsync(ct);
 
+        var eventTitle = petEvent.Title;
+
+        // Gửi tuần tự để tránh DbContext concurrency issue
         foreach (var userId in allUserIds)
+        {
+            try
+            {
+                await _notificationService.CreateNotificationAsync(new NotificationDto_1
+                {
+                    UserId = userId,
+                    Title = "🎉 Sự kiện mới!",
+                    Message = $"Sự kiện '{eventTitle}' vừa được tạo. Tham gia ngay!",
+                    Type = "event_created"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EventService] Failed to send notification to user {userId}: {ex.Message}");
+            }
+        }
+
+        return MapToResponse(petEvent);
+    }
+
+    // Helper method để gửi notification an toàn (không throw exception)
+    private async Task SafeSendNotificationAsync(int userId, string title, string message, string type)
+    {
+        try
         {
             await _notificationService.CreateNotificationAsync(new NotificationDto_1
             {
                 UserId = userId,
-                Title = "🎉 Sự kiện mới!",
-                Message = $"Sự kiện '{petEvent.Title}' vừa được tạo. Tham gia ngay!",
-                Type = "event_created"
-            }, ct);
+                Title = title,
+                Message = message,
+                Type = type
+            });
         }
-
-        return MapToResponse(petEvent);
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EventService] Failed to send notification to user {userId}: {ex.Message}");
+        }
     }
 
     public async Task<EventResponse> UpdateEventAsync(int eventId, UpdateEventRequest request, CancellationToken ct = default)
@@ -106,7 +135,7 @@ public class EventService : IEventService
 
         // Gửi notification cho tất cả users về cập nhật sự kiện
         var allUserIds = await _context.Users
-            .Where(u => u.IsDeleted != true && u.RoleId == 1)
+            .Where(u => u.IsDeleted != true && u.RoleId == 3)
             .Select(u => u.UserId)
             .ToListAsync(ct);
 
@@ -119,16 +148,15 @@ public class EventService : IEventService
         if (request.PrizeDescription != null) changes.Add("giải thưởng");
         
         var changeText = changes.Any() ? string.Join(", ", changes) : "thông tin";
+        var eventTitle = petEvent.Title;
 
+        // Gửi tuần tự để tránh DbContext concurrency issue
         foreach (var userId in allUserIds)
         {
-            await _notificationService.CreateNotificationAsync(new NotificationDto_1
-            {
-                UserId = userId,
-                Title = "📝 Sự kiện được cập nhật",
-                Message = $"Sự kiện '{petEvent.Title}' đã cập nhật {changeText}. Xem chi tiết!",
-                Type = "event_updated"
-            }, ct);
+            await SafeSendNotificationAsync(userId, 
+                "📝 Sự kiện được cập nhật", 
+                $"Sự kiện '{eventTitle}' đã cập nhật {changeText}. Xem chi tiết!",
+                "event_updated");
         }
 
         return MapToResponse(petEvent);
@@ -149,19 +177,20 @@ public class EventService : IEventService
 
         // Thông báo cho TẤT CẢ users về sự kiện bị hủy
         var allUserIds = await _context.Users
-            .Where(u => u.IsDeleted != true && u.RoleId == 1)
+            .Where(u => u.IsDeleted != true && u.RoleId == 3)
             .Select(u => u.UserId)
             .ToListAsync(ct);
 
+        var eventTitle = petEvent.Title;
+        var cancelReason = reason;
+
+        // Gửi tuần tự để tránh DbContext concurrency issue
         foreach (var userId in allUserIds)
         {
-            await _notificationService.CreateNotificationAsync(new NotificationDto_1
-            {
-                UserId = userId,
-                Title = "⚠️ Sự kiện đã bị hủy",
-                Message = $"Sự kiện '{petEvent.Title}' đã bị hủy. {reason ?? ""}".Trim(),
-                Type = "event_cancelled"
-            }, ct);
+            await SafeSendNotificationAsync(userId, 
+                "⚠️ Sự kiện đã bị hủy", 
+                $"Sự kiện '{eventTitle}' đã bị hủy. {cancelReason ?? ""}".Trim(),
+                "event_cancelled");
         }
     }
 
@@ -213,11 +242,21 @@ public class EventService : IEventService
         var petEvent = await _eventRepository.GetByIdAsync(request.EventId, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy sự kiện");
 
-        // Validation
-        if (petEvent.Status != "active")
-            throw new InvalidOperationException("Sự kiện không ở trạng thái nhận bài dự thi");
+        // Validation - check thời gian thực thay vì status từ DB
+        var now = DateTime.Now;
+        
+        // Sự kiện đã bị hủy hoặc hoàn thành
+        if (petEvent.Status == "cancelled")
+            throw new InvalidOperationException("Sự kiện đã bị hủy");
+        
+        if (petEvent.Status == "completed")
+            throw new InvalidOperationException("Sự kiện đã kết thúc");
 
-        if (DateTime.Now > petEvent.SubmissionDeadline)
+        // Check thời gian thực: phải sau StartTime và trước SubmissionDeadline
+        if (now < petEvent.StartTime)
+            throw new InvalidOperationException("Sự kiện chưa bắt đầu");
+
+        if (now > petEvent.SubmissionDeadline)
             throw new InvalidOperationException("Đã quá thời gian nhận bài dự thi");
 
         if (await _submissionRepository.HasUserSubmittedAsync(request.EventId, userId, ct))
@@ -255,9 +294,23 @@ public class EventService : IEventService
         var submission = await _submissionRepository.GetByIdWithDetailsAsync(submissionId, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy bài dự thi");
 
-        // Validation
-        if (submission.Event.Status != "active" && submission.Event.Status != "submission_closed")
-            throw new InvalidOperationException("Sự kiện không ở trạng thái cho phép vote");
+        // Validation - check thời gian thực thay vì status từ DB
+        var now = DateTime.Now;
+        var petEvent = submission.Event;
+        
+        // Sự kiện đã bị hủy hoặc hoàn thành
+        if (petEvent.Status == "cancelled")
+            throw new InvalidOperationException("Sự kiện đã bị hủy");
+        
+        if (petEvent.Status == "completed")
+            throw new InvalidOperationException("Sự kiện đã kết thúc, không thể vote");
+
+        // Check thời gian thực: phải sau StartTime và trước EndTime
+        if (now < petEvent.StartTime)
+            throw new InvalidOperationException("Sự kiện chưa bắt đầu");
+
+        if (now > petEvent.EndTime)
+            throw new InvalidOperationException("Sự kiện đã kết thúc, không thể vote");
 
         if (submission.UserId == userId)
             throw new InvalidOperationException("Bạn không thể vote cho bài dự thi của chính mình");
@@ -265,16 +318,37 @@ public class EventService : IEventService
         if (await _submissionRepository.HasUserVotedAsync(submissionId, userId, ct))
             throw new InvalidOperationException("Bạn đã vote cho bài này rồi");
 
+        // Lưu vote count trước khi vote
+        var previousVoteCount = submission.VoteCount ?? 0;
+
         await _submissionRepository.AddVoteAsync(submissionId, userId, ct);
 
-        // Notify submission owner
-        await _notificationService.CreateNotificationAsync(new NotificationDto_1
+        // Chỉ gửi notification khi:
+        // 1. Đây là vote đầu tiên (0 -> 1)
+        // 2. Hoặc đạt milestone (5, 10, 20, 50, 100...)
+        var newVoteCount = previousVoteCount + 1;
+        var shouldNotify = newVoteCount == 1 || 
+                          newVoteCount == 5 || 
+                          newVoteCount == 10 || 
+                          newVoteCount == 20 || 
+                          newVoteCount == 50 || 
+                          newVoteCount == 100 ||
+                          (newVoteCount > 100 && newVoteCount % 50 == 0);
+
+        if (shouldNotify)
         {
-            UserId = submission.UserId,
-            Title = "❤️ Bài dự thi được yêu thích!",
-            Message = $"Bài dự thi của bé {submission.Pet?.Name} vừa nhận được 1 vote!",
-            Type = "event_vote"
-        }, ct);
+            var message = newVoteCount == 1 
+                ? $"Bài dự thi của bé {submission.Pet?.Name} vừa nhận được vote đầu tiên!"
+                : $"Bài dự thi của bé {submission.Pet?.Name} đã đạt {newVoteCount} votes! 🎉";
+
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = submission.UserId,
+                Title = "❤️ Bài dự thi được yêu thích!",
+                Message = message,
+                Type = "event_vote"
+            }, ct);
+        }
     }
 
     public async Task UnvoteAsync(int userId, int submissionId, CancellationToken ct = default)
@@ -282,7 +356,11 @@ public class EventService : IEventService
         var submission = await _submissionRepository.GetByIdWithDetailsAsync(submissionId, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy bài dự thi");
 
-        if (submission.Event.Status == "voting_ended" || submission.Event.Status == "completed")
+        // Validation - check thời gian thực
+        var now = DateTime.Now;
+        var petEvent = submission.Event;
+        
+        if (petEvent.Status == "completed" || now > petEvent.EndTime)
             throw new InvalidOperationException("Không thể bỏ vote khi sự kiện đã kết thúc");
 
         if (!await _submissionRepository.HasUserVotedAsync(submissionId, userId, ct))

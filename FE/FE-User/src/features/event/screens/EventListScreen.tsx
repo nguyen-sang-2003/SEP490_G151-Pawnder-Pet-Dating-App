@@ -45,6 +45,29 @@ const FILTERS: { key: FilterType; label: string; icon: string }[] = [
   { key: 'completed', label: 'Đã kết thúc', icon: 'checkmark-circle-outline' },
 ];
 
+// Helper function để tính realtime status
+const getRealtimeStatus = (event: EventResponse): string => {
+  // Nếu event đã cancelled hoặc completed thì giữ nguyên
+  if (event.status === 'cancelled' || event.status === 'completed') {
+    return event.status;
+  }
+  
+  const now = new Date().getTime();
+  const startTime = new Date(event.startTime).getTime();
+  const submissionDeadline = new Date(event.submissionDeadline).getTime();
+  const endTime = new Date(event.endTime).getTime();
+  
+  if (now < startTime) {
+    return 'upcoming';
+  } else if (now < submissionDeadline) {
+    return 'active';
+  } else if (now < endTime) {
+    return 'submission_closed';
+  } else {
+    return 'voting_ended';
+  }
+};
+
 const EventListScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const events = useAppSelector(selectEvents);
@@ -64,27 +87,39 @@ const EventListScreen: React.FC<Props> = ({ navigation }) => {
     }, [dispatch])
   );
 
-  // Filter events
+  // Filter events - sử dụng realtime status
   const filteredEvents = React.useMemo(() => {
     if (activeFilter === 'all') return events;
     if (activeFilter === 'active') {
-      return events.filter(e => e.status === 'active' || e.status === 'submission_closed');
+      return events.filter(e => {
+        const status = getRealtimeStatus(e);
+        return status === 'active' || status === 'submission_closed';
+      });
     }
     if (activeFilter === 'upcoming') {
-      return events.filter(e => e.status === 'upcoming');
+      return events.filter(e => getRealtimeStatus(e) === 'upcoming');
     }
     if (activeFilter === 'completed') {
-      return events.filter(e => e.status === 'completed' || e.status === 'voting_ended');
+      return events.filter(e => {
+        const status = getRealtimeStatus(e);
+        return status === 'completed' || status === 'voting_ended';
+      });
     }
     return events;
   }, [events, activeFilter]);
 
-  // Count by status
+  // Count by realtime status
   const counts = React.useMemo(() => ({
     all: events.length,
-    active: events.filter(e => e.status === 'active' || e.status === 'submission_closed').length,
-    upcoming: events.filter(e => e.status === 'upcoming').length,
-    completed: events.filter(e => e.status === 'completed' || e.status === 'voting_ended').length,
+    active: events.filter(e => {
+      const status = getRealtimeStatus(e);
+      return status === 'active' || status === 'submission_closed';
+    }).length,
+    upcoming: events.filter(e => getRealtimeStatus(e) === 'upcoming').length,
+    completed: events.filter(e => {
+      const status = getRealtimeStatus(e);
+      return status === 'completed' || status === 'voting_ended';
+    }).length,
   }), [events]);
 
   // Handle pull-to-refresh
