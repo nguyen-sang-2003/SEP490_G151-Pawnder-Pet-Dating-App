@@ -72,6 +72,11 @@ const CounterOfferScreen = lazy(() => import("../features/appointment/screens/Co
 const LocationPickerScreen = lazy(() => import("../features/appointment/screens/LocationPickerScreen"));
 const MapPickerScreen = lazy(() => import("../features/appointment/screens/MapPickerScreen"));
 
+// Lazy load event screens
+const EventListScreen = lazy(() => import("../features/event/screens/EventListScreen"));
+const EventDetailScreen = lazy(() => import("../features/event/screens/EventDetailScreen"));
+const SubmitEntryScreen = lazy(() => import("../features/event/screens/SubmitEntryScreen"));
+
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -203,6 +208,10 @@ export type RootStackParamList = {
         initialAddress?: string;
         initialName?: string;
       };
+  // Event screens
+  EventList: undefined;
+  EventDetail: { eventId: number };
+  SubmitEntry: { eventId: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -437,6 +446,19 @@ const AppNavigator = () => {
         <Stack.Screen
           name="MapPicker"
           component={LazyScreen(MapPickerScreen)}
+          options={modalScreenOptions}
+        />
+
+        {/* Lazy-loaded event screens */}
+        <Stack.Screen name="EventList" component={LazyScreen(EventListScreen)} />
+        <Stack.Screen
+          name="EventDetail"
+          component={LazyScreen(EventDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen
+          name="SubmitEntry"
+          component={LazyScreen(SubmitEntryScreen)}
           options={modalScreenOptions}
         />
       </Stack.Navigator>

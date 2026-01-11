@@ -15,3 +15,4 @@ export { default as paymentService } from './paymentService';
 
 export { default as badWordService } from './badWordService';
 export { default as policyService } from './policyService';
+export { default as eventService } from './eventService';

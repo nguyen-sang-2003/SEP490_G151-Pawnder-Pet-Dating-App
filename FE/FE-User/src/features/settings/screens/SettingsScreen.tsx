@@ -84,6 +84,13 @@ const SettingsScreen = ({ navigation }: Props) => {
 
   const appSettings: SettingsItem[] = [
     {
+      icon: "ribbon-outline",
+      title: t('settings.appSettings.events', 'Sự kiện'),
+      subtitle: t('settings.appSettings.eventsDesc', 'Tham gia cuộc thi thú cưng'),
+      onPress: () => navigation.navigate("EventList"),
+      iconColor: colors.favoriteStart,
+    },
+    {
       icon: "calendar-outline",
       title: t('settings.appSettings.myAppointments', 'Lịch hẹn của tôi'),
       subtitle: t('settings.appSettings.myAppointmentsDesc', 'Xem và quản lý các cuộc hẹn'),

@@ -171,7 +171,8 @@ export type AppointmentStatus =
   | 'cancelled'
   | 'on_going'
   | 'completed'
-  | 'no_show';
+  | 'no_show'
+  | 'expired';
 
 /**
  * Activity Types
@@ -249,6 +250,12 @@ export const APPOINTMENT_STATUS_CONFIG: Record<AppointmentStatus, {
     color: '#FF9500',
     bgColor: '#FFF4E5',
     icon: '⚠️'
+  },
+  expired: {
+    label: 'Đã hết hạn',
+    color: '#8E8E93',
+    bgColor: '#F2F2F7',
+    icon: '⏰'
   }
 };
 

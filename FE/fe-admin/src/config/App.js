@@ -16,6 +16,7 @@ import { ExpertList, ExpertDetail, CreateExpert, ExpertChat, ExpertChatAI, Exper
 import { AttributeManagement } from '../features/attributes';
 import { PolicyList, PolicyDetail, DraftVersions } from '../features/policies';
 import { BadWordList, BadWordDetail, BadWordEdit } from '../features/badwords';
+import { EventList, EventDetail, EventForm } from '../features/events';
 
 // Layout
 import AdminLayout from '../components/layout/AdminLayout';
@@ -209,6 +210,39 @@ function App() {
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <CreateExpert />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* Event Routes */}
+              <Route path="/events" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventList />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/events/create" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventForm />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/events/:id" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventDetail />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/events/:id/edit" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventForm />
                   </AdminLayout>
                 </ProtectedRoute>
               } />

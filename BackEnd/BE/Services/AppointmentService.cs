@@ -580,6 +580,38 @@ public class AppointmentService : IAppointmentService
         Console.WriteLine($"[AppointmentExpiration] Checking at Vietnam time: {now:yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"[AppointmentExpiration] NO_SHOW threshold: {noShowThreshold:yyyy-MM-dd HH:mm:ss}");
 
+        // 0. Xử lý EXPIRED: Cuộc hẹn pending nhưng đã quá giờ hẹn
+        var pendingExpiredAppointments = await _context.Set<PetAppointment>()
+            .Where(a => a.Status == "pending" && a.AppointmentDateTime <= now)
+            .ToListAsync(ct);
+
+        Console.WriteLine($"[AppointmentExpiration] Found {pendingExpiredAppointments.Count} pending appointments to mark as EXPIRED");
+
+        foreach (var appointment in pendingExpiredAppointments)
+        {
+            Console.WriteLine($"[AppointmentExpiration] Marking appointment {appointment.AppointmentId} as EXPIRED (scheduled: {appointment.AppointmentDateTime:yyyy-MM-dd HH:mm:ss})");
+            
+            appointment.Status = "expired";
+            appointment.UpdatedAt = now;
+
+            // Thông báo cho cả 2
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = appointment.InviterUserId,
+                Title = "Cuộc hẹn đã hết hạn ⏰",
+                Message = "Cuộc hẹn đã tự động hết hạn do không được phản hồi trước giờ hẹn",
+                Type = "appointment_expired"
+            }, ct);
+
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = appointment.InviteeUserId,
+                Title = "Cuộc hẹn đã hết hạn ⏰",
+                Message = "Cuộc hẹn đã tự động hết hạn do không được phản hồi trước giờ hẹn",
+                Type = "appointment_expired"
+            }, ct);
+        }
+
         // 1. Xử lý NO_SHOW: Cuộc hẹn confirmed nhưng thiếu người check-in sau 90 phút
         var confirmedAppointments = await _context.Set<PetAppointment>()
             .Where(a => a.Status == "confirmed" && a.AppointmentDateTime <= noShowThreshold)
