@@ -8,6 +8,11 @@ public interface IEventService
     #region Admin Operations
 
     /// <summary>
+    /// Lấy tất cả sự kiện (Admin only) - bao gồm mọi trạng thái
+    /// </summary>
+    Task<IEnumerable<EventResponse>> GetAllEventsAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Tạo sự kiện mới (Admin only)
     /// </summary>
     Task<EventResponse> CreateEventAsync(int adminId, CreateEventRequest request, CancellationToken ct = default);

@@ -27,6 +27,12 @@ public class EventService : IEventService
 
     #region Admin Operations
 
+    public async Task<IEnumerable<EventResponse>> GetAllEventsAsync(CancellationToken ct = default)
+    {
+        var events = await _eventRepository.GetAllEventsAsync(ct);
+        return events.Select(MapToResponse);
+    }
+
     public async Task<EventResponse> CreateEventAsync(int adminId, CreateEventRequest request, CancellationToken ct = default)
     {
         // Validation
@@ -57,8 +63,22 @@ public class EventService : IEventService
 
         await _eventRepository.AddAsync(petEvent, ct);
 
-        // Note: Có thể thêm logic gửi notification cho tất cả users ở đây
-        // nếu INotificationService có method SendToAllUsersAsync
+        // Gửi notification cho tất cả users về sự kiện mới
+        var allUserIds = await _context.Users
+            .Where(u => u.IsDeleted != true && u.RoleId == 1) // RoleId 1 = User thường
+            .Select(u => u.UserId)
+            .ToListAsync(ct);
+
+        foreach (var userId in allUserIds)
+        {
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = userId,
+                Title = "🎉 Sự kiện mới!",
+                Message = $"Sự kiện '{petEvent.Title}' vừa được tạo. Tham gia ngay!",
+                Type = "event_created"
+            }, ct);
+        }
 
         return MapToResponse(petEvent);
     }
@@ -84,6 +104,33 @@ public class EventService : IEventService
 
         await _eventRepository.UpdateAsync(petEvent, ct);
 
+        // Gửi notification cho tất cả users về cập nhật sự kiện
+        var allUserIds = await _context.Users
+            .Where(u => u.IsDeleted != true && u.RoleId == 1)
+            .Select(u => u.UserId)
+            .ToListAsync(ct);
+
+        // Tạo message mô tả thay đổi
+        var changes = new List<string>();
+        if (request.Title != null) changes.Add("tiêu đề");
+        if (request.StartTime.HasValue) changes.Add("thời gian bắt đầu");
+        if (request.SubmissionDeadline.HasValue) changes.Add("hạn nộp bài");
+        if (request.EndTime.HasValue) changes.Add("thời gian kết thúc");
+        if (request.PrizeDescription != null) changes.Add("giải thưởng");
+        
+        var changeText = changes.Any() ? string.Join(", ", changes) : "thông tin";
+
+        foreach (var userId in allUserIds)
+        {
+            await _notificationService.CreateNotificationAsync(new NotificationDto_1
+            {
+                UserId = userId,
+                Title = "📝 Sự kiện được cập nhật",
+                Message = $"Sự kiện '{petEvent.Title}' đã cập nhật {changeText}. Xem chi tiết!",
+                Type = "event_updated"
+            }, ct);
+        }
+
         return MapToResponse(petEvent);
     }
 
@@ -100,20 +147,19 @@ public class EventService : IEventService
 
         await _eventRepository.UpdateAsync(petEvent, ct);
 
-        // Thông báo cho users đã tham gia
-        var participantIds = await _context.EventSubmissions
-            .Where(s => s.EventId == eventId && s.IsDeleted != true)
-            .Select(s => s.UserId)
-            .Distinct()
+        // Thông báo cho TẤT CẢ users về sự kiện bị hủy
+        var allUserIds = await _context.Users
+            .Where(u => u.IsDeleted != true && u.RoleId == 1)
+            .Select(u => u.UserId)
             .ToListAsync(ct);
 
-        foreach (var userId in participantIds)
+        foreach (var userId in allUserIds)
         {
             await _notificationService.CreateNotificationAsync(new NotificationDto_1
             {
                 UserId = userId,
                 Title = "⚠️ Sự kiện đã bị hủy",
-                Message = $"Sự kiện '{petEvent.Title}' đã bị hủy. {reason ?? ""}",
+                Message = $"Sự kiện '{petEvent.Title}' đã bị hủy. {reason ?? ""}".Trim(),
                 Type = "event_cancelled"
             }, ct);
         }
@@ -363,7 +409,9 @@ public class EventService : IEventService
 
     private static SubmissionResponse MapSubmissionToResponse(EventSubmission s, int? currentUserId)
     {
-        var primaryPhoto = s.Pet?.PetPhotos?.FirstOrDefault(p => p.IsPrimary == true);
+        // Lấy ảnh primary, nếu không có thì lấy ảnh đầu tiên
+        var petPhoto = s.Pet?.PetPhotos?.FirstOrDefault(p => p.IsPrimary == true) 
+                    ?? s.Pet?.PetPhotos?.FirstOrDefault();
         
         return new SubmissionResponse
         {
@@ -374,7 +422,7 @@ public class EventService : IEventService
             UserAvatar = null, // User không có avatar trong model hiện tại
             PetId = s.PetId,
             PetName = s.Pet?.Name,
-            PetPhotoUrl = primaryPhoto?.ImageUrl,
+            PetPhotoUrl = petPhoto?.ImageUrl,
             MediaUrl = s.MediaUrl,
             MediaType = s.MediaType,
             ThumbnailUrl = s.ThumbnailUrl,

@@ -10,13 +10,24 @@ public class EventRepository : BaseRepository<PetEvent>, IEventRepository
     {
     }
 
-    public async Task<IEnumerable<PetEvent>> GetActiveEventsAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<PetEvent>> GetAllEventsAsync(CancellationToken ct = default)
     {
-        var now = DateTime.Now;
         return await _dbSet
             .Include(e => e.CreatedByUser)
-            .Where(e => e.Status != "cancelled" && e.Status != "completed" && e.EndTime > now)
-            .OrderBy(e => e.StartTime)
+            .Include(e => e.Submissions.Where(s => s.IsDeleted != true))
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IEnumerable<PetEvent>> GetActiveEventsAsync(CancellationToken ct = default)
+    {
+        // Lấy tất cả events trừ cancelled để user có thể xem lại cuộc thi đã tham gia
+        return await _dbSet
+            .Include(e => e.CreatedByUser)
+            .Include(e => e.Submissions.Where(s => s.IsDeleted != true))
+            .Where(e => e.Status != "cancelled")
+            .OrderByDescending(e => e.Status == "active" || e.Status == "submission_closed" ? 1 : 0) // Ưu tiên đang diễn ra
+            .ThenByDescending(e => e.CreatedAt)
             .ToListAsync(ct);
     }
 
@@ -28,7 +39,7 @@ public class EventRepository : BaseRepository<PetEvent>, IEventRepository
                 .ThenInclude(s => s.User)
             .Include(e => e.Submissions.Where(s => s.IsDeleted != true))
                 .ThenInclude(s => s.Pet)
-                    .ThenInclude(p => p.PetPhotos.Where(ph => ph.IsPrimary == true))
+                    .ThenInclude(p => p.PetPhotos)
             .Include(e => e.Submissions.Where(s => s.IsDeleted != true))
                 .ThenInclude(s => s.Votes)
             .FirstOrDefaultAsync(e => e.EventId == eventId, ct);
