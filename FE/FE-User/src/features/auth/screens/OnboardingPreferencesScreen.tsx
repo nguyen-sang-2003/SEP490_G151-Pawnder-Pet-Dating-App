@@ -24,6 +24,8 @@ import { saveUserPreferencesBatch } from "../../home/api/preferencesApi";
 import { getItem } from "../../../services/storage";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
+import { getPendingPolicies } from "../../policy/api/policyApi";
+import { enablePolicyCheck } from "../../../services/policyEventEmitter";
 
 const { width } = Dimensions.get("window");
 
@@ -125,6 +127,9 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
   };
 
   const handleSkip = () => {
+    // Re-enable policy checks after registration flow
+    enablePolicyCheck();
+    
     // Bỏ qua trực tiếp đến Home mà không lưu sở thích
     navigation.replace("Home");
   };
@@ -172,6 +177,37 @@ const OnboardingPreferencesScreen = ({ navigation }: Props) => {
         await saveUserPreferencesBatch(userId, preferences);
       }
 
+      // Re-enable policy checks after registration flow is complete
+      // This ensures policy modal only shows AFTER user has created pet and set preferences
+      enablePolicyCheck();
+
+      // Check for pending policies after registration completion
+      try {
+        const pendingPolicies = await getPendingPolicies();
+        
+        if (pendingPolicies && pendingPolicies.length > 0) {
+          // Navigate to PolicyAcceptanceScreen with pending policies
+          showAlert({
+            type: 'success',
+            title: t('auth.onboarding.complete'),
+            message: preferences.length > 0
+              ? t('auth.onboarding.completeWithPrefs', { count: preferences.length })
+              : t('auth.onboarding.completeWithoutPrefs'),
+            onClose: () => {
+              navigation.replace("PolicyAcceptance", {
+                pendingPolicies,
+                fromRegistration: true,
+              });
+            },
+          });
+          return;
+        }
+      } catch (policyError) {
+        // If policy check fails, continue to Home (non-blocking)
+        console.warn('Policy check failed:', policyError);
+      }
+
+      // No pending policies, navigate to Home
       showAlert({
         type: 'success',
         title: t('auth.onboarding.complete'),

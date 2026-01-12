@@ -12,12 +12,15 @@ import {
 } from '../services/apiRetry';
 import { apiCancel, isCancel } from '../services/apiCancel';
 import { API_OPTIMIZATION_CONFIG, OptimizedRequestConfig } from '../services/apiOptimization.config';
+import { emitPolicyRequired, hasPolicyRequiredListeners } from '../services/policyEventEmitter';
 
 // Get base URL from config
 const BASE_URL = getBaseUrl();
 
 // Extended request config interface
-export interface ExtendedAxiosRequestConfig extends AxiosRequestConfig, OptimizedRequestConfig { }
+export interface ExtendedAxiosRequestConfig extends AxiosRequestConfig, OptimizedRequestConfig {
+  _policyRetry?: boolean;
+}
 
 // Create axios instance with default config
 export const apiClient = axios.create({
@@ -118,6 +121,29 @@ let refreshPromise: Promise<string> | null = null;
 let refreshAttempts = 0;
 let lastRefreshAttemptTime = 0;
 
+// Policy acceptance queue - similar to token refresh queue
+let isPolicyModalShowing = false;
+let policyQueue: { resolve: (value: any) => void; reject: (error: any) => void; config: any }[] = [];
+
+const processPolicyQueue = (error: any = null) => {
+  console.log('[Policy] Processing queue, items:', policyQueue.length, 'error:', !!error);
+  policyQueue.forEach(async (item) => {
+    if (error) {
+      item.reject(error);
+    } else {
+      try {
+        // Retry the request
+        const response = await apiClient(item.config);
+        item.resolve(response);
+      } catch (retryError) {
+        item.reject(retryError);
+      }
+    }
+  });
+  policyQueue = [];
+  isPolicyModalShowing = false;
+};
+
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach(prom => {
     if (error) {
@@ -196,6 +222,70 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // Handle POLICY_REQUIRED error (403 with specific errorCode)
+    if (
+      error.response?.status === 403 &&
+      (error.response?.data?.errorCode === 'POLICY_REQUIRED' ||
+        error.response?.data?.ErrorCode === 'POLICY_REQUIRED') &&
+      !originalRequest._policyRetry
+    ) {
+      // Support both camelCase and PascalCase from backend
+      const rawPolicies =
+        error.response.data.pendingPolicies ||
+        error.response.data.PendingPolicies ||
+        [];
+
+      // Map PascalCase to camelCase
+      const pendingPolicies = rawPolicies.map((p: any) => ({
+        policyCode: p.policyCode || p.PolicyCode,
+        policyName: p.policyName || p.PolicyName,
+        description: p.description || p.Description,
+        displayOrder: p.displayOrder || p.DisplayOrder,
+        versionNumber: p.versionNumber || p.VersionNumber,
+        title: p.title || p.Title,
+        content: p.content || p.Content,
+        changeLog: p.changeLog || p.ChangeLog,
+        publishedAt: p.publishedAt || p.PublishedAt,
+        hasPreviousAccept: p.hasPreviousAccept ?? p.HasPreviousAccept ?? false,
+        previousAcceptVersion: p.previousAcceptVersion || p.PreviousAcceptVersion,
+      }));
+
+      // Only handle if there are listeners registered
+      if (hasPolicyRequiredListeners() && pendingPolicies.length > 0) {
+        originalRequest._policyRetry = true;
+
+        // If modal is already showing, queue this request
+        if (isPolicyModalShowing) {
+          console.log('[Policy] Modal already showing, queuing request:', originalRequest.url);
+          return new Promise((resolve, reject) => {
+            policyQueue.push({ resolve, reject, config: originalRequest });
+          });
+        }
+
+        // First request - show modal
+        isPolicyModalShowing = true;
+        console.log('[Policy] Showing modal for request:', originalRequest.url);
+
+        return new Promise((resolve, reject) => {
+          // Add current request to queue
+          policyQueue.push({ resolve, reject, config: originalRequest });
+
+          emitPolicyRequired({
+            pendingPolicies,
+            originalRequest,
+            onAccepted: () => {
+              console.log('[Policy] onAccepted called, processing queue');
+              processPolicyQueue(null);
+            },
+            onRejected: err => {
+              console.log('[Policy] onRejected called');
+              processPolicyQueue(err || error);
+            },
+          });
+        });
+      }
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Skip token refresh for login/register endpoints (they don't need tokens)
       const url = originalRequest.url || '';
@@ -225,7 +315,7 @@ apiClient.interceptors.response.use(
       const backoffDelay = Math.min(1000 * Math.pow(2, refreshAttempts), 30000);
       
       if (refreshAttempts > 0 && timeSinceLastAttempt < backoffDelay) {
-        await new Promise(resolve => setTimeout(resolve, backoffDelay - timeSinceLastAttempt));
+        await new Promise<void>(resolve => setTimeout(resolve, backoffDelay - timeSinceLastAttempt));
       }
       
       refreshAttempts++;

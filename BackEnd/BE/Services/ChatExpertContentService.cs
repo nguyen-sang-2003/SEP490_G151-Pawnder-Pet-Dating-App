@@ -140,7 +140,7 @@ namespace BE.Services
 
             return new
             {
-                message = "Gửi tin nhắn thành công.",
+                message = chatMessage.Message, // Return the filtered message
                 contentId = chatMessage.ContentId,
                 chatExpertId = chatMessage.ChatExpertId,
                 fromId = chatMessage.FromId,

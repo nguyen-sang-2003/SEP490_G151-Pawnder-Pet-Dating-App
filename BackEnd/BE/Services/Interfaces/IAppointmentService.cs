@@ -79,23 +79,34 @@ public interface IAppointmentService
         CheckInRequest request, 
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Kết thúc cuộc hẹn (user bấm thủ công)
+    /// </summary>
+    Task<AppointmentResponse> CompleteAppointmentAsync(
+        int userId,
+        int appointmentId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Xử lý các cuộc hẹn quá hạn (gọi từ Background Service)
+    /// - NO_SHOW: confirmed nhưng thiếu check-in sau 90 phút
+    /// - AUTO_COMPLETE: on_going sau 90 phút
+    /// </summary>
+    Task ProcessExpiredAppointmentsAsync(CancellationToken ct = default);
+
     #endregion
 
     #region Location
 
     /// <summary>
-    /// Lấy danh sách địa điểm Pet-Friendly gợi ý
-    /// </summary>
-    Task<IEnumerable<LocationResponse>> GetSuggestedLocationsAsync(
-        decimal? latitude, 
-        decimal? longitude, 
-        string? city,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Tạo địa điểm mới
     /// </summary>
     Task<LocationResponse> CreateLocationAsync(CreateLocationRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lấy danh sách địa điểm gần đây của user (từ các cuộc hẹn đã tạo)
+    /// </summary>
+    Task<IEnumerable<LocationResponse>> GetRecentLocationsAsync(int userId, int limit = 10, CancellationToken ct = default);
 
     #endregion
 }

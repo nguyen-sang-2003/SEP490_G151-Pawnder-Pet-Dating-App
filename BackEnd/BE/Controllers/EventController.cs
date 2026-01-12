@@ -14,10 +14,12 @@ namespace BE.Controllers;
 public class EventController : ControllerBase
 {
     private readonly IEventService _eventService;
+    private readonly IPhotoStorage _photoStorage;
 
-    public EventController(IEventService eventService)
+    public EventController(IEventService eventService, IPhotoStorage photoStorage)
     {
         _eventService = eventService;
+        _photoStorage = photoStorage;
     }
 
     private int GetCurrentUserId()
@@ -31,6 +33,24 @@ public class EventController : ControllerBase
     }
 
     #region Admin Endpoints
+
+    /// <summary>
+    /// Lấy tất cả sự kiện (Admin only) - bao gồm mọi trạng thái
+    /// </summary>
+    [HttpGet("all")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllEvents(CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await _eventService.GetAllEventsAsync(ct);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Lỗi khi lấy danh sách sự kiện", error = ex.Message });
+        }
+    }
 
     /// <summary>
     /// Tạo sự kiện mới (Admin only)
@@ -278,6 +298,59 @@ public class EventController : ControllerBase
         {
             return StatusCode(500, new { message = "Lỗi khi lấy bảng xếp hạng", error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Upload media cho bài dự thi (ảnh/video)
+    /// </summary>
+    [HttpPost("upload-media")]
+    [Authorize(Roles = "User")]
+    public async Task<IActionResult> UploadMedia(IFormFile file, CancellationToken ct = default)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Vui lòng chọn file" });
+
+            // Validate file type
+            var allowedImageTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+            var allowedVideoTypes = new[] { "video/mp4", "video/quicktime", "video/x-msvideo" };
+            var isImage = allowedImageTypes.Contains(file.ContentType.ToLower());
+            var isVideo = allowedVideoTypes.Contains(file.ContentType.ToLower());
+
+            if (!isImage && !isVideo)
+                return BadRequest(new { message = "Chỉ hỗ trợ ảnh (JPG, PNG, WebP, GIF) hoặc video (MP4, MOV, AVI)" });
+
+            // Validate file size (max 50MB for video, 10MB for image)
+            var maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+            if (file.Length > maxSize)
+                return BadRequest(new { message = isVideo ? "Video tối đa 50MB" : "Ảnh tối đa 10MB" });
+
+            var userId = GetCurrentUserId();
+            if (userId == 0)
+                return Unauthorized(new { message = "Vui lòng đăng nhập" });
+
+            // Upload to Cloudinary (reuse existing storage with event folder)
+            var (url, publicId) = await UploadEventMediaAsync(userId, file, ct);
+
+            return Ok(new { 
+                message = "Upload thành công",
+                mediaUrl = url,
+                mediaType = isImage ? "image" : "video",
+                publicId = publicId
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Lỗi khi upload", error = ex.Message });
+        }
+    }
+
+    private async Task<(string Url, string PublicId)> UploadEventMediaAsync(int userId, IFormFile file, CancellationToken ct)
+    {
+        // Use reflection or direct Cloudinary access for event uploads
+        // For now, we'll use the existing IPhotoStorage but with a different folder structure
+        return await _photoStorage.UploadAsync(userId, file, ct);
     }
 
     #endregion

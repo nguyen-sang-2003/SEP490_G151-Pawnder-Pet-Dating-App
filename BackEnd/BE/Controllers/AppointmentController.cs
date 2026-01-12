@@ -287,24 +287,62 @@ public class AppointmentController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Kết thúc cuộc hẹn (user bấm thủ công)
+    /// </summary>
+    [HttpPut("{appointmentId}/complete")]
+    [Authorize(Roles = "User")]
+    public async Task<IActionResult> CompleteAppointment(
+        int appointmentId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0)
+                return Unauthorized(new { message = "Vui lòng đăng nhập" });
+            
+            var result = await _appointmentService.CompleteAppointmentAsync(userId, appointmentId, ct);
+            return Ok(new { message = "Cuộc hẹn đã hoàn thành!", data = result });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Lỗi khi kết thúc cuộc hẹn", error = ex.Message });
+        }
+    }
+
     #endregion
 
     #region Location
 
     /// <summary>
-    /// Lấy danh sách địa điểm Pet-Friendly gợi ý
+    /// Lấy danh sách địa điểm gần đây của user (từ các cuộc hẹn đã tạo)
     /// </summary>
-    [HttpGet("locations")]
+    [HttpGet("my-locations")]
     [Authorize(Roles = "User")]
-    public async Task<IActionResult> GetSuggestedLocations(
-        [FromQuery] decimal? latitude,
-        [FromQuery] decimal? longitude,
-        [FromQuery] string? city,
+    public async Task<IActionResult> GetMyRecentLocations(
+        [FromQuery] int limit = 10,
         CancellationToken ct = default)
     {
         try
         {
-            var result = await _appointmentService.GetSuggestedLocationsAsync(latitude, longitude, city, ct);
+            var userId = GetCurrentUserId();
+            if (userId == 0)
+                return Unauthorized(new { message = "Vui lòng đăng nhập" });
+
+            var result = await _appointmentService.GetRecentLocationsAsync(userId, limit, ct);
             return Ok(result);
         }
         catch (Exception ex)

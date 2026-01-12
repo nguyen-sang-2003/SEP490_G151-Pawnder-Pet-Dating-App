@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Pressable,
   ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
@@ -31,7 +30,6 @@ const SignUpScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -153,16 +151,6 @@ const SignUpScreen = ({ navigation }: Props) => {
         type: 'error',
         title: t('auth.signUp.passwordMismatch'),
         message: t('auth.signUp.passwordMismatchMessage'),
-      });
-      return;
-    }
-
-    // Validation: Kiểm tra đồng ý điều khoản
-    if (!agree) {
-      showAlert({
-        type: 'warning',
-        title: t('auth.signUp.termsNotAgreed'),
-        message: t('auth.signUp.termsNotAgreedMessage'),
       });
       return;
     }
@@ -397,11 +385,6 @@ const SignUpScreen = ({ navigation }: Props) => {
           )}
         </View>
 
-        <Pressable style={styles.checkRow} onPress={() => setAgree((v) => !v)}>
-          <View style={[styles.checkbox, agree && styles.checkboxOn]} />
-          <Text style={styles.checkText}>{t('auth.signUp.agreeTerms')}</Text>
-        </Pressable>
-
         <TouchableOpacity 
           activeOpacity={0.9} 
           style={styles.btnShadow}
@@ -574,24 +557,6 @@ const styles = StyleSheet.create({
   genderTextActive: {
     color: "#fff",
   },
-
-  checkRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 6,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "#FF7AAE",
-    marginRight: 8,
-    backgroundColor: "transparent",
-  },
-  checkboxOn: { backgroundColor: "#FF7AAE" },
-  checkText: { color: "#222" },
 
   btnShadow: {
     marginTop: 10,

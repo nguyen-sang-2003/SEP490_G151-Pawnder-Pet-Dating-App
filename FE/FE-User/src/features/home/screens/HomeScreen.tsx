@@ -912,6 +912,13 @@ const HomeScreen = ({ navigation }: Props) => {
                         <View style={styles.headerRight}>
                             <TouchableOpacity
                                 style={styles.iconButton}
+                                onPress={() => navigation.navigate("EventList")}
+                            >
+                                <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
                                 onPress={() => (navigation as any).navigate("FilterScreen")}
                             >
                                 <Icon name="options-outline" size={26} color={colors.textDark} />
@@ -1027,6 +1034,13 @@ const HomeScreen = ({ navigation }: Props) => {
                         <View style={styles.headerRight}>
                             <TouchableOpacity
                                 style={styles.iconButton}
+                                onPress={() => navigation.navigate("EventList")}
+                            >
+                                <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
                                 onPress={() => (navigation as any).navigate("FilterScreen")}
                             >
                                 <Icon name="options-outline" size={26} color={colors.textDark} />
@@ -1103,6 +1117,13 @@ const HomeScreen = ({ navigation }: Props) => {
 
                     {/* Right Actions */}
                     <View style={styles.headerRight}>
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => navigation.navigate("EventList")}
+                        >
+                            <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             style={styles.iconButton}
                             onPress={() => (navigation as any).navigate("FilterScreen")}

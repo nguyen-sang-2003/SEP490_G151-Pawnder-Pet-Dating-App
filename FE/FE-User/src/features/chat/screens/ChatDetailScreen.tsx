@@ -27,7 +27,7 @@ import { getChatMessages, sendMessage, deleteChat, ChatMessage, getChats, ChatUs
 import { blockUser } from "../../report/api/blockApi";
 import { reportMessage } from "../../report/api/reportApi";
 import { getUserById } from "../../profile/api/userApi";
-import { getPetsByUserId } from "../../pet/api/petApi";
+import { getPetsByUserId, getPetById } from "../../pet/api/petApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -71,9 +71,14 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [myAvatar, setMyAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const [otherUserAvatar, setOtherUserAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const [userName, setUserName] = useState<string>(initialUserName || "Loading...");
+  // Pet info for appointment
+  const [myPetId, setMyPetId] = useState<number | null>(null);
+  const [otherPetId, setOtherPetId] = useState<number | null>(null);
+  const [myPetName, setMyPetName] = useState<string>("");
+  const [otherPetName, setOtherPetName] = useState<string>("");
   const flatListRef = useRef<FlatList>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentUserIdRef = useRef<number | null>(null);
 
   // Keep ref updated
@@ -237,35 +242,49 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }
 
     setMessages(prev => {
-      const existingMsg = prev.find(msg =>
-        msg.text === messageText &&
-        Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 10000
-      );
+      // For my own messages: find by status "sending" or "sent" within time window
+      // The text might be different due to bad word filtering
+      if (isFromMe) {
+        const recentSendingMsg = prev.find(msg =>
+          msg.isMe &&
+          (msg.status === "sending" || msg.status === "sent") &&
+          Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 30000 // 30 second window
+        );
 
-      if (existingMsg) {
-        if (isFromMe && existingMsg.status === "sending") {
+        if (recentSendingMsg) {
           return prev.map(msg =>
-            msg.id === existingMsg.id
-              ? { ...msg, status: "sent" as const }
+            msg.id === recentSendingMsg.id
+              ? { 
+                  ...msg, 
+                  text: messageText, // Update with filtered message from backend
+                  status: "sent" as const 
+                }
               : msg
           );
         }
         return prev;
       }
 
-      if (!isFromMe) {
-        const newMessage: Message = {
-          id: `signalr_${fromUserId}_${Date.now()}`,
-          text: messageText,
-          isMe: false,
-          timestamp: timestamp,
-          status: "read" as const,
-        };
+      // For other user's messages: check for duplicates
+      const existingMsg = prev.find(msg =>
+        msg.text === messageText &&
+        Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 10000
+      );
 
-        return [...prev, newMessage];
+      if (existingMsg) {
+        return prev;
       }
 
-      return prev;
+      // Add new message from other user
+      const newMessage: Message = {
+        id: `signalr_${fromUserId}_${Date.now()}`,
+        text: messageText,
+        isMe: false,
+        timestamp: timestamp,
+        status: "read" as const,
+      };
+
+      return [...prev, newMessage];
     });
 
     setTimeout(() => {
@@ -332,17 +351,33 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       const currentMatch = chats.find((chat: ChatUser) => chat.matchId === matchId);
       
       if (currentMatch) {
-        const myPetId = currentMatch.fromUserId === userId ? currentMatch.fromPetId : currentMatch.toPetId;
-        const otherPetId = currentMatch.fromUserId === userId ? currentMatch.toPetId : currentMatch.fromPetId;
+        const myPetIdValue = currentMatch.fromUserId === userId ? currentMatch.fromPetId : currentMatch.toPetId;
+        const otherPetIdValue = currentMatch.fromUserId === userId ? currentMatch.toPetId : currentMatch.fromPetId;
 
-        const myAvatarResult = myPetId 
-          ? await getPetAvatar(myPetId).catch(() => getUserPetAvatar(userId))
+        // Save pet IDs for appointment feature
+        if (myPetIdValue) setMyPetId(myPetIdValue);
+        if (otherPetIdValue) setOtherPetId(otherPetIdValue);
+
+        // Fetch pet names for appointment
+        if (myPetIdValue) {
+          getPetById(myPetIdValue)
+            .then(pet => setMyPetName(pet.name || pet.Name || ''))
+            .catch(() => {});
+        }
+        if (otherPetIdValue) {
+          getPetById(otherPetIdValue)
+            .then(pet => setOtherPetName(pet.name || pet.Name || ''))
+            .catch(() => {});
+        }
+
+        const myAvatarResult = myPetIdValue 
+          ? await getPetAvatar(myPetIdValue).catch(() => getUserPetAvatar(userId))
           : await getUserPetAvatar(userId);
         
         setMyAvatar(myAvatarResult);
 
-        if (otherPetId) {
-          getPetAvatar(otherPetId)
+        if (otherPetIdValue) {
+          getPetAvatar(otherPetIdValue)
             .then(otherAvatar => {
               setOtherUserAvatar(otherAvatar);
             })
@@ -436,12 +471,18 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     try {
       setSending(true);
 
-      await sendMessage(matchId, currentUserId, messageText);
+      const response = await sendMessage(matchId, currentUserId, messageText);
 
+      // Update message with filtered text from backend (if bad words were masked)
       setMessages(prev =>
         prev.map(msg =>
           msg.id === tempId
-            ? { ...msg, status: "sent" as const }
+            ? { 
+                ...msg,
+                text: response.message, // Use filtered message from backend
+                status: "sent" as const,
+                contentId: response.contentId,
+              }
             : msg
         )
       );
@@ -450,14 +491,29 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
 
-      showAlert({
-        type: 'error',
-        title: t('chat.detail.sendErrorTitle'),
-        message: error.message || t('chat.detail.sendError'),
-        showCancel: true,
-        confirmText: t('chat.detail.retryButton'),
-        onConfirm: () => setInputText(messageText),
-      });
+      // Check if it's a bad word filter error
+      const errorMessage = error.message || '';
+      const isBadWordError = errorMessage.includes('nội dung không phù hợp') || 
+                             errorMessage.includes('Tin nhắn của bạn chứa nội dung không phù hợp');
+
+      if (isBadWordError) {
+        // Show bad word warning alert - don't restore message to input
+        showAlert({
+          type: 'warning',
+          title: t('chat.badWord.title'),
+          message: t('chat.badWord.message'),
+        });
+      } else {
+        // Show regular error with retry option
+        showAlert({
+          type: 'error',
+          title: t('chat.detail.sendErrorTitle'),
+          message: error.message || t('chat.detail.sendError'),
+          showCancel: true,
+          confirmText: t('chat.detail.retryButton'),
+          onConfirm: () => setInputText(messageText),
+        });
+      }
     } finally {
       setSending(false);
     }
@@ -486,6 +542,24 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
   const handleMenuPress = () => {
     setShowMenuModal(true);
+  };
+
+  const handleCreateAppointment = () => {
+    if (!myPetId || !otherPetId) {
+      showAlert({
+        type: 'warning',
+        title: t('common.error'),
+        message: t('chat.appointment.noPetInfo') || 'Không tìm thấy thông tin thú cưng',
+      });
+      return;
+    }
+    navigation.navigate('CreateAppointment', {
+      matchId,
+      inviterPetId: myPetId,
+      inviteePetId: otherPetId,
+      inviterPetName: myPetName || t('fallback.unknown'),
+      inviteePetName: otherPetName || t('fallback.unknown'),
+    });
   };
 
   const closeMenu = () => {
@@ -810,6 +884,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
               </Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.appointmentButton}
+            onPress={handleCreateAppointment}
+          >
+            <Icon name="calendar-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.menuButton}
@@ -1140,6 +1221,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
+    ...shadows.small,
+  },
+  appointmentButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.whiteWarm,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
     ...shadows.small,
   },
 

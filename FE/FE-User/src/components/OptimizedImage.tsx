@@ -101,6 +101,10 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
     // Direct URL - use high priority and aggressive caching
     if (typeof source === 'object' && source.uri) {
+      // Check if uri is valid (not null, undefined, or empty string)
+      if (!source.uri || source.uri.trim() === '') {
+        return require('../assets/cat_avatar.png');
+      }
       return {
         uri: source.uri,
         priority: FastImage?.priority?.high,

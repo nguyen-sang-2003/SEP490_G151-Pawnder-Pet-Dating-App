@@ -19,7 +19,7 @@ interface CustomAlertProps {
   message: string;
   onClose: () => void;
   confirmText?: string;
-  onConfirm?: () => void; // For confirmation dialogs
+  onConfirm?: () => void | Promise<void>; // Support async callbacks
   cancelText?: string; // For confirmation dialogs
   showCancel?: boolean; // Show cancel button
 }
@@ -133,12 +133,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
               activeOpacity={0.8}
               onPress={() => {
                 if (onConfirm) {
-                  // Call onConfirm first, then close after a tiny delay to ensure state updates
                   onConfirm();
-                  // Use setTimeout to ensure state update is processed before closing
-                  setTimeout(() => {
-                    onClose();
-                  }, 50);
                 } else {
                   onClose();
                 }

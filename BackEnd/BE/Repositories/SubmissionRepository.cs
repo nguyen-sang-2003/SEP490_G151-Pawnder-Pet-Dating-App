@@ -15,7 +15,7 @@ public class SubmissionRepository : BaseRepository<EventSubmission>, ISubmission
         return await _dbSet
             .Include(s => s.User)
             .Include(s => s.Pet)
-                .ThenInclude(p => p.PetPhotos.Where(ph => ph.IsPrimary == true))
+                .ThenInclude(p => p.PetPhotos)
             .Where(s => s.EventId == eventId && s.IsDeleted != true)
             .OrderByDescending(s => s.VoteCount)
             .ThenBy(s => s.CreatedAt)
@@ -27,7 +27,7 @@ public class SubmissionRepository : BaseRepository<EventSubmission>, ISubmission
         return await _dbSet
             .Include(s => s.User)
             .Include(s => s.Pet)
-                .ThenInclude(p => p.PetPhotos.Where(ph => ph.IsPrimary == true))
+                .ThenInclude(p => p.PetPhotos)
             .Where(s => s.EventId == eventId && s.IsDeleted != true)
             .OrderByDescending(s => s.VoteCount)
             .ThenBy(s => s.CreatedAt) // Tie-breaker: ai đăng trước thắng
@@ -47,7 +47,7 @@ public class SubmissionRepository : BaseRepository<EventSubmission>, ISubmission
             .Include(s => s.Event)
             .Include(s => s.User)
             .Include(s => s.Pet)
-                .ThenInclude(p => p.PetPhotos.Where(ph => ph.IsPrimary == true))
+                .ThenInclude(p => p.PetPhotos)
             .Include(s => s.Votes)
             .FirstOrDefaultAsync(s => s.SubmissionId == submissionId && s.IsDeleted != true, ct);
     }

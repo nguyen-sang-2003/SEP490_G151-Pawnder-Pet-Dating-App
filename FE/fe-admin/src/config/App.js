@@ -14,6 +14,9 @@ import { ReportsList, ReportDetail } from '../features/reports';
 import { PaymentManagement } from '../features/payments';
 import { ExpertList, ExpertDetail, CreateExpert, ExpertChat, ExpertChatAI, ExpertNotifications } from '../features/experts';
 import { AttributeManagement } from '../features/attributes';
+import { PolicyList, PolicyDetail, DraftVersions } from '../features/policies';
+import { BadWordList, BadWordDetail, BadWordEdit } from '../features/badwords';
+import { EventList, EventDetail, EventForm } from '../features/events';
 
 // Layout
 import AdminLayout from '../components/layout/AdminLayout';
@@ -137,6 +140,55 @@ function App() {
                   </AdminLayout>
                 </ProtectedRoute>
               } />
+
+              <Route path="/policies" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <PolicyList />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/policies/:id" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <PolicyDetail />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/policies/drafts" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <DraftVersions />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* Bad Word Routes */}
+              <Route path="/badwords" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <BadWordList />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/badwords/:id" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <BadWordDetail />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/badwords/:id/edit" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <BadWordEdit />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
               
               <Route path="/experts" element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
@@ -158,6 +210,39 @@ function App() {
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <CreateExpert />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* Event Routes */}
+              <Route path="/events" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventList />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/events/create" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventForm />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/events/:id" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventDetail />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/events/:id/edit" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <EventForm />
                   </AdminLayout>
                 </ProtectedRoute>
               } />

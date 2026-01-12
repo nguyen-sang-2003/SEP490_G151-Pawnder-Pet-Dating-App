@@ -84,6 +84,20 @@ const SettingsScreen = ({ navigation }: Props) => {
 
   const appSettings: SettingsItem[] = [
     {
+      icon: "ribbon-outline",
+      title: t('settings.appSettings.events', 'Sự kiện'),
+      subtitle: t('settings.appSettings.eventsDesc', 'Tham gia cuộc thi thú cưng'),
+      onPress: () => navigation.navigate("EventList"),
+      iconColor: colors.favoriteStart,
+    },
+    {
+      icon: "calendar-outline",
+      title: t('settings.appSettings.myAppointments', 'Lịch hẹn của tôi'),
+      subtitle: t('settings.appSettings.myAppointmentsDesc', 'Xem và quản lý các cuộc hẹn'),
+      onPress: () => navigation.navigate("MyAppointments"),
+      iconColor: colors.chatStart,
+    },
+    {
       icon: "shield-checkmark-outline",
       title: t('settings.appSettings.expertConfirmation'),
       subtitle: t('settings.appSettings.expertConfirmationDesc'),
@@ -127,6 +141,12 @@ const SettingsScreen = ({ navigation }: Props) => {
       title: t('settings.supportSection.privacy'),
       subtitle: t('settings.supportSection.privacyDesc'),
       onPress: () => navigation.navigate("ResourceDetail", { type: "privacy" }),
+    },
+    {
+      icon: "reader-outline",
+      title: t('settings.supportSection.policies'),
+      subtitle: t('settings.supportSection.policiesDesc'),
+      onPress: () => navigation.navigate("PolicyList"),
     },
   ];
 

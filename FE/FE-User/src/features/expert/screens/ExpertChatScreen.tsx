@@ -28,6 +28,8 @@ import { markExpertChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
 import { LimitReachedModal } from "../../../components/LimitReachedModal";
 import { getVipStatus } from "../../payment/api/paymentApi";
+import CustomAlert from "../../../components/CustomAlert";
+import { useCustomAlert } from "../../../hooks/useCustomAlert";
 type Props = NativeStackScreenProps<RootStackParamList, "ExpertChat">;
 
 interface Message {
@@ -52,6 +54,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
   const [showExpertChatLimitModal, setShowExpertChatLimitModal] = useState(false);
   const [expertChatLimitMessage, setExpertChatLimitMessage] = useState<string>("");
   const [isVip, setIsVip] = useState<boolean>(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   // Mark chat as read when entering screen
   useEffect(() => {
@@ -252,7 +255,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         chatAiid: null, // Optional
       });
 
-      // Update message with actual data from server
+      // Update message with actual data from server (including filtered text)
       let dateStr = sentMessage.createdAt;
       if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
         dateStr = dateStr + 'Z';
@@ -264,6 +267,7 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
             ? {
               ...msg,
               id: sentMessage.contentId.toString(),
+              text: sentMessage.message || messageText, // Use filtered message from server
               timestamp: new Date(dateStr),
               status: "sent" as const,
             }
@@ -289,7 +293,18 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
                           errorMessage.includes("expert_chat") ||
                           errorMessage.includes("vượt quá limit");
 
-      if (isLimitError) {
+      // Check if it's a bad word filter error
+      const isBadWordError = errorMessage.includes('nội dung không phù hợp') || 
+                             errorMessage.includes('Tin nhắn của bạn chứa nội dung không phù hợp');
+
+      if (isBadWordError) {
+        // Show bad word warning alert - don't restore message to input
+        showAlert({
+          type: 'warning',
+          title: t('chat.badWord.title'),
+          message: t('chat.badWord.message'),
+        });
+      } else if (isLimitError) {
         // Show limit modal with VIP status
         setExpertChatLimitMessage(errorMessage);
         setShowExpertChatLimitModal(true);
@@ -529,6 +544,19 @@ const ExpertChatScreen = ({ navigation, route }: Props) => {
         message={expertChatLimitMessage}
         actionType="expert_chat"
         isVip={isVip}
+      />
+      
+      {/* Custom Alert for bad word and other alerts */}
+      <CustomAlert
+        visible={visible}
+        type={alertConfig?.type}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message || ''}
+        onClose={hideAlert}
+        confirmText={alertConfig?.confirmText}
+        onConfirm={alertConfig?.onConfirm}
+        cancelText={alertConfig?.cancelText}
+        showCancel={alertConfig?.showCancel}
       />
     </View>
   );

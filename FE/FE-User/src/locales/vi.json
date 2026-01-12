@@ -415,6 +415,10 @@
     "noChatsDesc": "Kết nối với chủ thú cưng khác để bắt đầu trò chuyện!",
     "noSearchResults": "Không tìm thấy kết quả",
     "noSearchResultsDesc": "Thử tìm kiếm với tên hoặc tin nhắn khác",
+    "badWord": {
+      "title": "Nội dung không phù hợp",
+      "message": "Tin nhắn của bạn chứa nội dung không phù hợp và không thể gửi. Vui lòng kiểm tra lại nội dung tin nhắn."
+    },
     "filter": {
       "all": "Tất cả",
       "unread": "Chưa đọc"
@@ -549,6 +553,9 @@
       "emptyQuestion": "Vui lòng nhập câu hỏi của bạn",
       "saveChatFirst": "Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia",
       "submitError": "Không thể gửi yêu cầu. Vui lòng thử lại."
+    },
+    "appointment": {
+      "noPetInfo": "Không tìm thấy thông tin thú cưng để tạo lịch hẹn"
     }
   },
 
@@ -598,7 +605,9 @@
       "terms": "Điều khoản & Điều kiện",
       "termsDesc": "Đọc điều khoản dịch vụ của chúng tôi",
       "privacy": "Chính sách bảo mật",
-      "privacyDesc": "Đọc chính sách bảo mật của chúng tôi"
+      "privacyDesc": "Đọc chính sách bảo mật của chúng tôi",
+      "policies": "Chính sách",
+      "policiesDesc": "Xem các chính sách của ứng dụng"
     },
     "danger": {
       "logout": "Đăng xuất",
@@ -1492,5 +1501,50 @@
     "unknownBreed": "Không rõ giống",
     "noDescription": "Chưa có mô tả",
     "noAnswer": "Chưa có câu trả lời"
+  },
+
+  "policy": {
+    "requiredTitle": "Chính sách cần xác nhận",
+    "requiredSubtitle": "Vui lòng đọc và xác nhận các chính sách sau để tiếp tục sử dụng ứng dụng",
+    "acceptAll": "Xác nhận tất cả",
+    "checkAllHint": "Vui lòng đánh dấu xác nhận tất cả chính sách",
+    "version": "Phiên bản {{version}}",
+    "updateBadge": "Cập nhật mới",
+    "acceptance": {
+      "title": "Chính sách & Điều khoản",
+      "subtitle": "Vui lòng đọc và xác nhận các chính sách sau để tiếp tục",
+      "acceptAll": "Xác nhận tất cả",
+      "infoText": "Bằng việc xác nhận, bạn đồng ý tuân thủ các điều khoản và chính sách của chúng tôi.",
+      "checkedCount": "Đã xác nhận {{checked}}/{{total}} chính sách",
+      "incompleteTitle": "Chưa hoàn tất",
+      "incompleteMessage": "Vui lòng đọc và đánh dấu xác nhận tất cả các chính sách để tiếp tục.",
+      "errorTitle": "Lỗi",
+      "errorMessage": "Không thể xác nhận chính sách. Vui lòng thử lại."
+    },
+    "list": {
+      "title": "Chính sách",
+      "version": "Phiên bản {{version}}",
+      "emptyTitle": "Chưa có chính sách",
+      "emptySubtitle": "Các chính sách sẽ được hiển thị ở đây",
+      "errorTitle": "Không thể tải",
+      "loadError": "Không thể tải danh sách chính sách. Vui lòng thử lại."
+    },
+    "detail": {
+      "version": "Phiên bản",
+      "publishedDate": "Ngày công bố",
+      "errorTitle": "Không thể tải",
+      "loadError": "Không thể tải nội dung chính sách. Vui lòng thử lại."
+    },
+    "history": {
+      "title": "Lịch sử xác nhận",
+      "version": "v{{version}}",
+      "valid": "Còn hiệu lực",
+      "invalidated": "Đã hết hiệu lực",
+      "invalidatedAt": "Hết hiệu lực: {{date}}",
+      "emptyTitle": "Chưa có lịch sử",
+      "emptySubtitle": "Lịch sử xác nhận chính sách sẽ được hiển thị ở đây",
+      "errorTitle": "Không thể tải",
+      "loadError": "Không thể tải lịch sử xác nhận. Vui lòng thử lại."
+    }
   }
 }
