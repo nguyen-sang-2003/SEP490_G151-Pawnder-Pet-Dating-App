@@ -26,6 +26,10 @@ import { launchImageLibrary, Asset } from 'react-native-image-picker';
 const { width } = Dimensions.get("window");
 const PHOTO_SIZE = (width - 62) / 2;
 
+// Image validation constants (đồng bộ với Backend)
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
 type Props = NativeStackScreenProps<RootStackParamList, "AddPetPhotos">;
 
 interface DBPhoto {
@@ -132,7 +136,40 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
       }
 
       if (result.assets && result.assets.length > 0) {
-        const newPhotos: LocalPhoto[] = result.assets.map((asset: Asset) => ({
+        // Validate image files
+        const invalidFiles: string[] = [];
+        const validAssets: Asset[] = [];
+
+        for (const asset of result.assets) {
+          // Validate file size (max 5MB)
+          if (asset.fileSize && asset.fileSize > MAX_IMAGE_SIZE_BYTES) {
+            invalidFiles.push(`${asset.fileName || 'Ảnh'}: vượt quá 5MB (${(asset.fileSize / (1024 * 1024)).toFixed(2)}MB)`);
+            continue;
+          }
+
+          // Validate content type
+          if (asset.type && !ALLOWED_IMAGE_TYPES.includes(asset.type.toLowerCase())) {
+            invalidFiles.push(`${asset.fileName || 'Ảnh'}: định dạng không hợp lệ (${asset.type})`);
+            continue;
+          }
+
+          validAssets.push(asset);
+        }
+
+        // Show warning if some files are invalid
+        if (invalidFiles.length > 0) {
+          showAlert({
+            type: 'warning',
+            title: t('auth.addPet.photos.invalidFiles'),
+            message: `${t('auth.addPet.photos.invalidFilesMessage')}\n\n${invalidFiles.join('\n')}`,
+          });
+        }
+
+        if (validAssets.length === 0) {
+          return;
+        }
+
+        const newPhotos: LocalPhoto[] = validAssets.map((asset: Asset) => ({
           id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           uri: asset.uri || '',
           fileName: asset.fileName,
@@ -341,7 +378,7 @@ const AddPetPhotosScreen = ({ navigation, route }: Props) => {
         title: t('auth.addPet.photos.aiAnalysisComplete'),
         message: t('auth.addPet.photos.aiAnalysisMessage', { count: aiResults.length }),
         confirmText: t('common.continue'),
-        onClose: () => {
+        onConfirm: () => {
           navigation.navigate("AddPetCharacteristics", {
             petId,
             isFromProfile,

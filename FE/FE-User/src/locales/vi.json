@@ -95,9 +95,12 @@
       "emailExistsMessage": "Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập",
       "otpSendError": "Không thể gửi mã xác thực",
       "otpSendErrorMessage": "Không thể gửi mã OTP đến email. Vui lòng kiểm tra email và thử lại",
+      "passwordNeedsLowercase": "Mật khẩu phải chứa ít nhất 1 chữ thường (a-z)",
+      "passwordMaxLength": "Mật khẩu không được quá 100 ký tự",
       "passwordRequirements": {
         "minLength": "Ít nhất 8 ký tự",
         "hasUppercase": "Chứa ít nhất 1 chữ hoa",
+        "hasLowercase": "Chứa ít nhất 1 chữ thường",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt"
       }
@@ -191,12 +194,14 @@
         "description": "Giới thiệu",
         "descriptionPlaceholder": "Mô tả tính cách và đặc điểm của thú cưng...",
         "optional": "Tùy chọn",
-        "charCount": "Tùy chọn • {{count}}/200",
+        "charCount": "Tùy chọn • {{count}}/{{max}}",
         "continueButton": "Tiếp tục",
         "missingInfo": "Thiếu thông tin",
         "enterPetName": "Vui lòng nhập tên thú cưng",
+        "enterBreed": "Vui lòng nhập giống loài thú cưng",
         "invalidName": "Tên không hợp lệ",
         "nameMinLength": "Tên thú cưng phải có ít nhất 2 ký tự",
+        "nameMaxLength": "Tên thú cưng không được quá 50 ký tự",
         "error": "Lỗi",
         "userNotFound": "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
         "success": "Thành công!",
@@ -251,6 +256,8 @@
         "notACatTitle": "Không phải ảnh mèo",
         "notCatPhoto": "Ảnh không hợp lệ",
         "uploadFailed": "Không thể tải ảnh lên. Vui lòng thử lại.",
+        "invalidFiles": "Một số ảnh không hợp lệ",
+        "invalidFilesMessage": "Chỉ chấp nhận ảnh JPG, PNG, WEBP với kích thước tối đa 5MB. Các ảnh sau không hợp lệ:",
         "tips": {
           "title": "Lưu ý",
           "clearPhoto": "Hệ thống chỉ phân tích ảnh mèo đầu tiên trong danh sách",
@@ -639,6 +646,8 @@
       "requirements": {
         "title": "Yêu cầu mật khẩu:",
         "minLength": "Ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
+        "hasLowercase": "Chứa ít nhất 1 chữ thường",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
         "differentFromCurrent": "Khác với mật khẩu hiện tại"
@@ -647,6 +656,9 @@
         "enterCurrentPassword": "Vui lòng nhập mật khẩu hiện tại",
         "enterNewPassword": "Vui lòng nhập mật khẩu mới",
         "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+        "passwordMaxLength": "Mật khẩu không được quá 100 ký tự",
+        "passwordNeedsUppercase": "Mật khẩu phải chứa ít nhất 1 chữ hoa",
+        "passwordNeedsLowercase": "Mật khẩu phải chứa ít nhất 1 chữ thường (a-z)",
         "passwordNeedsNumber": "Mật khẩu phải chứa ít nhất 1 chữ số",
         "passwordNeedsSpecial": "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
         "passwordSameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại",

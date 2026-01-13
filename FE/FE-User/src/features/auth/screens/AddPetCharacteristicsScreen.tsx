@@ -158,15 +158,61 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  // Validation ranges cho các thuộc tính của mèo (đồng bộ với Backend)
+  const ATTRIBUTE_RANGES: Record<string, { min: number; max: number; unit: string }> = {
+    'Cân nặng': { min: 0.5, max: 15, unit: 'kg' },
+    'Chiều cao': { min: 15, max: 45, unit: 'cm' },
+    'Tuổi': { min: 0, max: 25, unit: 'năm' },
+  };
+
+  const validateNumericValues = (): string | null => {
+    for (const [attributeId, value] of Object.entries(numericValues)) {
+      if (value && value.trim()) {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) continue;
+        
+        const attr = attributes.find(a => a.AttributeId === parseInt(attributeId, 10));
+        if (!attr?.Name) continue;
+        
+        const range = ATTRIBUTE_RANGES[attr.Name];
+        if (range && (numValue < range.min || numValue > range.max)) {
+          return `${attr.Name} phải từ ${range.min} đến ${range.max} ${range.unit}`;
+        }
+      }
+    }
+    return null;
+  };
+
   const handleContinue = async () => {
+    // Validate numeric values trước khi gửi
+    const validationError = validateNumericValues();
+    if (validationError) {
+      showAlert({
+        type: 'error',
+        title: t('auth.addPet.characteristics.error'),
+        message: validationError,
+      });
+      return;
+    }
+
     try {
       setSaving(true);
+
+      // Fetch lại existing characteristics để đảm bảo data mới nhất
+      let currentExistingIds = new Set<number>(existingCharacteristicIds);
+      try {
+        const existingChars = await getPetCharacteristics(petId);
+        currentExistingIds = new Set(existingChars.map((char: any) => char.attributeId).filter(Boolean));
+      } catch (error) {
+        // Silent fail - use cached existingCharacteristicIds
+      }
 
       const savePromises: Promise<any>[] = [];
 
       Object.entries(selectedOptions).forEach(([attributeId, optionId]) => {
         const attrId = parseInt(attributeId, 10);
-        const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
+        // Check nếu đã tồn tại thì update, không thì create
+        const shouldUpdate = currentExistingIds.has(attrId);
         const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
 
         savePromises.push(
@@ -179,7 +225,8 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           const numValue = parseFloat(value);
           if (!isNaN(numValue)) {
             const attrId = parseInt(attributeId, 10);
-            const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
+            // Check nếu đã tồn tại thì update, không thì create
+            const shouldUpdate = currentExistingIds.has(attrId);
             const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
 
             savePromises.push(
@@ -212,7 +259,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           ? t('auth.addPet.characteristics.characteristicsUpdated')
           : t('auth.addPet.characteristics.profileCreated'),
         confirmText: isEditingExistingPet ? t('auth.addPet.characteristics.backToProfile') : t('common.continue'),
-        onClose: () => {
+        onConfirm: () => {
           if (isEditingExistingPet) {
             navigation.navigate("Profile");
           } else if (isFromProfile) {
