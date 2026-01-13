@@ -69,7 +69,12 @@ public class SubmitEntryRequest
     public string MediaUrl { get; set; } = null!;
 
     [Required]
-    public string MediaType { get; set; } = null!; // image, video
+    public string MediaType { get; set; } = null!; // image/jpeg, image/png, video/mp4
+
+    /// <summary>
+    /// Kích thước file (bytes) - tối đa 50MB
+    /// </summary>
+    public long? MediaSize { get; set; }
 
     public string? ThumbnailUrl { get; set; }
 

@@ -269,6 +269,21 @@ public class EventService : IEventService
         if (pet == null)
             throw new ArgumentException("Thú cưng không hợp lệ hoặc không thuộc về bạn");
 
+        // Validate media type (chỉ cho phép image/video)
+        var allowedMediaTypes = new[] { "image/jpeg", "image/png", "image/jpg", "video/mp4", "video/quicktime" };
+        if (!string.IsNullOrEmpty(request.MediaType) && !allowedMediaTypes.Contains(request.MediaType.ToLower()))
+            throw new ArgumentException("Định dạng file không hợp lệ. Chỉ chấp nhận JPG, PNG hoặc MP4");
+
+        // Validate media size (≤50MB) - nếu có MediaSize trong request
+        const long MAX_MEDIA_SIZE = 50 * 1024 * 1024; // 50MB
+        if (request.MediaSize.HasValue && request.MediaSize.Value > MAX_MEDIA_SIZE)
+            throw new ArgumentException("File quá lớn. Kích thước tối đa là 50MB");
+
+        // Validate caption length (≤500 chars)
+        const int MAX_CAPTION_LENGTH = 500;
+        if (!string.IsNullOrEmpty(request.Caption) && request.Caption.Length > MAX_CAPTION_LENGTH)
+            throw new ArgumentException($"Mô tả quá dài. Tối đa {MAX_CAPTION_LENGTH} ký tự");
+
         var submission = new EventSubmission
         {
             EventId = request.EventId,

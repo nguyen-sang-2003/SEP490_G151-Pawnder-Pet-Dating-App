@@ -134,15 +134,49 @@ namespace BE.Services
             if (petDto == null)
                 throw new ArgumentNullException(nameof(petDto), "Dữ liệu thú cưng không hợp lệ");
 
+            // Validation: Tên pet bắt buộc, 2-50 ký tự
+            if (string.IsNullOrWhiteSpace(petDto.Name))
+                throw new ArgumentException("Tên thú cưng là bắt buộc.");
+            
+            var petName = petDto.Name.Trim();
+            if (petName.Length < 2 || petName.Length > 50)
+                throw new ArgumentException("Tên thú cưng phải từ 2 đến 50 ký tự.");
+
+            // Validation: Giống loài bắt buộc
+            if (string.IsNullOrWhiteSpace(petDto.Breed))
+                throw new ArgumentException("Giống loài là bắt buộc.");
+
+            // Validation: Giới tính bắt buộc và hợp lệ
+            if (string.IsNullOrWhiteSpace(petDto.Gender))
+                throw new ArgumentException("Giới tính là bắt buộc.");
+            
+            var validGenders = new[] { "Đực", "Cái", "Male", "Female" };
+            if (!validGenders.Contains(petDto.Gender, StringComparer.OrdinalIgnoreCase))
+                throw new ArgumentException("Giới tính phải là 'Đực' hoặc 'Cái'.");
+
+            // Validation: Mô tả tối đa 500 ký tự
+            if (!string.IsNullOrEmpty(petDto.Description) && petDto.Description.Length > 500)
+                throw new ArgumentException("Mô tả không được quá 500 ký tự.");
+
+            // Business logic: BR-02 - Giới hạn tối đa 3 pet/user
+            if (petDto.UserId.HasValue)
+            {
+                var currentPetCount = await _context.Pets
+                    .CountAsync(p => p.UserId == petDto.UserId && p.IsDeleted != true, ct);
+                
+                if (currentPetCount >= 3)
+                    throw new InvalidOperationException("Mỗi người dùng chỉ được tạo tối đa 3 thú cưng.");
+            }
+
             var pet = new Pet
             {
                 UserId = petDto.UserId,
-                Name = petDto.Name,
-                Breed = petDto.Breed,
+                Name = petName,
+                Breed = petDto.Breed.Trim(),
                 Gender = petDto.Gender,
                 Age = petDto.Age,
                 IsActive = petDto.IsActive,
-                Description = petDto.Description,
+                Description = petDto.Description?.Trim(),
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
             };
@@ -167,13 +201,37 @@ namespace BE.Services
             if (pet == null || pet.IsDeleted == true)
                 throw new KeyNotFoundException("Không tìm thấy thú cưng");
 
+            // Validation: Tên pet bắt buộc, 2-50 ký tự
+            if (string.IsNullOrWhiteSpace(updatedPet.Name))
+                throw new ArgumentException("Tên thú cưng là bắt buộc.");
+            
+            var petName = updatedPet.Name.Trim();
+            if (petName.Length < 2 || petName.Length > 50)
+                throw new ArgumentException("Tên thú cưng phải từ 2 đến 50 ký tự.");
+
+            // Validation: Giống loài bắt buộc
+            if (string.IsNullOrWhiteSpace(updatedPet.Breed))
+                throw new ArgumentException("Giống loài là bắt buộc.");
+
+            // Validation: Giới tính bắt buộc và hợp lệ
+            if (string.IsNullOrWhiteSpace(updatedPet.Gender))
+                throw new ArgumentException("Giới tính là bắt buộc.");
+            
+            var validGenders = new[] { "Đực", "Cái", "Male", "Female" };
+            if (!validGenders.Contains(updatedPet.Gender, StringComparer.OrdinalIgnoreCase))
+                throw new ArgumentException("Giới tính phải là 'Đực' hoặc 'Cái'.");
+
+            // Validation: Mô tả tối đa 500 ký tự
+            if (!string.IsNullOrEmpty(updatedPet.Description) && updatedPet.Description.Length > 500)
+                throw new ArgumentException("Mô tả không được quá 500 ký tự.");
+
             // Business logic: Update pet
-            pet.Name = updatedPet.Name;
-            pet.Breed = updatedPet.Breed;
+            pet.Name = petName;
+            pet.Breed = updatedPet.Breed.Trim();
             pet.Gender = updatedPet.Gender;
             pet.Age = updatedPet.Age;
             pet.IsActive = updatedPet.IsActive;
-            pet.Description = updatedPet.Description;
+            pet.Description = updatedPet.Description?.Trim();
             pet.UpdatedAt = DateTime.Now;
 
             await _petRepository.UpdateAsync(pet, ct);
