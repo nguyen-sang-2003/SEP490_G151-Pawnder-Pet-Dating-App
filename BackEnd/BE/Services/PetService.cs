@@ -159,7 +159,7 @@ namespace BE.Services
                 throw new ArgumentException("Mô tả không được quá 500 ký tự.");
 
             // Business logic: BR-02 - Giới hạn tối đa 3 pet/user
-            if (petDto.UserId.HasValue)
+            if (petDto.UserId > 0)
             {
                 var currentPetCount = await _context.Pets
                     .CountAsync(p => p.UserId == petDto.UserId && p.IsDeleted != true, ct);
