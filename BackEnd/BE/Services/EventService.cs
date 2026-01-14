@@ -270,9 +270,15 @@ public class EventService : IEventService
             throw new ArgumentException("Thú cưng không hợp lệ hoặc không thuộc về bạn");
 
         // Validate media type (chỉ cho phép image/video)
-        var allowedMediaTypes = new[] { "image/jpeg", "image/png", "image/jpg", "video/mp4", "video/quicktime" };
-        if (!string.IsNullOrEmpty(request.MediaType) && !allowedMediaTypes.Contains(request.MediaType.ToLower()))
-            throw new ArgumentException("Định dạng file không hợp lệ. Chỉ chấp nhận JPG, PNG hoặc MP4");
+        // Chấp nhận cả MIME type đầy đủ (image/jpeg) và dạng đơn giản (image, video)
+        var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/jpg", "image/webp", "image/gif", "video/mp4", "video/quicktime" };
+        var allowedSimpleTypes = new[] { "image", "video" };
+        var mediaTypeLower = request.MediaType?.ToLower() ?? "";
+        
+        if (!string.IsNullOrEmpty(request.MediaType) && 
+            !allowedMimeTypes.Contains(mediaTypeLower) && 
+            !allowedSimpleTypes.Contains(mediaTypeLower))
+            throw new ArgumentException("Định dạng file không hợp lệ. Chỉ chấp nhận ảnh (JPG, PNG, WebP, GIF) hoặc video (MP4)");
 
         // Validate media size (≤50MB) - nếu có MediaSize trong request
         const long MAX_MEDIA_SIZE = 50 * 1024 * 1024; // 50MB

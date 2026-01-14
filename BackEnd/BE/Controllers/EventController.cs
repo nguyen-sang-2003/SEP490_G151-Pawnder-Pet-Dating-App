@@ -138,6 +138,47 @@ public class EventController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Upload ảnh bìa cho sự kiện (Admin only)
+    /// </summary>
+    [HttpPost("upload-cover")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UploadCoverImage(IFormFile file, CancellationToken ct = default)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Vui lòng chọn file" });
+
+            // Validate file type - chỉ cho phép ảnh
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+            if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                return BadRequest(new { message = "Chỉ hỗ trợ ảnh (JPG, PNG, WebP, GIF)" });
+
+            // Validate file size (max 10MB)
+            const long maxSize = 10 * 1024 * 1024;
+            if (file.Length > maxSize)
+                return BadRequest(new { message = "Ảnh tối đa 10MB" });
+
+            var adminId = GetCurrentUserId();
+            if (adminId == 0)
+                return Unauthorized(new { message = "Vui lòng đăng nhập" });
+
+            // Upload to Cloudinary
+            var (url, publicId) = await _photoStorage.UploadAsync(adminId, file, ct);
+
+            return Ok(new { 
+                message = "Upload thành công",
+                coverImageUrl = url,
+                publicId = publicId
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Lỗi khi upload ảnh bìa", error = ex.Message });
+        }
+    }
+
     #endregion
 
     #region User Endpoints

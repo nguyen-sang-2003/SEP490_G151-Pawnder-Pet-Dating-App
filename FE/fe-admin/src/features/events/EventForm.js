@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { eventService } from '../../shared/api';
 import './styles/EventForm.css';
@@ -31,6 +31,9 @@ const EventForm = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [coverImageMode, setCoverImageMode] = useState('url'); // 'url' or 'upload'
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Fetch event data for edit mode
   useEffect(() => {
@@ -104,6 +107,45 @@ const EventForm = () => {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
+  };
+
+  // Handle cover image upload
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setFeedback({ type: 'error', message: 'Chỉ hỗ trợ ảnh JPG, PNG, WebP, GIF' });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setFeedback({ type: 'error', message: 'Ảnh tối đa 10MB' });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const result = await eventService.uploadCoverImage(file);
+      setFormData((prev) => ({ ...prev, coverImageUrl: result.coverImageUrl }));
+      setFeedback({ type: 'success', message: 'Upload ảnh bìa thành công!' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.message || 'Lỗi khi upload ảnh' });
+    } finally {
+      setUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Clear cover image
+  const handleClearCover = () => {
+    setFormData((prev) => ({ ...prev, coverImageUrl: '' }));
   };
 
   // Validate form
@@ -248,19 +290,77 @@ const EventForm = () => {
             />
           </div>
 
-          {/* Cover Image URL */}
+          {/* Cover Image */}
           <div className="form-group">
-            <label>URL ảnh bìa</label>
-            <input
-              type="url"
-              name="coverImageUrl"
-              value={formData.coverImageUrl}
-              onChange={handleChange}
-              placeholder="https://example.com/cover.jpg"
-            />
+            <label>Ảnh bìa</label>
+            
+            {/* Mode Toggle */}
+            <div className="cover-mode-toggle">
+              <button
+                type="button"
+                className={`mode-btn ${coverImageMode === 'upload' ? 'active' : ''}`}
+                onClick={() => setCoverImageMode('upload')}
+              >
+                📤 Upload ảnh
+              </button>
+              <button
+                type="button"
+                className={`mode-btn ${coverImageMode === 'url' ? 'active' : ''}`}
+                onClick={() => setCoverImageMode('url')}
+              >
+                🔗 Nhập URL
+              </button>
+            </div>
+
+            {/* Upload Mode */}
+            {coverImageMode === 'upload' && (
+              <div className="cover-upload-section">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleCoverUpload}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  className="btn-upload"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? '⏳ Đang upload...' : '📷 Chọn ảnh từ máy'}
+                </button>
+                <span className="upload-hint">JPG, PNG, WebP, GIF - Tối đa 10MB</span>
+              </div>
+            )}
+
+            {/* URL Mode */}
+            {coverImageMode === 'url' && (
+              <input
+                type="url"
+                name="coverImageUrl"
+                value={formData.coverImageUrl}
+                onChange={handleChange}
+                placeholder="https://example.com/cover.jpg"
+              />
+            )}
+
+            {/* Preview */}
             {formData.coverImageUrl && (
               <div className="image-preview">
-                <img src={formData.coverImageUrl} alt="Preview" onError={(e) => e.target.style.display = 'none'} />
+                <img 
+                  src={formData.coverImageUrl} 
+                  alt="Preview" 
+                  onError={(e) => e.target.style.display = 'none'} 
+                />
+                <button
+                  type="button"
+                  className="btn-clear-cover"
+                  onClick={handleClearCover}
+                  title="Xóa ảnh bìa"
+                >
+                  ✕
+                </button>
               </div>
             )}
           </div>
