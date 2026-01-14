@@ -1,6 +1,7 @@
 using BE.Models;
 using BE.Repositories.Interfaces;
 using BE.Services;
+using BE.Services.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -13,6 +14,7 @@ namespace BE.Tests.Services.ChatUserContentServiceTest
         private readonly Mock<IChatUserContentRepository> _mockContentRepo;
         private readonly Mock<IChatUserRepository> _mockChatUserRepo;
         private readonly Mock<IHubContext<ChatHub>> _mockHubContext;
+        private readonly Mock<IBadWordService> _mockBadWordService;
         private readonly PawnderDatabaseContext _context;
         private readonly ChatUserContentService _service;
 
@@ -21,6 +23,7 @@ namespace BE.Tests.Services.ChatUserContentServiceTest
             _mockContentRepo = new Mock<IChatUserContentRepository>();
             _mockChatUserRepo = new Mock<IChatUserRepository>();
             _mockHubContext = new Mock<IHubContext<ChatHub>>();
+            _mockBadWordService = new Mock<IBadWordService>();
 
             var options = new DbContextOptionsBuilder<PawnderDatabaseContext>()
                 .UseInMemoryDatabase($"ChatUserContentGetMessagesDb_{Guid.NewGuid()}")
@@ -31,7 +34,8 @@ namespace BE.Tests.Services.ChatUserContentServiceTest
                 _mockContentRepo.Object,
                 _mockChatUserRepo.Object,
                 _context,
-                _mockHubContext.Object);
+                _mockHubContext.Object,
+                _mockBadWordService.Object);
         }
 
         public void Dispose()

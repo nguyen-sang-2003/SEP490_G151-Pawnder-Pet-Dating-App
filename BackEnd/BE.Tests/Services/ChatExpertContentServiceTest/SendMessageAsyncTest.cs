@@ -15,6 +15,7 @@ namespace BE.Tests.Services.ChatExpertContentServiceTest
         private readonly Mock<IChatExpertRepository> _mockChatExpertRepo;
         private readonly Mock<IHubContext<ChatHub>> _mockHubContext;
         private readonly Mock<IDailyLimitService> _mockDailyLimitService;
+        private readonly Mock<IBadWordService> _mockBadWordService;
         private readonly PawnderDatabaseContext _context;
         private readonly ChatExpertContentService _service;
 
@@ -24,6 +25,7 @@ namespace BE.Tests.Services.ChatExpertContentServiceTest
             _mockChatExpertRepo = new Mock<IChatExpertRepository>();
             _mockHubContext = new Mock<IHubContext<ChatHub>>();
             _mockDailyLimitService = new Mock<IDailyLimitService>();
+            _mockBadWordService = new Mock<IBadWordService>();
 
             var options = new DbContextOptionsBuilder<PawnderDatabaseContext>()
                 .UseInMemoryDatabase($"ChatExpertContentSendMessageDb_{Guid.NewGuid()}")
@@ -35,7 +37,8 @@ namespace BE.Tests.Services.ChatExpertContentServiceTest
                 _mockChatExpertRepo.Object,
                 _context,
                 _mockHubContext.Object,
-                _mockDailyLimitService.Object);
+                _mockDailyLimitService.Object,
+                _mockBadWordService.Object);
 
             // Setup default mocks
             SetupDefaultMocks();

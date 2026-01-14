@@ -628,6 +628,151 @@ namespace BE.Tests.IntegrationTests
             }
 
             db.SaveChanges();
+
+            // Seed data for Appointment integration tests
+            // Tạo PetAppointmentLocation cho tests
+            if (!db.PetAppointmentLocations.Any())
+            {
+                db.PetAppointmentLocations.AddRange(
+                    new PetAppointmentLocation
+                    {
+                        LocationId = 1,
+                        Name = "Pet Café Saigon",
+                        Address = "123 Nguyễn Huệ, Quận 1, TP.HCM",
+                        Latitude = 10.7731m,
+                        Longitude = 106.7030m,
+                        City = "Thành phố Hồ Chí Minh",
+                        District = "Quận 1",
+                        IsPetFriendly = true,
+                        PlaceType = "pet_cafe",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new PetAppointmentLocation
+                    {
+                        LocationId = 2,
+                        Name = "Công viên Tao Đàn",
+                        Address = "Phường Bến Thành, Quận 1, TP.HCM",
+                        Latitude = 10.7750m,
+                        Longitude = 106.6922m,
+                        City = "Thành phố Hồ Chí Minh",
+                        District = "Quận 1",
+                        IsPetFriendly = true,
+                        PlaceType = "park",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                );
+                db.SaveChanges();
+            }
+
+            // Tạo PetAppointments cho tests
+            if (!db.PetAppointments.Any())
+            {
+                db.PetAppointments.AddRange(
+                    // Appointment 1: Pending - User 2 cần respond
+                    new PetAppointment
+                    {
+                        AppointmentId = 1,
+                        MatchId = 10,
+                        InviterPetId = 10,
+                        InviteePetId = 11,
+                        InviterUserId = 10,
+                        InviteeUserId = 11,
+                        AppointmentDateTime = DateTime.UtcNow.AddDays(7),
+                        LocationId = 1,
+                        ActivityType = "cafe",
+                        Status = "pending",
+                        CurrentDecisionUserId = 11,
+                        CounterOfferCount = 0,
+                        InviterCheckedIn = false,
+                        InviteeCheckedIn = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Appointment 2: Confirmed - Sẵn sàng check-in
+                    new PetAppointment
+                    {
+                        AppointmentId = 2,
+                        MatchId = 10,
+                        InviterPetId = 10,
+                        InviteePetId = 11,
+                        InviterUserId = 10,
+                        InviteeUserId = 11,
+                        AppointmentDateTime = DateTime.UtcNow.AddHours(1),
+                        LocationId = 1,
+                        ActivityType = "walk",
+                        Status = "confirmed",
+                        CurrentDecisionUserId = null,
+                        CounterOfferCount = 0,
+                        InviterCheckedIn = false,
+                        InviteeCheckedIn = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Appointment 3: On-going - Đã check-in, sẵn sàng complete
+                    new PetAppointment
+                    {
+                        AppointmentId = 3,
+                        MatchId = 10,
+                        InviterPetId = 10,
+                        InviteePetId = 11,
+                        InviterUserId = 10,
+                        InviteeUserId = 11,
+                        AppointmentDateTime = DateTime.UtcNow.AddHours(-1),
+                        LocationId = 2,
+                        ActivityType = "playdate",
+                        Status = "on_going",
+                        CurrentDecisionUserId = null,
+                        CounterOfferCount = 0,
+                        InviterCheckedIn = true,
+                        InviteeCheckedIn = true,
+                        InviterCheckInTime = DateTime.UtcNow.AddMinutes(-30),
+                        InviteeCheckInTime = DateTime.UtcNow.AddMinutes(-25),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Appointment 4: Cancelled
+                    new PetAppointment
+                    {
+                        AppointmentId = 4,
+                        MatchId = 10,
+                        InviterPetId = 10,
+                        InviteePetId = 11,
+                        InviterUserId = 10,
+                        InviteeUserId = 11,
+                        AppointmentDateTime = DateTime.UtcNow.AddDays(-1),
+                        LocationId = 1,
+                        ActivityType = "cafe",
+                        Status = "cancelled",
+                        CurrentDecisionUserId = null,
+                        CounterOfferCount = 0,
+                        CancelledBy = 10,
+                        CancelReason = "Có việc bận đột xuất",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    // Appointment 5: Pending với counter offer count = 2
+                    new PetAppointment
+                    {
+                        AppointmentId = 5,
+                        MatchId = 10,
+                        InviterPetId = 10,
+                        InviteePetId = 11,
+                        InviterUserId = 10,
+                        InviteeUserId = 11,
+                        AppointmentDateTime = DateTime.UtcNow.AddDays(3),
+                        LocationId = 2,
+                        ActivityType = "walk",
+                        Status = "pending",
+                        CurrentDecisionUserId = 10,
+                        CounterOfferCount = 2,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                );
+                db.SaveChanges();
+            }
         }
     }
 }
