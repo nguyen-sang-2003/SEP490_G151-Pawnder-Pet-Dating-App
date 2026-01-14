@@ -115,6 +115,24 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    if (petName.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: t('auth.addPet.basicInfo.invalidName'),
+        message: t('auth.addPet.basicInfo.nameMaxLength'),
+      });
+      return;
+    }
+
+    if (!breed.trim()) {
+      showAlert({
+        type: 'warning',
+        title: t('auth.addPet.basicInfo.missingInfo'),
+        message: t('auth.addPet.basicInfo.enterBreed'),
+      });
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -145,7 +163,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
           title: t('auth.addPet.basicInfo.success'),
           message: t('auth.addPet.basicInfo.petUpdated', { name: petName }),
           confirmText: t('common.continue'),
-          onClose: () => {
+          onConfirm: () => {
             navigation.navigate("AddPetPhotos", { 
               petId: existingPetId, 
               isFromProfile,
@@ -197,7 +215,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         title: t('auth.addPet.basicInfo.success'),
         message: t('auth.addPet.basicInfo.petCreated', { name: petName }),
         confirmText: t('common.continue'),
-        onClose: () => {
+        onConfirm: () => {
           navigation.navigate("AddPetPhotos", { 
             petId, 
             isFromProfile,
@@ -287,7 +305,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('auth.addPet.basicInfo.breed')}</Text>
+            <Text style={styles.label}>{t('auth.addPet.basicInfo.breed')} *</Text>
             <View style={styles.inputContainer}>
               <TextInput
                 placeholder={t('auth.addPet.basicInfo.breedPlaceholder')}
@@ -297,8 +315,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 onChangeText={setBreed}
                 autoCapitalize="words"
               />
+              {breed.length > 0 && (
+                <Icon name="checkmark-circle" size={20} color={colors.success} style={styles.inputIcon} />
+              )}
             </View>
-            <Text style={styles.helperText}>{t('auth.addPet.basicInfo.optional')}</Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -309,25 +329,25 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={[styles.input, styles.textArea]}
                 placeholderTextColor={colors.textLabel}
                 value={description}
-                onChangeText={(text) => setDescription(text.slice(0, 200))}
+                onChangeText={(text) => setDescription(text.slice(0, 500))}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                maxLength={200}
+                maxLength={500}
               />
             </View>
             <View style={styles.charCount}>
-              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length })}</Text>
+              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length, max: 500 })}</Text>
             </View>
           </View>
 
           <TouchableOpacity
-            style={[styles.btnShadow, !petName.trim() && styles.btnDisabled]}
+            style={[styles.btnShadow, (!petName.trim() || !breed.trim()) && styles.btnDisabled]}
             onPress={handleContinue}
-            disabled={loading || !petName.trim()}
+            disabled={loading || !petName.trim() || !breed.trim()}
           >
             <LinearGradient
-              colors={!petName.trim() ? ['#E0E0E0', '#BDBDBD'] : gradients.auth.buttonPrimary}
+              colors={(!petName.trim() || !breed.trim()) ? ['#E0E0E0', '#BDBDBD'] : gradients.auth.buttonPrimary}
               style={styles.button}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}

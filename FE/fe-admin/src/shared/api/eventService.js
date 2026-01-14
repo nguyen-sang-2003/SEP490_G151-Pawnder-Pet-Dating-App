@@ -57,6 +57,23 @@ export const cancelEvent = async (eventId, reason) => {
   return apiClient.put(`/api/event/${eventId}/cancel`, { Reason: reason });
 };
 
+/**
+ * Upload cover image for event (Admin only)
+ * @param {File} file - Image file to upload
+ * @returns {Promise<{coverImageUrl: string, publicId: string}>}
+ */
+export const uploadCoverImage = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  return apiClient.post('/api/event/upload-cover', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 60000, // 60s for upload
+  });
+};
+
 // ============ Leaderboard ============
 
 /**
@@ -73,5 +90,6 @@ export default {
   createEvent,
   updateEvent,
   cancelEvent,
+  uploadCoverImage,
   getLeaderboard,
 };

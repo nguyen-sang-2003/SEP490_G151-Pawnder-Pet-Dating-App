@@ -131,12 +131,11 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
             
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => {
+              onPress={async () => {
                 if (onConfirm) {
-                  onConfirm();
-                } else {
-                  onClose();
+                  await onConfirm();
                 }
+                onClose();
               }}
               style={[styles.buttonShadow, showCancel && styles.confirmButtonFlex]}>
               <LinearGradient

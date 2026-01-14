@@ -109,7 +109,8 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
     if (!appointment || !currentUserId) return false;
     const isParticipant =
       appointment.inviterUserId === currentUserId || appointment.inviteeUserId === currentUserId;
-    return isParticipant && !['cancelled', 'completed', 'no_show'].includes(appointment.status);
+    // Không cho hủy nếu đã cancelled, completed, no_show, hoặc rejected (đã từ chối)
+    return isParticipant && !['cancelled', 'completed', 'no_show', 'rejected'].includes(appointment.status);
   };
 
   const canComplete = () => {
@@ -601,10 +602,12 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
           </View>
         )}
 
-        {/* Cancel Reason */}
-        {appointment.status === 'cancelled' && appointment.cancelReason && (
+        {/* Cancel/Reject Reason */}
+        {(appointment.status === 'cancelled' || appointment.status === 'rejected') && appointment.cancelReason && (
           <View style={[styles.card, shadows.small]}>
-            <Text style={styles.cardTitle}>Lý do hủy</Text>
+            <Text style={styles.cardTitle}>
+              {appointment.status === 'rejected' ? 'Lý do từ chối' : 'Lý do hủy'}
+            </Text>
             <Text style={styles.value}>{appointment.cancelReason}</Text>
           </View>
         )}

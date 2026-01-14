@@ -224,3 +224,103 @@ body.dark-theme {
 .btn-secondary:hover {
   background: var(--ef-hover);
 }
+
+
+/* Cover Image Mode Toggle */
+.cover-mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ef-border);
+  border-radius: 6px;
+  background: var(--ef-card);
+  color: var(--ef-subtext);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  background: var(--ef-hover);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: white;
+  border-color: transparent;
+}
+
+/* Cover Upload Section */
+.cover-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-upload {
+  padding: 0.75rem 1.5rem;
+  border: 2px dashed var(--ef-border);
+  border-radius: 8px;
+  background: var(--ef-hover);
+  color: var(--ef-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-upload:hover:not(:disabled) {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.btn-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-hint {
+  font-size: 0.75rem;
+  color: var(--ef-subtext);
+}
+
+/* Image Preview with Clear Button */
+.image-preview {
+  position: relative;
+  margin-top: 0.75rem;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 300px;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.btn-clear-cover {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.btn-clear-cover:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
