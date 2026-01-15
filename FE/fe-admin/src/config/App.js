@@ -17,6 +17,7 @@ import { AttributeManagement } from '../features/attributes';
 import { PolicyList, PolicyDetail, DraftVersions } from '../features/policies';
 import { BadWordList, BadWordDetail, BadWordEdit } from '../features/badwords';
 import { EventList, EventDetail, EventForm } from '../features/events';
+import { BroadcastList } from '../features/notifications';
 
 // Layout
 import AdminLayout from '../components/layout/AdminLayout';
@@ -243,6 +244,15 @@ function App() {
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <AdminLayout>
                     <EventForm />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+
+              {/* Broadcast Notification Routes */}
+              <Route path="/notifications" element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AdminLayout>
+                    <BroadcastList />
                   </AdminLayout>
                 </ProtectedRoute>
               } />

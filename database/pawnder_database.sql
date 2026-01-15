@@ -280,11 +280,20 @@ CREATE TABLE "Notification" (
     "Title" VARCHAR(200),
     "Message" TEXT,
     "Type" VARCHAR(50),
+    "Status" VARCHAR(20) DEFAULT 'SENT' CHECK ("Status" IN ('DRAFT', 'SENT')),
+    "IsBroadcast" BOOLEAN DEFAULT FALSE,
     "IsRead" BOOLEAN DEFAULT FALSE,
     "ReferenceId" INT,
+    "SentAt" TIMESTAMP,
+    "CreatedByUserId" INT REFERENCES "User"("UserId"),
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
+
+-- Index for quick lookup
+CREATE INDEX "IX_Notification_UserId_IsRead" ON "Notification"("UserId", "IsRead");
+CREATE INDEX "IX_Notification_Status" ON "Notification"("Status");
+CREATE INDEX "IX_Notification_IsBroadcast" ON "Notification"("IsBroadcast") WHERE "Status" = 'DRAFT';
 
 -- ===========================
 -- TABLE: Daily Limit
@@ -334,7 +343,7 @@ CREATE TABLE "BadWord" (
     "BadWordId" SERIAL PRIMARY KEY,
     "Word" VARCHAR(200) NOT NULL,
     "IsRegex" BOOLEAN DEFAULT FALSE,
-    "Level" INT NOT NULL CHECK ("Level" >= 1 AND "Level" <= 3),
+    "Level" INT NOT NULL CHECK ("Level" >= 1 AND "Level" <= 2),
     "Category" VARCHAR(50),
     "IsActive" BOOLEAN DEFAULT TRUE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),

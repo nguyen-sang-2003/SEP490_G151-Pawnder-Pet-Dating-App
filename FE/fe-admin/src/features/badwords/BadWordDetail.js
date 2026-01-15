@@ -5,8 +5,7 @@ import './styles/BadWordManagement.css';
 
 const LEVEL_INFO = {
   1: { label: 'Nhẹ (Level 1)', description: 'Che từ bằng ***', color: '#f59e0b' },
-  2: { label: 'Nặng (Level 2)', description: 'Chặn tin nhắn hoàn toàn', color: '#f97316' },
-  3: { label: 'Rất nghiêm trọng (Level 3)', description: 'Chặn tin nhắn + Cảnh báo hệ thống', color: '#ef4444' },
+  2: { label: 'Nặng (Level 2)', description: 'Chặn tin nhắn hoàn toàn', color: '#ef4444' },
 };
 
 const BadWordDetail = () => {
