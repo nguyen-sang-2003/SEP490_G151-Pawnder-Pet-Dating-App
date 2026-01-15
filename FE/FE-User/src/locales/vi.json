@@ -1286,7 +1286,14 @@
     "errors": {
       "loadFailed": "Không thể tải thông báo",
       "createChatFailed": "Không thể tạo chat với chuyên gia"
-    }
+    },
+    "delete": "Xóa thông báo",
+    "deleteSuccess": "Đã xóa thông báo",
+    "deleteError": "Không thể xóa thông báo",
+    "deleteConfirmTitle": "Xóa thông báo",
+    "deleteConfirmMessage": "Bạn có chắc muốn xóa thông báo này?",
+    "longPressHint": "Nhấn giữ để xóa",
+    "viewAppointment": "Xem lịch hẹn"
   },
 
   "favorite": {

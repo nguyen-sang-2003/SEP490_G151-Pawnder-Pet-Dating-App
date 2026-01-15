@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, Notification } from "../api/notificationApi";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, Notification } from "../api/notificationApi";
 import { useFocusEffect } from "@react-navigation/native";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import signalRService from "../../../services/signalr.service";
@@ -39,6 +39,9 @@ const NotificationScreen = ({ navigation }: Props) => {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [creatingChat, setCreatingChat] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Notification | null>(null);
   const { visible: alertVisible, alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   // Get time ago string
@@ -316,6 +319,79 @@ const NotificationScreen = ({ navigation }: Props) => {
     setSelectedNotification(null);
   };
 
+  // Handle delete notification (from modal)
+  const handleDeleteNotification = async () => {
+    if (!selectedNotification || !currentUserId) return;
+
+    try {
+      setDeleting(true);
+      await deleteNotification(selectedNotification.notificationId);
+      
+      // Remove from local state
+      setNotifications(prev => 
+        prev.filter(n => n.notificationId !== selectedNotification.notificationId)
+      );
+      
+      // Refresh badge count
+      await refreshBadgesForActivePet(currentUserId);
+      
+      closeModal();
+      
+      showAlert({
+        type: 'success',
+        title: t('alerts.success'),
+        message: t('notification.deleteSuccess') || 'Đã xóa thông báo'
+      });
+    } catch (error: any) {
+      showAlert({
+        type: 'error',
+        title: t('alerts.error'),
+        message: error.message || t('notification.deleteError') || 'Không thể xóa thông báo'
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Handle delete notification directly (long press)
+  const handleDirectDelete = useCallback((item: Notification) => {
+    setDeleteTarget(item);
+  }, []);
+
+  // Execute delete after confirm
+  const executeDelete = async () => {
+    if (!deleteTarget || !currentUserId) return;
+    
+    try {
+      setDeletingId(deleteTarget.notificationId);
+      setDeleteTarget(null);
+      
+      await deleteNotification(deleteTarget.notificationId);
+      
+      // Remove from local state
+      setNotifications(prev => 
+        prev.filter(n => n.notificationId !== deleteTarget.notificationId)
+      );
+      
+      // Refresh badge count
+      await refreshBadgesForActivePet(currentUserId);
+      
+      showAlert({
+        type: 'success',
+        title: t('alerts.success'),
+        message: t('notification.deleteSuccess') || 'Đã xóa thông báo'
+      });
+    } catch (error: any) {
+      showAlert({
+        type: 'error',
+        title: t('alerts.error'),
+        message: error.message || t('notification.deleteError') || 'Không thể xóa thông báo'
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // Handle chat with expert
   const handleChatWithExpert = async () => {
     if (!selectedNotification || !currentUserId) {
@@ -428,16 +504,26 @@ const NotificationScreen = ({ navigation }: Props) => {
     const bgColors = getNotificationBgColor(type);
     const timeAgo = item.createdAt ? getTimeAgo(item.createdAt) : 'Unknown';
     const isUnread = !item.isRead;
+    const isDeleting = deletingId === item.notificationId;
 
     return (
       <TouchableOpacity
         style={[
           styles.notificationItem,
           isUnread && styles.notificationUnread,
+          isDeleting && styles.notificationDeleting,
         ]}
         onPress={() => handleNotificationPress(item)}
+        onLongPress={() => handleDirectDelete(item)}
+        delayLongPress={500}
         activeOpacity={0.7}
+        disabled={isDeleting}
       >
+        {isDeleting && (
+          <View style={styles.deletingOverlay}>
+            <ActivityIndicator size="small" color="#FF3B30" />
+          </View>
+        )}
         <View style={styles.iconContainer}>
           <LinearGradient
             colors={bgColors}
@@ -483,7 +569,7 @@ const NotificationScreen = ({ navigation }: Props) => {
         </View>
       </TouchableOpacity>
     );
-  }, [getNotificationIcon, getNotificationBgColor, handleNotificationPress]);
+  }, [getNotificationIcon, getNotificationBgColor, handleNotificationPress, handleDirectDelete, deletingId]);
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter(n => {
@@ -823,7 +909,7 @@ const NotificationScreen = ({ navigation }: Props) => {
                       end={{ x: 1, y: 1 }}
                     >
                       <Icon name="calendar" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                      <Text style={styles.modalButtonText}>Xem lịch hẹn</Text>
+                      <Text style={styles.modalButtonText}>{t('notification.viewAppointment') || 'Xem lịch hẹn'}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -835,23 +921,44 @@ const NotificationScreen = ({ navigation }: Props) => {
                 </>
               ) : (
                 <TouchableOpacity
-                  style={styles.modalButton}
+                  style={styles.modalSecondaryButton}
                   onPress={closeModal}
                 >
-                  <LinearGradient
-                    colors={["#FF6EA7", "#FF9BC0"]}
-                    style={styles.modalButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.modalButtonText}>{t('notification.modal.close')}</Text>
-                  </LinearGradient>
+                  <Text style={styles.modalSecondaryButtonText}>{t('notification.modal.close')}</Text>
                 </TouchableOpacity>
               )}
+
+              {/* Delete Button - Subtle at bottom */}
+              <TouchableOpacity
+                style={styles.deleteButtonSubtle}
+                onPress={handleDeleteNotification}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#999" />
+                ) : (
+                  <>
+                    <Icon name="trash-outline" size={16} color="#999" />
+                    <Text style={styles.deleteButtonSubtleText}>{t('notification.delete') || 'Xóa thông báo'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Delete Confirm Alert */}
+      <CustomAlert
+        visible={deleteTarget !== null}
+        type="warning"
+        title={t('notification.deleteConfirmTitle') || 'Xóa thông báo'}
+        message={t('notification.deleteConfirmMessage') || 'Bạn có chắc muốn xóa thông báo này?'}
+        showCancel={true}
+        confirmText={t('notification.delete') || 'Xóa'}
+        onConfirm={executeDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
 
       {/* Custom Alert */}
       {alertConfig && (
@@ -992,6 +1099,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+  },
+  notificationDeleting: {
+    opacity: 0.6,
+  },
+  deletingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: radius.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   iconContainer: {
     position: "relative",
@@ -1328,6 +1450,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.textMedium,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderRadius: radius.xl,
+    backgroundColor: "#FFF0F0",
+    borderWidth: 1,
+    borderColor: "rgba(255, 59, 48, 0.2)",
+    gap: 8,
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#FF3B30",
+  },
+  deleteButtonSubtle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    marginTop: 8,
+    gap: 6,
+  },
+  deleteButtonSubtleText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#999",
   },
 });
 
