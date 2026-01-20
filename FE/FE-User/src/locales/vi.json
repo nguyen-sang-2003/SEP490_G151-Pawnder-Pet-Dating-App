@@ -943,7 +943,9 @@
       "confirmText": "Xóa",
       "successTitle": "Đã xóa! 👋",
       "successMessage": "{{name}} đã được xóa thành công.",
-      "error": "Không thể xóa thú cưng. Vui lòng thử lại."
+      "error": "Không thể xóa thú cưng. Vui lòng thử lại.",
+      "cannotDelete": "Không thể xóa 🐾",
+      "mustHaveOnePet": "Bạn phải có ít nhất 1 thú cưng để sử dụng ứng dụng. Vui lòng thêm thú cưng khác trước khi xóa."
     },
     "owner": {
       "title": "Thông tin chủ sở hữu",

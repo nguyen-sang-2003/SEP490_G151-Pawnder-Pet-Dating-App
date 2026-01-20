@@ -78,6 +78,9 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
           return false;
         }
+        if (name.includes('loại')) {
+          return false;
+        }
         return true;
       });
       setAttributes(validAttrs);

@@ -828,16 +828,6 @@ const HomeScreen = ({ navigation }: Props) => {
                                 ))}
                             </View>
 
-                            <View style={styles.ownerInfo}>
-                                <Icon name="person-outline" size={14} color={colors.white} />
-                                <Text style={styles.ownerText}>{t('home.owner', { name: pet.owner })}</Text>
-                                {pet.ownerIsVip && (
-                                    <View style={styles.vipBadgeSmall}>
-                                        <Icon name="diamond" size={12} color="#FFD700" />
-                                    </View>
-                                )}
-                            </View>
-
                             {/* Action Buttons on Card */}
                             {isCurrentCard && (
                                 <View style={styles.cardActions}>
@@ -915,6 +905,13 @@ const HomeScreen = ({ navigation }: Props) => {
                                 onPress={() => navigation.navigate("EventList")}
                             >
                                 <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("MyAppointments")}
+                            >
+                                <Icon name="calendar-outline" size={26} color={colors.textDark} />
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -1041,6 +1038,13 @@ const HomeScreen = ({ navigation }: Props) => {
 
                             <TouchableOpacity
                                 style={styles.iconButton}
+                                onPress={() => navigation.navigate("MyAppointments")}
+                            >
+                                <Icon name="calendar-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
                                 onPress={() => (navigation as any).navigate("FilterScreen")}
                             >
                                 <Icon name="options-outline" size={26} color={colors.textDark} />
@@ -1122,6 +1126,13 @@ const HomeScreen = ({ navigation }: Props) => {
                             onPress={() => navigation.navigate("EventList")}
                         >
                             <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => navigation.navigate("MyAppointments")}
+                        >
+                            <Icon name="calendar-outline" size={26} color={colors.textDark} />
                         </TouchableOpacity>
 
                         <TouchableOpacity

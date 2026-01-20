@@ -80,9 +80,8 @@ namespace BE.Services
             if (pet == null)
                 return null;
 
-            // Business logic: Get Age from both Pet.Age (old) and PetCharacteristic (new)
-            // Priority: PetCharacteristic > Pet.Age
-            int? age = pet.Age;
+            // Business logic: Get Age from PetCharacteristic only
+            int? age = null;
             var ageChar = pet.PetCharacteristics
                 .FirstOrDefault(pc => pc.Attribute != null &&
                                      (pc.Attribute.Name.ToLower() == "tuổi" ||
@@ -174,7 +173,6 @@ namespace BE.Services
                 Name = petName,
                 Breed = petDto.Breed.Trim(),
                 Gender = petDto.Gender,
-                Age = petDto.Age,
                 IsActive = petDto.IsActive,
                 Description = petDto.Description?.Trim(),
                 CreatedAt = DateTime.Now,
@@ -229,7 +227,6 @@ namespace BE.Services
             pet.Name = petName;
             pet.Breed = updatedPet.Breed.Trim();
             pet.Gender = updatedPet.Gender;
-            pet.Age = updatedPet.Age;
             pet.IsActive = updatedPet.IsActive;
             pet.Description = updatedPet.Description?.Trim();
             pet.UpdatedAt = DateTime.Now;

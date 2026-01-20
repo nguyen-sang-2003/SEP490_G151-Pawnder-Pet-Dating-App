@@ -129,8 +129,8 @@ namespace BE.Services
 
                 var otherUser = otherUserPet.User;
 
-                // Business logic: Get Age from both Pet.Age (old) and PetCharacteristic (new)
-                int? age = otherUserPet.Age;
+                // Business logic: Get Age from PetCharacteristic only
+                int? age = null;
                 var ageChar = otherUserPet.PetCharacteristics?
                     .FirstOrDefault(pc => pc.Attribute != null &&
                                          (pc.Attribute.Name.ToLower() == "tuổi" ||

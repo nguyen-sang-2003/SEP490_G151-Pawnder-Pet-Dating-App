@@ -192,18 +192,15 @@ namespace BE.Services
                 .Take(20)
                 .Select(p =>
                 {
-                    // Get Age from Characteristics if Pet.Age is null
-                    int? age = p.Pet.Age;
-                    if (age == null)
+                    // Get Age from PetCharacteristic only
+                    int? age = null;
+                    var ageChar = p.Pet.PetCharacteristics
+                        .FirstOrDefault(pc => pc.Attribute != null &&
+                                             (pc.Attribute.Name.ToLower() == "tuổi" ||
+                                              pc.Attribute.Name.ToLower() == "age"));
+                    if (ageChar != null && ageChar.Value.HasValue)
                     {
-                        var ageChar = p.Pet.PetCharacteristics
-                            .FirstOrDefault(pc => pc.Attribute != null &&
-                                                 (pc.Attribute.Name.ToLower() == "tuổi" ||
-                                                  pc.Attribute.Name.ToLower() == "age"));
-                        if (ageChar != null && ageChar.Value.HasValue)
-                        {
-                            age = (int)Math.Round((double)ageChar.Value.Value);
-                        }
+                        age = (int)Math.Round((double)ageChar.Value.Value);
                     }
 
                     return new
@@ -368,18 +365,15 @@ namespace BE.Services
                     distance = null; // Too far, but we still return the result
             }
 
-            // Get Age from Characteristics if Pet.Age is null
-            int? age = targetPet.Age;
-            if (age == null)
+            // Get Age from PetCharacteristic only
+            int? age = null;
+            var ageChar = targetPet.PetCharacteristics
+                .FirstOrDefault(pc => pc.Attribute != null &&
+                                     (pc.Attribute.Name.ToLower() == "tuổi" ||
+                                      pc.Attribute.Name.ToLower() == "age"));
+            if (ageChar != null && ageChar.Value.HasValue)
             {
-                var ageChar = targetPet.PetCharacteristics
-                    .FirstOrDefault(pc => pc.Attribute != null &&
-                                         (pc.Attribute.Name.ToLower() == "tuổi" ||
-                                          pc.Attribute.Name.ToLower() == "age"));
-                if (ageChar != null && ageChar.Value.HasValue)
-                {
-                    age = (int)Math.Round((double)ageChar.Value.Value);
-                }
+                age = (int)Math.Round((double)ageChar.Value.Value);
             }
 
             var result = new

@@ -544,10 +544,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   <Icon name="paw" size={16} color={colors.white} />
                   <Text style={styles.metaText}>{item.age ? t('favorite.card.age', { age: item.age }) : t('favorite.card.unknownAge')} • {item.breed || t('favorite.card.unknownBreed')}</Text>
                 </View>
-                <View style={styles.ownerRow}>
-                  <Icon name="person-outline" size={16} color={colors.white} />
-                  <Text style={styles.ownerTextOnImage}>{item.ownerName}</Text>
-                </View>
+                {/* Owner name hidden for privacy - CHỈ MÌNH TÔI THẤY TÔI */}
               </View>
             </LinearGradient>
           </View>

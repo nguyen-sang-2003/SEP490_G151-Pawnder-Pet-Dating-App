@@ -154,9 +154,13 @@ const UserProfileScreen = ({ navigation }: Props) => {
         ]);
 
         // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
+        // Also filter out "Loại" attribute (not used)
         const filteredChars = chars.filter((char: any) => {
           const name = char.name?.toLowerCase() || '';
           if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
+            return false;
+          }
+          if (name.includes('loại')) {
             return false;
           }
           return true;
@@ -311,6 +315,18 @@ const UserProfileScreen = ({ navigation }: Props) => {
   };
 
   const handleDeletePet = async (petIdStr: string) => {
+    // Check if user has only 1 active (non-deleted) pet - cannot delete
+    const activePets = pets.filter(p => !(p.IsDeleted || p.isDeleted));
+    if (activePets.length <= 1) {
+      showAlert({
+        type: 'warning',
+        title: t('profile.deletePet.cannotDelete'),
+        message: t('profile.deletePet.mustHaveOnePet'),
+        confirmText: 'OK'
+      });
+      return;
+    }
+
     const petId = parseInt(petIdStr, 10);
     const pet = pets.find(p => (p.PetId || p.petId) === petId);
 
@@ -328,28 +344,26 @@ const UserProfileScreen = ({ navigation }: Props) => {
       cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
+          // Check if deleted pet was active
+          const wasActive = pet.IsActive === true || pet.isActive === true;
+          
           await deletePet(petId);
 
-          setPets(prevPets => {
-            const updatedPets = prevPets.filter(p => (p.PetId || p.petId) !== petId);
+          // If deleted pet was active, set first remaining pet as active in database
+          if (wasActive) {
+            const remainingPets = pets.filter(p => (p.PetId || p.petId) !== petId);
             
-            // If deleted pet was active, set first remaining pet as active
-            if (pet.IsActive === true || pet.isActive === true) {
-              if (updatedPets.length > 0) {
-                // Update IsActive flag for the new active pet
-                updatedPets[0] = {
-                  ...updatedPets[0],
-                  IsActive: true,
-                  isActive: true,
-                };
-                setActivePet(updatedPets[0]);
-              } else {
-                setActivePet(null);
+            if (remainingPets.length > 0) {
+              const newActivePetId = remainingPets[0].PetId || remainingPets[0].petId;
+              
+              // Call API to set new active pet in database
+              try {
+                await setActivePetAPI(newActivePetId);
+              } catch (error) {
+                console.error('Failed to set new active pet:', error);
               }
             }
-            
-            return updatedPets;
-          });
+          }
 
           // Reload data to ensure sync with server
           await fetchProfileData();
@@ -729,16 +743,18 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     <Icon name="pencil" size={16} color={colors.primary} />
                   </TouchableOpacity>
 
-                  {/* Delete Button */}
-                  <TouchableOpacity
-                    style={styles.deletePetBtn}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleDeletePet(pet.id);
-                    }}
-                  >
-                    <Icon name="trash" size={16} color={colors.error} />
-                  </TouchableOpacity>
+                  {/* Delete Button - Only show if user has more than 1 active pet */}
+                  {pets.filter(p => !(p.IsDeleted || p.isDeleted)).length > 1 && (
+                    <TouchableOpacity
+                      style={styles.deletePetBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeletePet(pet.id);
+                      }}
+                    >
+                      <Icon name="trash" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  )}
                 </TouchableOpacity>
 
                 {/* Set Active Button */}

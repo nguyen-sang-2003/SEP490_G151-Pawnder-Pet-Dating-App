@@ -27,6 +27,8 @@ namespace BE.Repositories
         {
             return await GetValidPetsQuery()
                 .Include(p => p.PetPhotos)
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Attribute)
                 .Where(p => p.UserId == userId)
                 .Select(p => new PetDto
                 {
@@ -34,7 +36,12 @@ namespace BE.Repositories
                     Name = p.Name,
                     Breed = p.Breed,
                     Gender = p.Gender,
-                    Age = p.Age,
+                    Age = p.PetCharacteristics
+                        .Where(pc => pc.Attribute != null && 
+                                   (pc.Attribute.Name.ToLower() == "tuổi" || 
+                                    pc.Attribute.Name.ToLower() == "age"))
+                        .Select(pc => pc.Value.HasValue ? (int?)Math.Round((double)pc.Value.Value) : null)
+                        .FirstOrDefault(),
                     IsActive = p.IsActive,
                     Description = p.Description,
                     UrlImageAvatar = p.PetPhotos
@@ -54,6 +61,8 @@ namespace BE.Repositories
         {
             return await GetValidPetsQuery()
                 .Include(p => p.PetPhotos)
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Attribute)
                 .Include(p => p.User)
                     .ThenInclude(u => u!.Address)
                 .Where(p => p.UserId != null
@@ -68,7 +77,12 @@ namespace BE.Repositories
                     Name = p.Name,
                     Breed = p.Breed,
                     Gender = p.Gender,
-                    Age = p.Age,
+                    Age = p.PetCharacteristics
+                        .Where(pc => pc.Attribute != null && 
+                                   (pc.Attribute.Name.ToLower() == "tuổi" || 
+                                    pc.Attribute.Name.ToLower() == "age"))
+                        .Select(pc => pc.Value.HasValue ? (int?)Math.Round((double)pc.Value.Value) : null)
+                        .FirstOrDefault(),
                     Description = p.Description,
                     Photos = p.PetPhotos
                         .Where(photo => photo.IsDeleted == false)

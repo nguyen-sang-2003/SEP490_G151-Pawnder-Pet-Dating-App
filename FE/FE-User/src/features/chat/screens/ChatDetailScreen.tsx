@@ -96,13 +96,30 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }
   }, [messages]); // Watch entire messages array, not just length
 
-  // Fetch user info if not provided
+  // Fetch pet info if not provided (show pet name instead of owner name for privacy)
   useEffect(() => {
-    const fetchUserInfo = async () => {
+    const fetchPetInfo = async () => {
       if (!initialUserName || initialUserName === "Someone" || initialUserName === "undefined") {
         try {
-          const userInfo = await getUserById(otherUserId);
-          setUserName(userInfo.fullName || t('fallback.unknown'));
+          // Get chat info to find other pet ID
+          const userIdStr = await AsyncStorage.getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr);
+            const chats = await getChats(userId);
+            const currentChat = chats.find(c => c.matchId === matchId);
+            
+            if (currentChat) {
+              const otherPetIdValue = currentChat.fromUserId === userId ? currentChat.toPetId : currentChat.fromPetId;
+              
+              // Fetch pet name using getPetById API
+              if (otherPetIdValue) {
+                const petData = await getPetById(otherPetIdValue);
+                setUserName(petData.name || t('fallback.unknown'));
+              } else {
+                setUserName(t('fallback.unknown'));
+              }
+            }
+          }
         } catch (error) {
 
           setUserName(t('fallback.unknown'));
@@ -110,8 +127,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       }
     };
 
-    fetchUserInfo();
-  }, [otherUserId, initialUserName]);
+    fetchPetInfo();
+  }, [otherUserId, initialUserName, matchId]);
 
   // Typing animation
   const typingAnim1 = useRef(new Animated.Value(0)).current;
