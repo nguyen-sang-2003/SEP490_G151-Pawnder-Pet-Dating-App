@@ -385,11 +385,11 @@ const FavoriteScreen = ({ navigation }: Props) => {
     });
   }, [dispatch, pets, t, showAlert]);
 
-  const handleChat = useCallback((matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
+  const handleChat = useCallback((matchId: string, ownerId: number, petName: string, petAvatar: any) => {
     navigation.navigate('ChatDetail', {
       matchId: parseInt(matchId),
       otherUserId: ownerId,
-      userName: ownerName,
+      userName: petName,
       userAvatar: petAvatar || require("../../../assets/cat_avatar.png"),
     });
   }, [navigation]);
@@ -558,7 +558,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   style={styles.actionBtnChat}
                   onPress={(e) => {
                     e.stopPropagation();
-                    handleChat(item.id, item.ownerId, item.ownerName, item.image);
+                    handleChat(item.id, item.ownerId, item.catName, item.image);
                   }}
                   activeOpacity={0.8}
                 >

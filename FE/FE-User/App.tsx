@@ -153,7 +153,7 @@ function AppWithBadges(): React.JSX.Element {
     navigate('ChatDetail', {
       matchId: matchModal.matchId,
       otherUserId: matchModal.otherUserId,
-      userName: matchModal.otherUserName,
+      userName: matchModal.petName || matchModal.otherUserName, // Ưu tiên petName, fallback về otherUserName
     });
   };
 

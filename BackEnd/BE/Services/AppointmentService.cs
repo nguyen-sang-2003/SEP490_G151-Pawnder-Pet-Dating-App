@@ -16,7 +16,8 @@ public class AppointmentService : IAppointmentService
     private readonly PawnderDatabaseContext _context;
 
     // Cấu hình nghiệp vụ
-    private const int MIN_MESSAGES_REQUIRED = 10; // Số tin nhắn tối thiểu
+    private const int MIN_MESSAGES_REQUIRED = 6; // Số tin nhắn tối thiểu (tổng)
+    private const int MIN_MESSAGES_PER_USER = 2; // Mỗi người ít nhất 2 tin
     private const int MIN_HOURS_ADVANCE = 2; // Số giờ tối thiểu trước cuộc hẹn
     private const int MAX_COUNTER_OFFERS = 3; // Số lần counter-offer tối đa
     private const double CHECK_IN_RADIUS_METERS = 100; // Bán kính check-in (mét)
@@ -74,10 +75,32 @@ public class AppointmentService : IAppointmentService
             return (false, $"Đã có cuộc hẹn {statusText} với người này. Vui lòng xem trong danh sách lịch hẹn.");
         }
 
-        // 3. Kiểm tra số tin nhắn tối thiểu
-        var messageCount = await _appointmentRepository.CountMessagesBetweenUsersAsync(matchId, ct);
-        if (messageCount < MIN_MESSAGES_REQUIRED)
-            return (false, $"Cần ít nhất {MIN_MESSAGES_REQUIRED} tin nhắn trước khi tạo cuộc hẹn. Hiện có: {messageCount}");
+        // 3. Kiểm tra số tin nhắn tối thiểu (tổng + mỗi người)
+        // Lấy thông tin match để biết FromUserId và ToUserId
+        var matchInfo = await _context.ChatUsers
+            .FirstOrDefaultAsync(m => m.MatchId == matchId, ct);
+        
+        if (matchInfo == null)
+            return (false, "Không tìm thấy thông tin match");
+        
+        // Đếm tin nhắn của từng user
+        var user1Messages = await _context.ChatUserContents
+            .CountAsync(c => c.MatchId == matchId && c.FromUserId == matchInfo.FromUserId, ct);
+        
+        var user2Messages = await _context.ChatUserContents
+            .CountAsync(c => c.MatchId == matchId && c.FromUserId == matchInfo.ToUserId, ct);
+        
+        var totalMessages = user1Messages + user2Messages;
+        
+        // Validation 1: Mỗi người ít nhất 2 tin
+        if (user1Messages < MIN_MESSAGES_PER_USER || user2Messages < MIN_MESSAGES_PER_USER)
+        {
+            return (false, $"Mỗi người cần gửi ít nhất {MIN_MESSAGES_PER_USER} tin nhắn để đảm bảo có sự tương tác 2 chiều");
+        }
+        
+        // Validation 2: Tổng ít nhất 6 tin
+        if (totalMessages < MIN_MESSAGES_REQUIRED)
+            return (false, $"Cần ít nhất {MIN_MESSAGES_REQUIRED} tin nhắn trước khi tạo cuộc hẹn. Hiện có: {totalMessages}");
 
         // 4. Kiểm tra pet profile đầy đủ
         var inviterProfileComplete = await _appointmentRepository.IsPetProfileCompleteAsync(inviterPetId, ct);

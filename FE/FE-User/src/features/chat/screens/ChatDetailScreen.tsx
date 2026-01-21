@@ -640,16 +640,17 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
           dispatch(markChatAsRead(matchId));
 
+          // Navigate về ChatList ngay lập tức
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Chat' }],
+          });
+
+          // Hiển thị thông báo success sau khi đã navigate
           showAlert({
             type: 'success',
             title: t('chat.unmatch.success'),
             message: t('chat.unmatch.successMessage', { name: userName }),
-            onClose: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Chat' }],
-              });
-            },
           });
         } catch (error: any) {
 
