@@ -187,6 +187,35 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   };
 
   const handleContinue = async () => {
+    // Validate: Kiểm tra tất cả fields phải được điền
+    for (const attr of attributes) {
+      if (!attr.AttributeId) continue;
+      
+      const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
+      
+      if (isNumeric) {
+        const value = numericValues[attr.AttributeId];
+        if (!value || !value.trim()) {
+          showAlert({
+            type: 'warning',
+            title: 'Thiếu thông tin',
+            message: `Vui lòng nhập ${attr.Name}`,
+          });
+          return;
+        }
+      } else {
+        const selectedOption = selectedOptions[attr.AttributeId];
+        if (!selectedOption) {
+          showAlert({
+            type: 'warning',
+            title: 'Thiếu thông tin',
+            message: `Vui lòng chọn ${attr.Name}`,
+          });
+          return;
+        }
+      }
+    }
+
     // Validate numeric values trước khi gửi
     const validationError = validateNumericValues();
     if (validationError) {

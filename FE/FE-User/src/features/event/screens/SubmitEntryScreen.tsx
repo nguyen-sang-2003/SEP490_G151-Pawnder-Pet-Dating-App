@@ -203,17 +203,16 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigation, route }) => {
       
       setUploading(false);
       
-      // Navigate về EventDetail luôn
-      navigation.replace('EventDetail', { eventId });
-      
-      // Hiển thị thông báo thành công sau khi đã về EventDetail
-      setTimeout(() => {
-        showAlert({
-          type: 'success',
-          title: 'Thành công',
-          message: 'Đã đăng bài dự thi thành công!',
-        });
-      }, 500);
+      // Hiển thị thông báo thành công trước
+      showAlert({
+        type: 'success',
+        title: 'Thành công',
+        message: 'Đã đăng bài dự thi thành công!',
+        onConfirm: () => {
+          // Sau khi user đóng alert, quay về EventDetail
+          navigation.goBack();
+        },
+      });
     } catch (err: any) {
       setUploading(false);
       
