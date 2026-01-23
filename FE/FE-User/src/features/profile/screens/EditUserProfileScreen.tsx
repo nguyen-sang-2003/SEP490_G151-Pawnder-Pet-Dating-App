@@ -110,6 +110,11 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    if (name.trim().length > 50) {
+      showAlert({ type: 'error', title: 'Tên quá dài', message: 'Vui lòng nhập tên ngắn hơn' });
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -227,9 +232,10 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={styles.input}
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => setName(text.slice(0, 50))}
               placeholder={t('profile.edit.fullNamePlaceholder')}
               placeholderTextColor="#999"
+              maxLength={50}
             />
           </View>
 

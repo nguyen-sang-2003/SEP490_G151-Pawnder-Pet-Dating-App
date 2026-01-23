@@ -146,6 +146,33 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    if (name.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Tên quá dài',
+        message: 'Vui lòng nhập tên ngắn hơn',
+      });
+      return;
+    }
+
+    if (breed.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Giống quá dài',
+        message: 'Vui lòng nhập tên giống ngắn hơn',
+      });
+      return;
+    }
+
+    if (description.trim().length > 200) {
+      showAlert({
+        type: 'error',
+        title: 'Mô tả quá dài',
+        message: 'Vui lòng nhập mô tả ngắn hơn',
+      });
+      return;
+    }
+
     // Validation: Kiểm tra tuổi hợp lệ
     if (age && parseInt(age) < 0) {
       showAlert({
@@ -488,9 +515,10 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={styles.input}
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => setName(text.slice(0, 50))}
               placeholder={t('profile.editPet.form.namePlaceholder')}
               placeholderTextColor="#999"
+              maxLength={50}
             />
           </View>
 
@@ -499,9 +527,10 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={styles.input}
               value={breed}
-              onChangeText={setBreed}
+              onChangeText={(text) => setBreed(text.slice(0, 50))}
               placeholder={t('profile.editPet.form.breedPlaceholder')}
               placeholderTextColor="#999"
+              maxLength={50}
             />
           </View>
 
@@ -510,11 +539,12 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
-              onChangeText={setDescription}
+              onChangeText={(text) => setDescription(text.slice(0, 200))}
               placeholder={t('profile.editPet.form.descriptionPlaceholder')}
               placeholderTextColor="#999"
               multiline
               numberOfLines={3}
+              maxLength={200}
             />
           </View>
 

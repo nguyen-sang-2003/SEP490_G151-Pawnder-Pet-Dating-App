@@ -118,8 +118,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (petName.trim().length > 50) {
       showAlert({
         type: 'error',
-        title: t('auth.addPet.basicInfo.invalidName'),
-        message: t('auth.addPet.basicInfo.nameMaxLength'),
+        title: 'Tên quá dài',
+        message: 'Vui lòng nhập tên ngắn hơn',
       });
       return;
     }
@@ -129,6 +129,24 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         type: 'warning',
         title: t('auth.addPet.basicInfo.missingInfo'),
         message: t('auth.addPet.basicInfo.enterBreed'),
+      });
+      return;
+    }
+
+    if (breed.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Giống quá dài',
+        message: 'Vui lòng nhập tên giống ngắn hơn',
+      });
+      return;
+    }
+
+    if (description.trim().length > 200) {
+      showAlert({
+        type: 'error',
+        title: 'Mô tả quá dài',
+        message: 'Vui lòng nhập mô tả ngắn hơn',
       });
       return;
     }
@@ -295,8 +313,9 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={petName}
-                onChangeText={setPetName}
+                onChangeText={(text) => setPetName(text.slice(0, 50))}
                 autoCapitalize="words"
+                maxLength={50}
               />
               {petName.length > 0 && (
                 <Icon name="checkmark-circle" size={20} color={colors.success} style={styles.inputIcon} />
@@ -312,8 +331,9 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={breed}
-                onChangeText={setBreed}
+                onChangeText={(text) => setBreed(text.slice(0, 50))}
                 autoCapitalize="words"
+                maxLength={50}
               />
               {breed.length > 0 && (
                 <Icon name="checkmark-circle" size={20} color={colors.success} style={styles.inputIcon} />
@@ -329,15 +349,15 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={[styles.input, styles.textArea]}
                 placeholderTextColor={colors.textLabel}
                 value={description}
-                onChangeText={(text) => setDescription(text.slice(0, 500))}
+                onChangeText={(text) => setDescription(text.slice(0, 200))}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                maxLength={500}
+                maxLength={200}
               />
             </View>
             <View style={styles.charCount}>
-              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length, max: 500 })}</Text>
+              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length, max: 200 })}</Text>
             </View>
           </View>
 
