@@ -190,6 +190,11 @@ public class AppointmentResponse
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Cảnh báo: User có cuộc hẹn khác trùng giờ (không lưu DB, tính động)
+    /// </summary>
+    public bool HasConflict { get; set; }
 }
 
 /// <summary>

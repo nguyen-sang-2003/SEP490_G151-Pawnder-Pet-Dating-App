@@ -115,6 +115,9 @@ export interface AppointmentResponse {
   
   createdAt: string;
   updatedAt: string;
+  
+  // Conflict warning (computed, not stored in DB)
+  hasConflict?: boolean;
 }
 
 /**

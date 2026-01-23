@@ -12,10 +12,12 @@ namespace BE.Services
         private readonly PawnderDatabaseContext _context;
 
         // Validation ranges cho các thuộc tính filter của mèo
+        // Note: Weight được lưu theo đơn vị gram để hỗ trợ decimal values với INT
+        // Ví dụ: 0.5kg = 500g, 12kg = 12000g
         private static readonly Dictionary<string, (int Min, int Max, string Unit)> AttributeRanges = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "Cân nặng", (0, 15, "kg") },        // Mèo: 0-15kg
-            { "Chiều cao", (0, 45, "cm") },        // Chiều cao vai: 0-45cm
+            { "Cân nặng", (500, 12000, "gram") },  // Mèo: 0.5-12kg (lưu theo gram)
+            { "Chiều cao", (15, 40, "cm") },       // Chiều cao vai: 15-40cm
             { "Tuổi", (0, 25, "năm") },            // Mèo sống 0-25 năm
             { "Khoảng cách", (0, 100, "km") }      // Filter khoảng cách: 0-100km
         };

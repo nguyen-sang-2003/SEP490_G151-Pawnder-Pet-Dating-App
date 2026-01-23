@@ -59,9 +59,6 @@ const WinnersSection: React.FC<WinnersSectionProps> = ({
         <Text style={styles.petName} numberOfLines={1}>
           {winner.petName || 'Pet'}
         </Text>
-        <Text style={styles.ownerName} numberOfLines={1}>
-          {winner.userName || 'Người dùng'}
-        </Text>
         <View style={styles.voteRow}>
           <Text style={styles.voteCount}>❤️ {winner.voteCount}</Text>
         </View>
