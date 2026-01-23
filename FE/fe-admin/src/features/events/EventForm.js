@@ -229,13 +229,9 @@ const EventForm = () => {
 
     const status = event.status;
     
-    // After active, can't change start time
-    if (field === 'startTime' && ['active', 'submission_closed', 'voting_ended', 'completed'].includes(status)) {
-      return true;
-    }
-
-    // After submission_closed, can't change deadline
-    if (field === 'submissionDeadline' && ['submission_closed', 'voting_ended', 'completed'].includes(status)) {
+    // Chỉ disable khi event đã completed hoặc cancelled
+    // Admin có thể edit thời gian để nới deadline ra nếu cần
+    if (['completed', 'cancelled'].includes(status)) {
       return true;
     }
 
@@ -379,7 +375,7 @@ const EventForm = () => {
               />
               {errors.startTime && <span className="error-text">{errors.startTime}</span>}
               {isFieldDisabled('startTime') && (
-                <span className="hint-text">Không thể thay đổi sau khi sự kiện đã bắt đầu</span>
+                <span className="hint-text">Không thể chỉnh sửa sự kiện đã hoàn thành hoặc đã hủy</span>
               )}
             </div>
 
@@ -395,7 +391,7 @@ const EventForm = () => {
               />
               {errors.submissionDeadline && <span className="error-text">{errors.submissionDeadline}</span>}
               {isFieldDisabled('submissionDeadline') && (
-                <span className="hint-text">Không thể thay đổi sau khi hết hạn nộp</span>
+                <span className="hint-text">Không thể chỉnh sửa sự kiện đã hoàn thành hoặc đã hủy</span>
               )}
             </div>
           </div>
