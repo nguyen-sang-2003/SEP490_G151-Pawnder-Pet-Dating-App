@@ -181,6 +181,12 @@ namespace BE.Services
 
             await _petRepository.AddAsync(pet, ct);
 
+            // Business logic: If this pet is set as active, deactivate all other pets for this user
+            if (pet.IsActive && pet.UserId.HasValue)
+            {
+                await _petRepository.DeactivateOtherPetsAsync(pet.UserId.Value, pet.PetId, ct);
+            }
+
             return new
             {
                 PetId = pet.PetId,
@@ -232,6 +238,12 @@ namespace BE.Services
             pet.UpdatedAt = DateTime.Now;
 
             await _petRepository.UpdateAsync(pet, ct);
+
+            // Business logic: If this pet is set as active, deactivate all other pets for this user
+            if (pet.IsActive && pet.UserId.HasValue)
+            {
+                await _petRepository.DeactivateOtherPetsAsync(pet.UserId.Value, pet.PetId, ct);
+            }
 
             return new { Message = "Cập nhật thông tin thú cưng thành công", Pet = pet };
         }

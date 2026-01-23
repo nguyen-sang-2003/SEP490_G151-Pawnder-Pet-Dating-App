@@ -180,13 +180,17 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
         const created = (result as any).payload;
         showAlert({
           type: 'success',
-          title: 'Gửi lời mời thành công! 🎉',
+          title: 'Gửi lời mời thành công',
           message: `Lời mời đã được gửi đến chủ của ${inviteePetName}. Bạn sẽ nhận thông báo khi họ phản hồi.`,
           confirmText: 'Xem chi tiết',
-          showCancel: true,
-          cancelText: 'Đóng',
           onConfirm: () => {
+            hideAlert();
             navigation.replace('AppointmentDetail', { appointmentId: created.appointmentId });
+          },
+          onClose: () => {
+            // Khi đóng alert (không bấm "Xem chi tiết"), navigate về Appointments
+            hideAlert();
+            navigation.navigate('Appointments');
           },
         });
       } else {

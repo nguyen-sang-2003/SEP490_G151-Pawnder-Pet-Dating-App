@@ -39,7 +39,22 @@ const LocationPickerScreen = ({ navigation, route }: Props) => {
     setLoading(true);
     try {
       const locations = await AppointmentService.getMyRecentLocations(10);
-      setRecentLocations(locations);
+      
+      // Deduplicate locations theo locationId (ưu tiên) hoặc name + address
+      const uniqueLocations = locations.reduce((acc: LocationResponse[], current) => {
+        const isDuplicate = acc.some(item => 
+          item.locationId === current.locationId ||
+          (item.name === current.name && item.address === current.address)
+        );
+        
+        if (!isDuplicate) {
+          acc.push(current);
+        }
+        
+        return acc;
+      }, []);
+      
+      setRecentLocations(uniqueLocations);
     } catch (error) {
       console.log('Error loading recent locations:', error);
     } finally {

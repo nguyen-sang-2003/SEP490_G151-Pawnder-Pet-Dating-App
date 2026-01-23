@@ -191,7 +191,7 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'success',
         title: 'Thành công',
-        message: 'Đã xác nhận! 🎉',
+        message: 'Đã xác nhận',
         confirmText: 'OK',
       });
     } else {
@@ -360,7 +360,7 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
           showAlert({
             type: 'success',
             title: 'Thành công',
-            message: 'Check-in thành công! 🎉',
+            message: 'Check-in thành công',
             confirmText: 'OK',
           });
         }
@@ -413,7 +413,7 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
             showAlert({
               type: 'success',
               title: 'Hoàn thành',
-              message: 'Cuộc hẹn đã kết thúc! Cảm ơn bạn đã sử dụng dịch vụ 🎊',
+              message: 'Cuộc hẹn đã kết thúc. Cảm ơn bạn đã sử dụng dịch vụ',
               confirmText: 'OK',
             });
           } else {
