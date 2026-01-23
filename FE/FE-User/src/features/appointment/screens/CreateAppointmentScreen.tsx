@@ -251,7 +251,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Pet Match Card - Thiết kế mới */}
+        {/* Pet Match Card*/}
         <View style={styles.matchCard}>
           <View style={styles.matchContent}>
             <View style={styles.petInfo}>
@@ -311,7 +311,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
 
-        {/* Date & Time - Thiết kế mới */}
+        {/* Date & Time */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thời gian</Text>
           <View style={styles.dateTimeRow}>
@@ -352,7 +352,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
           <DateTimePicker value={selectedTime} mode="time" display="default" onChange={handleTimeChange} is24Hour />
         )}
 
-        {/* Location - Thiết kế mới */}
+        {/* Location*/}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Địa điểm gặp gỡ</Text>
           <TouchableOpacity

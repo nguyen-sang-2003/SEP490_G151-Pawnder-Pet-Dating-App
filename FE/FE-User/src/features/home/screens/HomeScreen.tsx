@@ -57,7 +57,6 @@ interface PetProfile {
     image: any; // First image for backward compatibility
     images: any[]; // All images for carousel
     personality: string[];
-    owner: string;
     ownerId: number; // Add ownerId for API calls
     matchPercent: number; // Match percentage (0-100)
     matchScore: number; // Match score (total matched percent)
