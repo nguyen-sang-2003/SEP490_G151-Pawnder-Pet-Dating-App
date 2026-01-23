@@ -130,8 +130,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     if (!name.trim()) {
       showAlert({
         type: 'warning',
-        title: t('profile.editPet.validation.missingInfo'),
-        message: t('profile.editPet.validation.enterPetName'),
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên thú cưng',
       });
       return;
     }
@@ -140,8 +140,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     if (name.trim().length < 2) {
       showAlert({
         type: 'error',
-        title: t('profile.editPet.validation.invalidName'),
-        message: t('profile.editPet.validation.nameMinLength'),
+        title: 'Tên quá ngắn',
+        message: 'Vui lòng nhập dài hơn',
       });
       return;
     }
@@ -150,7 +150,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'error',
         title: 'Tên quá dài',
-        message: 'Vui lòng nhập tên ngắn hơn',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -158,8 +158,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     if (breed.trim().length > 50) {
       showAlert({
         type: 'error',
-        title: 'Giống quá dài',
-        message: 'Vui lòng nhập tên giống ngắn hơn',
+        title: 'Tên giống quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -168,7 +168,7 @@ const EditPetScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'error',
         title: 'Mô tả quá dài',
-        message: 'Vui lòng nhập mô tả ngắn hơn',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -515,10 +515,9 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={styles.input}
               value={name}
-              onChangeText={(text) => setName(text.slice(0, 50))}
+              onChangeText={setName}
               placeholder={t('profile.editPet.form.namePlaceholder')}
               placeholderTextColor="#999"
-              maxLength={50}
             />
           </View>
 
@@ -527,10 +526,9 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={styles.input}
               value={breed}
-              onChangeText={(text) => setBreed(text.slice(0, 50))}
+              onChangeText={setBreed}
               placeholder={t('profile.editPet.form.breedPlaceholder')}
               placeholderTextColor="#999"
-              maxLength={50}
             />
           </View>
 
@@ -539,12 +537,11 @@ const EditPetScreen = ({ navigation, route }: Props) => {
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
-              onChangeText={(text) => setDescription(text.slice(0, 200))}
+              onChangeText={setDescription}
               placeholder={t('profile.editPet.form.descriptionPlaceholder')}
               placeholderTextColor="#999"
               multiline
               numberOfLines={3}
-              maxLength={200}
             />
           </View>
 

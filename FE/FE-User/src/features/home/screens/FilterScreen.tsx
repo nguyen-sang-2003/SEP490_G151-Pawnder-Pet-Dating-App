@@ -430,7 +430,10 @@ const FilterScreen = ({ navigation }: Props) => {
     }
 
     // Group attributes by type
-    const stringAttributes = attributes.filter((a) => a.TypeValue?.toLowerCase() === "string");
+    const stringAttributes = attributes.filter((a) => 
+        a.TypeValue?.toLowerCase() === "string" && 
+        a.Name?.toLowerCase() !== "loại"
+    );
     const floatAttributes = attributes.filter((a) => a.TypeValue?.toLowerCase() === "float" && a.Name?.toLowerCase() !== "khoảng cách");
     const distanceAttribute = attributes.find((a) => a.Name?.toLowerCase() === "khoảng cách");
 

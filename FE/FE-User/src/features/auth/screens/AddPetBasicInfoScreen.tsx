@@ -100,8 +100,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (!petName.trim()) {
       showAlert({
         type: 'warning',
-        title: t('auth.addPet.basicInfo.missingInfo'),
-        message: t('auth.addPet.basicInfo.enterPetName'),
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên thú cưng',
       });
       return;
     }
@@ -109,8 +109,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (petName.trim().length < 2) {
       showAlert({
         type: 'error',
-        title: t('auth.addPet.basicInfo.invalidName'),
-        message: t('auth.addPet.basicInfo.nameMinLength'),
+        title: 'Tên quá ngắn',
+        message: 'Vui lòng nhập dài hơn',
       });
       return;
     }
@@ -119,7 +119,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'error',
         title: 'Tên quá dài',
-        message: 'Vui lòng nhập tên ngắn hơn',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -127,8 +127,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (!breed.trim()) {
       showAlert({
         type: 'warning',
-        title: t('auth.addPet.basicInfo.missingInfo'),
-        message: t('auth.addPet.basicInfo.enterBreed'),
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên giống',
       });
       return;
     }
@@ -136,8 +136,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (breed.trim().length > 50) {
       showAlert({
         type: 'error',
-        title: 'Giống quá dài',
-        message: 'Vui lòng nhập tên giống ngắn hơn',
+        title: 'Tên giống quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -146,7 +146,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       showAlert({
         type: 'error',
         title: 'Mô tả quá dài',
-        message: 'Vui lòng nhập mô tả ngắn hơn',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -313,9 +313,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={petName}
-                onChangeText={(text) => setPetName(text.slice(0, 50))}
+                onChangeText={setPetName}
                 autoCapitalize="words"
-                maxLength={50}
               />
               {petName.length > 0 && (
                 <Icon name="checkmark-circle" size={20} color={colors.success} style={styles.inputIcon} />
@@ -331,9 +330,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={styles.input}
                 placeholderTextColor={colors.textLabel}
                 value={breed}
-                onChangeText={(text) => setBreed(text.slice(0, 50))}
+                onChangeText={setBreed}
                 autoCapitalize="words"
-                maxLength={50}
               />
               {breed.length > 0 && (
                 <Icon name="checkmark-circle" size={20} color={colors.success} style={styles.inputIcon} />
@@ -349,15 +347,14 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={[styles.input, styles.textArea]}
                 placeholderTextColor={colors.textLabel}
                 value={description}
-                onChangeText={(text) => setDescription(text.slice(0, 200))}
+                onChangeText={setDescription}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                maxLength={200}
               />
             </View>
             <View style={styles.charCount}>
-              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length, max: 200 })}</Text>
+              <Text style={styles.helperText}>{description.length}/200</Text>
             </View>
           </View>
 
