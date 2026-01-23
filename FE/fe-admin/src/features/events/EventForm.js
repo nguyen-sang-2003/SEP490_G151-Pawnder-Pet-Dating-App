@@ -230,11 +230,21 @@ const EventForm = () => {
     const status = event.status;
     
     // Chỉ disable khi event đã completed hoặc cancelled
-    // Admin có thể edit thời gian để nới deadline ra nếu cần
     if (['completed', 'cancelled'].includes(status)) {
       return true;
     }
 
+    // StartTime: Chỉ cho edit khi còn upcoming VÀ chưa có bài dự thi
+    if (field === 'startTime') {
+      if (status !== 'upcoming') {
+        return true; // Đã bắt đầu rồi thì không cho edit
+      }
+      if (event.submissionCount > 0) {
+        return true; // Đã có người nộp bài thì không cho edit
+      }
+    }
+
+    // SubmissionDeadline và EndTime: Cho edit thoải mái để admin có thể nới thời gian
     return false;
   };
 
@@ -374,8 +384,14 @@ const EventForm = () => {
                 className={errors.startTime ? 'error' : ''}
               />
               {errors.startTime && <span className="error-text">{errors.startTime}</span>}
-              {isFieldDisabled('startTime') && (
-                <span className="hint-text">Không thể chỉnh sửa sự kiện đã hoàn thành hoặc đã hủy</span>
+              {isFieldDisabled('startTime') && event && (
+                <span className="hint-text">
+                  {event.status !== 'upcoming' 
+                    ? 'Không thể thay đổi sau khi sự kiện đã bắt đầu'
+                    : event.submissionCount > 0
+                      ? 'Không thể thay đổi khi đã có người tham gia'
+                      : 'Không thể chỉnh sửa sự kiện đã hoàn thành hoặc đã hủy'}
+                </span>
               )}
             </div>
 

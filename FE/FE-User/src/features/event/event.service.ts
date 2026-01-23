@@ -77,7 +77,7 @@ export const EventService = {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
-          timeout: 60000, // 60s for upload
+          timeout: 30000, // 30s timeout (match với backend)
         }
       );
       return response.data;

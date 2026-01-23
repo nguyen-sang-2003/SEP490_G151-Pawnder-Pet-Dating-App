@@ -108,11 +108,11 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       const result = await launchImageLibrary({
         mediaType: 'mixed',
-        quality: 0.7, // Giảm quality để file nhỏ hơn
-        maxWidth: 1920, // Giới hạn kích thước
-        maxHeight: 1920,
+        quality: 0.6, // Giảm quality xuống 0.6 để file nhỏ hơn
+        maxWidth: 1280, // Giảm xuống 1280px (đủ cho mobile)
+        maxHeight: 1280,
         selectionLimit: 1,
-        videoQuality: 'medium',
+        videoQuality: 'low', // Giảm video quality
       });
 
       if (result.didCancel) return;
