@@ -182,7 +182,7 @@ namespace BE.Services
             await _petRepository.AddAsync(pet, ct);
 
             // Business logic: If this pet is set as active, deactivate all other pets for this user
-            if (pet.IsActive && pet.UserId.HasValue)
+            if (pet.IsActive == true && pet.UserId.HasValue)
             {
                 await _petRepository.DeactivateOtherPetsAsync(pet.UserId.Value, pet.PetId, ct);
             }
@@ -240,7 +240,7 @@ namespace BE.Services
             await _petRepository.UpdateAsync(pet, ct);
 
             // Business logic: If this pet is set as active, deactivate all other pets for this user
-            if (pet.IsActive && pet.UserId.HasValue)
+            if (pet.IsActive == true && pet.UserId.HasValue)
             {
                 await _petRepository.DeactivateOtherPetsAsync(pet.UserId.Value, pet.PetId, ct);
             }

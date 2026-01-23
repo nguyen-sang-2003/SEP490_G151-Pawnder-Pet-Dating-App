@@ -221,12 +221,27 @@ const FilterScreen = ({ navigation }: Props) => {
 
                     return true;
                 })
-                .map(([attributeId, filter]) => ({
-                    AttributeId: parseInt(attributeId),
-                    OptionId: filter.optionId,
-                    MinValue: filter.minValue,
-                    MaxValue: filter.maxValue,
-                }));
+                .map(([attributeId, filter]) => {
+                    const attrId = parseInt(attributeId);
+                    const attr = attributes.find(a => a.AttributeId === attrId);
+                    
+                    // Convert weight from kg to gram for backend storage
+                    if (attr?.Name?.toLowerCase() === "cân nặng") {
+                        return {
+                            AttributeId: attrId,
+                            OptionId: filter.optionId,
+                            MinValue: filter.minValue !== undefined ? Math.round(filter.minValue * 1000) : undefined,
+                            MaxValue: filter.maxValue !== undefined ? Math.round(filter.maxValue * 1000) : undefined,
+                        };
+                    }
+                    
+                    return {
+                        AttributeId: attrId,
+                        OptionId: filter.optionId,
+                        MinValue: filter.minValue,
+                        MaxValue: filter.maxValue,
+                    };
+                });
 
             await saveUserPreferencesBatch(currentUserId, preferences);
 
