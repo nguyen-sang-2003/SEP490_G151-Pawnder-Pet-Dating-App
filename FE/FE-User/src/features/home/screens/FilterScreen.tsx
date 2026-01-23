@@ -104,10 +104,17 @@ const FilterScreen = ({ navigation }: Props) => {
                 const attr = attributesData.find((a: any) => a.AttributeId === pref.AttributeId);
                 const attrName = attr?.Name?.toLowerCase() || '';
                 
-                // Clamp old values to new BR limits (0.5-12kg, 15-40cm, 0-25 năm)
+                // Convert gram to kg for weight attribute
                 let minValue = pref.MinValue;
                 let maxValue = pref.MaxValue;
                 
+                if (attrName.includes('cân') || attrName.includes('nặng') || attrName.includes('weight')) {
+                    // Backend stores as gram, convert to kg for display
+                    if (minValue !== undefined) minValue = minValue / 1000;
+                    if (maxValue !== undefined) maxValue = maxValue / 1000;
+                }
+                
+                // Clamp old values to new BR limits (0.5-12kg, 15-40cm, 0-25 năm)
                 if (minValue !== undefined || maxValue !== undefined) {
                     let maxLimit = 100;
                     let minLimit = 0;

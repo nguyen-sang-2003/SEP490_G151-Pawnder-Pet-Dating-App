@@ -190,7 +190,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
           onClose: () => {
             // Khi đóng alert (không bấm "Xem chi tiết"), navigate về Appointments
             hideAlert();
-            navigation.navigate('Appointments');
+            navigation.navigate('MyAppointments');
           },
         });
       } else {
@@ -385,11 +385,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
                       rotateEnabled={false}
                       pointerEvents="none"
                     >
-                      <Marker coordinate={locationCoord}>
-                        <View style={styles.customMarker}>
-                          <Icon name="location" size={24} color={colors.primary} />
-                        </View>
-                      </Marker>
+                      <Marker coordinate={locationCoord} />
                     </MapView>
                   </View>
                 )}
