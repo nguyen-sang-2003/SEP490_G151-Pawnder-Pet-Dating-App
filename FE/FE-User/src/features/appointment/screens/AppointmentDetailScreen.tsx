@@ -67,6 +67,7 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
   const [declineReason, setDeclineReason] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [conflictWarningShown, setConflictWarningShown] = useState(false);
 
   useEffect(() => {
     loadCurrentUser();
@@ -130,6 +131,42 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
 
 
   const handleAccept = () => {
+    // Kiểm tra conflict trước khi accept
+    if (appointment?.hasConflict && !conflictWarningShown) {
+      setConflictWarningShown(true);
+      showAlert({
+        type: 'warning',
+        title: 'Cảnh báo trùng lịch',
+        message: 'Bạn đã có một cuộc hẹn thú cưng khác trong khung giờ này. Hãy cân nhắc khả năng tham gia trước khi xác nhận.\n\nBạn có thể đề xuất thời gian khác hoặc vẫn xác nhận.',
+        confirmText: 'Vẫn xác nhận',
+        showCancel: true,
+        cancelText: 'Đề xuất lại',
+        onConfirm: () => {
+          // User chọn "Vẫn xác nhận"
+          setConflictWarningShown(false);
+          hideAlert();
+          setTimeout(() => {
+            proceedWithAccept();
+          }, 350);
+        },
+        onClose: () => {
+          // onClose luôn được gọi, nhưng chỉ navigate nếu user KHÔNG confirm
+          // Trick: check nếu vẫn còn conflictWarningShown = true nghĩa là user bấm Cancel
+          if (conflictWarningShown) {
+            setConflictWarningShown(false);
+            setTimeout(() => {
+              navigation.navigate('CounterOffer', { appointmentId });
+            }, 100);
+          }
+        },
+      });
+      return;
+    }
+
+    // Reset flag
+    setConflictWarningShown(false);
+
+    // Không có conflict hoặc đã xem warning, hiển thị confirm bình thường
     showAlert({
       type: 'warning',
       title: 'Xác nhận cuộc hẹn',
@@ -139,29 +176,32 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
       cancelText: 'Hủy',
       onConfirm: () => {
         hideAlert();
-        // Delay để alert đóng xong
-        setTimeout(async () => {
-          const result = await dispatch(
-            respondToAppointment({ appointmentId, request: { appointmentId, accept: true } })
-          );
-          if (result.type.endsWith('/fulfilled')) {
-            showAlert({
-              type: 'success',
-              title: 'Thành công',
-              message: 'Đã xác nhận! 🎉',
-              confirmText: 'OK',
-            });
-          } else {
-            showAlert({
-              type: 'error',
-              title: 'Lỗi',
-              message: 'Không thể xác nhận cuộc hẹn. Vui lòng thử lại.',
-              confirmText: 'OK',
-            });
-          }
+        setTimeout(() => {
+          proceedWithAccept();
         }, 350);
       },
     });
+  };
+
+  const proceedWithAccept = async () => {
+    const result = await dispatch(
+      respondToAppointment({ appointmentId, request: { appointmentId, accept: true } })
+    );
+    if (result.type.endsWith('/fulfilled')) {
+      showAlert({
+        type: 'success',
+        title: 'Thành công',
+        message: 'Đã xác nhận',
+        confirmText: 'OK',
+      });
+    } else {
+      showAlert({
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Không thể xác nhận cuộc hẹn. Vui lòng thử lại.',
+        confirmText: 'OK',
+      });
+    }
   };
 
   const submitDecline = async () => {
@@ -320,7 +360,7 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
           showAlert({
             type: 'success',
             title: 'Thành công',
-            message: 'Check-in thành công! 🎉',
+            message: 'Check-in thành công',
             confirmText: 'OK',
           });
         }
@@ -373,7 +413,7 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
             showAlert({
               type: 'success',
               title: 'Hoàn thành',
-              message: 'Cuộc hẹn đã kết thúc! Cảm ơn bạn đã sử dụng dịch vụ 🎊',
+              message: 'Cuộc hẹn đã kết thúc. Cảm ơn bạn đã sử dụng dịch vụ',
               confirmText: 'OK',
             });
           } else {
@@ -469,13 +509,11 @@ const AppointmentDetailScreen = ({ navigation, route }: Props) => {
             <View style={styles.petItem}>
               <Icon name="paw" size={28} color={colors.primary} />
               <Text style={styles.petName}>{appointment.inviterPetName}</Text>
-              <Text style={styles.ownerName}>{appointment.inviterUserName}</Text>
             </View>
             <Icon name="heart" size={20} color={colors.error} />
             <View style={styles.petItem}>
               <Icon name="paw" size={28} color={colors.chatStart} />
               <Text style={styles.petName}>{appointment.inviteePetName}</Text>
-              <Text style={styles.ownerName}>{appointment.inviteeUserName}</Text>
             </View>
           </View>
         </View>

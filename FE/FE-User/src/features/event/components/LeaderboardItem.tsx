@@ -72,9 +72,6 @@ const LeaderboardItem: React.FC<LeaderboardItemProps> = ({
         <Text style={styles.petName} numberOfLines={1}>
           {submission.petName || 'Pet'}
         </Text>
-        <Text style={styles.ownerName} numberOfLines={1}>
-          {submission.userName || 'Người dùng'}
-        </Text>
       </View>
 
       {/* Vote Count */}

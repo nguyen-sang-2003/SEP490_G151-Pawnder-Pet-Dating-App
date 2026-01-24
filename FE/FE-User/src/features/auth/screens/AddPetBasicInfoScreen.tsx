@@ -100,8 +100,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (!petName.trim()) {
       showAlert({
         type: 'warning',
-        title: t('auth.addPet.basicInfo.missingInfo'),
-        message: t('auth.addPet.basicInfo.enterPetName'),
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên thú cưng',
       });
       return;
     }
@@ -109,8 +109,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (petName.trim().length < 2) {
       showAlert({
         type: 'error',
-        title: t('auth.addPet.basicInfo.invalidName'),
-        message: t('auth.addPet.basicInfo.nameMinLength'),
+        title: 'Tên quá ngắn',
+        message: 'Vui lòng nhập dài hơn',
       });
       return;
     }
@@ -118,8 +118,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (petName.trim().length > 50) {
       showAlert({
         type: 'error',
-        title: t('auth.addPet.basicInfo.invalidName'),
-        message: t('auth.addPet.basicInfo.nameMaxLength'),
+        title: 'Tên quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -127,8 +127,26 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     if (!breed.trim()) {
       showAlert({
         type: 'warning',
-        title: t('auth.addPet.basicInfo.missingInfo'),
-        message: t('auth.addPet.basicInfo.enterBreed'),
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên giống',
+      });
+      return;
+    }
+
+    if (breed.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Tên giống quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
+      });
+      return;
+    }
+
+    if (description.trim().length > 200) {
+      showAlert({
+        type: 'error',
+        title: 'Mô tả quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -329,15 +347,14 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={[styles.input, styles.textArea]}
                 placeholderTextColor={colors.textLabel}
                 value={description}
-                onChangeText={(text) => setDescription(text.slice(0, 500))}
+                onChangeText={setDescription}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                maxLength={500}
               />
             </View>
             <View style={styles.charCount}>
-              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length, max: 500 })}</Text>
+              <Text style={styles.helperText}>{description.length}/200</Text>
             </View>
           </View>
 

@@ -57,7 +57,6 @@ interface PetProfile {
     image: any; // First image for backward compatibility
     images: any[]; // All images for carousel
     personality: string[];
-    owner: string;
     ownerId: number; // Add ownerId for API calls
     matchPercent: number; // Match percentage (0-100)
     matchScore: number; // Match score (total matched percent)
@@ -432,7 +431,6 @@ const HomeScreen = ({ navigation }: Props) => {
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: matchPercent,
                         matchScore: pet.matchScore ?? 0,
@@ -509,7 +507,6 @@ const HomeScreen = ({ navigation }: Props) => {
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: pet.matchPercent ?? 0,
                         matchScore: pet.matchScore ?? 0,
@@ -828,16 +825,6 @@ const HomeScreen = ({ navigation }: Props) => {
                                 ))}
                             </View>
 
-                            <View style={styles.ownerInfo}>
-                                <Icon name="person-outline" size={14} color={colors.white} />
-                                <Text style={styles.ownerText}>{t('home.owner', { name: pet.owner })}</Text>
-                                {pet.ownerIsVip && (
-                                    <View style={styles.vipBadgeSmall}>
-                                        <Icon name="diamond" size={12} color="#FFD700" />
-                                    </View>
-                                )}
-                            </View>
-
                             {/* Action Buttons on Card */}
                             {isCurrentCard && (
                                 <View style={styles.cardActions}>
@@ -915,6 +902,13 @@ const HomeScreen = ({ navigation }: Props) => {
                                 onPress={() => navigation.navigate("EventList")}
                             >
                                 <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("MyAppointments")}
+                            >
+                                <Icon name="calendar-outline" size={26} color={colors.textDark} />
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -1041,6 +1035,13 @@ const HomeScreen = ({ navigation }: Props) => {
 
                             <TouchableOpacity
                                 style={styles.iconButton}
+                                onPress={() => navigation.navigate("MyAppointments")}
+                            >
+                                <Icon name="calendar-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
                                 onPress={() => (navigation as any).navigate("FilterScreen")}
                             >
                                 <Icon name="options-outline" size={26} color={colors.textDark} />
@@ -1122,6 +1123,13 @@ const HomeScreen = ({ navigation }: Props) => {
                             onPress={() => navigation.navigate("EventList")}
                         >
                             <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => navigation.navigate("MyAppointments")}
+                        >
+                            <Icon name="calendar-outline" size={26} color={colors.textDark} />
                         </TouchableOpacity>
 
                         <TouchableOpacity

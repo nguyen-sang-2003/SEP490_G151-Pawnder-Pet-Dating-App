@@ -6,7 +6,6 @@ import './styles/BadWordManagement.css';
 const LEVEL_OPTIONS = [
   { value: 1, label: 'Nhẹ (Level 1)', description: 'Che từ ***' },
   { value: 2, label: 'Nặng (Level 2)', description: 'Chặn tin nhắn' },
-  { value: 3, label: 'Rất nghiêm trọng (Level 3)', description: 'Chặn + Cảnh báo' },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -79,9 +78,7 @@ const BadWordList = () => {
     const active = badWords.filter(bw => bw.isActive).length;
     const level1 = badWords.filter(bw => bw.level === 1).length;
     const level2 = badWords.filter(bw => bw.level === 2).length;
-    const level3 = badWords.filter(bw => bw.level === 3).length;
-    const regex = badWords.filter(bw => bw.isRegex).length;
-    return { total, active, level1, level2, level3, regex };
+    return { total, active, level1, level2 };
   }, [badWords]);
 
   // Filter and search
@@ -277,14 +274,6 @@ const BadWordList = () => {
         <div className="stat-card level-2">
           <div className="stat-value">{stats.level2}</div>
           <div className="stat-label">Level 2</div>
-        </div>
-        <div className="stat-card level-3">
-          <div className="stat-value">{stats.level3}</div>
-          <div className="stat-label">Level 3</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{stats.regex}</div>
-          <div className="stat-label">Regex</div>
         </div>
       </div>
 

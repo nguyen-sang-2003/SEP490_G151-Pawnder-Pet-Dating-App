@@ -158,6 +158,184 @@ namespace BE.Services
             await _notificationRepository.DeleteAsync(notification, ct);
             return true;
         }
+
+        #region Broadcast Notification Methods (Admin)
+
+        /// <summary>
+        /// Create a draft broadcast notification
+        /// </summary>
+        public async Task<Notification> CreateBroadcastDraftAsync(string title, string message, int adminUserId, string? type = null, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                throw new ArgumentException("Title không được để trống", nameof(title));
+
+            if (string.IsNullOrWhiteSpace(message))
+                throw new ArgumentException("Message không được để trống", nameof(message));
+
+            var vietnamNow = GetVietnamTime();
+
+            var notification = new Notification
+            {
+                UserId = null, // Broadcast không có UserId cụ thể
+                Title = title,
+                Message = message,
+                Type = type ?? "admin_broadcast",
+                Status = "DRAFT",
+                IsBroadcast = true,
+                IsRead = false,
+                CreatedByUserId = adminUserId,
+                CreatedAt = vietnamNow,
+                UpdatedAt = vietnamNow
+            };
+
+            await _context.Notifications.AddAsync(notification, ct);
+            await _context.SaveChangesAsync(ct);
+
+            Console.WriteLine($"✅ [NotificationService] Created broadcast draft #{notification.NotificationId}");
+            return notification;
+        }
+
+        /// <summary>
+        /// Update a draft broadcast notification
+        /// </summary>
+        public async Task<Notification?> UpdateBroadcastDraftAsync(int notificationId, string title, string message, string? type = null, CancellationToken ct = default)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.NotificationId == notificationId && n.Status == "DRAFT" && n.IsBroadcast, ct);
+
+            if (notification == null)
+                return null;
+
+            if (string.IsNullOrWhiteSpace(title))
+                throw new ArgumentException("Title không được để trống", nameof(title));
+
+            if (string.IsNullOrWhiteSpace(message))
+                throw new ArgumentException("Message không được để trống", nameof(message));
+
+            notification.Title = title;
+            notification.Message = message;
+            if (type != null) notification.Type = type;
+            notification.UpdatedAt = GetVietnamTime();
+
+            await _context.SaveChangesAsync(ct);
+
+            Console.WriteLine($"✅ [NotificationService] Updated broadcast draft #{notificationId}");
+            return notification;
+        }
+
+        /// <summary>
+        /// Delete a draft broadcast notification
+        /// </summary>
+        public async Task<bool> DeleteBroadcastDraftAsync(int notificationId, CancellationToken ct = default)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.NotificationId == notificationId && n.Status == "DRAFT" && n.IsBroadcast, ct);
+
+            if (notification == null)
+                return false;
+
+            _context.Notifications.Remove(notification);
+            await _context.SaveChangesAsync(ct);
+
+            Console.WriteLine($"✅ [NotificationService] Deleted broadcast draft #{notificationId}");
+            return true;
+        }
+
+        /// <summary>
+        /// Send a broadcast notification to all active users
+        /// </summary>
+        public async Task<int> SendBroadcastAsync(int notificationId, CancellationToken ct = default)
+        {
+            var draft = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.NotificationId == notificationId && n.Status == "DRAFT" && n.IsBroadcast, ct);
+
+            if (draft == null)
+                throw new ArgumentException("Không tìm thấy bản nháp thông báo hoặc đã được gửi", nameof(notificationId));
+
+            // Get all active users with role "User" or "Expert" (RoleId = 2 or 3)
+            var activeUserIds = await _context.Users
+                .Where(u => (u.IsDeleted == null || u.IsDeleted == false) && (u.RoleId == 2 || u.RoleId == 3))
+                .Select(u => u.UserId)
+                .ToListAsync(ct);
+
+            if (activeUserIds.Count == 0)
+                return 0;
+
+            var vietnamNow = GetVietnamTime();
+
+            // Update draft to SENT
+            draft.Status = "SENT";
+            draft.SentAt = vietnamNow;
+            draft.UpdatedAt = vietnamNow;
+
+            // Create notification for each user
+            var notifications = activeUserIds.Select(userId => new Notification
+            {
+                UserId = userId,
+                Title = draft.Title,
+                Message = draft.Message,
+                Type = draft.Type,
+                Status = "SENT",
+                IsBroadcast = true,
+                IsRead = false,
+                ReferenceId = draft.NotificationId, // Reference to original broadcast
+                SentAt = vietnamNow,
+                CreatedByUserId = draft.CreatedByUserId,
+                CreatedAt = vietnamNow,
+                UpdatedAt = vietnamNow
+            }).ToList();
+
+            await _context.Notifications.AddRangeAsync(notifications, ct);
+            await _context.SaveChangesAsync(ct);
+
+            // Send realtime notification to all users
+            foreach (var userId in activeUserIds)
+            {
+                try
+                {
+                    await ChatHub.SendNotification(
+                        _hubContext,
+                        userId,
+                        draft.Title ?? "",
+                        draft.Message ?? "",
+                        draft.Type ?? "admin_broadcast"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ [NotificationService] Failed to send broadcast to user {userId}: {ex.Message}");
+                }
+            }
+
+            Console.WriteLine($"✅ [NotificationService] Broadcast #{notificationId} sent to {activeUserIds.Count} users");
+            return activeUserIds.Count;
+        }
+
+        /// <summary>
+        /// Get all draft broadcast notifications
+        /// </summary>
+        public async Task<IEnumerable<Notification>> GetBroadcastDraftsAsync(CancellationToken ct = default)
+        {
+            return await _context.Notifications
+                .Include(n => n.CreatedByUser)
+                .Where(n => n.Status == "DRAFT" && n.IsBroadcast)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToListAsync(ct);
+        }
+
+        /// <summary>
+        /// Get all sent broadcast notifications (original records only)
+        /// </summary>
+        public async Task<IEnumerable<Notification>> GetSentBroadcastsAsync(CancellationToken ct = default)
+        {
+            return await _context.Notifications
+                .Include(n => n.CreatedByUser)
+                .Where(n => n.Status == "SENT" && n.IsBroadcast && n.UserId == null)
+                .OrderByDescending(n => n.SentAt)
+                .ToListAsync(ct);
+        }
+
+        #endregion
     }
 }
 

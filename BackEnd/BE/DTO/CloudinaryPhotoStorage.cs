@@ -30,13 +30,15 @@ public class CloudinaryPhotoStorage : IPhotoStorage
             UseFilename = false,
             UniqueFilename = true,
             Overwrite = false,
-            // Auto tối ưu hiển thị
-            Transformation = new Transformation()
-                .Quality("auto")         // q_auto
-                .FetchFormat("auto")     // f_auto
+            // Không dùng transformation để upload nhanh hơn
+            // Cloudinary sẽ tự động optimize khi deliver
         };
 
-        var result = await _cloudinary.UploadAsync(upload, ct);
+        // Set timeout 30s cho upload
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        var result = await _cloudinary.UploadAsync(upload, cts.Token);
         if (result.StatusCode is not System.Net.HttpStatusCode.OK || string.IsNullOrEmpty(result.SecureUrl?.AbsoluteUri))
             throw new InvalidOperationException($"Cloudinary upload failed: {result.Error?.Message}");
 

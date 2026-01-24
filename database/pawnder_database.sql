@@ -1,4 +1,4 @@
-﻿-- ===========================
+-- ===========================
 -- DATABASE: Pawnder (PostgreSQL, EF Core friendly)
 -- ===========================
 
@@ -115,13 +115,13 @@ CREATE TABLE "UserPreference" (
 -- ===========================
 -- TABLE: Pet
 -- ===========================
+-- Note: Age is stored in PetCharacteristic, not here
 CREATE TABLE "Pet" (
     "PetId" SERIAL PRIMARY KEY,
     "UserId" INT REFERENCES "User"("UserId"),
     "Name" VARCHAR(100),
     "Breed" VARCHAR(100),
     "Gender" VARCHAR(10),
-    "Age" INT,
     "IsActive" BOOLEAN DEFAULT FALSE,
     "IsDeleted" BOOLEAN DEFAULT FALSE,
     "Description" TEXT,
@@ -280,11 +280,20 @@ CREATE TABLE "Notification" (
     "Title" VARCHAR(200),
     "Message" TEXT,
     "Type" VARCHAR(50),
+    "Status" VARCHAR(20) DEFAULT 'SENT' CHECK ("Status" IN ('DRAFT', 'SENT')),
+    "IsBroadcast" BOOLEAN DEFAULT FALSE,
     "IsRead" BOOLEAN DEFAULT FALSE,
     "ReferenceId" INT,
+    "SentAt" TIMESTAMP,
+    "CreatedByUserId" INT REFERENCES "User"("UserId"),
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
     "UpdatedAt" TIMESTAMP DEFAULT NOW()
 );
+
+-- Index for quick lookup
+CREATE INDEX "IX_Notification_UserId_IsRead" ON "Notification"("UserId", "IsRead");
+CREATE INDEX "IX_Notification_Status" ON "Notification"("Status");
+CREATE INDEX "IX_Notification_IsBroadcast" ON "Notification"("IsBroadcast") WHERE "Status" = 'DRAFT';
 
 -- ===========================
 -- TABLE: Daily Limit
@@ -334,7 +343,7 @@ CREATE TABLE "BadWord" (
     "BadWordId" SERIAL PRIMARY KEY,
     "Word" VARCHAR(200) NOT NULL,
     "IsRegex" BOOLEAN DEFAULT FALSE,
-    "Level" INT NOT NULL CHECK ("Level" >= 1 AND "Level" <= 3),
+    "Level" INT NOT NULL CHECK ("Level" >= 1 AND "Level" <= 2),
     "Category" VARCHAR(50),
     "IsActive" BOOLEAN DEFAULT TRUE,
     "CreatedAt" TIMESTAMP DEFAULT NOW(),
@@ -612,12 +621,12 @@ VALUES
 );
 
 -- ===========================
--- BẢNG Pet
+-- BẢNG Pet (Age được lưu trong PetCharacteristic)
 -- ===========================
-INSERT INTO "Pet" ("UserId", "Name", "Breed", "Gender", "Age", "Description")
+INSERT INTO "Pet" ("UserId", "Name", "Breed", "Gender", "Description")
 VALUES
-((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'), 'Milo', 'Golden Retriever', 'Đực', 3, 'thân thiện, thích chạy nhảy'),
-((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'), 'Luna', 'Poodle', 'Cái', 2, 'Rất ngoan và dễ thương');
+((SELECT "UserId" FROM "User" WHERE "Email"='user1@pawnder.com'), 'Milo', 'Golden Retriever', 'Đực', 'thân thiện, thích chạy nhảy'),
+((SELECT "UserId" FROM "User" WHERE "Email"='user2@pawnder.com'), 'Luna', 'Poodle', 'Cái', 'Rất ngoan và dễ thương');
 
 -- ===========================
 -- BẢNG PetPhoto
@@ -633,14 +642,20 @@ VALUES
 -- ===========================
 INSERT INTO "PetCharacteristic" ("PetId", "AttributeId", "Value")
 VALUES
+-- Milo characteristics
 ((SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
  (SELECT "AttributeId" FROM "Attribute" WHERE "Name"='Cân nặng'), 25),
 ((SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
  (SELECT "AttributeId" FROM "Attribute" WHERE "Name"='Chiều cao'), 60),
+((SELECT "PetId" FROM "Pet" WHERE "Name"='Milo'),
+ (SELECT "AttributeId" FROM "Attribute" WHERE "Name"='Tuổi'), 3),
+-- Luna characteristics
 ((SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
  (SELECT "AttributeId" FROM "Attribute" WHERE "Name"='Cân nặng'), 8),
 ((SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
- (SELECT "AttributeId" FROM "Attribute" WHERE "Name"='Chiều cao'), 35);
+ (SELECT "AttributeId" FROM "Attribute" WHERE "Name"='Chiều cao'), 35),
+((SELECT "PetId" FROM "Pet" WHERE "Name"='Luna'),
+ (SELECT "AttributeId" FROM "Attribute" WHERE "Name"='Tuổi'), 2);
 
 -- ===========================
 -- BẢNG UserPreference (giờ không có cột Value nữa)

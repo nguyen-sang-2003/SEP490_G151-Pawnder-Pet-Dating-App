@@ -108,9 +108,11 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       const result = await launchImageLibrary({
         mediaType: 'mixed',
-        quality: 0.8,
+        quality: 0.6, // Giảm quality xuống 0.6 để file nhỏ hơn
+        maxWidth: 1280, // Giảm xuống 1280px (đủ cho mobile)
+        maxHeight: 1280,
         selectionLimit: 1,
-        videoQuality: 'medium',
+        videoQuality: 'low', // Giảm video quality
       });
 
       if (result.didCancel) return;
@@ -127,6 +129,17 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigation, route }) => {
       if (result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const isVideo = asset.type?.startsWith('video') || false;
+
+        // Check file size (max 10MB)
+        const fileSizeInMB = (asset.fileSize || 0) / (1024 * 1024);
+        if (fileSizeInMB > 10) {
+          showAlert({
+            type: 'warning',
+            title: 'File quá lớn',
+            message: `File của bạn có kích thước ${fileSizeInMB.toFixed(1)}MB. Vui lòng chọn file nhỏ hơn 10MB.`,
+          });
+          return;
+        }
 
         setSelectedMedia({
           uri: asset.uri || '',
@@ -171,20 +184,12 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       // Step 1: Upload media to cloud first
       setUploading(true);
-      showAlert({
-        type: 'info',
-        title: 'Đang tải lên',
-        message: 'Đang upload ảnh/video...',
-      });
 
       const uploadResult = await EventService.uploadMedia(
         selectedMedia.uri,
         selectedMedia.fileName,
         selectedMedia.type === 'video' ? 'video/mp4' : 'image/jpeg'
       );
-
-      hideAlert();
-      setUploading(false);
 
       // Step 2: Submit entry with cloud URL
       const request: SubmitEntryRequest = {
@@ -195,21 +200,41 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigation, route }) => {
       };
 
       await dispatch(submitEntry({ eventId, request })).unwrap();
+      
+      setUploading(false);
+      
+      // Hiển thị thông báo thành công trước
       showAlert({
         type: 'success',
         title: 'Thành công',
         message: 'Đã đăng bài dự thi thành công!',
-        onConfirm: () => navigation.goBack(),
+        onConfirm: () => {
+          // Sau khi user đóng alert, quay về EventDetail
+          navigation.goBack();
+        },
       });
     } catch (err: any) {
       setUploading(false);
+      
+      // Parse error message
+      let errorMessage = 'Không thể đăng bài dự thi';
+      if (err.message) {
+        if (err.message.includes('upload')) {
+          errorMessage = 'Lỗi khi tải ảnh/video lên. Vui lòng kiểm tra kết nối mạng và thử lại.';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'Quá thời gian chờ. Vui lòng kiểm tra kết nối mạng và thử lại.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       showAlert({
         type: 'error',
         title: 'Lỗi',
-        message: err.message || err || 'Không thể đăng bài dự thi',
+        message: errorMessage,
       });
     }
-  }, [dispatch, eventId, selectedPetId, selectedMedia, caption, navigation, showAlert, hideAlert, requireAuth]);
+  }, [dispatch, eventId, selectedPetId, selectedMedia, caption, navigation, showAlert, requireAuth]);
 
   const selectedPet = getSelectedPet();
 

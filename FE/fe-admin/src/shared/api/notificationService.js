@@ -52,6 +52,64 @@ class NotificationService {
     const response = await apiClient.delete(API_ENDPOINTS.NOTIFICATIONS.DELETE(id));
     return response;
   }
+
+  // ==================== Broadcast Methods (Admin) ====================
+
+  /**
+   * Get all broadcast drafts
+   * Backend: GET /api/notification/broadcast/drafts
+   */
+  async getBroadcastDrafts() {
+    const response = await apiClient.get(API_ENDPOINTS.NOTIFICATIONS.BROADCAST_DRAFTS);
+    return response;
+  }
+
+  /**
+   * Get all sent broadcasts
+   * Backend: GET /api/notification/broadcast/sent
+   */
+  async getSentBroadcasts() {
+    const response = await apiClient.get(API_ENDPOINTS.NOTIFICATIONS.BROADCAST_SENT);
+    return response;
+  }
+
+  /**
+   * Create broadcast draft
+   * Backend: POST /api/notification/broadcast
+   * Body: { Title, Message, Type? }
+   */
+  async createBroadcastDraft(data) {
+    const response = await apiClient.post(API_ENDPOINTS.NOTIFICATIONS.BROADCAST_CREATE, data);
+    return response;
+  }
+
+  /**
+   * Update broadcast draft
+   * Backend: PUT /api/notification/broadcast/{id}
+   * Body: { Title, Message, Type? }
+   */
+  async updateBroadcastDraft(id, data) {
+    const response = await apiClient.put(API_ENDPOINTS.NOTIFICATIONS.BROADCAST_UPDATE(id), data);
+    return response;
+  }
+
+  /**
+   * Delete broadcast draft
+   * Backend: DELETE /api/notification/broadcast/{id}
+   */
+  async deleteBroadcastDraft(id) {
+    const response = await apiClient.delete(API_ENDPOINTS.NOTIFICATIONS.BROADCAST_DELETE(id));
+    return response;
+  }
+
+  /**
+   * Send broadcast to all users
+   * Backend: POST /api/notification/broadcast/{id}/send
+   */
+  async sendBroadcast(id) {
+    const response = await apiClient.post(API_ENDPOINTS.NOTIFICATIONS.BROADCAST_SEND(id));
+    return response;
+  }
 }
 
 const notificationServiceInstance = new NotificationService();

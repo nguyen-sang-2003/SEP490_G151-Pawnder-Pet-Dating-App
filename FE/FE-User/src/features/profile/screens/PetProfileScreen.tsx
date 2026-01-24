@@ -118,6 +118,9 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
             return false;
           }
+          if (name.includes('loại')) {
+            return false;
+          }
           return true;
         });
 
@@ -549,7 +552,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           <View style={styles.ownerCardModern}>
             <OptimizedImage source={pet.owner.avatar} style={styles.ownerAvatarModern} imageSize="thumbnail" />
             <View style={styles.ownerInfoContainer}>
-              <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>
+              {/* Owner name - Only visible to owner themselves */}
+              {isMyPet && <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>}
               <Text style={styles.ownerStatusModern}>{pet.owner.status}</Text>
 
               {/* Email - Only show for my pet */}

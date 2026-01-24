@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/Ionicons';
 import { EventStatus, EVENT_STATUS_CONFIG } from '../../../types/event.types';
-import { radius, typography, colors } from '../../../theme';
+
 
 interface StatusBadgeProps {
   status: EventStatus;
@@ -14,6 +14,7 @@ const STATUS_ICONS: Record<EventStatus, string> = {
   upcoming: 'time-outline',
   active: 'flash',
   submission_closed: 'lock-closed-outline',
+  voting_ended: 'hourglass-outline',
   completed: 'checkmark-circle',
   cancelled: 'close-circle',
 };

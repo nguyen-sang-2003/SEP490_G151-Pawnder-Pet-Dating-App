@@ -263,7 +263,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Counter Offer Info */}
         <View style={[styles.infoCard, shadows.small]}>
-          <Icon name="information-circle" size={24} color={colors.info} />
+          <Icon name="information-circle" size={24} color={colors.primary} />
           <Text style={styles.infoText}>
             Bạn có thể đề xuất lại thời gian hoặc địa điểm cho cuộc hẹn này. Còn lại{' '}
             <Text style={styles.infoHighlight}>{counterOffersLeft}</Text> lần đề xuất.
@@ -274,7 +274,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
         <View style={[styles.section, shadows.small]}>
           <Text style={styles.sectionTitle}>Thông tin hiện tại</Text>
           <View style={styles.currentInfo}>
-            <Icon name="calendar" size={16} color={colors.textSecondary} />
+            <Icon name="calendar" size={16} color={colors.textMedium} />
             <Text style={styles.currentText}>
               {formatDate(new Date(appointment.appointmentDateTime))} •{' '}
               {formatTime(new Date(appointment.appointmentDateTime))}
@@ -282,7 +282,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
           </View>
           {appointment.location && (
             <View style={styles.currentInfo}>
-              <Icon name="location" size={16} color={colors.textSecondary} />
+              <Icon name="location" size={16} color={colors.textMedium} />
               <Text style={styles.currentText} numberOfLines={2}>
                 {appointment.location.name}
               </Text>
@@ -324,7 +324,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.inputButtonText}>
                   {newDate ? formatDate(newDate) : 'Chọn ngày'}
                 </Text>
-                <Icon name="chevron-down" size={20} color={colors.textSecondary} />
+                <Icon name="chevron-down" size={20} color={colors.textMedium} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -336,7 +336,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
                 <Text style={styles.inputButtonText}>
                   {newTime ? formatTime(newTime) : 'Chọn giờ'}
                 </Text>
-                <Icon name="chevron-down" size={20} color={colors.textSecondary} />
+                <Icon name="chevron-down" size={20} color={colors.textMedium} />
               </TouchableOpacity>
 
               {showDatePicker && newDate && (
@@ -410,7 +410,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
                   <Text style={[styles.inputButtonText, styles.placeholderText]}>
                     Chọn địa điểm mới...
                   </Text>
-                  <Icon name="chevron-forward" size={20} color={colors.textSecondary} />
+                  <Icon name="chevron-forward" size={20} color={colors.textMedium} />
                 </TouchableOpacity>
               )}
             </View>
@@ -456,7 +456,7 @@ const CounterOfferScreen = ({ navigation, route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.whiteWarm,
   },
   header: {
     flexDirection: 'row',
@@ -484,31 +484,31 @@ const styles = StyleSheet.create({
   infoCard: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: colors.info + '15',
-    borderRadius: radius.large,
+    backgroundColor: colors.primary + '15',
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 16,
   },
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: colors.text,
+    color: colors.textDark,
     lineHeight: 20,
   },
   infoHighlight: {
     fontWeight: '700',
-    color: colors.info,
+    color: colors.primary,
   },
   section: {
     backgroundColor: colors.white,
-    borderRadius: radius.large,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textDark,
     marginBottom: 12,
   },
   currentInfo: {
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
   currentText: {
     flex: 1,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textMedium,
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textDark,
   },
   inputsContainer: {
     marginTop: 12,
@@ -541,18 +541,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: radius.medium,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.whiteWarm,
   },
   inputButtonText: {
     flex: 1,
     fontSize: 16,
-    color: colors.text,
+    color: colors.textDark,
   },
   placeholderText: {
-    color: colors.textSecondary,
+    color: colors.textMedium,
   },
   locationSelected: {
     flexDirection: 'row',
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radius.small,
+    borderRadius: radius.sm,
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 6,
@@ -582,18 +582,18 @@ const styles = StyleSheet.create({
   locationName: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textDark,
     marginBottom: 4,
   },
   locationAddress: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: colors.textMedium,
     lineHeight: 18,
   },
   changeButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: radius.small,
+    borderRadius: radius.sm,
     backgroundColor: colors.primary + '20',
   },
   changeButtonText: {
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   submitButton: {
-    borderRadius: radius.large,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     marginVertical: 16,
     marginBottom: 30,
@@ -623,23 +623,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.whiteWarm,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textMedium,
   },
   errorContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.whiteWarm,
     padding: 40,
   },
   errorText: {
     fontSize: 16,
-    color: colors.text,
+    color: colors.textDark,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 12,
-    borderRadius: radius.medium,
+    borderRadius: radius.md,
   },
   buttonText: {
     fontSize: 16,

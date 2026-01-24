@@ -27,7 +27,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { selectUnreadChats, selectActivePetId, selectExpertChatBadge, selectTotalChatBadge } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
 import { getVipStatus } from "../../payment/api/paymentApi";
-import { getPetsByUserId } from "../../pet/api/petApi";
+import { getPetsByUserId, getPetById } from "../../pet/api/petApi";
 import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
 import { ChatSkeleton } from "../components/ChatSkeleton";
 
@@ -292,7 +292,16 @@ const ChatScreen = ({ navigation }: Props) => {
           const otherPetId = chat.fromUserId === userId ? chat.toPetId : chat.fromPetId;
 
           try {
-            const otherUser = await getUserById(otherUserId);
+            // Get pet name instead of user name for privacy
+            let petName = t('fallback.unknown');
+            if (otherPetId) {
+              try {
+                const petData = await getPetById(otherPetId);
+                petName = petData.name || t('fallback.unknown');
+              } catch (error) {
+                // Use fallback
+              }
+            }
 
             const userAvatar = otherPetId
               ? await getPetAvatar(otherPetId)
@@ -324,7 +333,7 @@ const ChatScreen = ({ navigation }: Props) => {
               id: chat.matchId.toString(),
               matchId: chat.matchId,
               otherUserId: otherUserId,
-              name: otherUser.fullName || t('fallback.unknown'),
+              name: petName, // Show pet name instead of owner name
               lastMessage: lastMessage,
               time: formatTime(lastMessageTime),
               lastMessageTime: lastMessageTime,

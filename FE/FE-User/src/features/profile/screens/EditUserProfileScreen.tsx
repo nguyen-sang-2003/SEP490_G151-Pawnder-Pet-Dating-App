@@ -100,13 +100,18 @@ const EditUserProfileScreen = ({ navigation, route }: Props) => {
 
     // Validation: Kiểm tra tên trống
     if (!name.trim()) {
-      showAlert({ type: 'warning', title: t('profile.edit.validation.missingInfo'), message: t('profile.edit.validation.enterName') });
+      showAlert({ type: 'warning', title: 'Thiếu thông tin', message: 'Bạn chưa nhập tên' });
       return;
     }
 
     // Validation: Kiểm tra độ dài tên
     if (name.trim().length < 2) {
-      showAlert({ type: 'error', title: t('profile.edit.validation.invalidName'), message: t('profile.edit.validation.nameMinLength') });
+      showAlert({ type: 'error', title: 'Tên quá ngắn', message: 'Vui lòng nhập dài hơn' });
+      return;
+    }
+
+    if (name.trim().length > 50) {
+      showAlert({ type: 'error', title: 'Tên quá dài', message: 'Vui lòng nhập ngắn hơn' });
       return;
     }
 

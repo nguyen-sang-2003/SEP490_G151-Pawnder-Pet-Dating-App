@@ -6,7 +6,6 @@ import './styles/BadWordManagement.css';
 const LEVEL_OPTIONS = [
   { value: 1, label: 'Nhẹ (Level 1)', description: 'Che từ ***' },
   { value: 2, label: 'Nặng (Level 2)', description: 'Chặn tin nhắn' },
-  { value: 3, label: 'Rất nghiêm trọng (Level 3)', description: 'Chặn + Cảnh báo' },
 ];
 
 const CATEGORY_OPTIONS = [

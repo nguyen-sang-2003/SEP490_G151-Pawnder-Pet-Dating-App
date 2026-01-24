@@ -367,9 +367,16 @@ public partial class PawnderDatabaseContext : DbContext
             entity.Property(e => e.Type)
                 .HasColumnName("Type")
                 .HasMaxLength(50);
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValue("SENT");
+            entity.Property(e => e.IsBroadcast)
+                .HasDefaultValue(false);
             entity.Property(e => e.IsRead)
                 .HasColumnName("IsRead")
                 .HasDefaultValue(false);
+            entity.Property(e => e.SentAt)
+                .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone");
@@ -377,6 +384,16 @@ public partial class PawnderDatabaseContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.Notifications)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("Notification_UserId_fkey");
+
+            entity.HasOne(d => d.CreatedByUser).WithMany()
+                .HasForeignKey(d => d.CreatedByUserId)
+                .HasConstraintName("Notification_CreatedByUserId_fkey");
+
+            // Indexes
+            entity.HasIndex(e => new { e.UserId, e.IsRead })
+                .HasDatabaseName("IX_Notification_UserId_IsRead");
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("IX_Notification_Status");
         });
 
         modelBuilder.Entity<PaymentHistory>(entity =>

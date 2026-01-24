@@ -76,12 +76,12 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, compact 
         </View>
         <View style={styles.compactContent}>
           <View style={styles.compactRow}>
-            <Icon name="calendar-outline" size={14} color={colors.textSecondary} />
+            <Icon name="calendar-outline" size={14} color={colors.textMedium} />
             <Text style={styles.compactText}>{formatDateTime(appointment.appointmentDateTime)}</Text>
           </View>
           {appointment.location && (
             <View style={styles.compactRow}>
-              <Icon name="location-outline" size={14} color={colors.textSecondary} />
+              <Icon name="location-outline" size={14} color={colors.textMedium} />
               <Text style={styles.compactText} numberOfLines={1}>
                 {appointment.location.name}
               </Text>
@@ -122,21 +122,21 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment, compact 
         </View>
         <Icon name="heart" size={16} color={colors.error} />
         <View style={styles.petInfo}>
-          <Icon name="paw" size={20} color={colors.secondary} />
+          <Icon name="paw" size={20} color={colors.primaryLight} />
           <Text style={styles.petName}>{appointment.inviteePetName}</Text>
         </View>
       </View>
 
       {/* Date/Time */}
       <View style={styles.infoRow}>
-        <Icon name="calendar" size={16} color={colors.textSecondary} />
+        <Icon name="calendar" size={16} color={colors.textMedium} />
         <Text style={styles.infoText}>{formatDateTime(appointment.appointmentDateTime)}</Text>
       </View>
 
       {/* Location */}
       {appointment.location && (
         <View style={styles.infoRow}>
-          <Icon name="location" size={16} color={colors.textSecondary} />
+          <Icon name="location" size={16} color={colors.textMedium} />
           <Text style={styles.infoText} numberOfLines={1}>
             {appointment.location.name}
           </Text>
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   // Full Card Styles
   card: {
     backgroundColor: colors.white,
-    borderRadius: radius.large,
+    borderRadius: radius.lg,
     padding: 16,
     marginVertical: 6,
   },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: radius.small,
+    borderRadius: radius.sm,
   },
   statusText: {
     fontSize: 12,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.background,
+    backgroundColor: colors.whiteWarm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -209,8 +209,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: colors.background,
-    borderRadius: radius.medium,
+    backgroundColor: colors.whiteWarm,
+    borderRadius: radius.md,
   },
   petInfo: {
     flexDirection: 'row',
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   petName: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textDark,
   },
   infoRow: {
     flexDirection: 'row',
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: colors.textMedium,
     flex: 1,
   },
   activityIconSmall: {
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   // Compact Card Styles
   compactCard: {
     backgroundColor: colors.white,
-    borderRadius: radius.large,
+    borderRadius: radius.lg,
     padding: 12,
     marginVertical: 4,
     borderLeftWidth: 4,
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   compactTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textDark,
   },
   compactContent: {
     gap: 6,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   compactText: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.textMedium,
     flex: 1,
   },
   viewDetailsRow: {

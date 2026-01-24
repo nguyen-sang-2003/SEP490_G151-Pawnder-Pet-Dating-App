@@ -13,7 +13,7 @@ public class EventCompletionBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EventCompletionBackgroundService> _logger;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(1);
+    private readonly TimeSpan _interval = TimeSpan.FromSeconds(15);
 
     public EventCompletionBackgroundService(
         IServiceProvider serviceProvider,

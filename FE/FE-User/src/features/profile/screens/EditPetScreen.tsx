@@ -130,8 +130,8 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     if (!name.trim()) {
       showAlert({
         type: 'warning',
-        title: t('profile.editPet.validation.missingInfo'),
-        message: t('profile.editPet.validation.enterPetName'),
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên thú cưng',
       });
       return;
     }
@@ -140,8 +140,35 @@ const EditPetScreen = ({ navigation, route }: Props) => {
     if (name.trim().length < 2) {
       showAlert({
         type: 'error',
-        title: t('profile.editPet.validation.invalidName'),
-        message: t('profile.editPet.validation.nameMinLength'),
+        title: 'Tên quá ngắn',
+        message: 'Vui lòng nhập dài hơn',
+      });
+      return;
+    }
+
+    if (name.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Tên quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
+      });
+      return;
+    }
+
+    if (breed.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Tên giống quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
+      });
+      return;
+    }
+
+    if (description.trim().length > 200) {
+      showAlert({
+        type: 'error',
+        title: 'Mô tả quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }

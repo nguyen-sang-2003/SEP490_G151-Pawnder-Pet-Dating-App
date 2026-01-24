@@ -152,12 +152,6 @@ const SubmissionModal: React.FC<SubmissionModalProps> = ({
                   <Text style={styles.petName}>
                     {submission.petName || 'Pet'}
                   </Text>
-                  <View style={styles.ownerRow}>
-                    <Icon name="person-outline" size={14} color={colors.textMedium} />
-                    <Text style={styles.ownerName}>
-                      {submission.userName || 'Người dùng'}
-                    </Text>
-                  </View>
                 </View>
               </View>
 

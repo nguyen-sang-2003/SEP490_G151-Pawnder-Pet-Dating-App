@@ -209,6 +209,31 @@ public class EventService : IEventService
         var petEvent = await _eventRepository.GetEventWithSubmissionsAsync(eventId, ct);
         if (petEvent == null) return null;
 
+        // Tính status động dựa trên thời gian thực
+        var now = DateTime.Now;
+        var actualStatus = petEvent.Status;
+        
+        // Nếu event bị cancelled hoặc completed thì giữ nguyên status
+        if (petEvent.Status != "cancelled" && petEvent.Status != "completed")
+        {
+            if (now < petEvent.StartTime)
+            {
+                actualStatus = "upcoming";
+            }
+            else if (now >= petEvent.StartTime && now < petEvent.SubmissionDeadline)
+            {
+                actualStatus = "active";
+            }
+            else if (now >= petEvent.SubmissionDeadline && now < petEvent.EndTime)
+            {
+                actualStatus = "submission_closed";
+            }
+            else if (now >= petEvent.EndTime)
+            {
+                actualStatus = "voting_ended";
+            }
+        }
+
         var response = new EventDetailResponse
         {
             EventId = petEvent.EventId,
@@ -218,7 +243,7 @@ public class EventService : IEventService
             StartTime = petEvent.StartTime,
             SubmissionDeadline = petEvent.SubmissionDeadline,
             EndTime = petEvent.EndTime,
-            Status = petEvent.Status,
+            Status = actualStatus,
             PrizeDescription = petEvent.PrizeDescription,
             PrizePoints = petEvent.PrizePoints ?? 0,
             SubmissionCount = petEvent.Submissions?.Count ?? 0,
@@ -450,32 +475,35 @@ public class EventService : IEventService
             .Take(3)
             .ToList();
 
-        if (topSubmissions == null || !topSubmissions.Any()) return;
-
-        int rank = 1;
-        foreach (var submission in topSubmissions)
+        // Nếu có bài dự thi, tính kết quả và thông báo winners
+        if (topSubmissions != null && topSubmissions.Any())
         {
-            submission.Rank = rank;
-            submission.IsWinner = true;
-
-            // Cộng điểm cho winner (nếu có)
-            if (petEvent.PrizePoints > 0 && rank == 1)
+            int rank = 1;
+            foreach (var submission in topSubmissions)
             {
-                // Có thể thêm logic cộng điểm uy tín cho user ở đây
+                submission.Rank = rank;
+                submission.IsWinner = true;
+
+                // Cộng điểm cho winner (nếu có)
+                if (petEvent.PrizePoints > 0 && rank == 1)
+                {
+                    // Có thể thêm logic cộng điểm uy tín cho user ở đây
+                }
+
+                // Thông báo cho winner
+                await _notificationService.CreateNotificationAsync(new NotificationDto_1
+                {
+                    UserId = submission.UserId,
+                    Title = rank == 1 ? "🏆 Chúc mừng! Bạn đạt Quán quân!" : $"🎉 Chúc mừng! Bạn đạt Top {rank}!",
+                    Message = $"Bé {submission.Pet?.Name} đã giành vị trí Top {rank} trong '{petEvent.Title}'!",
+                    Type = "event_winner"
+                }, ct);
+
+                rank++;
             }
-
-            // Thông báo cho winner
-            await _notificationService.CreateNotificationAsync(new NotificationDto_1
-            {
-                UserId = submission.UserId,
-                Title = rank == 1 ? "🏆 Chúc mừng! Bạn đạt Quán quân!" : $"🎉 Chúc mừng! Bạn đạt Top {rank}!",
-                Message = $"Bé {submission.Pet?.Name} đã giành vị trí Top {rank} trong '{petEvent.Title}'!",
-                Type = "event_winner"
-            }, ct);
-
-            rank++;
         }
 
+        // Luôn chuyển sang completed, dù có hay không có bài dự thi
         petEvent.Status = "completed";
         petEvent.UpdatedAt = DateTime.Now;
 
@@ -488,6 +516,31 @@ public class EventService : IEventService
 
     private static EventResponse MapToResponse(PetEvent e)
     {
+        // Tính status động dựa trên thời gian thực
+        var now = DateTime.Now;
+        var actualStatus = e.Status;
+        
+        // Nếu event bị cancelled hoặc completed thì giữ nguyên status
+        if (e.Status != "cancelled" && e.Status != "completed")
+        {
+            if (now < e.StartTime)
+            {
+                actualStatus = "upcoming";
+            }
+            else if (now >= e.StartTime && now < e.SubmissionDeadline)
+            {
+                actualStatus = "active";
+            }
+            else if (now >= e.SubmissionDeadline && now < e.EndTime)
+            {
+                actualStatus = "submission_closed";
+            }
+            else if (now >= e.EndTime)
+            {
+                actualStatus = "voting_ended";
+            }
+        }
+        
         return new EventResponse
         {
             EventId = e.EventId,
@@ -497,7 +550,7 @@ public class EventService : IEventService
             StartTime = e.StartTime,
             SubmissionDeadline = e.SubmissionDeadline,
             EndTime = e.EndTime,
-            Status = e.Status,
+            Status = actualStatus,
             PrizeDescription = e.PrizeDescription,
             PrizePoints = e.PrizePoints ?? 0,
             SubmissionCount = e.Submissions?.Count ?? 0,

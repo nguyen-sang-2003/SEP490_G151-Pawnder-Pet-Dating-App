@@ -16,7 +16,8 @@ public class AppointmentService : IAppointmentService
     private readonly PawnderDatabaseContext _context;
 
     // Cấu hình nghiệp vụ
-    private const int MIN_MESSAGES_REQUIRED = 10; // Số tin nhắn tối thiểu
+    private const int MIN_MESSAGES_REQUIRED = 10; // Số tin nhắn tối thiểu (tổng)
+    private const int MIN_MESSAGES_PER_USER = 3; // Mỗi người ít nhất 3 tin
     private const int MIN_HOURS_ADVANCE = 2; // Số giờ tối thiểu trước cuộc hẹn
     private const int MAX_COUNTER_OFFERS = 3; // Số lần counter-offer tối đa
     private const double CHECK_IN_RADIUS_METERS = 100; // Bán kính check-in (mét)
@@ -74,10 +75,32 @@ public class AppointmentService : IAppointmentService
             return (false, $"Đã có cuộc hẹn {statusText} với người này. Vui lòng xem trong danh sách lịch hẹn.");
         }
 
-        // 3. Kiểm tra số tin nhắn tối thiểu
-        var messageCount = await _appointmentRepository.CountMessagesBetweenUsersAsync(matchId, ct);
-        if (messageCount < MIN_MESSAGES_REQUIRED)
-            return (false, $"Cần ít nhất {MIN_MESSAGES_REQUIRED} tin nhắn trước khi tạo cuộc hẹn. Hiện có: {messageCount}");
+        // 3. Kiểm tra số tin nhắn tối thiểu (tổng + mỗi người)
+        // Lấy thông tin match để biết FromUserId và ToUserId
+        var matchInfo = await _context.ChatUsers
+            .FirstOrDefaultAsync(m => m.MatchId == matchId, ct);
+        
+        if (matchInfo == null)
+            return (false, "Không tìm thấy thông tin match");
+        
+        // Đếm tin nhắn của từng user
+        var user1Messages = await _context.ChatUserContents
+            .CountAsync(c => c.MatchId == matchId && c.FromUserId == matchInfo.FromUserId, ct);
+        
+        var user2Messages = await _context.ChatUserContents
+            .CountAsync(c => c.MatchId == matchId && c.FromUserId == matchInfo.ToUserId, ct);
+        
+        var totalMessages = user1Messages + user2Messages;
+        
+        // Validation 1: Mỗi người ít nhất 3 tin
+        if (user1Messages < MIN_MESSAGES_PER_USER || user2Messages < MIN_MESSAGES_PER_USER)
+        {
+            return (false, $"Mỗi người cần gửi ít nhất {MIN_MESSAGES_PER_USER} tin nhắn để đảm bảo có sự tương tác 2 chiều");
+        }
+        
+        // Validation 2: Tổng ít nhất 10 tin
+        if (totalMessages < MIN_MESSAGES_REQUIRED)
+            return (false, $"Cần ít nhất {MIN_MESSAGES_REQUIRED} tin nhắn trước khi tạo cuộc hẹn. Hiện có: {totalMessages}");
 
         // 4. Kiểm tra pet profile đầy đủ
         var inviterProfileComplete = await _appointmentRepository.IsPetProfileCompleteAsync(inviterPetId, ct);
@@ -183,7 +206,17 @@ public class AppointmentService : IAppointmentService
     public async Task<AppointmentResponse?> GetAppointmentByIdAsync(int appointmentId, CancellationToken ct = default)
     {
         var appointment = await _appointmentRepository.GetByIdWithDetailsAsync(appointmentId, ct);
-        return appointment != null ? MapToResponse(appointment) : null;
+        if (appointment == null) return null;
+
+        var response = MapToResponse(appointment);
+        
+        // Check conflict cho người đang cần quyết định
+        if (response.CurrentDecisionUserId.HasValue)
+        {
+            response = await EnrichWithConflictCheckAsync(response, response.CurrentDecisionUserId.Value, ct);
+        }
+
+        return response;
     }
 
     public async Task<IEnumerable<AppointmentResponse>> GetAppointmentsByMatchIdAsync(int matchId, CancellationToken ct = default)
@@ -195,7 +228,18 @@ public class AppointmentService : IAppointmentService
     public async Task<IEnumerable<AppointmentResponse>> GetAppointmentsByUserIdAsync(int userId, CancellationToken ct = default)
     {
         var appointments = await _appointmentRepository.GetByUserIdAsync(userId, ct);
-        return appointments.Select(MapToResponse);
+        var responses = appointments.Select(MapToResponse).ToList();
+
+        // Enrich với conflict check cho appointments mà user cần quyết định
+        for (int i = 0; i < responses.Count; i++)
+        {
+            if (responses[i].CurrentDecisionUserId == userId)
+            {
+                responses[i] = await EnrichWithConflictCheckAsync(responses[i], userId, ct);
+            }
+        }
+
+        return responses;
     }
 
     #endregion
@@ -760,7 +804,7 @@ public class AppointmentService : IAppointmentService
 
     #region Private Helpers
 
-    private static AppointmentResponse MapToResponse(PetAppointment a)
+    private AppointmentResponse MapToResponse(PetAppointment a)
     {
         return new AppointmentResponse
         {
@@ -787,8 +831,47 @@ public class AppointmentService : IAppointmentService
             CancelledBy = a.CancelledBy,
             CancelReason = a.CancelReason,
             CreatedAt = a.CreatedAt ?? DateTime.Now,
-            UpdatedAt = a.UpdatedAt ?? DateTime.Now
+            UpdatedAt = a.UpdatedAt ?? DateTime.Now,
+            HasConflict = false // Sẽ được tính sau
         };
+    }
+
+    /// <summary>
+    /// Kiểm tra user có cuộc hẹn nào trùng giờ không (±2 tiếng)
+    /// </summary>
+    private async Task<bool> CheckUserHasConflictAsync(int userId, DateTime appointmentTime, int? excludeAppointmentId = null, CancellationToken ct = default)
+    {
+        var startWindow = appointmentTime.AddHours(-2);
+        var endWindow = appointmentTime.AddHours(2);
+
+        var conflictExists = await _context.Set<PetAppointment>()
+            .AnyAsync(a => 
+                (a.InviterUserId == userId || a.InviteeUserId == userId) &&
+                a.AppointmentDateTime >= startWindow &&
+                a.AppointmentDateTime <= endWindow &&
+                (a.Status == "pending" || a.Status == "confirmed" || a.Status == "on_going") &&
+                (excludeAppointmentId == null || a.AppointmentId != excludeAppointmentId),
+                ct);
+
+        return conflictExists;
+    }
+
+    /// <summary>
+    /// Enrich response với HasConflict flag cho user cụ thể
+    /// </summary>
+    private async Task<AppointmentResponse> EnrichWithConflictCheckAsync(AppointmentResponse response, int checkForUserId, CancellationToken ct = default)
+    {
+        // Chỉ check conflict cho appointments đang pending (chờ phản hồi)
+        if (response.Status == "pending" && response.CurrentDecisionUserId == checkForUserId)
+        {
+            response.HasConflict = await CheckUserHasConflictAsync(
+                checkForUserId, 
+                response.AppointmentDateTime, 
+                response.AppointmentId, 
+                ct);
+        }
+
+        return response;
     }
 
     private static LocationResponse MapLocationToResponse(PetAppointmentLocation l)

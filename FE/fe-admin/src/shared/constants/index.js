@@ -44,6 +44,13 @@ export const API_ENDPOINTS = {
     LIST_BY_USER: (userId) => `/api/notification/user/${userId}`, // GET /api/notification/user/{userId}
     CREATE: '/api/notification', // POST /api/notification
     DELETE: (id) => `/api/notification/${id}`, // DELETE /api/notification/{notificationId}
+    // Broadcast (Admin)
+    BROADCAST_DRAFTS: '/api/notification/broadcast/drafts', // GET
+    BROADCAST_SENT: '/api/notification/broadcast/sent', // GET
+    BROADCAST_CREATE: '/api/notification/broadcast', // POST
+    BROADCAST_UPDATE: (id) => `/api/notification/broadcast/${id}`, // PUT
+    BROADCAST_DELETE: (id) => `/api/notification/broadcast/${id}`, // DELETE
+    BROADCAST_SEND: (id) => `/api/notification/broadcast/${id}/send`, // POST
   },
   ATTRIBUTES: {
     LIST: '/api/attribute',

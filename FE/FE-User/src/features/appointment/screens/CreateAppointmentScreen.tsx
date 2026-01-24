@@ -180,13 +180,17 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
         const created = (result as any).payload;
         showAlert({
           type: 'success',
-          title: 'Gửi lời mời thành công! 🎉',
+          title: 'Gửi lời mời thành công',
           message: `Lời mời đã được gửi đến chủ của ${inviteePetName}. Bạn sẽ nhận thông báo khi họ phản hồi.`,
           confirmText: 'Xem chi tiết',
-          showCancel: true,
-          cancelText: 'Đóng',
           onConfirm: () => {
+            hideAlert();
             navigation.replace('AppointmentDetail', { appointmentId: created.appointmentId });
+          },
+          onClose: () => {
+            // Khi đóng alert (không bấm "Xem chi tiết"), navigate về Appointments
+            hideAlert();
+            navigation.navigate('MyAppointments');
           },
         });
       } else {
@@ -247,7 +251,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Pet Match Card - Thiết kế mới */}
+        {/* Pet Match Card*/}
         <View style={styles.matchCard}>
           <View style={styles.matchContent}>
             <View style={styles.petInfo}>
@@ -307,7 +311,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
 
-        {/* Date & Time - Thiết kế mới */}
+        {/* Date & Time */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thời gian</Text>
           <View style={styles.dateTimeRow}>
@@ -348,7 +352,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
           <DateTimePicker value={selectedTime} mode="time" display="default" onChange={handleTimeChange} is24Hour />
         )}
 
-        {/* Location - Thiết kế mới */}
+        {/* Location*/}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Địa điểm gặp gỡ</Text>
           <TouchableOpacity
@@ -381,11 +385,7 @@ const CreateAppointmentScreen = ({ navigation, route }: Props) => {
                       rotateEnabled={false}
                       pointerEvents="none"
                     >
-                      <Marker coordinate={locationCoord}>
-                        <View style={styles.customMarker}>
-                          <Icon name="location" size={24} color={colors.primary} />
-                        </View>
-                      </Marker>
+                      <Marker coordinate={locationCoord} />
                     </MapView>
                   </View>
                 )}

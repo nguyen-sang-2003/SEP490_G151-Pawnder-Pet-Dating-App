@@ -20,7 +20,11 @@ export const store = configureStore({
         // Ignore these action types
         ignoredActions: ['your/action/type'],
       },
+      // Tắt immutability check để tránh warning về performance
+      immutableCheck: false,
     }),
+  // Chỉ bật DevTools trong development
+  devTools: __DEV__,
 });
 
 export type RootState = ReturnType<typeof store.getState>;
