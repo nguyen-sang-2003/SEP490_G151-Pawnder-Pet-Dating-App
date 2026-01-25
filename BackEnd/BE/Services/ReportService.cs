@@ -109,6 +109,22 @@ namespace BE.Services
                 _context.Entry(existingChat).State = EntityState.Modified;
             }
 
+            // Business logic: AUTO CANCEL APPOINTMENTS between reporter and reported user
+            var appointmentsToCancel = await _context.Set<PetAppointment>()
+                .Where(a => 
+                    (a.Status == "pending" || a.Status == "confirmed") &&
+                    ((a.InviterUserId == userReportId && a.InviteeUserId == reportedUserId) ||
+                     (a.InviterUserId == reportedUserId && a.InviteeUserId == userReportId)))
+                .ToListAsync(ct);
+
+            foreach (var appointment in appointmentsToCancel)
+            {
+                appointment.Status = "cancelled";
+                appointment.CancelledBy = userReportId;
+                appointment.CancelReason = "Tự động hủy do báo cáo vi phạm";
+                appointment.UpdatedAt = now;
+            }
+
             await _context.SaveChangesAsync(ct);
 
             var reportDto = new ReportDto

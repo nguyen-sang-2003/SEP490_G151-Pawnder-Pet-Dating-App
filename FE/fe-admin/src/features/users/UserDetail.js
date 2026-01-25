@@ -21,7 +21,7 @@ const UserDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
-  
+
   // User data state
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,14 +36,14 @@ const UserDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         const userId = parseInt(id);
         if (isNaN(userId)) {
           setError('ID người dùng không hợp lệ');
           setLoading(false);
           return;
         }
-        
+
         // Fetch user and pets in parallel
         const [userResponse, petsResponse] = await Promise.all([
           userService.getUserById(userId).catch(err => {
@@ -55,25 +55,25 @@ const UserDetail = () => {
             return [];
           })
         ]);
-        
+
         if (!userResponse) {
           setError('Không tìm thấy người dùng');
           setLoading(false);
           return;
         }
-        
+
         // Debug: Log isProfileComplete from backend
         console.log('[UserDetail] Backend response:', userResponse);
         console.log('[UserDetail] isProfileComplete (camelCase):', userResponse.isProfileComplete);
         console.log('[UserDetail] IsProfileComplete (PascalCase):', userResponse.IsProfileComplete);
         console.log('[UserDetail] All keys:', Object.keys(userResponse));
-        
+
         // Map UserResponse to frontend format
         const fullName = userResponse.FullName || userResponse.fullName || userResponse.Email?.split('@')[0] || 'User';
         const nameParts = fullName.split(' ');
         const firstName = nameParts[0] || fullName;
         const lastName = nameParts.slice(1).join(' ') || '';
-        
+
         // Map UserStatusId to status string
         // Convert to number to handle both string and number from backend
         const userStatusId = parseInt(userResponse.UserStatusId || userResponse.userStatusId) || 2; // Default to NORMAL (2)
@@ -83,7 +83,7 @@ const UserDetail = () => {
         } else if (userStatusId === USER_STATUS.BANNED) {
           status = 'BANNED';
         }
-        
+
         // Check if user is banned (from localStorage)
         const savedBans = localStorage.getItem(STORAGE_KEYS.USER_BANS);
         let isBannedFromStorage = false;
@@ -98,7 +98,7 @@ const UserDetail = () => {
             console.error('Error parsing user bans:', err);
           }
         }
-        
+
         // Map pets
         const pets = Array.isArray(petsResponse) ? petsResponse.map(pet => ({
           id: pet.PetId || pet.petId,
@@ -111,7 +111,7 @@ const UserDetail = () => {
           isActive: pet.IsActive || pet.isActive,
           photo: pet.UrlImageAvatar || pet.urlImageAvatar
         })) : [];
-        
+
         // Map user data
         const mappedUser = {
           id: userResponse.UserId || userResponse.userId,
@@ -147,7 +147,7 @@ const UserDetail = () => {
           pets: pets,
           matches: [] // Backend doesn't have matches data
         };
-        
+
         // Get role name (need to map from roleId)
         // RoleId 1 = Admin, 2 = Expert, 3 = User (from database)
         const roleId = userResponse.RoleId || userResponse.roleId;
@@ -158,7 +158,7 @@ const UserDetail = () => {
         } else {
           mappedUser.role = 'User';
         }
-        
+
         setUser(mappedUser);
         setLastFetchTime(Date.now());
       } catch (err) {
@@ -168,7 +168,7 @@ const UserDetail = () => {
         setLoading(false);
       }
     };
-    
+
     fetchUserData();
   }, [id]);
 
@@ -196,19 +196,19 @@ const UserDetail = () => {
                 const nameParts = fullName.split(' ');
                 const firstName = nameParts[0] || fullName;
                 const lastName = nameParts.slice(1).join(' ') || '';
-                
+
                 let status = 'NORMAL';
                 const userStatusId = parseInt(userResponse.UserStatusId || userResponse.userStatusId) || 2;
                 console.log(`[UserDetail Refresh] UserId=${userId}, UserStatusId=${userStatusId} (original: ${userResponse.UserStatusId || userResponse.userStatusId})`);
-                
+
                 if (userStatusId === USER_STATUS.PREMIUM) {
                   status = 'PREMIUM';
                 } else if (userStatusId === USER_STATUS.BANNED) {
                   status = 'BANNED';
                 }
-                
+
                 console.log(`[UserDetail Refresh] Mapped status: ${status} (from UserStatusId: ${userStatusId})`);
-                
+
                 // Check localStorage bans - only override to BANNED if user is actually banned
                 const savedBans = localStorage.getItem(STORAGE_KEYS.USER_BANS);
                 if (savedBans) {
@@ -226,11 +226,11 @@ const UserDetail = () => {
                 } else {
                   console.log(`[UserDetail Refresh] No localStorage bans found, using status from backend: ${status}`);
                 }
-                
+
                 // Map isVerified from backend response
                 const isVerified = userResponse.isProfileComplete ?? userResponse.IsProfileComplete ?? false;
                 console.log(`[UserDetail Refresh] isVerified: ${isVerified} (from isProfileComplete: ${userResponse.isProfileComplete}, IsProfileComplete: ${userResponse.IsProfileComplete})`);
-                
+
                 setUser(prev => ({
                   ...prev,
                   status,
@@ -283,7 +283,7 @@ const UserDetail = () => {
         <div className="page-header">
           <button onClick={() => navigate('/users')} className="back-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
+              <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
             Quay lại danh sách
           </button>
@@ -303,7 +303,7 @@ const UserDetail = () => {
         <div className="page-header">
           <button onClick={() => navigate('/users')} className="back-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
+              <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
             Quay lại danh sách
           </button>
@@ -337,12 +337,12 @@ const UserDetail = () => {
       inactive: { color: '#f39c12', text: 'Không hoạt động' },
       banned: { color: '#e74c3c', text: 'Bị cấm' }
     };
-    
+
     const config = statusConfig[status] || { color: '#95a5a6', text: 'Không xác định' };
-    
+
     return (
-      <span 
-        className="status-badge" 
+      <span
+        className="status-badge"
         style={{ backgroundColor: config.color }}
       >
         {config.text}
@@ -372,7 +372,7 @@ const UserDetail = () => {
       <div className="page-header">
         <button onClick={() => navigate('/users')} className="back-btn">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
+            <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Quay lại danh sách
         </button>
@@ -397,7 +397,7 @@ const UserDetail = () => {
               {getVerificationBadge(user.isVerified)}
             </div>
           </div>
-          
+
           <div className="user-basic-info">
             <h2>
               {getGenderIcon(user.gender)} {user.firstName} {user.lastName}
@@ -454,10 +454,6 @@ const UserDetail = () => {
                   <div className="info-item">
                     <span className="label">Email:</span>
                     <span className="value">{user.email}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">Số điện thoại:</span>
-                    <span className="value">{user.phone || 'N/A'}</span>
                   </div>
                   {user.address && (
                     <div className="info-item">
@@ -518,105 +514,111 @@ const UserDetail = () => {
                     </div>
                   )}
                 </div>
-              </div>
+              </div >
 
-            </div>
+            </div >
           )}
 
-          {!isExpert && activeTab === 'pets' && (
-            <div className="pets-tab">
-              <div className="pets-header">
-                <h3>Thú cưng của {user.firstName}</h3>
-                <span className="pets-count">{user.totalPets} thú cưng</span>
-              </div>
-              
-              {user.pets.length > 0 ? (
-                <div className="pets-grid">
-                  {user.pets.map(pet => (
-                    <div key={pet.id} className="pet-card">
-                      <div className="pet-icon">
-                        🐱 {/* Chỉ có mèo */}
-                      </div>
-                      <div className="pet-info">
-                        <h4>{pet.name}</h4>
-                        <p>{pet.breed}</p>
-                        <span className="pet-species">{pet.species}</span>
-                      </div>
-                    </div>
-                  ))}
+          {
+            !isExpert && activeTab === 'pets' && (
+              <div className="pets-tab">
+                <div className="pets-header">
+                  <h3>Thú cưng của {user.firstName}</h3>
+                  <span className="pets-count">{user.totalPets} thú cưng</span>
                 </div>
-              ) : (
-                <div className="empty-state">
-                  <div className="empty-icon">🐾</div>
-                  <h4>Chưa có thú cưng</h4>
-                  <p>{user.firstName} chưa đăng ký thú cưng nào.</p>
-                </div>
-              )}
-            </div>
-          )}
 
-          {!isExpert && activeTab === 'matches' && (
-            <div className="matches-tab">
-              <div className="matches-header">
-                <h3>Lịch sử ghép đôi</h3>
-                <span className="matches-count">{user.totalMatches} ghép đôi</span>
-              </div>
-              
-              {user.matches.length > 0 ? (
-                <div className="matches-list">
-                  {user.matches.map(match => (
-                    <div key={match.id} className="match-card">
-                      <div className="match-icon">💕</div>
-                      <div className="match-info">
-                        <h4>Ghép đôi với {match.petName}</h4>
-                        <p>Chủ sở hữu: {match.ownerName}</p>
-                        <span className="match-date">{formatDateTime(match.matchedAt)}</span>
+                {user.pets.length > 0 ? (
+                  <div className="pets-grid">
+                    {user.pets.map(pet => (
+                      <div key={pet.id} className="pet-card">
+                        <div className="pet-icon">
+                          🐱 {/* Chỉ có mèo */}
+                        </div>
+                        <div className="pet-info">
+                          <h4>{pet.name}</h4>
+                          <p>{pet.breed}</p>
+                          <span className="pet-species">{pet.species}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <div className="empty-icon">💔</div>
-                  <h4>Chưa có ghép đôi</h4>
-                  <p>{user.firstName} chưa có ghép đôi nào.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'activity' && (
-            <div className="activity-tab">
-              <div className="activity-header">
-                <h3>Hoạt động gần đây</h3>
-              </div>
-              
-              <div className="activity-timeline">
-                {user.updatedAt && (
-                  <div className="timeline-item">
-                    <div className="timeline-icon">📝</div>
-                    <div className="timeline-content">
-                      <h4>Cập nhật thông tin</h4>
-                      <p>{formatDateTime(user.updatedAt)}</p>
-                    </div>
+                    ))}
                   </div>
-                )}
-                
-                {user.createdAt && (
-                  <div className="timeline-item">
-                    <div className="timeline-icon">🎉</div>
-                    <div className="timeline-content">
-                      <h4>Tham gia Pawnder</h4>
-                      <p>{formatDateTime(user.createdAt)}</p>
-                    </div>
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">🐾</div>
+                    <h4>Chưa có thú cưng</h4>
+                    <p>{user.firstName} chưa đăng ký thú cưng nào.</p>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+            )
+          }
+
+          {
+            !isExpert && activeTab === 'matches' && (
+              <div className="matches-tab">
+                <div className="matches-header">
+                  <h3>Lịch sử ghép đôi</h3>
+                  <span className="matches-count">{user.totalMatches} ghép đôi</span>
+                </div>
+
+                {user.matches.length > 0 ? (
+                  <div className="matches-list">
+                    {user.matches.map(match => (
+                      <div key={match.id} className="match-card">
+                        <div className="match-icon">💕</div>
+                        <div className="match-info">
+                          <h4>Ghép đôi với {match.petName}</h4>
+                          <p>Chủ sở hữu: {match.ownerName}</p>
+                          <span className="match-date">{formatDateTime(match.matchedAt)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">💔</div>
+                    <h4>Chưa có ghép đôi</h4>
+                    <p>{user.firstName} chưa có ghép đôi nào.</p>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          {
+            activeTab === 'activity' && (
+              <div className="activity-tab">
+                <div className="activity-header">
+                  <h3>Hoạt động gần đây</h3>
+                </div>
+
+                <div className="activity-timeline">
+                  {user.updatedAt && (
+                    <div className="timeline-item">
+                      <div className="timeline-icon">📝</div>
+                      <div className="timeline-content">
+                        <h4>Cập nhật thông tin</h4>
+                        <p>{formatDateTime(user.updatedAt)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {user.createdAt && (
+                    <div className="timeline-item">
+                      <div className="timeline-icon">🎉</div>
+                      <div className="timeline-content">
+                        <h4>Tham gia Pawnder</h4>
+                        <p>{formatDateTime(user.createdAt)}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          }
+        </div >
+      </div >
+    </div >
   );
 };
 

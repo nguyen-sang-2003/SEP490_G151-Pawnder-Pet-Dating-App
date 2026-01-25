@@ -47,7 +47,6 @@ const MyReportsScreen = ({ navigation }: Props) => {
       const userId = parseInt(userIdStr);
       const data = await getMyReports(userId);
       setReports(data);
-      console.log("✅ Loaded reports:", data.length);
     } catch (error: any) {
 
     } finally {
@@ -132,16 +131,6 @@ const MyReportsScreen = ({ navigation }: Props) => {
   };
 
   const renderReport = ({ item }: { item: Report }) => {
-    console.log('📊 Report item:', {
-      reportId: item.reportId,
-      reason: item.reason,
-      status: item.status,
-      reportedUser: item.reportedUser,
-      content: item.content,
-      hasReportedUser: !!item.reportedUser,
-      reportedUserName: item.reportedUser?.fullName,
-    });
-
     return (
       <View style={styles.reportCard}>
         {/* Header with Status */}

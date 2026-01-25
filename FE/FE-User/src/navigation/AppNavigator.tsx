@@ -14,6 +14,8 @@ import {
 } from "./navigationConfig";
 import signalRService from "../services/signalr.service";
 import { refreshBadgesForActivePet } from "../utils/badgeRefresh";
+import { PendingPolicy } from "../features/policy/api/policyApi";
+import { Coordinates, LocationSelectionResult } from "../types/location.types";
 
 // Import critical screens immediately (needed for initial render)
 import WelcomeScreen from "../features/auth/screens/WelcomeScreen";
@@ -56,6 +58,25 @@ const PaymentHistoryScreen = lazy(() => import("../features/payment/screens/Paym
 const QRPaymentScreen = lazy(() => import("../features/payment/screens/QRPaymentScreen"));
 const ChangePasswordScreen = lazy(() => import("../features/settings/screens/ChangePasswordScreen"));
 
+// Lazy load policy screens
+const PolicyAcceptanceScreen = lazy(() => import("../features/policy/screens/PolicyAcceptanceScreen"));
+const PolicyListScreen = lazy(() => import("../features/policy/screens/PolicyListScreen"));
+const PolicyDetailScreen = lazy(() => import("../features/policy/screens/PolicyDetailScreen"));
+const PolicyHistoryScreen = lazy(() => import("../features/policy/screens/PolicyHistoryScreen"));
+
+// Lazy load appointment screens
+const MyAppointmentsScreen = lazy(() => import("../features/appointment/screens/MyAppointmentsScreen"));
+const AppointmentDetailScreen = lazy(() => import("../features/appointment/screens/AppointmentDetailScreen"));
+const CreateAppointmentScreen = lazy(() => import("../features/appointment/screens/CreateAppointmentScreen"));
+const CounterOfferScreen = lazy(() => import("../features/appointment/screens/CounterOfferScreen"));
+const LocationPickerScreen = lazy(() => import("../features/appointment/screens/LocationPickerScreen"));
+const MapPickerScreen = lazy(() => import("../features/appointment/screens/MapPickerScreen"));
+
+// Lazy load event screens
+const EventListScreen = lazy(() => import("../features/event/screens/EventListScreen"));
+const EventDetailScreen = lazy(() => import("../features/event/screens/EventDetailScreen"));
+const SubmitEntryScreen = lazy(() => import("../features/event/screens/SubmitEntryScreen"));
+
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -72,10 +93,12 @@ export type RootStackParamList = {
   };
   ForgotPassword: undefined;
   ResetPassword: { email: string };
-  AddPetBasicInfo: { isFromProfile?: boolean; petId?: number; petName?: string; breed?: string; description?: string };
-  AddPetCharacteristics: {
-    petId: number;
+  AddPetBasicInfo: {
     isFromProfile?: boolean;
+    petId?: number;
+    petName?: string;
+    breed?: string;
+    description?: string;
     aiResults?: Array<{
       attributeName: string;
       optionName?: string | null;
@@ -84,11 +107,25 @@ export type RootStackParamList = {
       optionId?: number | null;
     }>;
   };
-  AddPetPhotos: { 
-    petId: number; 
-    isFromProfile?: boolean; 
-    petName?: string; 
-    breed?: string; 
+  AddPetCharacteristics: {
+    petId: number;
+    isFromProfile?: boolean;
+    petName?: string;
+    breed?: string;
+    description?: string;
+    aiResults?: Array<{
+      attributeName: string;
+      optionName?: string | null;
+      value?: number | null;
+      attributeId?: number | null;
+      optionId?: number | null;
+    }>;
+  };
+  AddPetPhotos: {
+    petId: number;
+    isFromProfile?: boolean;
+    petName?: string;
+    breed?: string;
     description?: string;
     aiResults?: Array<{
       attributeName: string;
@@ -135,6 +172,47 @@ export type RootStackParamList = {
     duration: string;
   };
   ChangePassword: undefined;
+  // Policy screens
+  PolicyAcceptance: {
+    pendingPolicies: PendingPolicy[];
+    fromRegistration?: boolean;
+  };
+  PolicyList: undefined;
+  PolicyDetail: {
+    policyCode: string;
+    policyName: string;
+  };
+  PolicyHistory: undefined;
+  // Appointment screens
+  MyAppointments: undefined;
+  AppointmentDetail: { appointmentId: number };
+  CreateAppointment: {
+    matchId: number;
+    inviterPetId: number;
+    inviteePetId: number;
+    inviterPetName: string;
+    inviteePetName: string;
+  };
+  CounterOffer: { appointmentId: number };
+  LocationPicker:
+    | undefined
+    | {
+        city?: string;
+        allowCustomLocation?: boolean;
+      };
+  MapPicker:
+    | undefined
+    | {
+        city?: string;
+        initialCoordinate?: Coordinates;
+        initialAddress?: string;
+        initialName?: string;
+        returnToCreate?: boolean; // Flag để back 2 màn hình về CreateAppointment
+      };
+  // Event screens
+  EventList: undefined;
+  EventDetail: { eventId: number };
+  SubmitEntry: { eventId: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -167,14 +245,11 @@ const AppNavigator = () => {
   useEffect(() => {
     checkAuth();
 
-    // Listen for logout flag changes
     const checkLogoutInterval = setInterval(async () => {
       const shouldLogout = await AsyncStorage.getItem('shouldLogout');
       if (shouldLogout === 'true') {
-        console.log('🚪 Logout flag detected, redirecting to Welcome...');
         await AsyncStorage.removeItem('shouldLogout');
         setIsAuthenticated(false);
-        // Navigate to Welcome screen
         if (navigationRef.current) {
           navigationRef.current.reset({
             index: 0,
@@ -182,12 +257,11 @@ const AppNavigator = () => {
           });
         }
       }
-    }, 1000); // Check every second
+    }, 1000);
 
     return () => clearInterval(checkLogoutInterval);
   }, []);
 
-  // Setup global SignalR listener for notifications (works from any screen)
   useEffect(() => {
     let isSetup = false;
 
@@ -199,37 +273,23 @@ const AppNavigator = () => {
         if (!userIdStr || !isAuthenticated) return;
 
         const userId = parseInt(userIdStr);
-        console.log('🔔 [AppNavigator] Setting up global notification listener for userId:', userId);
 
-        // Connect to SignalR if not already connected
         if (!signalRService.isConnected()) {
           await signalRService.connect(userId);
-          console.log('✅ [AppNavigator] SignalR connected');
         }
 
-        // Listen for new notifications globally
         const handleNewNotification = (data: any) => {
-          console.log('🔔 [AppNavigator] New notification received via SignalR:', data);
-
-          // Refresh badge count immediately
-          refreshBadgesForActivePet(userId).then(() => {
-            console.log('✅ [AppNavigator] Badge refreshed after notification');
-          }).catch(err => {
-
-          });
+          refreshBadgesForActivePet(userId).catch(() => { });
         };
 
         signalRService.on('NewNotification', handleNewNotification);
         isSetup = true;
-        console.log('✅ [AppNavigator] Global notification listener setup complete');
 
-        // Cleanup on unmount
         return () => {
           signalRService.off('NewNotification', handleNewNotification);
-          console.log('🧹 [AppNavigator] Cleaned up global notification listener');
         };
       } catch (error) {
-
+        // Silent fail
       }
     };
 
@@ -241,13 +301,10 @@ const AppNavigator = () => {
   const checkAuth = async () => {
     try {
       const token = await getAuthToken();
-      
-      // ✅ Check both existence AND validity of token
+
       if (token && !isTokenExpired(token)) {
         setIsAuthenticated(true);
       } else if (token && isTokenExpired(token)) {
-        console.log('🔒 [AppNavigator] Token expired - auto logout');
-        // Clear expired token
         await AsyncStorage.removeItem('userId');
         await logout();
         setIsAuthenticated(false);
@@ -255,7 +312,6 @@ const AppNavigator = () => {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      console.error('❌ [AppNavigator] Error checking auth:', error);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
@@ -351,6 +407,61 @@ const AppNavigator = () => {
           options={modalScreenOptions}
         />
         <Stack.Screen name="ChangePassword" component={LazyScreen(ChangePasswordScreen)} />
+
+        {/* Lazy-loaded policy screens */}
+        <Stack.Screen
+          name="PolicyAcceptance"
+          component={LazyScreen(PolicyAcceptanceScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen name="PolicyList" component={LazyScreen(PolicyListScreen)} />
+        <Stack.Screen
+          name="PolicyDetail"
+          component={LazyScreen(PolicyDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen name="PolicyHistory" component={LazyScreen(PolicyHistoryScreen)} />
+
+        {/* Lazy-loaded appointment screens */}
+        <Stack.Screen name="MyAppointments" component={LazyScreen(MyAppointmentsScreen)} />
+        <Stack.Screen
+          name="AppointmentDetail"
+          component={LazyScreen(AppointmentDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen
+          name="CreateAppointment"
+          component={LazyScreen(CreateAppointmentScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen
+          name="CounterOffer"
+          component={LazyScreen(CounterOfferScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen
+          name="LocationPicker"
+          component={LazyScreen(LocationPickerScreen)}
+          options={modalScreenOptions}
+        />
+        <Stack.Screen
+          name="MapPicker"
+          component={LazyScreen(MapPickerScreen)}
+          options={modalScreenOptions}
+        />
+
+        {/* Lazy-loaded event screens */}
+        <Stack.Screen name="EventList" component={LazyScreen(EventListScreen)} />
+        <Stack.Screen
+          name="EventDetail"
+          component={LazyScreen(EventDetailScreen)}
+          options={detailScreenOptions}
+        />
+        <Stack.Screen
+          name="SubmitEntry"
+          component={LazyScreen(SubmitEntryScreen)}
+          options={modalScreenOptions}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

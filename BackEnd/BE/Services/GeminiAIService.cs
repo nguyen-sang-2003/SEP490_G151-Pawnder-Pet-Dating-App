@@ -35,6 +35,7 @@ NGUYÊN TẮC TRẢ LỜI:
 ✓ Dùng bullet points khi liệt kê các bước hoặc gợi ý
 ✓ Luôn tích cực và khích lệ người nuôi mèo
 ✓ Nếu không chắc chắn, thừa nhận và gợi ý tham khảo thêm
+✓ KHÔNG sử dụng markdown formatting (**, ***, *, _, #, ```) - chỉ dùng text thuần túy và emoji
 
 LƯU Ý QUAN TRỌNG VỀ SỨC KHỎE:
 - Khi đề cập vấn đề sức khỏe nghiêm trọng (nôn mửa liên tục, tiêu chảy, không ăn uống >24h, khó thở, co giật), LUÔN đề nghị đưa mèo đến bác sĩ thú y ngay
@@ -100,7 +101,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             // Lý do: History càng dài → tokens càng nhiều → Gemini càng chậm
             var recentHistory = history
                 .Where(h => !string.IsNullOrEmpty(h.Question) && !string.IsNullOrEmpty(h.Answer))
-                .TakeLast(2)
+                .TakeLast(5)
                 .ToList();
 
             if (recentHistory.Any())
@@ -125,7 +126,7 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                Console.WriteLine($"🤖 [Chat {chatAiId}] Calling Gemini API... (history: {recentHistory.Count} pairs, question length: {question.Length})");
+                Console.WriteLine($"[Chat {chatAiId}] Calling Gemini API... (history: {recentHistory.Count} pairs, question length: {question.Length})");
                 var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 var response = await model.GenerateContent(promptBuilder.ToString(), cancellationToken: cts.Token);
                 answer = response.Text ?? throw new Exception("Gemini API returned null response");
@@ -139,18 +140,18 @@ Bây giờ hãy sẵn sàng giúp đỡ những người yêu mèo!";
                 }
                 
                 stopwatch.Stop();
-                Console.WriteLine($"✅ [Chat {chatAiId}] Gemini responded in {stopwatch.ElapsedMilliseconds}ms | Tokens: {inputTokens} in + {outputTokens} out = {totalTokens} total");
+                Console.WriteLine($"[Chat {chatAiId}] Gemini responded in {stopwatch.ElapsedMilliseconds}ms | Tokens: {inputTokens} in + {outputTokens} out = {totalTokens} total");
             }
             catch (OperationCanceledException)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"⏱️ [Chat {chatAiId}] Gemini timeout after 60s (history: {recentHistory.Count} pairs)");
+                Console.WriteLine($"[Chat {chatAiId}] Gemini timeout after 60s (history: {recentHistory.Count} pairs)");
                 throw new Exception("AI đang quá tải, mất quá nhiều thời gian để trả lời. Vui lòng thử lại sau hoặc đặt câu hỏi ngắn gọn hơn.");
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"❌ [Chat {chatAiId}] Gemini error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                Console.WriteLine($"[Chat {chatAiId}] Gemini error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
                 throw new Exception("Không thể kết nối với AI. Vui lòng thử lại sau.");
             }
 

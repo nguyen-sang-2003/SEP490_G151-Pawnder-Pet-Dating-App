@@ -86,6 +86,7 @@ namespace BE.Services
                 .ToListAsync(ct)).ToHashSet();
 
             // Business logic: Load all active pets with their characteristics
+            // Valid pet filter: IsDeleted=false, has at least 1 non-deleted PetPhoto, has at least 1 PetCharacteristic
             var pets = await _context.Pets
                 .Include(p => p.PetCharacteristics)
                     .ThenInclude(pc => pc.Attribute)
@@ -98,11 +99,13 @@ namespace BE.Services
                          && p.UserId != userId
                          && p.IsDeleted == false
                          && p.IsActive == true
+                         && p.PetPhotos.Any(pp => pp.IsDeleted == false)
+                         && p.PetCharacteristics.Any()
                          && !alreadyMatchedUserIds.Contains(p.UserId.Value)
                          && !blockedUserIds.Contains(p.UserId.Value))
                 .ToListAsync(ct);
 
-            var matchedPets = new List<(Pet Pet, decimal Score, decimal TotalPercent, double? Distance)>();
+            var matchedPets = new List<(Pet Pet, decimal Score, decimal TotalPercent, double? Distance, List<object> MatchedAttributes)>();
 
             // Business logic: Filter preferences, excluding distance
             var attributePreferences = (preferences ?? new List<UserPreference>())
@@ -120,6 +123,7 @@ namespace BE.Services
             foreach (var pet in pets)
             {
                 decimal score = 0;
+                var matchedAttributes = new List<object>();
 
                 foreach (var pref in attributePreferences)
                 {
@@ -150,6 +154,18 @@ namespace BE.Services
                     if (isMatch)
                     {
                         score += pref.Attribute.Percent ?? 0;
+                        
+                        // Lưu thông tin attribute đã match
+                        matchedAttributes.Add(new
+                        {
+                            AttributeId = pref.Attribute.AttributeId,
+                            AttributeName = pref.Attribute.Name,
+                            Percent = pref.Attribute.Percent ?? 0,
+                            PetValue = petChar.OptionId != null 
+                                ? petChar.Option?.Name ?? petChar.OptionId.ToString()
+                                : petChar.Value?.ToString(),
+                            PetOptionName = petChar.Option?.Name
+                        });
                     }
                 }
 
@@ -166,7 +182,7 @@ namespace BE.Services
                         continue; // Skip if too far
                 }
 
-                matchedPets.Add((Pet: pet, Score: score, TotalPercent: totalPercent, Distance: distance));
+                matchedPets.Add((Pet: pet, Score: score, TotalPercent: totalPercent, Distance: distance, MatchedAttributes: matchedAttributes));
             }
 
             // Business logic: Sort and take top 20
@@ -176,18 +192,15 @@ namespace BE.Services
                 .Take(20)
                 .Select(p =>
                 {
-                    // Get Age from Characteristics if Pet.Age is null
-                    int? age = p.Pet.Age;
-                    if (age == null)
+                    // Get Age from PetCharacteristic only
+                    int? age = null;
+                    var ageChar = p.Pet.PetCharacteristics
+                        .FirstOrDefault(pc => pc.Attribute != null &&
+                                             (pc.Attribute.Name.ToLower() == "tuổi" ||
+                                              pc.Attribute.Name.ToLower() == "age"));
+                    if (ageChar != null && ageChar.Value.HasValue)
                     {
-                        var ageChar = p.Pet.PetCharacteristics
-                            .FirstOrDefault(pc => pc.Attribute != null &&
-                                                 (pc.Attribute.Name.ToLower() == "tuổi" ||
-                                                  pc.Attribute.Name.ToLower() == "age"));
-                        if (ageChar != null && ageChar.Value.HasValue)
-                        {
-                            age = (int)Math.Round((double)ageChar.Value.Value);
-                        }
+                        age = (int)Math.Round((double)ageChar.Value.Value);
                     }
 
                     return new
@@ -203,6 +216,7 @@ namespace BE.Services
                         MatchScore = p.Score,
                         TotalPercent = p.TotalPercent,
                         DistanceKm = p.Distance != null ? Math.Round(p.Distance.Value, 2) : (double?)null,
+                        MatchedAttributes = p.MatchedAttributes,
                         Photos = p.Pet.PetPhotos
                             .Where(photo => !string.IsNullOrEmpty(photo.ImageUrl))
                             .OrderBy(photo => photo.SortOrder)
@@ -232,6 +246,176 @@ namespace BE.Services
                 message = hasPreferences
                     ? $"Tìm thấy {resultCount} thú cưng (sorted by {preferencesCount} preferences)."
                     : $"Hiển thị {resultCount} thú cưng (chưa có filter).",
+                totalPreferences = preferencesCount,
+                hasPreferences = hasPreferences,
+                data = result
+            };
+        }
+
+        public async Task<object> RecommendPetsForPetAsync(int preferenceUserId, int targetPetId, CancellationToken ct = default)
+        {
+            // Business logic: Get user with preferences and address (from preferenceUserId)
+            var user = await _context.Users
+                .Include(u => u.UserPreferences)
+                .ThenInclude(p => p.Attribute)
+                .Include(u => u.Address)
+                .FirstOrDefaultAsync(u => u.UserId == preferenceUserId, ct);
+
+            if (user == null)
+                throw new KeyNotFoundException("Không tìm thấy người dùng.");
+
+            var preferences = user.UserPreferences.ToList();
+
+            // Business logic: Get target pet with characteristics (to calculate score)
+            // Valid pet filter: IsDeleted=false, has at least 1 non-deleted PetPhoto, has at least 1 PetCharacteristic
+            var targetPet = await _context.Pets
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Attribute)
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Option)
+                .Include(p => p.User)
+                    .ThenInclude(u => u!.Address)
+                .Include(p => p.PetPhotos.Where(photo => photo.IsDeleted == false))
+                .FirstOrDefaultAsync(p => p.PetId == targetPetId 
+                    && p.IsDeleted == false
+                    && p.PetPhotos.Any(pp => pp.IsDeleted == false)
+                    && p.PetCharacteristics.Any(), ct);
+
+            if (targetPet == null)
+                throw new KeyNotFoundException("Không tìm thấy thú cưng để tính điểm.");
+
+            if (targetPet.UserId == null)
+                throw new KeyNotFoundException("Thú cưng để tính điểm không có chủ sở hữu.");
+
+            // Business logic: Get distance preference
+            var distancePref = preferences?
+                .FirstOrDefault(p => p.Attribute.Name.ToLower() == "khoảng cách");
+
+            double? maxDistance = distancePref?.MaxValue;
+
+            // Business logic: Filter preferences, excluding distance
+            var attributePreferences = (preferences ?? new List<UserPreference>())
+                .Where(p => p.Attribute.Name.ToLower() != "khoảng cách")
+                .ToList();
+
+            // Business logic: Calculate total Percent
+            decimal totalPercent = 0;
+            foreach (var pref in attributePreferences)
+            {
+                totalPercent += pref.Attribute.Percent ?? 0;
+            }
+
+            // Business logic: Score the target pet
+            decimal score = 0;
+            var matchedAttributes = new List<object>();
+
+            foreach (var pref in attributePreferences)
+            {
+                var petChar = targetPet.PetCharacteristics.FirstOrDefault(pc =>
+                    pc.AttributeId == pref.AttributeId);
+
+                if (petChar == null)
+                    continue;
+
+                bool isMatch = false;
+
+                // For option-based attributes (string type)
+                if (pref.OptionId != null && petChar.OptionId != null)
+                {
+                    isMatch = petChar.OptionId == pref.OptionId;
+                }
+                // For range-based attributes (float/number type)
+                else if (pref.MinValue != null && pref.MaxValue != null && petChar.Value != null)
+                {
+                    isMatch = petChar.Value >= pref.MinValue && petChar.Value <= pref.MaxValue;
+                }
+                // Handle case where only MaxValue is set
+                else if (pref.MaxValue != null && petChar.Value != null && pref.MinValue == null)
+                {
+                    isMatch = petChar.Value <= pref.MaxValue;
+                }
+
+                if (isMatch)
+                {
+                    score += pref.Attribute.Percent ?? 0;
+                    
+                    // Lưu thông tin attribute đã match
+                    matchedAttributes.Add(new
+                    {
+                        AttributeId = pref.Attribute.AttributeId,
+                        AttributeName = pref.Attribute.Name,
+                        Percent = pref.Attribute.Percent ?? 0,
+                        PetValue = petChar.OptionId != null 
+                            ? petChar.Option?.Name ?? petChar.OptionId.ToString()
+                            : petChar.Value?.ToString(),
+                        PetOptionName = petChar.Option?.Name
+                    });
+                }
+            }
+
+            // Business logic: Calculate distance if specified (between preference user and target pet user)
+            double? distance = null;
+            if (maxDistance != null && maxDistance > 0)
+            {
+                distance = await _distanceService.GetDistanceBetweenUsersAsync(preferenceUserId, targetPet.UserId);
+                
+                if (distance == null)
+                    distance = null; // No address data
+                else if (distance > maxDistance)
+                    distance = null; // Too far, but we still return the result
+            }
+
+            // Get Age from PetCharacteristic only
+            int? age = null;
+            var ageChar = targetPet.PetCharacteristics
+                .FirstOrDefault(pc => pc.Attribute != null &&
+                                     (pc.Attribute.Name.ToLower() == "tuổi" ||
+                                      pc.Attribute.Name.ToLower() == "age"));
+            if (ageChar != null && ageChar.Value.HasValue)
+            {
+                age = (int)Math.Round((double)ageChar.Value.Value);
+            }
+
+            var result = new
+            {
+                PetId = targetPet.PetId,
+                UserId = targetPet.UserId,
+                Name = targetPet.Name,
+                Breed = targetPet.Breed,
+                Gender = targetPet.Gender,
+                Age = age,
+                Description = targetPet.Description,
+                MatchPercent = totalPercent > 0 ? Math.Round((decimal)(score / totalPercent) * 100, 1) : 0,
+                MatchScore = score,
+                TotalPercent = totalPercent,
+                DistanceKm = distance != null ? Math.Round(distance.Value, 2) : (double?)null,
+                MatchedAttributes = matchedAttributes,
+                Photos = targetPet.PetPhotos
+                    .Where(photo => !string.IsNullOrEmpty(photo.ImageUrl))
+                    .OrderBy(photo => photo.SortOrder)
+                    .Select(photo => photo.ImageUrl)
+                    .ToList(),
+                Owner = targetPet.User != null ? new
+                {
+                    UserId = targetPet.User.UserId,
+                    FullName = targetPet.User.FullName,
+                    Gender = targetPet.User.Gender,
+                    Address = targetPet.User.Address != null ? new
+                    {
+                        City = targetPet.User.Address.City,
+                        District = targetPet.User.Address.District
+                    } : null
+                } : null
+            };
+
+            var hasPreferences = attributePreferences.Count > 0;
+            var preferencesCount = attributePreferences.Count;
+
+            return new
+            {
+                message = hasPreferences
+                    ? $"Đã tính điểm matching cho thú cưng (dựa trên {preferencesCount} preferences)."
+                    : $"Đã tính điểm matching cho thú cưng (chưa có filter).",
                 totalPreferences = preferencesCount,
                 hasPreferences = hasPreferences,
                 data = result

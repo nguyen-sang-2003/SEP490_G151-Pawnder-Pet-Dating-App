@@ -73,6 +73,16 @@ namespace BE.Services
             var email = req.Email?.Trim();
             var password = req.Password?.Trim();
 
+            // BR-23: Validate email format
+            var (emailValid, emailError) = _passwordService.ValidateEmailFormat(email!);
+            if (!emailValid)
+                throw new ArgumentException(emailError);
+
+            // BR-22: Validate password complexity
+            var (passwordValid, passwordError) = _passwordService.ValidatePasswordComplexity(password!);
+            if (!passwordValid)
+                throw new ArgumentException(passwordError);
+
             // Business logic: Check email exists
             var emailExists = await _userRepository.EmailExistsAsync(email!, ct);
             if (emailExists)
@@ -191,6 +201,16 @@ namespace BE.Services
 
             var email = request.Email.Trim();
             var newPassword = request.NewPassword.Trim();
+
+            // BR-23: Validate email format
+            var (emailValid, emailError) = _passwordService.ValidateEmailFormat(email);
+            if (!emailValid)
+                throw new ArgumentException(emailError);
+
+            // BR-22: Validate password complexity
+            var (passwordValid, passwordError) = _passwordService.ValidatePasswordComplexity(newPassword);
+            if (!passwordValid)
+                throw new ArgumentException(passwordError);
 
             var user = await _userRepository.GetUserByEmailAsync(email, ct);
             if (user == null)

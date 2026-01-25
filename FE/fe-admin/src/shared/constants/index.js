@@ -29,7 +29,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/pet', // POST /api/pet
     UPDATE: (id) => `/api/pet/${id}`, // PUT /api/pet/{petId}
     DELETE: (id) => `/api/pet/${id}`, // DELETE /api/pet/{petId}
-    CHARACTERISTICS: (petId) => `/api/pet-characteristic/pet-characteristic/${petId}`, // GET /api/pet-characteristic/pet-characteristic/{petId}
+    CHARACTERISTICS: (petId) => `/api/PetCharacteristic/pet-characteristic/${petId}`, // GET /api/PetCharacteristic/pet-characteristic/{petId}
   },
   REPORTS: {
     LIST: '/api/report', // GET /api/report (ReportController có [Route("api")])
@@ -44,6 +44,13 @@ export const API_ENDPOINTS = {
     LIST_BY_USER: (userId) => `/api/notification/user/${userId}`, // GET /api/notification/user/{userId}
     CREATE: '/api/notification', // POST /api/notification
     DELETE: (id) => `/api/notification/${id}`, // DELETE /api/notification/{notificationId}
+    // Broadcast (Admin)
+    BROADCAST_DRAFTS: '/api/notification/broadcast/drafts', // GET
+    BROADCAST_SENT: '/api/notification/broadcast/sent', // GET
+    BROADCAST_CREATE: '/api/notification/broadcast', // POST
+    BROADCAST_UPDATE: (id) => `/api/notification/broadcast/${id}`, // PUT
+    BROADCAST_DELETE: (id) => `/api/notification/broadcast/${id}`, // DELETE
+    BROADCAST_SEND: (id) => `/api/notification/broadcast/${id}/send`, // POST
   },
   ATTRIBUTES: {
     LIST: '/api/attribute',
@@ -73,7 +80,14 @@ export const API_ENDPOINTS = {
     UPDATE: (expertId, userId, chatId) => `/expert-confirmation/${expertId}/${userId}/${chatId}`, // PUT /expert-confirmation/{expertId}/{userId}/{chatId}
   },
   CHAT_AI: {
+    TOKEN_USAGE: '/api/chat-ai/token-usage', // GET /api/chat-ai/token-usage
+    GET_ALL_CHATS: (userId) => `/api/chat-ai/${userId}`, // GET /api/chat-ai/{userId}
+    CREATE_CHAT: (userId) => `/api/chat-ai/${userId}`, // POST /api/chat-ai/{userId}
+    UPDATE_CHAT: (chatAiId) => `/api/chat-ai/${chatAiId}`, // PUT /api/chat-ai/{chatAiId}
+    DELETE_CHAT: (chatAiId) => `/api/chat-ai/${chatAiId}`, // DELETE /api/chat-ai/{chatAiId}
     MESSAGES: (chatAiId) => `/api/chat-ai/${chatAiId}/messages`, // GET /api/chat-ai/{chatAiId}/messages
+    SEND_MESSAGE: (chatAiId) => `/api/chat-ai/${chatAiId}/messages`, // POST /api/chat-ai/{chatAiId}/messages
+    CLONE: (originalChatAiId) => `/api/chat-ai/clone/${originalChatAiId}`, // POST /api/chat-ai/clone/{originalChatAiId}
   },
   CHAT_EXPERT: {
     GET_BY_EXPERT: (expertId) => `/api/ChatExpert/expert/${expertId}`, // GET /api/ChatExpert/expert/{expertId}

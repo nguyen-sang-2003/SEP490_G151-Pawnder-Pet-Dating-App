@@ -14,18 +14,34 @@ namespace BE.Repositories
         {
         }
 
+        /// <inheritdoc />
+        public IQueryable<Pet> GetValidPetsQuery()
+        {
+            return _dbSet
+                .Where(p => p.IsDeleted == false
+                    && p.PetPhotos.Any(pp => pp.IsDeleted == false)
+                    && p.PetCharacteristics.Any());
+        }
+
         public async Task<IEnumerable<PetDto>> GetPetsByUserIdAsync(int userId, CancellationToken ct = default)
         {
-            return await _dbSet
+            return await GetValidPetsQuery()
                 .Include(p => p.PetPhotos)
-                .Where(p => p.UserId == userId && (p.IsDeleted == false))
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Attribute)
+                .Where(p => p.UserId == userId)
                 .Select(p => new PetDto
                 {
                     PetId = p.PetId,
                     Name = p.Name,
                     Breed = p.Breed,
                     Gender = p.Gender,
-                    Age = p.Age,
+                    Age = p.PetCharacteristics
+                        .Where(pc => pc.Attribute != null && 
+                                   (pc.Attribute.Name.ToLower() == "tuổi" || 
+                                    pc.Attribute.Name.ToLower() == "age"))
+                        .Select(pc => pc.Value.HasValue ? (int?)Math.Round((double)pc.Value.Value) : null)
+                        .FirstOrDefault(),
                     IsActive = p.IsActive,
                     Description = p.Description,
                     UrlImageAvatar = p.PetPhotos
@@ -43,13 +59,14 @@ namespace BE.Repositories
             List<int> blockedUserIds, 
             CancellationToken ct = default)
         {
-            return await _dbSet
+            return await GetValidPetsQuery()
                 .Include(p => p.PetPhotos)
+                .Include(p => p.PetCharacteristics)
+                    .ThenInclude(pc => pc.Attribute)
                 .Include(p => p.User)
                     .ThenInclude(u => u!.Address)
                 .Where(p => p.UserId != null
                          && p.UserId != userId
-                         && p.IsDeleted == false
                          && p.IsActive == true
                          && !excludedUserIds.Contains(p.UserId.Value)
                          && !blockedUserIds.Contains(p.UserId.Value))
@@ -60,7 +77,12 @@ namespace BE.Repositories
                     Name = p.Name,
                     Breed = p.Breed,
                     Gender = p.Gender,
-                    Age = p.Age,
+                    Age = p.PetCharacteristics
+                        .Where(pc => pc.Attribute != null && 
+                                   (pc.Attribute.Name.ToLower() == "tuổi" || 
+                                    pc.Attribute.Name.ToLower() == "age"))
+                        .Select(pc => pc.Value.HasValue ? (int?)Math.Round((double)pc.Value.Value) : null)
+                        .FirstOrDefault(),
                     Description = p.Description,
                     Photos = p.PetPhotos
                         .Where(photo => photo.IsDeleted == false)

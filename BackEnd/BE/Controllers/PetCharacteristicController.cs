@@ -53,9 +53,13 @@ namespace BE.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+                return StatusCode(500, new { message = "Lỗi hệ thống", error = ex.Message });
             }
         }
 
@@ -73,9 +77,13 @@ namespace BE.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Message = "Lỗi hệ thống", Error = ex.Message });
+                return StatusCode(500, new { message = "Lỗi hệ thống", error = ex.Message });
             }
         }
     }

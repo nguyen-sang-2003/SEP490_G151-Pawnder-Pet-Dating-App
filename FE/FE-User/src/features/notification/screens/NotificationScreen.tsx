@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, Notification } from "../api/notificationApi";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, Notification } from "../api/notificationApi";
 import { useFocusEffect } from "@react-navigation/native";
 import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import signalRService from "../../../services/signalr.service";
@@ -39,18 +39,31 @@ const NotificationScreen = ({ navigation }: Props) => {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [creatingChat, setCreatingChat] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Notification | null>(null);
   const { visible: alertVisible, alertConfig, showAlert, hideAlert } = useCustomAlert();
 
   // Get time ago string
   const getTimeAgo = (dateString: string): string => {
-    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+    // Backend stores time in Vietnam timezone (UTC+7)
+    // Parse the date string and treat it as Vietnam local time
     let dateStr = dateString;
+    
+    // If the date string doesn't have timezone info, treat it as Vietnam time (UTC+7)
     if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
-      dateStr = dateStr + 'Z';
+      // Add Vietnam timezone offset (+07:00)
+      dateStr = dateStr + '+07:00';
     }
+    
     const date = new Date(dateStr);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    // Handle negative seconds (future dates or timezone issues)
+    if (seconds < 0) {
+      return t('notification.time.justNow');
+    }
 
     if (seconds < 60) return t('notification.time.justNow');
     if (seconds < 3600) return t('notification.time.minutesAgo', { count: Math.floor(seconds / 60) });
@@ -59,15 +72,12 @@ const NotificationScreen = ({ navigation }: Props) => {
     return date.toLocaleDateString();
   };
 
-  // Load notifications from API
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading notifications...');
 
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        console.log('❌ No userId found');
         setLoading(false);
         return;
       }
@@ -75,10 +85,8 @@ const NotificationScreen = ({ navigation }: Props) => {
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
 
-      console.log('🔄 Loading notifications for user:', userId);
       const data = await getNotifications(userId);
 
-      // Merge expertId from AsyncStorage for expert_confirmation notifications
       for (const notification of data) {
         if (notification.type === 'expert_confirmation') {
           const mappingKey = `notification_expert_${notification.notificationId}`;
@@ -88,7 +96,6 @@ const NotificationScreen = ({ navigation }: Props) => {
               const mapping = JSON.parse(mappingStr);
               notification.expertId = mapping.expertId;
               notification.chatId = mapping.chatId;
-              console.log(`✅ Loaded expertId ${mapping.expertId} for notification ${notification.notificationId}`);
             }
           } catch (err) {
 
@@ -98,14 +105,14 @@ const NotificationScreen = ({ navigation }: Props) => {
 
       // Sort by createdAt descending (newest first)
       const sortedData = data.sort((a, b) => {
-        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
+        // Backend stores time in Vietnam timezone (UTC+7)
         let dateStrA = a.createdAt || '';
         if (dateStrA && !dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
-          dateStrA = dateStrA + 'Z';
+          dateStrA = dateStrA + '+07:00';
         }
         let dateStrB = b.createdAt || '';
         if (dateStrB && !dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
-          dateStrB = dateStrB + 'Z';
+          dateStrB = dateStrB + '+07:00';
         }
         const dateA = dateStrA ? new Date(dateStrA).getTime() : 0;
         const dateB = dateStrB ? new Date(dateStrB).getTime() : 0;
@@ -113,7 +120,6 @@ const NotificationScreen = ({ navigation }: Props) => {
       });
 
       setNotifications(sortedData);
-      console.log('✅ Loaded', sortedData.length, 'notifications');
     } catch (error) {
 
       setNotifications([]);
@@ -144,13 +150,9 @@ const NotificationScreen = ({ navigation }: Props) => {
           await signalRService.connect(userId);
         }
 
-        // Listen for new notifications
         const handleNewNotification = (data: any) => {
-          console.log('🔔 [NotificationScreen] New notification received via SignalR:', data);
-
-          // ✅ Create notification object from SignalR data
           const newNotification: Notification = {
-            notificationId: 0, // Temporary, will be replaced on next full reload
+            notificationId: data.NotificationId || data.notificationId || Date.now(),
             title: data.Title || data.title || t('notification.title'),
             message: data.Message || data.message || '',
             type: data.Type || data.type || 'system',
@@ -160,86 +162,49 @@ const NotificationScreen = ({ navigation }: Props) => {
             chatId: data.ChatId || data.chatId,
           };
 
-          // ✅ Add to list immediately (optimistic update)
+          // Thêm notification mới vào đầu danh sách (không cần reload)
           setNotifications(prev => {
-            // Check if notification already exists (avoid duplicates)
+            // Kiểm tra trùng lặp
             const exists = prev.some(n => {
-              // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
               let dateStr = n.createdAt || '';
               if (dateStr && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
-                dateStr = dateStr + 'Z';
+                dateStr = dateStr + '+07:00';
               }
               const createdAt = dateStr ? new Date(dateStr).getTime() : 0;
               return n.title === newNotification.title && 
                 n.message === newNotification.message &&
-                createdAt > Date.now() - 5000; // Within 5 seconds
+                createdAt > Date.now() - 5000;
             });
             
-            if (exists) {
-              console.log('⚠️ Notification already in list, skipping duplicate');
-              return prev;
-            }
+            if (exists) return prev;
 
-            console.log('✅ Adding new notification to list (optimistic update)');
-            return [newNotification, ...prev]; // Add to top
+            return [newNotification, ...prev];
           });
 
-          // ⏳ Background: Reload to get real notificationId from DB
-          // This will replace the temporary notification with real data
-          setTimeout(() => {
-            loadNotifications().then(async () => {
-              console.log('✅ Notifications synced from API after realtime event');
+          // Chỉ lưu mapping cho expert notification, không reload toàn bộ
+          if (data.ExpertId && (data.Type === 'expert_confirmation' || data.Type === 'expert_reply')) {
+            const mappingKey = `notification_expert_temp_${Date.now()}`;
+            const mappingData = {
+              expertId: data.ExpertId,
+              chatId: data.ChatId,
+              timestamp: Date.now()
+            };
+            AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData)).catch(() => {});
+          }
 
-              // After reload, store expertId mapping if available
-              if (data.ExpertId && (data.Type === 'expert_confirmation' || data.Type === 'expert_reply')) {
-                try {
-                  const notifications = await getNotifications(userId);
-                  // Find the newest expert notification (just created)
-                  const newestExpertNotif = notifications
-                    .filter(n => n.type === 'expert_confirmation' || n.type === 'expert_reply')
-                    .sort((a, b) => {
-                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                      return dateB - dateA;
-                    })[0];
-
-                  if (newestExpertNotif) {
-                    // Store mapping: notificationId -> expertId
-                    const mappingKey = `notification_expert_${newestExpertNotif.notificationId}`;
-                    const mappingData = {
-                      expertId: data.ExpertId,
-                      chatId: data.ChatId,
-                      timestamp: Date.now()
-                    };
-                    await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
-                    console.log(`💾 Stored expert mapping for notification ${newestExpertNotif.notificationId}:`, mappingData);
-                  }
-                } catch (err) {
-                  console.error('Error storing expert mapping:', err);
-                }
-              }
-            }).catch(err => {
-              console.error('Error reloading notifications:', err);
-            });
-          }, 1000); // Delay 1s to let backend save notification first
-
-          // Refresh badge count (handled by useBadgeNotifications hook, but ensure it's synced)
+          // Cập nhật badge count
           if (userId) {
-            refreshBadgesForActivePet(userId).catch(err => {
-              console.error('Error refreshing badges:', err);
-            });
+            refreshBadgesForActivePet(userId).catch(() => {});
           }
         };
 
         signalRService.on('NewNotification', handleNewNotification);
-        console.log('✅ SignalR listener setup for notifications');
 
-        // Cleanup
         return () => {
           signalRService.off('NewNotification', handleNewNotification);
         };
       } catch (error) {
-        console.error('Error setting up SignalR for notifications:', error);
+        // Error setting up SignalR
       }
     };
 
@@ -258,18 +223,14 @@ const NotificationScreen = ({ navigation }: Props) => {
 
     try {
       await markAllNotificationsAsRead(currentUserId);
-      // Update local state
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      console.log('✅ Marked all notifications as read');
 
-      // Refresh badge count after marking all as read
       await refreshBadgesForActivePet(currentUserId);
     } catch (error) {
 
     }
   };
 
-  // 🚀 OPTIMIZATION: Memoize helper functions with useCallback
   const getNotificationIcon = useCallback((type: string) => {
     switch (type) {
       case "expert_reply":
@@ -277,6 +238,13 @@ const NotificationScreen = ({ navigation }: Props) => {
         return { name: "medical", color: "#FFFFFF" };
       case "system":
         return { name: "sparkles", color: "#FFFFFF" };
+      case "appointment_invite":
+      case "appointment_accepted":
+      case "appointment_rejected":
+      case "appointment_cancelled":
+      case "appointment_counter_offer":
+      case "appointment_ongoing":
+        return { name: "calendar", color: "#FFFFFF" };
       default:
         return { name: "notifications", color: "#FFFFFF" };
     }
@@ -289,17 +257,34 @@ const NotificationScreen = ({ navigation }: Props) => {
         return ["#FF6EA7", "#FF9BC0"]; // Pink gradient for expert
       case "system":
         return ["#FFB8D6", "#FF8FB7"]; // Lighter pink for system
+      case "appointment_invite":
+        return ["#4CAF50", "#66BB6A"]; // Green for invite
+      case "appointment_accepted":
+        return ["#2196F3", "#42A5F5"]; // Blue for accepted
+      case "appointment_rejected":
+      case "appointment_cancelled":
+        return ["#FF5252", "#FF8A80"]; // Red for rejected/cancelled
+      case "appointment_counter_offer":
+        return ["#FF9800", "#FFB74D"]; // Orange for counter offer
+      case "appointment_ongoing":
+        return ["#9C27B0", "#BA68C8"]; // Purple for ongoing
       default:
         return ["#FFB8D6", "#FF8FB7"];
     }
   }, []);
 
-  const handleNotificationPress = async (item: Notification) => {
-    // Show modal with notification details
-    setSelectedNotification(item);
-    setModalVisible(true);
+  // Check if notification is appointment related
+  const isAppointmentNotification = useCallback((type: string) => {
+    return type?.startsWith('appointment_');
+  }, []);
 
-    // Mark as read
+  // Check if notification is event-related
+  const isEventNotification = useCallback((type: string | null | undefined) => {
+    return type?.startsWith('event_');
+  }, []);
+
+  const handleNotificationPress = async (item: Notification) => {
+    // Mark as read first
     if (!item.isRead) {
       try {
         await markNotificationAsRead(item.notificationId);
@@ -313,14 +298,98 @@ const NotificationScreen = ({ navigation }: Props) => {
           await refreshBadgesForActivePet(currentUserId);
         }
       } catch (error) {
-
+        // Silent fail
       }
     }
+
+    // Navigate based on notification type
+    if (isEventNotification(item.type)) {
+      // Navigate to Event List for event notifications
+      navigation.navigate('EventList');
+      return;
+    }
+
+    // Show modal for other notification types
+    setSelectedNotification(item);
+    setModalVisible(true);
   };
 
   const closeModal = () => {
     setModalVisible(false);
     setSelectedNotification(null);
+  };
+
+  // Handle delete notification (from modal)
+  const handleDeleteNotification = async () => {
+    if (!selectedNotification || !currentUserId) return;
+
+    try {
+      setDeleting(true);
+      await deleteNotification(selectedNotification.notificationId);
+      
+      // Remove from local state
+      setNotifications(prev => 
+        prev.filter(n => n.notificationId !== selectedNotification.notificationId)
+      );
+      
+      // Refresh badge count
+      await refreshBadgesForActivePet(currentUserId);
+      
+      closeModal();
+      
+      showAlert({
+        type: 'success',
+        title: t('alerts.success'),
+        message: t('notification.deleteSuccess') || 'Đã xóa thông báo'
+      });
+    } catch (error: any) {
+      showAlert({
+        type: 'error',
+        title: t('alerts.error'),
+        message: error.message || t('notification.deleteError') || 'Không thể xóa thông báo'
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Handle delete notification directly (long press)
+  const handleDirectDelete = useCallback((item: Notification) => {
+    setDeleteTarget(item);
+  }, []);
+
+  // Execute delete after confirm
+  const executeDelete = async () => {
+    if (!deleteTarget || !currentUserId) return;
+    
+    try {
+      setDeletingId(deleteTarget.notificationId);
+      setDeleteTarget(null);
+      
+      await deleteNotification(deleteTarget.notificationId);
+      
+      // Remove from local state
+      setNotifications(prev => 
+        prev.filter(n => n.notificationId !== deleteTarget.notificationId)
+      );
+      
+      // Refresh badge count
+      await refreshBadgesForActivePet(currentUserId);
+      
+      showAlert({
+        type: 'success',
+        title: t('alerts.success'),
+        message: t('notification.deleteSuccess') || 'Đã xóa thông báo'
+      });
+    } catch (error: any) {
+      showAlert({
+        type: 'error',
+        title: t('alerts.error'),
+        message: error.message || t('notification.deleteError') || 'Không thể xóa thông báo'
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   // Handle chat with expert
@@ -338,24 +407,17 @@ const NotificationScreen = ({ navigation }: Props) => {
       setCreatingChat(true);
       let expertId = selectedNotification.expertId;
 
-      // Fallback: If expertId not in AsyncStorage (old notification), try to find from ExpertConfirmation
       if (!expertId) {
-        console.log('⚠️ ExpertId not found in AsyncStorage for notification:', selectedNotification.notificationId);
-        console.log('🔄 Attempting fallback: Loading from ExpertConfirmation API...');
-
         try {
           const confirmations = await getUserExpertConfirmations(currentUserId);
-          console.log('✅ Loaded expert confirmations:', confirmations);
 
           if (confirmations.length === 0) {
             throw new Error('Không tìm thấy yêu cầu xác nhận nào.');
           }
 
-          // Find confirmation with matching timestamp (within 5 seconds of notification)
-          // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
           let notifDateStr = selectedNotification.createdAt || '';
           if (notifDateStr && !notifDateStr.endsWith('Z') && !notifDateStr.includes('+')) {
-            notifDateStr = notifDateStr + 'Z';
+            notifDateStr = notifDateStr + '+07:00';
           }
           const notificationTime = notifDateStr ? new Date(notifDateStr).getTime() : 0;
 
@@ -363,26 +425,24 @@ const NotificationScreen = ({ navigation }: Props) => {
             if (c.status?.toLowerCase() !== 'confirmed') return false;
             let confirmDateStr = c.updatedAt || '';
             if (confirmDateStr && !confirmDateStr.endsWith('Z') && !confirmDateStr.includes('+')) {
-              confirmDateStr = confirmDateStr + 'Z';
+              confirmDateStr = confirmDateStr + '+07:00';
             }
             const confirmTime = confirmDateStr ? new Date(confirmDateStr).getTime() : 0;
             const timeDiff = Math.abs(confirmTime - notificationTime);
-            return timeDiff < 5000; // Within 5 seconds
+            return timeDiff < 5000;
           });
 
-          // If no exact match, use the most recent confirmed expert
           if (!matchingConfirmation) {
-            console.log('⚠️ No exact timestamp match, using most recent confirmed expert');
             matchingConfirmation = confirmations
               .filter(c => c.status?.toLowerCase() === 'confirmed')
               .sort((a, b) => {
                 let dateStrA = a.updatedAt || '';
                 if (dateStrA && !dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
-                  dateStrA = dateStrA + 'Z';
+                  dateStrA = dateStrA + '+07:00';
                 }
                 let dateStrB = b.updatedAt || '';
                 if (dateStrB && !dateStrB.endsWith('Z') && !dateStrB.includes('+')) {
-                  dateStrB = dateStrB + 'Z';
+                  dateStrB = dateStrB + '+07:00';
                 }
                 const dateA = dateStrA ? new Date(dateStrA).getTime() : 0;
                 const dateB = dateStrB ? new Date(dateStrB).getTime() : 0;
@@ -392,9 +452,7 @@ const NotificationScreen = ({ navigation }: Props) => {
 
           if (matchingConfirmation) {
             expertId = matchingConfirmation.expertId;
-            console.log('✅ Found expertId from ExpertConfirmation:', expertId);
 
-            // Store for future use
             const mappingKey = `notification_expert_${selectedNotification.notificationId}`;
             const mappingData = {
               expertId: expertId,
@@ -402,7 +460,6 @@ const NotificationScreen = ({ navigation }: Props) => {
               timestamp: Date.now()
             };
             await AsyncStorage.setItem(mappingKey, JSON.stringify(mappingData));
-            console.log('💾 Stored expert mapping for future use');
           }
         } catch (err) {
 
@@ -419,13 +476,8 @@ const NotificationScreen = ({ navigation }: Props) => {
         return;
       }
 
-      console.log(`🔄 Creating chat with expert: expertId=${expertId}, userId=${currentUserId}, notificationId=${selectedNotification.notificationId}`);
-
-      // Create or get existing chat
       const chatResponse = await createOrGetExpertChat(expertId, currentUserId);
-      console.log('✅ Chat created/retrieved:', chatResponse);
 
-      // Close modal
       closeModal();
 
       // Navigate to expert chat screen
@@ -446,23 +498,32 @@ const NotificationScreen = ({ navigation }: Props) => {
     }
   };
 
-  // 🚀 OPTIMIZATION: Memoize renderNotification with useCallback
   const renderNotification = useCallback(({ item }: { item: Notification }) => {
     const type = item.type || 'system';
     const iconConfig = getNotificationIcon(type);
     const bgColors = getNotificationBgColor(type);
     const timeAgo = item.createdAt ? getTimeAgo(item.createdAt) : 'Unknown';
     const isUnread = !item.isRead;
+    const isDeleting = deletingId === item.notificationId;
 
     return (
       <TouchableOpacity
         style={[
           styles.notificationItem,
           isUnread && styles.notificationUnread,
+          isDeleting && styles.notificationDeleting,
         ]}
         onPress={() => handleNotificationPress(item)}
+        onLongPress={() => handleDirectDelete(item)}
+        delayLongPress={500}
         activeOpacity={0.7}
+        disabled={isDeleting}
       >
+        {isDeleting && (
+          <View style={styles.deletingOverlay}>
+            <ActivityIndicator size="small" color="#FF3B30" />
+          </View>
+        )}
         <View style={styles.iconContainer}>
           <LinearGradient
             colors={bgColors}
@@ -485,6 +546,11 @@ const NotificationScreen = ({ navigation }: Props) => {
                 <Icon name="shield-checkmark" size={12} color="#FF6EA7" />
                 <Text style={styles.expertBadgeText}>{t('badges.expert')}</Text>
               </View>
+            ) : type?.startsWith('appointment_') ? (
+              <View style={[styles.expertBadge, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="calendar" size={12} color="#4CAF50" />
+                <Text style={[styles.expertBadgeText, { color: '#4CAF50' }]}>Lịch hẹn</Text>
+              </View>
             ) : null}
           </View>
           <Text
@@ -503,29 +569,28 @@ const NotificationScreen = ({ navigation }: Props) => {
         </View>
       </TouchableOpacity>
     );
-  }, [getNotificationIcon, getNotificationBgColor, handleNotificationPress]);
+  }, [getNotificationIcon, getNotificationBgColor, handleNotificationPress, handleDirectDelete, deletingId]);
 
-  // 🚀 OPTIMIZATION: Memoize filtered notifications
   const filteredNotifications = useMemo(() => {
     return notifications.filter(n => {
       if (filterType === "all") return true;
       if (filterType === "unread") return !n.isRead;
       if (filterType === "system") return n.type === "system";
       if (filterType === "expert") return n.type === "expert_reply" || n.type === "expert" || n.type === "expert_confirmation";
+      if (filterType === "appointment") return n.type?.startsWith('appointment_');
       return true;
     });
   }, [notifications, filterType]);
 
-  // 🚀 OPTIMIZATION: Memoize unreadCount calculation
   const unreadCount = useMemo(() =>
     notifications.filter((n) => !n.isRead).length,
     [notifications]
   );
 
-  // 🚀 OPTIMIZATION: Memoize filter tabs configuration
   const filterTabs = useMemo(() => [
     { id: "all", label: t('notification.filter.all'), icon: "apps" },
     { id: "unread", label: t('notification.filter.unread'), icon: "mail-unread", badge: unreadCount },
+    { id: "appointment", label: "Lịch hẹn", icon: "calendar" },
     { id: "system", label: t('notification.filter.system'), icon: "notifications" },
     { id: "expert", label: t('notification.filter.expert'), icon: "medical" },
   ], [unreadCount, t]);
@@ -637,7 +702,7 @@ const NotificationScreen = ({ navigation }: Props) => {
               tintColor={colors.primary}
             />
           }
-          // 🚀 OPTIMIZATION: FlatList performance props
+          // FlatList performance props
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           updateCellsBatchingPeriod={50}
@@ -828,25 +893,72 @@ const NotificationScreen = ({ navigation }: Props) => {
                     <Text style={styles.modalSecondaryButtonText}>{t('notification.modal.close')}</Text>
                   </TouchableOpacity>
                 </>
+              ) : isAppointmentNotification(selectedNotification?.type || '') ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => {
+                      closeModal();
+                      navigation.navigate('MyAppointments');
+                    }}
+                  >
+                    <LinearGradient
+                      colors={["#4CAF50", "#66BB6A"]}
+                      style={styles.modalButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Icon name="calendar" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                      <Text style={styles.modalButtonText}>{t('notification.viewAppointment') || 'Xem lịch hẹn'}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalSecondaryButton}
+                    onPress={closeModal}
+                  >
+                    <Text style={styles.modalSecondaryButtonText}>{t('notification.modal.close')}</Text>
+                  </TouchableOpacity>
+                </>
               ) : (
                 <TouchableOpacity
-                  style={styles.modalButton}
+                  style={styles.modalSecondaryButton}
                   onPress={closeModal}
                 >
-                  <LinearGradient
-                    colors={["#FF6EA7", "#FF9BC0"]}
-                    style={styles.modalButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.modalButtonText}>{t('notification.modal.close')}</Text>
-                  </LinearGradient>
+                  <Text style={styles.modalSecondaryButtonText}>{t('notification.modal.close')}</Text>
                 </TouchableOpacity>
               )}
+
+              {/* Delete Button - Subtle at bottom */}
+              <TouchableOpacity
+                style={styles.deleteButtonSubtle}
+                onPress={handleDeleteNotification}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#999" />
+                ) : (
+                  <>
+                    <Icon name="trash-outline" size={16} color="#999" />
+                    <Text style={styles.deleteButtonSubtleText}>{t('notification.delete') || 'Xóa thông báo'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Delete Confirm Alert */}
+      <CustomAlert
+        visible={deleteTarget !== null}
+        type="warning"
+        title={t('notification.deleteConfirmTitle') || 'Xóa thông báo'}
+        message={t('notification.deleteConfirmMessage') || 'Bạn có chắc muốn xóa thông báo này?'}
+        showCancel={true}
+        confirmText={t('notification.delete') || 'Xóa'}
+        onConfirm={executeDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
 
       {/* Custom Alert */}
       {alertConfig && (
@@ -987,6 +1099,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+  },
+  notificationDeleting: {
+    opacity: 0.6,
+  },
+  deletingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: radius.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   iconContainer: {
     position: "relative",
@@ -1323,6 +1450,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.textMedium,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderRadius: radius.xl,
+    backgroundColor: "#FFF0F0",
+    borderWidth: 1,
+    borderColor: "rgba(255, 59, 48, 0.2)",
+    gap: 8,
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#FF3B30",
+  },
+  deleteButtonSubtle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    marginTop: 8,
+    gap: 6,
+  },
+  deleteButtonSubtleText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#999",
   },
 });
 

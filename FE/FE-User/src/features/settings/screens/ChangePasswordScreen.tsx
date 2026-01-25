@@ -51,6 +51,24 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
       return false;
     }
 
+    // Kiểm tra độ dài tối đa 100 ký tự (đồng bộ với BE)
+    if (newPassword.length > 100) {
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordMaxLength') });
+      return false;
+    }
+
+    // Kiểm tra có chứa chữ hoa (đồng bộ với BE)
+    if (!/[A-Z]/.test(newPassword)) {
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordNeedsUppercase') });
+      return false;
+    }
+
+    // Kiểm tra có chứa chữ thường (đồng bộ với BE)
+    if (!/[a-z]/.test(newPassword)) {
+      showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordNeedsLowercase') });
+      return false;
+    }
+
     // Kiểm tra có chứa số
     if (!/\d/.test(newPassword)) {
       showAlert({ type: 'warning', title: t('common.error'), message: t('settings.changePassword.errors.passwordNeedsNumber') });
@@ -257,6 +275,52 @@ const ChangePasswordScreen = ({ navigation }: Props) => {
                 ]}
               >
                 {t('settings.changePassword.requirements.minLength')}
+              </Text>
+            </View>
+
+            {/* Chứa ít nhất 1 chữ hoa */}
+            <View style={styles.requirement}>
+              <Icon
+                name={
+                  /[A-Z]/.test(newPassword)
+                    ? "checkmark-circle"
+                    : "ellipse-outline"
+                }
+                size={16}
+                color={
+                  /[A-Z]/.test(newPassword) ? colors.success : colors.textLabel
+                }
+              />
+              <Text
+                style={[
+                  styles.requirementText,
+                  /[A-Z]/.test(newPassword) && styles.requirementMet,
+                ]}
+              >
+                {t('settings.changePassword.requirements.hasUppercase')}
+              </Text>
+            </View>
+
+            {/* Chứa ít nhất 1 chữ thường */}
+            <View style={styles.requirement}>
+              <Icon
+                name={
+                  /[a-z]/.test(newPassword)
+                    ? "checkmark-circle"
+                    : "ellipse-outline"
+                }
+                size={16}
+                color={
+                  /[a-z]/.test(newPassword) ? colors.success : colors.textLabel
+                }
+              />
+              <Text
+                style={[
+                  styles.requirementText,
+                  /[a-z]/.test(newPassword) && styles.requirementMet,
+                ]}
+              >
+                {t('settings.changePassword.requirements.hasLowercase')}
               </Text>
             </View>
 

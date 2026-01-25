@@ -22,7 +22,8 @@ import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import BottomNav from "../../../components/BottomNav";
 import { colors, gradients, radius, shadows } from "../../../theme";
-import { getRecommendedPets, RecommendedPet, getPetsByUserId } from "../../pet/api/petApi";
+import { getRecommendedPets, RecommendedPet, getPetsByUserId, MatchedAttribute } from "../../pet/api/petApi";
+import { MatchDetailsModal } from "../../../components/MatchDetailsModal";
 import { sendLike } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppSelector } from "../../../app/hooks";
@@ -56,9 +57,11 @@ interface PetProfile {
     image: any; // First image for backward compatibility
     images: any[]; // All images for carousel
     personality: string[];
-    owner: string;
     ownerId: number; // Add ownerId for API calls
     matchPercent: number; // Match percentage (0-100)
+    matchScore: number; // Match score (total matched percent)
+    totalPercent: number; // Total possible percent
+    matchedAttributes: MatchedAttribute[]; // Matched attributes for modal
     ownerIsVip?: boolean; // VIP status of pet owner
 }
 
@@ -76,6 +79,11 @@ const HomeScreen = ({ navigation }: Props) => {
     const [limitMessage, setLimitMessage] = useState("");
     const [refreshing, setRefreshing] = useState(false);
     const [isVip, setIsVip] = useState<boolean>(false);
+    
+    // Match details modal state
+    const [showMatchDetailsModal, setShowMatchDetailsModal] = useState(false);
+    const [selectedPetForMatch, setSelectedPetForMatch] = useState<PetProfile | null>(null);
+    const [totalFilters, setTotalFilters] = useState(0); // Tổng số filter user đã đặt
 
     // Fade-in animation for loaded pets
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -173,9 +181,7 @@ const HomeScreen = ({ navigation }: Props) => {
     useEffect(() => {
         activePetIdRef.current = activePetId;
 
-        // Only refresh badges when pet ACTUALLY changes (not on initial mount)
         if (activePetId && currentUserId && prevActivePetIdRef.current !== null && prevActivePetIdRef.current !== activePetId) {
-            console.log(`🔄 Pet switched from ${prevActivePetIdRef.current} to ${activePetId}, refreshing badges...`);
             refreshBadgesForActivePet(currentUserId);
         }
 
@@ -192,17 +198,13 @@ const HomeScreen = ({ navigation }: Props) => {
         const userId = currentUserIdRef.current;
         if (!userId) return;
 
-        // Match success handler
         const handleMatchSuccess = (data: any) => {
-            console.log('🎉 Match notification received:', data);
             // Match modal is handled globally in App.tsx
         };
 
-        // Setup SignalR (NewNotification listener is in AppNavigator globally)
         const setupSignalR = async () => {
             try {
                 await signalRService.connect(userId);
-                console.log('✅ SignalR connected in HomeScreen');
                 signalRService.on('MatchSuccess', handleMatchSuccess);
             } catch (error) {
 
@@ -259,21 +261,8 @@ const HomeScreen = ({ navigation }: Props) => {
                 }
             },
             onPanResponderRelease: (_, gesture) => {
-                console.log("👆 Gesture released:", {
-                    dx: gesture.dx,
-                    dy: gesture.dy,
-                    threshold: SWIPE_THRESHOLD,
-                    willSwipeRight: gesture.dx > SWIPE_THRESHOLD,
-                    willSwipeLeft: gesture.dx < -SWIPE_THRESHOLD,
-                    currentIndex: currentIndexRef.current,
-                    petsLength: petsRef.current.length,
-                    hasPets: petsRef.current.length > 0
-                });
-
-                // Only process horizontal swipes
                 const isHorizontalSwipe = Math.abs(gesture.dx) > Math.abs(gesture.dy);
                 if (!isHorizontalSwipe) {
-                    console.log("↕️ Vertical gesture detected, ignoring for swipe");
                     Animated.spring(position, {
                         toValue: { x: 0, y: 0 },
                         useNativeDriver: false,
@@ -282,13 +271,10 @@ const HomeScreen = ({ navigation }: Props) => {
                 }
 
                 if (gesture.dx > SWIPE_THRESHOLD) {
-                    console.log("➡️ Triggering RIGHT swipe");
                     forceSwipe("right");
                 } else if (gesture.dx < -SWIPE_THRESHOLD) {
-                    console.log("⬅️ Triggering LEFT swipe");
                     forceSwipe("left");
                 } else {
-                    console.log("🔙 Gesture too small, returning to center");
                     Animated.spring(position, {
                         toValue: { x: 0, y: 0 },
                         useNativeDriver: false,
@@ -299,19 +285,9 @@ const HomeScreen = ({ navigation }: Props) => {
     ).current;
 
     const forceSwipe = (direction: "left" | "right") => {
-        // Use refs to get latest values
         const latestPets = petsRef.current;
         const latestIndex = currentIndexRef.current;
         const latestUserId = currentUserIdRef.current;
-
-        console.log("💨 Force swipe called:", {
-            direction,
-            currentIndex: latestIndex,
-            petsLength: latestPets.length,
-            currentPet: latestPets[latestIndex]?.name,
-            currentUserId: latestUserId,
-            ownerId: latestPets[latestIndex]?.ownerId
-        });
 
         const x = direction === "right" ? width + 100 : -width - 100;
         Animated.timing(position, {
@@ -319,74 +295,48 @@ const HomeScreen = ({ navigation }: Props) => {
             duration: 250,
             useNativeDriver: false,
         }).start(() => {
-            console.log("✨ Animation complete, calling onSwipeComplete");
             onSwipeComplete(direction);
         });
     };
 
     const onSwipeComplete = async (direction: "left" | "right") => {
-        // Haptic feedback for swipe complete
         try {
             ReactNativeHapticFeedback.trigger("impactLight", {
                 enableVibrateFallback: true,
                 ignoreAndroidSystemSettings: false,
             });
         } catch (error) {
-            console.log('Haptic feedback not supported:', error);
+            // Haptic feedback not supported
         }
 
-        // Use refs to get latest values
         const latestPets = petsRef.current;
         const latestIndex = currentIndexRef.current;
         const latestUserId = currentUserIdRef.current;
         const currentPet = latestPets[latestIndex];
 
-        console.log("🔄 Swipe complete:", {
-            direction,
-            currentIndex: latestIndex,
-            petId: currentPet?.id,
-            ownerId: currentPet?.ownerId,
-            currentUserId: latestUserId,
-            hasPet: !!currentPet
-        });
-
-        // Safety check
         if (!currentPet || !currentPet.id) {
-            console.log("⚠️ No valid pet at index:", latestIndex);
             position.setValue({ x: 0, y: 0 });
             setCurrentIndex(prev => prev + 1);
             return;
         }
 
         if (!latestUserId) {
-
             position.setValue({ x: 0, y: 0 });
             setCurrentIndex(prev => prev + 1);
             return;
         }
 
         if (direction === "right") {
-            // Send like via API
             try {
                 const latestActivePetId = activePetIdRef.current;
 
-                console.log("❤️ Sending like for pet:", {
-                    fromPetId: latestActivePetId,
-                    toPetId: currentPet.id,
-                    petName: currentPet.name,
-                    ownerId: currentPet.ownerId,
-                    fromUserId: latestUserId
-                });
-
                 if (!currentPet.ownerId) {
-
                     position.setValue({ x: 0, y: 0 });
                     setCurrentIndex(prev => prev + 1);
                     return;
                 }
 
                 if (!latestActivePetId) {
-
                     position.setValue({ x: 0, y: 0 });
                     setCurrentIndex(prev => prev + 1);
                     return;
@@ -396,30 +346,19 @@ const HomeScreen = ({ navigation }: Props) => {
                     fromUserId: latestUserId,
                     toUserId: currentPet.ownerId,
                     fromPetId: latestActivePetId,
-                    toPetId: Number(currentPet.id) // ✅ Use Number() instead of parseInt() to handle edge cases
+                    toPetId: Number(currentPet.id)
                 });
-
-                console.log("✅ Like sent successfully:", response);
 
                 // Match modal is handled globally in App.tsx via SignalR
             } catch (error: any) {
-                // Check if it's a 429 limit error
                 if (error.response?.status === 429) {
                     const errorData = error.response?.data;
                     setLimitMessage(errorData?.message || t('home.matchLimit'));
                     setShowMatchLimitModal(true);
-
-                    // Reset card position
                     position.setValue({ x: 0, y: 0 });
-                    return; // Don't advance to next card
-                } else {
-                    // Only log non-limit errors
-
+                    return;
                 }
             }
-        } else if (direction === "left") {
-            // Just pass - no need to save to database
-            console.log("👎 Passed pet:", currentPet.id);
         }
 
         position.setValue({ x: 0, y: 0 });
@@ -427,16 +366,12 @@ const HomeScreen = ({ navigation }: Props) => {
     };
 
 
-    // 🚀 OPTIMIZED: Load pets with lazy loading and parallel API calls
     const loadPets = async () => {
         try {
             setLoading(true);
-            console.log('🔄 Loading pets with optimizations...');
 
-            // Get current user ID from storage
             const userIdStr = await AsyncStorage.getItem('userId');
             if (!userIdStr) {
-                console.log('❌ No userId found in storage');
                 setLoading(false);
                 return;
             }
@@ -450,33 +385,28 @@ const HomeScreen = ({ navigation }: Props) => {
 
             setCurrentUserId(userId);
 
-            // Load current user's VIP status
             try {
                 const vipStatus = await getVipStatus(userId);
                 setIsVip(vipStatus.isVip);
-                console.log('💎 Current user VIP status:', vipStatus.isVip);
             } catch (error) {
-                console.log('⚠️ Failed to load VIP status, assuming not VIP');
                 setIsVip(false);
             }
 
-            // 🚀 OPTIMIZATION 1: Parallel API calls instead of sequential
-            const [userPets, recommendedPets] = await Promise.all([
+            const [userPets, recommendedResponse] = await Promise.all([
                 getPetsByUserId(userId),
                 getRecommendedPets(userId)
             ]);
 
-            // Get user's active pet ID
+            const recommendedPets = recommendedResponse.pets;
+            setTotalFilters(recommendedResponse.totalPreferences);
+
             const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
             if (activePet) {
                 const petId = activePet.PetId || activePet.petId;
                 setActivePetId(petId ?? null);
-                console.log('🐾 User active pet:', petId);
-            } else {
-                console.log('⚠️ No active pet found for user');
             }
 
-            // 🚀 OPTIMIZATION 2: Lazy loading - Only process first 10 pets initially
+            // Lazy loading - Only process first 10 pets initially
             const INITIAL_LOAD_COUNT = 10;
             const petsToLoad = recommendedPets.slice(0, INITIAL_LOAD_COUNT);
 
@@ -501,13 +431,15 @@ const HomeScreen = ({ navigation }: Props) => {
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: matchPercent,
+                        matchScore: pet.matchScore ?? 0,
+                        totalPercent: pet.totalPercent ?? 0,
+                        matchedAttributes: pet.matchedAttributes ?? [],
                     };
                 });
 
-            // 🚀 OPTIMIZATION 3: Only check VIP for first 5 pets (visible ones)
+            // Only check VIP for first 5 pets (visible ones)
             const VIP_CHECK_COUNT = 5;
             const uniqueOwnerIds = Array.from(new Set(
                 formattedPets.slice(0, VIP_CHECK_COUNT).map(p => p.ownerId)
@@ -532,7 +464,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 ownerIsVip: vipStatuses[pet.ownerId] || false,
             }));
 
-            // 🚀 OPTIMIZATION: Preload first few pet images for faster display
+            // Preload first few pet images for faster display
             const imageUrls = petsWithVip
                 .slice(0, 5)
                 .flatMap(pet => pet.images.filter((img: any) => img.uri).map((img: any) => img.uri));
@@ -542,7 +474,7 @@ const HomeScreen = ({ navigation }: Props) => {
             setCurrentIndex(0);
             setCurrentPhotoIndices({});
 
-            // 🚀 OPTIMIZATION 4: Load remaining pets in background
+            // Load remaining pets in background
             if (recommendedPets.length > INITIAL_LOAD_COUNT) {
                 loadMorePetsInBackground(recommendedPets.slice(INITIAL_LOAD_COUNT), userId);
             }
@@ -554,11 +486,9 @@ const HomeScreen = ({ navigation }: Props) => {
         }
     };
 
-    // 🚀 OPTIMIZATION 5: Background loading for remaining pets
+    // Background loading for remaining pets
     const loadMorePetsInBackground = async (remainingPets: RecommendedPet[], userId: number) => {
         try {
-            console.log(`🔄 Loading ${remainingPets.length} more pets in background...`);
-
             const formattedPets: PetProfile[] = remainingPets
                 .filter((pet: RecommendedPet) => pet && pet.petId && pet.name)
                 .map((pet: RecommendedPet) => {
@@ -577,16 +507,17 @@ const HomeScreen = ({ navigation }: Props) => {
                         image: photos[0],
                         images: photos,
                         personality: [],
-                        owner: pet.owner?.fullName || t('fallback.unknown'),
                         ownerId: pet.userId,
                         matchPercent: pet.matchPercent ?? 0,
+                        matchScore: pet.matchScore ?? 0,
+                        totalPercent: pet.totalPercent ?? 0,
+                        matchedAttributes: pet.matchedAttributes ?? [],
                         ownerIsVip: false, // Will be updated later if needed
                     };
                 });
 
             // Append to existing pets
             setPets(prev => [...prev, ...formattedPets]);
-            console.log(`✅ Loaded ${formattedPets.length} more pets in background`);
         } catch (error) {
 
         }
@@ -597,18 +528,16 @@ const HomeScreen = ({ navigation }: Props) => {
         useCallback(() => {
             loadPets();
             
-            // ✅ FORCE badge refresh when entering HomeScreen
-            // This ensures badges are always up-to-date, especially after login/restart
+            // Force badge refresh when entering HomeScreen
             const refreshBadges = async () => {
                 try {
                     const userIdStr = await AsyncStorage.getItem('userId');
                     if (userIdStr) {
                         const userId = parseInt(userIdStr);
-                        console.log('🔄 [HomeScreen] Force refreshing badges on focus');
-                        await refreshBadgesForActivePet(userId, true); // immediate=true
+                        await refreshBadgesForActivePet(userId, true);
                     }
                 } catch (error) {
-                    console.error('❌ [HomeScreen] Failed to refresh badges:', error);
+                    // Failed to refresh badges
                 }
             };
             
@@ -634,16 +563,15 @@ const HomeScreen = ({ navigation }: Props) => {
         }, [showAlert])
     );
 
-    // 🚀 OPTIMIZATION 6: Memoize handlers to prevent re-renders
+    // Memoize handlers to prevent re-renders
     const handleLike = useCallback(() => {
-        // Haptic feedback for Like button
         try {
             ReactNativeHapticFeedback.trigger("impactMedium", {
                 enableVibrateFallback: true,
                 ignoreAndroidSystemSettings: false,
             });
         } catch (error) {
-            console.log('Haptic feedback not supported:', error);
+            // Haptic feedback not supported
         }
 
         // Scale animation for Like button - run in parallel with swipe
@@ -665,14 +593,13 @@ const HomeScreen = ({ navigation }: Props) => {
     }, [likeButtonScale]);
 
     const handleNope = useCallback(() => {
-        // Haptic feedback for Pass button
         try {
             ReactNativeHapticFeedback.trigger("impactLight", {
                 enableVibrateFallback: true,
                 ignoreAndroidSystemSettings: false,
             });
         } catch (error) {
-            console.log('Haptic feedback not supported:', error);
+            // Haptic feedback not supported
         }
 
         // Scale animation for Pass button - run in parallel with swipe
@@ -694,15 +621,18 @@ const HomeScreen = ({ navigation }: Props) => {
     }, [passButtonScale]);
 
     const handleViewPetDetail = useCallback((petId: string) => {
-        console.log('📱 Opening pet detail:', petId);
         navigation.navigate("PetProfile", { petId });
     }, [navigation]);
+
+    const handleOpenMatchDetails = useCallback((pet: PetProfile) => {
+        setSelectedPetForMatch(pet);
+        setShowMatchDetailsModal(true);
+    }, []);
 
     // Pull-to-refresh handler
     const onRefresh = useCallback(async () => {
         try {
             setRefreshing(true);
-            console.log('🔄 Pull-to-refresh triggered');
             await loadPets();
         } catch (error) {
 
@@ -716,7 +646,7 @@ const HomeScreen = ({ navigation }: Props) => {
         }
     }, [showAlert]);
 
-    // 🚀 OPTIMIZATION 7: Memoize renderCard to prevent unnecessary re-renders
+    // Memoize renderCard to prevent unnecessary re-renders
     const renderCard = useCallback((pet: PetProfile, index: number) => {
         if (index < currentIndex) return null;
         if (!pet || !pet.id) return null; // Safety check
@@ -865,10 +795,14 @@ const HomeScreen = ({ navigation }: Props) => {
                                             </Text>
                                         </Text>
                                         {pet.matchPercent > 0 && (
-                                            <View style={styles.matchBadge}>
+                                            <TouchableOpacity 
+                                                style={styles.matchBadge}
+                                                onPress={() => handleOpenMatchDetails(pet)}
+                                                activeOpacity={0.7}
+                                            >
                                                 <Icon name="star" size={12} color={colors.primary} />
                                                 <Text style={styles.matchBadgeText}>{pet.matchPercent}%</Text>
-                                            </View>
+                                            </TouchableOpacity>
                                         )}
                                     </View>
                                     <Text style={styles.petMeta}>
@@ -889,16 +823,6 @@ const HomeScreen = ({ navigation }: Props) => {
                                         <Text style={styles.tagText}>{trait}</Text>
                                     </View>
                                 ))}
-                            </View>
-
-                            <View style={styles.ownerInfo}>
-                                <Icon name="person-outline" size={14} color={colors.white} />
-                                <Text style={styles.ownerText}>{t('home.owner', { name: pet.owner })}</Text>
-                                {pet.ownerIsVip && (
-                                    <View style={styles.vipBadgeSmall}>
-                                        <Icon name="diamond" size={12} color="#FFD700" />
-                                    </View>
-                                )}
                             </View>
 
                             {/* Action Buttons on Card */}
@@ -938,7 +862,7 @@ const HomeScreen = ({ navigation }: Props) => {
                 </View>
             </Animated.View>
         );
-    }, [currentIndex, currentPhotoIndices, position.x, position.y, rotate, panResponder.panHandlers, handleViewPetDetail, handleLike, handleNope, fadeAnim, likeButtonScale, passButtonScale, cardOpacity, nextCardFadeAnim]);
+    }, [currentIndex, currentPhotoIndices, position.x, position.y, rotate, panResponder.panHandlers, handleViewPetDetail, handleLike, handleNope, handleOpenMatchDetails, fadeAnim, likeButtonScale, passButtonScale, cardOpacity, nextCardFadeAnim]);
 
     // Show loading state with skeleton
     if (loading) {
@@ -973,6 +897,20 @@ const HomeScreen = ({ navigation }: Props) => {
 
                         {/* Right Actions */}
                         <View style={styles.headerRight}>
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("EventList")}
+                            >
+                                <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("MyAppointments")}
+                            >
+                                <Icon name="calendar-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
                             <TouchableOpacity
                                 style={styles.iconButton}
                                 onPress={() => (navigation as any).navigate("FilterScreen")}
@@ -1090,6 +1028,20 @@ const HomeScreen = ({ navigation }: Props) => {
                         <View style={styles.headerRight}>
                             <TouchableOpacity
                                 style={styles.iconButton}
+                                onPress={() => navigation.navigate("EventList")}
+                            >
+                                <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => navigation.navigate("MyAppointments")}
+                            >
+                                <Icon name="calendar-outline" size={26} color={colors.textDark} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
                                 onPress={() => (navigation as any).navigate("FilterScreen")}
                             >
                                 <Icon name="options-outline" size={26} color={colors.textDark} />
@@ -1168,6 +1120,20 @@ const HomeScreen = ({ navigation }: Props) => {
                     <View style={styles.headerRight}>
                         <TouchableOpacity
                             style={styles.iconButton}
+                            onPress={() => navigation.navigate("EventList")}
+                        >
+                            <Icon name="ribbon-outline" size={26} color={colors.textDark} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => navigation.navigate("MyAppointments")}
+                        >
+                            <Icon name="calendar-outline" size={26} color={colors.textDark} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.iconButton}
                             onPress={() => (navigation as any).navigate("FilterScreen")}
                         >
                             <Icon name="options-outline" size={26} color={colors.textDark} />
@@ -1198,6 +1164,23 @@ const HomeScreen = ({ navigation }: Props) => {
                 actionType="match"
                 isVip={isVip}
             />
+
+            {/* Match Details Modal */}
+            {selectedPetForMatch && (
+                <MatchDetailsModal
+                    visible={showMatchDetailsModal}
+                    onClose={() => {
+                        setShowMatchDetailsModal(false);
+                        setSelectedPetForMatch(null);
+                    }}
+                    petName={selectedPetForMatch.name}
+                    matchPercent={selectedPetForMatch.matchPercent}
+                    matchScore={selectedPetForMatch.matchScore}
+                    totalPercent={selectedPetForMatch.totalPercent}
+                    matchedAttributes={selectedPetForMatch.matchedAttributes}
+                    totalFilters={totalFilters}
+                />
+            )}
 
             {/* Custom Alert for Login Success */}
             {alertConfig && (

@@ -128,6 +128,12 @@ const SettingsScreen = ({ navigation }: Props) => {
       subtitle: t('settings.supportSection.privacyDesc'),
       onPress: () => navigation.navigate("ResourceDetail", { type: "privacy" }),
     },
+    {
+      icon: "reader-outline",
+      title: t('settings.supportSection.policies'),
+      subtitle: t('settings.supportSection.policiesDesc'),
+      onPress: () => navigation.navigate("PolicyList"),
+    },
   ];
 
   const premiumSettings: SettingsItem[] = [
@@ -148,11 +154,8 @@ const SettingsScreen = ({ navigation }: Props) => {
 
   const handleLogout = async () => {
     try {
-      // Call logout API (will invalidate tokens on server and clear local storage)
       await logout();
-      console.log('🔓 Logged out successfully');
 
-      // Navigate to Welcome screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Welcome' }],
@@ -194,7 +197,7 @@ const SettingsScreen = ({ navigation }: Props) => {
           message: t('settings.danger.deleteAccountConfirm'),
           showCancel: true,
           confirmText: t('common.delete'),
-          onConfirm: () => console.log("Delete account"),
+          onConfirm: () => {},
         });
       },
       iconColor: colors.error,

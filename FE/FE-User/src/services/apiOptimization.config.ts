@@ -1,6 +1,5 @@
 /**
- * ⚙️ API Optimization Configuration
- * Centralized configuration for API layer optimizations
+ * API Optimization Configuration
  */
 
 export const API_OPTIMIZATION_CONFIG = {

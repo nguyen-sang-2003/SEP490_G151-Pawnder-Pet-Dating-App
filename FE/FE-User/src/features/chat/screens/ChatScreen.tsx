@@ -27,7 +27,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { selectUnreadChats, selectActivePetId, selectExpertChatBadge, selectTotalChatBadge } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
 import { getVipStatus } from "../../payment/api/paymentApi";
-import { getPetsByUserId } from "../../pet/api/petApi";
+import { getPetsByUserId, getPetById } from "../../pet/api/petApi";
 import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
 import { ChatSkeleton } from "../components/ChatSkeleton";
 
@@ -73,11 +73,10 @@ const ChatScreen = ({ navigation }: Props) => {
     };
   }, []);
 
-  // ✅ Reload chats when activePetId changes
+  // Reload chats when activePetId changes
   useEffect(() => {
     if (activePetId !== null) {
-      console.log('🔄 Active pet changed, reloading chats...');
-      loadChats(true); // Force refresh
+      loadChats(true);
     }
   }, [activePetId]);
 
@@ -87,22 +86,19 @@ const ChatScreen = ({ navigation }: Props) => {
       loadChats();
       refreshOnlineUsers();
 
-      // ✅ FORCE badge refresh to ensure all badges are up-to-date
       const refreshBadges = async () => {
         try {
           const userIdStr = await AsyncStorage.getItem('userId');
           if (userIdStr) {
             const userId = parseInt(userIdStr);
-            console.log('🔄 [ChatScreen] Force refreshing all badges on focus');
             await refreshBadgesForActivePet(userId, true);
           }
         } catch (error) {
-          console.error('❌ [ChatScreen] Failed to refresh badges:', error);
+          // Failed to refresh badges
         }
       };
       
       refreshBadges();
-      // ChatDetailScreen marks chats as read locally
     }, [])
   );
 
@@ -113,22 +109,17 @@ const ChatScreen = ({ navigation }: Props) => {
 
       const userId = parseInt(userIdStr);
 
-      // Connect to SignalR if not connected
       if (!signalRService.isConnected()) {
         await signalRService.connect(userId);
       }
 
-      // Listen for online/offline events
       signalRService.on('UserOnline', handleUserOnline);
       signalRService.on('UserOffline', handleUserOffline);
       signalRService.on('ReceiveMessage', handleNewMessage);
       signalRService.on('MatchDeleted', handleMatchDeleted);
 
-      // Get initial online users
       const online = await signalRService.getOnlineUsers();
       setOnlineUsers(new Set(online));
-
-      console.log('✅ SignalR setup complete in ChatScreen');
     } catch (error) {
 
     }
@@ -147,34 +138,26 @@ const ChatScreen = ({ navigation }: Props) => {
   };
 
   const handleNewMessage = (data: any) => {
-    console.log('💬 [ChatScreen] New message received via SignalR:', data);
-    
     const matchId = data.MatchId || data.matchId;
     const message = data.Message || data.message;
     const fromUserId = data.FromUserId || data.fromUserId;
     const createdAt = data.CreatedAt || data.createdAt || new Date().toISOString();
     
     if (!matchId) {
-      console.log('⚠️ No matchId in message data');
       return;
     }
 
-    // ✅ Optimistic update: Update chat item immediately
     setChatData(prevChats => {
       const chatIndex = prevChats.findIndex(chat => chat.matchId === matchId);
       
       if (chatIndex === -1) {
-        // Chat not in list (new match) - reload to get it
-        console.log('🆕 New chat detected, reloading...');
         loadChats(true);
         return prevChats;
       }
       
-      // ✅ Update existing chat
       const updatedChats = [...prevChats];
       const chat = updatedChats[chatIndex];
       
-      // Format time
       const formatTime = (dateString: string): string => {
         let dateStr = dateString;
         if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
@@ -191,21 +174,17 @@ const ChatScreen = ({ navigation }: Props) => {
         return `${Math.floor(diffHours / 24)}d`;
       };
       
-      // Update last message and timestamp
       const updatedChat = {
         ...chat,
         lastMessage: message || 'New message',
         time: formatTime(createdAt),
-        lastMessageTime: createdAt, // Update timestamp for sorting
-        // Only increment unread if message is FROM other user
+        lastMessageTime: createdAt,
         unread: fromUserId !== currentUserId ? (chat.unread || 0) + 1 : chat.unread,
       };
       
-      // Remove from current position and add to top
       updatedChats.splice(chatIndex, 1);
       updatedChats.unshift(updatedChat);
       
-      // Sort to ensure correct order (newest first by lastMessageTime or matchCreatedAt)
       updatedChats.sort((a, b) => {
         const timeA = a.lastMessageTime || a.matchCreatedAt;
         const timeB = b.lastMessageTime || b.matchCreatedAt;
@@ -225,26 +204,20 @@ const ChatScreen = ({ navigation }: Props) => {
         return dateB.getTime() - dateA.getTime();
       });
       
-      console.log('✅ Updated chat in list and sorted by newest message');
       return updatedChats;
     });
 
-    // Invalidate cache for next reload
     if (currentUserId) {
       invalidateCache.chats(currentUserId);
     }
   };
 
   const handleMatchDeleted = (data: any) => {
-    console.log('💔 [ChatScreen] Match deleted:', data);
     const matchId = data.matchId || data.MatchId;
     
     if (matchId) {
-      // ✅ Remove from UI immediately
       setChatData(prevChats => prevChats.filter(chat => chat.matchId !== matchId));
-      console.log('✅ Removed matchId from ChatScreen:', matchId);
       
-      // Also invalidate cache
       if (currentUserId) {
         invalidateCache.chats(currentUserId);
       }
@@ -275,19 +248,16 @@ const ChatScreen = ({ navigation }: Props) => {
     try {
       setLoading(true);
 
-      // Get current user ID
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        console.log('❌ No userId found');
         setLoading(false);
         return;
       }
 
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
-      console.log('👤 Current user:', userId);
 
-      // 🚀 OPTIMIZATION: Get user's active pet ID with cache
+      // Get user's active pet ID with cache
       let activePetId: number | undefined;
       try {
         const userPets = await cache.getOrFetch(
@@ -298,58 +268,53 @@ const ChatScreen = ({ navigation }: Props) => {
         const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
         if (activePet) {
           activePetId = activePet.PetId || activePet.petId;
-          console.log('🐾 Active pet for chat filtering:', activePetId);
-        } else {
-          console.log('⚠️ No active pet found - showing all chats');
         }
       } catch (error) {
-        console.log('⚠️ Could not get active pet - showing all chats');
+        // Could not get active pet
       }
 
-      // 🚀 OPTIMIZATION: Check cache first (unless force refresh)
+      // Check cache first (unless force refresh)
       const cacheKey = CACHE_KEYS.CHATS(userId, activePetId);
       if (!forceRefresh) {
         const cachedChats = cache.get<ChatItem[]>(cacheKey, CACHE_TTL.SHORT);
         if (cachedChats) {
-          console.log('✅ Using cached chats');
           setChatData(cachedChats);
           setLoading(false);
           return;
         }
       }
 
-      // Get accepted matches (chats), filtered by active pet if available
       const chats = await getChats(userId, activePetId);
-      console.log('💬 Got chats:', chats);
 
-      // For each chat, get the other user's info and last message
       const chatItems = await Promise.all(
         chats.map(async (chat) => {
-          // Determine the other user ID and pet ID
           const otherUserId = chat.fromUserId === userId ? chat.toUserId : chat.fromUserId;
           const otherPetId = chat.fromUserId === userId ? chat.toPetId : chat.fromPetId;
 
           try {
-            // Get other user's info
-            const otherUser = await getUserById(otherUserId);
+            // Get pet name instead of user name for privacy
+            let petName = t('fallback.unknown');
+            if (otherPetId) {
+              try {
+                const petData = await getPetById(otherPetId);
+                petName = petData.name || t('fallback.unknown');
+              } catch (error) {
+                // Use fallback
+              }
+            }
 
-            // Get pet avatar (use petId from match, not active pet)
             const userAvatar = otherPetId
               ? await getPetAvatar(otherPetId)
               : await getUserPetAvatar(otherUserId);
 
-            // Check VIP status
             let isVip = false;
             try {
-              console.log(`💎 Checking VIP for chat user ${otherUserId}...`);
               const vipStatus = await getVipStatus(otherUserId);
-              console.log(`💎 Chat user ${otherUserId} VIP:`, vipStatus.isVip);
               isVip = vipStatus.isVip;
             } catch (error: any) {
 
             }
 
-            // Get last message
             let lastMessage = t('chat.startConversation');
             let lastMessageTime = chat.createdAt;
 
@@ -361,19 +326,19 @@ const ChatScreen = ({ navigation }: Props) => {
                 lastMessageTime = last.createdAt;
               }
             } catch (error) {
-              console.log('No messages yet for match:', chat.matchId);
+              // No messages yet
             }
 
             return {
               id: chat.matchId.toString(),
               matchId: chat.matchId,
               otherUserId: otherUserId,
-              name: otherUser.fullName || t('fallback.unknown'),
+              name: petName, // Show pet name instead of owner name
               lastMessage: lastMessage,
               time: formatTime(lastMessageTime),
-              lastMessageTime: lastMessageTime, // Store for sorting
-              matchCreatedAt: chat.createdAt, // Store for sorting
-              unread: 0, // Unread count requires DB changes - keep simple for now
+              lastMessageTime: lastMessageTime,
+              matchCreatedAt: chat.createdAt,
+              unread: 0,
               avatar: userAvatar,
               isVip: isVip,
             } as ChatItem;
@@ -384,15 +349,11 @@ const ChatScreen = ({ navigation }: Props) => {
         })
       );
 
-      // Filter out null values
       const validChats = chatItems.filter((item): item is ChatItem => item !== null);
 
-      // Sort chats: tin nhắn mới nhất lên đầu, nếu không có tin nhắn thì match mới nhất lên đầu
       const sortedChats = validChats.sort((a, b) => {
-        // Parse timestamps
         let dateA: Date, dateB: Date;
         
-        // Use lastMessageTime if available, otherwise use matchCreatedAt
         const timeA = a.lastMessageTime || a.matchCreatedAt;
         const timeB = b.lastMessageTime || b.matchCreatedAt;
         
@@ -408,13 +369,11 @@ const ChatScreen = ({ navigation }: Props) => {
         }
         dateB = new Date(dateStrB);
         
-        // Sort descending (newest first)
         return dateB.getTime() - dateA.getTime();
       });
 
-      // 🚀 OPTIMIZATION: Cache the result
+      // Cache the result
       cache.set(cacheKey, sortedChats);
-      console.log('💾 Cached chats for future use');
 
       setChatData(sortedChats);
 
@@ -470,7 +429,6 @@ const ChatScreen = ({ navigation }: Props) => {
     if (item.isAI) {
       navigation.navigate("AIChatList");
     } else {
-      console.log('🗨️ Opening chat:', item);
       navigation.navigate("ChatDetail", {
         matchId: item.matchId,
         otherUserId: item.otherUserId,

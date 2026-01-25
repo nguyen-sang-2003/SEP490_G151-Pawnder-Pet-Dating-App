@@ -74,34 +74,25 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
           await signalRService.connect(userId);
         }
 
-        // Listen for new expert messages
         handleNewMessage = (data: any) => {
-          console.log('💬 [ExpertChatList] New message received via SignalR:', data);
-          
           const chatExpertId = data.ChatExpertId || data.chatExpertId;
           const message = data.Message || data.message;
           const createdAt = data.CreatedAt || data.createdAt;
           
           if (!chatExpertId) {
-            console.log('⚠️ No chatExpertId in message data');
             return;
           }
 
-          // Update chat list with new message
           setExpertChats((prevChats) => {
             const chatIndex = prevChats.findIndex(c => c.chatExpertId === chatExpertId);
             
             if (chatIndex === -1) {
-              // Chat not in list, reload to get it
-              console.log('🆕 New chat detected, reloading...');
-              // Use setTimeout to avoid calling setState during render
               setTimeout(() => {
                 loadExpertChats(true);
               }, 0);
               return prevChats;
             }
 
-            // Update existing chat
             const updatedChats = [...prevChats];
             const updatedChat = {
               ...updatedChats[chatIndex],
@@ -109,12 +100,9 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
               time: createdAt || new Date().toISOString(),
             };
 
-            // Remove from current position
             updatedChats.splice(chatIndex, 1);
-            // Add to top (newest first)
             updatedChats.unshift(updatedChat);
 
-            // Re-sort to ensure correct order
             updatedChats.sort((a, b) => {
               let dateStrA = a.time;
               if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
@@ -131,14 +119,13 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
               return dateB.getTime() - dateA.getTime();
             });
 
-            console.log('✅ Updated expert chat list with new message');
             return updatedChats;
           });
         };
 
         signalRService.on('ReceiveExpertMessage', handleNewMessage);
       } catch (error) {
-        console.error('❌ Error setting up SignalR in ExpertChatList:', error);
+        // Error setting up SignalR
       }
     };
 
@@ -161,7 +148,6 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       }
       const userIdStr = await AsyncStorage.getItem("userId");
       if (!userIdStr) {
-        console.log("❌ No userId found");
         return;
       }
 
@@ -191,7 +177,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       
       setExpertChats(sortedChats);
     } catch (error: any) {
-      console.error("❌ Error loading expert chats:", error);
+      // Error loading expert chats
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -208,7 +194,7 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
       const experts = await getAvailableExperts();
       setAvailableExperts(experts);
     } catch (error: any) {
-      console.error("❌ Error loading experts:", error);
+      // Error loading experts
     } finally {
       setLoadingExperts(false);
     }
@@ -254,7 +240,6 @@ const ExpertChatListScreen = ({ navigation }: Props) => {
         expertName: selectedExpert.fullName,
       });
     } catch (error: any) {
-      console.error("❌ Error creating expert chat:", error);
       showAlert({
         type: "error",
         title: t("common.error"),

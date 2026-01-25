@@ -18,7 +18,7 @@ namespace BE.Services
             _secret = config["Jwt:Secret"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Secret is required");
             _issuer = config["Jwt:Issuer"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Issuer is required");
             _audience = config["Jwt:Audience"] ?? throw new ArgumentNullException(nameof(config), "Jwt:Audience is required");
-            _accessTokenExpirationMinutes = int.Parse(config["Jwt:AccessTokenExpirationMinutes"] ?? "1");
+            _accessTokenExpirationMinutes = int.Parse(config["Jwt:AccessTokenExpirationMinutes"] ?? "360");
             _refreshTokenExpirationDays = int.Parse(config["Jwt:RefreshTokenExpirationDays"] ?? "30");
         }
 

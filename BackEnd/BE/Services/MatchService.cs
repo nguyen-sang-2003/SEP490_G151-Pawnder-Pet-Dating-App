@@ -97,6 +97,7 @@ namespace BE.Services
                 .ToList();
 
             // 🚀 OPTIMIZED: Load all pets in ONE query with their related data
+            // ✅ Filter only valid pets: IsDeleted=false, has at least 1 non-deleted photo, has at least 1 characteristic
             var pets = await _context.Pets
                 .AsNoTracking()
                 .Include(p => p.User)
@@ -104,7 +105,10 @@ namespace BE.Services
                 .Include(p => p.PetPhotos.Where(pp => pp.IsDeleted == false))
                 .Include(p => p.PetCharacteristics)
                     .ThenInclude(pc => pc!.Attribute)
-                .Where(p => petIds.Contains(p.PetId))
+                .Where(p => petIds.Contains(p.PetId)
+                    && p.IsDeleted == false
+                    && p.PetPhotos.Any(pp => pp.IsDeleted == false)
+                    && p.PetCharacteristics.Any())
                 .ToListAsync(ct);
 
             // Business logic: Create lookup dictionary for O(1) access
@@ -125,8 +129,8 @@ namespace BE.Services
 
                 var otherUser = otherUserPet.User;
 
-                // Business logic: Get Age from both Pet.Age (old) and PetCharacteristic (new)
-                int? age = otherUserPet.Age;
+                // Business logic: Get Age from PetCharacteristic only
+                int? age = null;
                 var ageChar = otherUserPet.PetCharacteristics?
                     .FirstOrDefault(pc => pc.Attribute != null &&
                                          (pc.Attribute.Name.ToLower() == "tuổi" ||

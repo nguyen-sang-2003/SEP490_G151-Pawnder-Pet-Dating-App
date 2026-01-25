@@ -186,7 +186,7 @@ namespace BE.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                Console.WriteLine($"📨 [API] Received AI message request - ChatId: {chatAiId}, UserId: {userId}, Question length: {request.Question?.Length ?? 0}");
+                Console.WriteLine($"[API] Received AI message request - ChatId: {chatAiId}, UserId: {userId}, Question length: {request.Question?.Length ?? 0}");
 
                 if (string.IsNullOrWhiteSpace(request.Question))
                 {
@@ -196,7 +196,7 @@ namespace BE.Controllers
                 var data = await _chatAIService.SendMessageAsync(chatAiId, userId, request.Question, ct);
                 
                 stopwatch.Stop();
-                Console.WriteLine($"✅ [API] AI message processed successfully in {stopwatch.ElapsedMilliseconds}ms");
+                Console.WriteLine($"[API] AI message processed successfully in {stopwatch.ElapsedMilliseconds}ms");
                 
                 return Ok(new
                 {
@@ -207,7 +207,7 @@ namespace BE.Controllers
             catch (QuotaExceededException ex)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"⚠️ [API] Quota exceeded after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                Console.WriteLine($"[API] Quota exceeded after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
                 
                 // Trả về 429 với đầy đủ usage info
                 return StatusCode(429, new
@@ -227,13 +227,13 @@ namespace BE.Controllers
             catch (ArgumentException ex)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"❌ [API] Bad request after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                Console.WriteLine($"[API] Bad request after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
                 return BadRequest(new { success = false, message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"❌ [API] Invalid operation after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                Console.WriteLine($"[API] Invalid operation after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
                 
                 if (ex.Message.Contains("hết lượt"))
                 {
@@ -249,13 +249,52 @@ namespace BE.Controllers
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                Console.WriteLine($"❌ [API] Error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
+                Console.WriteLine($"[API] Error after {stopwatch.ElapsedMilliseconds}ms: {ex.Message}");
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 
                 if (ex.Message.Contains("not found") || ex.Message.Contains("access denied"))
                 {
                     return NotFound(new { success = false, message = ex.Message });
                 }
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Clone an existing AI chat for Expert to continue the conversation
+        /// POST: /api/chat-ai/clone/{originalChatAiId}
+        /// </summary>
+        [HttpPost("clone/{originalChatAiId}")]
+        [Authorize(Roles = "Expert,Admin")]
+        public async Task<IActionResult> CloneChatForExpert(int originalChatAiId, CancellationToken ct = default)
+        {
+            try
+            {
+                var expertId = GetCurrentUserId();
+                
+                if (expertId == 0)
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+                Console.WriteLine($"[API] Expert {expertId} cloning chat {originalChatAiId}");
+
+                var data = await _chatAIService.CloneChatForExpertAsync(originalChatAiId, expertId, ct);
+                
+                Console.WriteLine($"[API] Chat cloned successfully");
+                
+                return Ok(new
+                {
+                    success = true,
+                    data = data,
+                    message = "Đã tạo bản sao cuộc trò chuyện thành công"
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[API] Clone chat error: {ex.Message}");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

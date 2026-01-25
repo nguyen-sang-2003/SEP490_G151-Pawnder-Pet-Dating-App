@@ -72,4 +72,27 @@ public partial class User
     public virtual ICollection<UserPreference> UserPreferences { get; set; } = new List<UserPreference>();
 
     public virtual UserStatus? UserStatus { get; set; }
+
+    // PetAppointment navigation properties
+    public virtual ICollection<PetAppointment> PetAppointmentsAsInviter { get; set; } = new List<PetAppointment>();
+
+    public virtual ICollection<PetAppointment> PetAppointmentsAsInvitee { get; set; } = new List<PetAppointment>();
+
+    public virtual ICollection<PetAppointment> PetAppointmentsAsDecider { get; set; } = new List<PetAppointment>();
+
+    public virtual ICollection<PetAppointment> PetAppointmentsCancelled { get; set; } = new List<PetAppointment>();
+
+    // Event navigation properties
+    public virtual ICollection<PetEvent> CreatedEvents { get; set; } = new List<PetEvent>();
+
+    public virtual ICollection<EventSubmission> EventSubmissions { get; set; } = new List<EventSubmission>();
+
+    public virtual ICollection<EventVote> EventVotes { get; set; } = new List<EventVote>();
+    /// <summary>
+    /// Các policy version được user tạo (Admin)
+    /// </summary>
+    public virtual ICollection<PolicyVersion> CreatedPolicyVersions { get; set; } = new List<PolicyVersion>();
+
+    // Lịch sử xác nhận policy của user
+    public virtual ICollection<UserPolicyAccept> UserPolicyAccepts { get; set; } = new List<UserPolicyAccept>();
 }

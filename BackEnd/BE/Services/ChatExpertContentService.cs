@@ -13,19 +13,22 @@ namespace BE.Services
         private readonly PawnderDatabaseContext _context;
         private readonly IHubContext<ChatHub> _hubContext;
         private readonly IDailyLimitService _dailyLimitService;
+        private readonly IBadWordService _badWordService;
 
         public ChatExpertContentService(
             IChatExpertContentRepository contentRepository,
             IChatExpertRepository chatExpertRepository,
             PawnderDatabaseContext context,
             IHubContext<ChatHub> hubContext,
-            IDailyLimitService dailyLimitService)
+            IDailyLimitService dailyLimitService,
+            IBadWordService badWordService)
         {
             _contentRepository = contentRepository;
             _chatExpertRepository = chatExpertRepository;
             _context = context;
             _hubContext = hubContext;
             _dailyLimitService = dailyLimitService;
+            _badWordService = badWordService;
         }
 
         public async Task<IEnumerable<object>> GetChatMessagesAsync(int chatExpertId, CancellationToken ct = default)
@@ -42,6 +45,17 @@ namespace BE.Services
         {
             if (string.IsNullOrWhiteSpace(message))
                 throw new ArgumentException("Tin nhắn không được để trống.");
+
+            // Business logic: Kiểm tra từ cấm
+            var (isBlocked, filteredMessage, violationLevel) = await _badWordService.CheckAndFilterMessageAsync(message, ct);
+            
+            if (isBlocked)
+            {
+                throw new InvalidOperationException("Tin nhắn của bạn chứa nội dung không phù hợp và không thể gửi.");
+            }
+
+            // Sử dụng filteredMessage (đã che từ Level 1)
+            message = filteredMessage;
 
             // Validate chat exists
             var chatExpert = await _context.ChatExperts
@@ -126,7 +140,7 @@ namespace BE.Services
 
             return new
             {
-                message = "Gửi tin nhắn thành công.",
+                message = chatMessage.Message, // Return the filtered message
                 contentId = chatMessage.ContentId,
                 chatExpertId = chatMessage.ChatExpertId,
                 fromId = chatMessage.FromId,

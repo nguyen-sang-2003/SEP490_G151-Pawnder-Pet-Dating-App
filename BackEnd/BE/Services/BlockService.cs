@@ -55,6 +55,22 @@ namespace BE.Services
                 _context.Entry(existingChat).State = EntityState.Modified;
             }
 
+            // Business logic: Auto-cancel pending/confirmed appointments between blocked users
+            var appointmentsToCancel = await _context.Set<PetAppointment>()
+                .Where(a => 
+                    (a.Status == "pending" || a.Status == "confirmed") &&
+                    ((a.InviterUserId == fromUserId && a.InviteeUserId == toUserId) ||
+                     (a.InviterUserId == toUserId && a.InviteeUserId == fromUserId)))
+                .ToListAsync(ct);
+
+            foreach (var appointment in appointmentsToCancel)
+            {
+                appointment.Status = "cancelled";
+                appointment.CancelledBy = fromUserId;
+                appointment.CancelReason = "Tự động hủy do người dùng bị chặn";
+                appointment.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            }
+
             // Business logic: Create block
             var block = new Block
             {

@@ -85,7 +85,6 @@ const FilterScreen = ({ navigation }: Props) => {
 
             const userIdStr = await AsyncStorage.getItem("userId");
             if (!userIdStr) {
-                console.log("❌ No userId found in storage");
                 return;
             }
 
@@ -102,10 +101,48 @@ const FilterScreen = ({ navigation }: Props) => {
 
             const filtersMap: { [key: number]: ActiveFilter } = {};
             preferencesData.forEach((pref: any) => {
+                const attr = attributesData.find((a: any) => a.AttributeId === pref.AttributeId);
+                const attrName = attr?.Name?.toLowerCase() || '';
+                
+                // Convert gram to kg for weight attribute
+                let minValue = pref.MinValue;
+                let maxValue = pref.MaxValue;
+                
+                if (attrName.includes('cân') || attrName.includes('nặng') || attrName.includes('weight')) {
+                    // Backend stores as gram, convert to kg for display
+                    if (minValue !== undefined) minValue = minValue / 1000;
+                    if (maxValue !== undefined) maxValue = maxValue / 1000;
+                }
+                
+                // Clamp old values to new BR limits (0.5-12kg, 15-40cm, 0-25 năm)
+                if (minValue !== undefined || maxValue !== undefined) {
+                    let maxLimit = 100;
+                    let minLimit = 0;
+                    
+                    if (attrName.includes('cân') || attrName.includes('nặng') || attrName.includes('weight')) {
+                        maxLimit = 12;
+                        minLimit = 0.5;
+                    } else if (attrName.includes('cao') || attrName.includes('height')) {
+                        maxLimit = 40;
+                        minLimit = 15;
+                    } else if (attrName.includes('tuổi') || attrName.includes('age')) {
+                        maxLimit = 25;
+                        minLimit = 0;
+                    }
+                    
+                    // Clamp to valid range
+                    if (minValue !== undefined) {
+                        minValue = Math.max(minLimit, Math.min(maxLimit, minValue));
+                    }
+                    if (maxValue !== undefined) {
+                        maxValue = Math.max(minLimit, Math.min(maxLimit, maxValue));
+                    }
+                }
+                
                 filtersMap[pref.AttributeId] = {
                     optionId: pref.OptionId || undefined,
-                    minValue: pref.MinValue || undefined,
-                    maxValue: pref.MaxValue || undefined,
+                    minValue: minValue,
+                    maxValue: maxValue,
                 };
             });
 
@@ -191,18 +228,30 @@ const FilterScreen = ({ navigation }: Props) => {
 
                     return true;
                 })
-                .map(([attributeId, filter]) => ({
-                    AttributeId: parseInt(attributeId),
-                    OptionId: filter.optionId,
-                    MinValue: filter.minValue,
-                    MaxValue: filter.maxValue,
-                }));
+                .map(([attributeId, filter]) => {
+                    const attrId = parseInt(attributeId);
+                    const attr = attributes.find(a => a.AttributeId === attrId);
+                    
+                    // Convert weight from kg to gram for backend storage
+                    if (attr?.Name?.toLowerCase() === "cân nặng") {
+                        return {
+                            AttributeId: attrId,
+                            OptionId: filter.optionId,
+                            MinValue: filter.minValue !== undefined ? Math.round(filter.minValue * 1000) : undefined,
+                            MaxValue: filter.maxValue !== undefined ? Math.round(filter.maxValue * 1000) : undefined,
+                        };
+                    }
+                    
+                    return {
+                        AttributeId: attrId,
+                        OptionId: filter.optionId,
+                        MinValue: filter.minValue,
+                        MaxValue: filter.maxValue,
+                    };
+                });
 
-            console.log("💾 Saving preferences:", preferences);
             await saveUserPreferencesBatch(currentUserId, preferences);
-            console.log("✅ Filters saved successfully!");
 
-            // Show success notification
             showAlert({
                 type: 'success',
                 title: t('home.filter.saveSuccess'),
@@ -281,7 +330,7 @@ const FilterScreen = ({ navigation }: Props) => {
     const rangeSliderRefs = useRef<{ [key: number]: { x: number; width: number } }>({});
     const [draggingStates, setDraggingStates] = useState<{ [key: string]: boolean }>({});
 
-    const createRangeSliderPanResponder = (attributeId: number, isMin: boolean, maxLimit: number) => {
+    const createRangeSliderPanResponder = (attributeId: number, isMin: boolean, maxLimit: number, minLimit: number = 0) => {
         return PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onStartShouldSetPanResponderCapture: () => true,
@@ -295,26 +344,41 @@ const FilterScreen = ({ navigation }: Props) => {
                 if (!sliderRef || sliderRef.width === 0) return;
 
                 const filter = activeFilters[attributeId] || {};
-                const currentMin = filter.minValue || 0;
-                const currentMax = filter.maxValue || maxLimit;
+                const currentMin = filter.minValue !== undefined ? filter.minValue : minLimit;
+                const currentMax = filter.maxValue !== undefined ? filter.maxValue : maxLimit;
 
                 // Calculate from absolute position (gesture.moveX)
                 const touchX = gesture.moveX - sliderRef.x;
                 const progress = Math.max(0, Math.min(1, touchX / sliderRef.width));
-                const newValue = Math.round(progress * maxLimit);
+                const range = maxLimit - minLimit;
+                const newValue = minLimit + (progress * range);
+                
+                // Round based on attribute type (BR)
+                // Weight: Decimal step 0.5, Height & Age: Integer
+                const attr = attributes.find(a => a.AttributeId === attributeId);
+                const attrName = attr?.Name?.toLowerCase() || '';
+                let roundedValue: number;
+                
+                if (attrName.includes('nặng') || attrName.includes('weight')) {
+                    // Weight: Decimal step 0.5 (BR: 0.5, 1.0, 1.5, 2.0...)
+                    roundedValue = Math.round(newValue * 2) / 2;
+                } else {
+                    // Height & Age: Integer (BR: 15, 16, 17... or 0, 1, 2...)
+                    roundedValue = Math.round(newValue);
+                }
 
                 if (isMin) {
-                    if (newValue < currentMax) {
+                    if (roundedValue < currentMax) {
                         setActiveFilters(prev => ({
                             ...prev,
-                            [attributeId]: { ...prev[attributeId], minValue: newValue }
+                            [attributeId]: { ...prev[attributeId], minValue: roundedValue }
                         }));
                     }
                 } else {
-                    if (newValue > currentMin) {
+                    if (roundedValue > currentMin) {
                         setActiveFilters(prev => ({
                             ...prev,
-                            [attributeId]: { ...prev[attributeId], maxValue: newValue }
+                            [attributeId]: { ...prev[attributeId], maxValue: roundedValue }
                         }));
                     }
                 }
@@ -366,7 +430,10 @@ const FilterScreen = ({ navigation }: Props) => {
     }
 
     // Group attributes by type
-    const stringAttributes = attributes.filter((a) => a.TypeValue?.toLowerCase() === "string");
+    const stringAttributes = attributes.filter((a) => 
+        a.TypeValue?.toLowerCase() === "string" && 
+        a.Name?.toLowerCase() !== "loại"
+    );
     const floatAttributes = attributes.filter((a) => a.TypeValue?.toLowerCase() === "float" && a.Name?.toLowerCase() !== "khoảng cách");
     const distanceAttribute = attributes.find((a) => a.Name?.toLowerCase() === "khoảng cách");
 
@@ -502,17 +569,30 @@ const FilterScreen = ({ navigation }: Props) => {
                     {/* Range Sections (Height, Weight) - Tinder Style */}
                     {floatAttributes.map((attribute) => {
                         const filter = activeFilters[attribute.AttributeId] || {};
-                        // Determine max limit based on attribute
-                        const maxLimit = attribute.Name?.toLowerCase().includes("cao") ? 100 : 50; // height: 100cm, weight: 50kg
-                        const min = filter.minValue || 0;
-                        const max = filter.maxValue || maxLimit;
-                        const minPercent = (min / maxLimit) * 100;
-                        const maxPercent = (max / maxLimit) * 100;
-                        const isAny = min === 0 && max === maxLimit;
+                        // Determine max limit based on attribute (BR: weight 0.5-12kg, height 15-40cm, age 0-25)
+                        let maxLimit = 12; // Default: weight in kg
+                        let minLimit = 0;
+                        
+                        if (attribute.Name?.toLowerCase().includes("cao")) {
+                            maxLimit = 40; // Height: 15-40cm
+                            minLimit = 15;
+                        } else if (attribute.Name?.toLowerCase().includes("nặng")) {
+                            maxLimit = 12; // Weight: 0.5-12kg
+                            minLimit = 0.5;
+                        } else if (attribute.Name?.toLowerCase().includes("tuổi")) {
+                            maxLimit = 25; // Age: 0-25 years
+                            minLimit = 0;
+                        }
+                        
+                        const min = filter.minValue !== undefined ? filter.minValue : minLimit;
+                        const max = filter.maxValue !== undefined ? filter.maxValue : maxLimit;
+                        const minPercent = ((min - minLimit) / (maxLimit - minLimit)) * 100;
+                        const maxPercent = ((max - minLimit) / (maxLimit - minLimit)) * 100;
+                        const isAny = min === minLimit && max === maxLimit;
 
                         // Create PanResponders for this attribute
-                        const minResponder = createRangeSliderPanResponder(attribute.AttributeId, true, maxLimit);
-                        const maxResponder = createRangeSliderPanResponder(attribute.AttributeId, false, maxLimit);
+                        const minResponder = createRangeSliderPanResponder(attribute.AttributeId, true, maxLimit, minLimit);
+                        const maxResponder = createRangeSliderPanResponder(attribute.AttributeId, false, maxLimit, minLimit);
 
                         const isMinDragging = draggingStates[`${attribute.AttributeId}_min`];
                         const isMaxDragging = draggingStates[`${attribute.AttributeId}_max`];
@@ -525,7 +605,14 @@ const FilterScreen = ({ navigation }: Props) => {
                                         <Text style={styles.sectionTitle}>{attribute.Name}</Text>
                                     </View>
                                     <Text style={styles.sectionValue}>
-                                        {isAny ? t('home.filter.all') : `${min} - ${max} ${attribute.Unit}`}
+                                        {isAny ? t('home.filter.all') : (() => {
+                                            const attrName = attribute.Name?.toLowerCase() || '';
+                                            // BR: Weight decimal step 0.5, Height & Age integer
+                                            if (attrName.includes('nặng') || attrName.includes('weight')) {
+                                                return `${min.toFixed(1)} - ${max.toFixed(1)} ${attribute.Unit}`;
+                                            }
+                                            return `${Math.round(min)} - ${Math.round(max)} ${attribute.Unit}`;
+                                        })()}
                                     </Text>
                                 </View>
                                 <View style={styles.rangeCard}>

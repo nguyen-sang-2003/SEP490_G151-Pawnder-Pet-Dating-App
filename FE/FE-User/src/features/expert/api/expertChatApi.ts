@@ -47,11 +47,9 @@ export const createOrGetExpertChat = async (
   userId: number
 ): Promise<ExpertChatResponse> => {
   try {
-    console.log(`🔄 Creating/getting expert chat: expertId=${expertId}, userId=${userId}`);
     const response = await apiClient.post<ExpertChatResponse>(
       `/api/ChatExpert/${expertId}/${userId}`
     );
-    console.log('✅ Expert chat created/retrieved:', response.data);
     return response.data;
   } catch (error: any) {
 
@@ -80,11 +78,8 @@ export interface ExpertChatListItem {
  */
 export const getUserExpertChats = async (userId: number): Promise<ExpertChatListItem[]> => {
   try {
-    console.log(`🔄 Getting expert chats for user: ${userId}`);
     const response = await apiClient.get(`/api/ChatExpert/user/${userId}`);
-    console.log('✅ Expert chats retrieved (raw):', response.data);
 
-    // Transform backend response to match interface
     const chats = (response.data || []).map((chat: any) => ({
       id: chat.id || chat.chatExpertId?.toString() || '',
       chatExpertId: chat.chatExpertId,
@@ -97,7 +92,6 @@ export const getUserExpertChats = async (userId: number): Promise<ExpertChatList
       isOnline: chat.isOnline || false,
     }));
 
-    console.log('✅ Transformed chats:', chats);
     return chats;
   } catch (error: any) {
 
@@ -114,9 +108,7 @@ export const getUserExpertChats = async (userId: number): Promise<ExpertChatList
  */
 export const getExpertChatMessages = async (chatExpertId: number): Promise<ExpertChatMessage[]> => {
   try {
-    console.log(`🔄 Loading messages for expert chat: ${chatExpertId}`);
     const response = await apiClient.get<ExpertChatMessage[]>(`/api/ChatExpertContent/${chatExpertId}`);
-    console.log('✅ Expert chat messages loaded:', response.data.length, 'messages');
     return response.data || [];
   } catch (error: any) {
 
@@ -137,12 +129,10 @@ export const sendExpertChatMessage = async (
   request: SendExpertMessageRequest
 ): Promise<ExpertChatMessage> => {
   try {
-    console.log(`🔄 Sending message to expert chat ${chatExpertId} from user ${fromId}:`, request.message);
     const response = await apiClient.post<ExpertChatMessage>(
       `/api/ChatExpertContent/${chatExpertId}/${fromId}`,
       request
     );
-    console.log('✅ Message sent successfully:', response.data);
     return response.data;
   } catch (error: any) {
 
@@ -159,22 +149,17 @@ export const sendExpertChatMessage = async (
  */
 export const getAvailableExperts = async (): Promise<Expert[]> => {
   try {
-    console.log('🔄 Getting available experts...');
     const response = await apiClient.get('/user', {
       params: {
-        roleId: 2, // Expert role
+        roleId: 2,
         page: 1,
         pageSize: 50,
         includeDeleted: false
       }
     });
     
-    console.log('📦 Raw response:', JSON.stringify(response.data));
-    
-    // Backend returns PagedResult with "items" property (not "data")
     const items = response.data?.items || response.data?.Items || response.data?.data || [];
     
-    // Transform backend response to Expert interface
     const experts = items.map((user: any) => ({
       userId: user.userId || user.UserId,
       fullName: user.fullName || user.FullName || 'Chuyên gia',
@@ -186,10 +171,8 @@ export const getAvailableExperts = async (): Promise<Expert[]> => {
       isOnline: false,
     }));
     
-    console.log('✅ Available experts:', experts.length);
     return experts;
   } catch (error: any) {
-    console.error('❌ Error getting experts:', error);
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
     }

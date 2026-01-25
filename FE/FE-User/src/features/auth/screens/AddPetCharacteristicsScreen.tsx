@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  BackHandler,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
@@ -24,30 +26,36 @@ type Props = NativeStackScreenProps<RootStackParamList, "AddPetCharacteristics">
 
 const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   const { t } = useTranslation();
-  const { petId, isFromProfile, aiResults } = route.params;
+  const { petId, isFromProfile, aiResults, petName, breed, description } = route.params;
 
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [attributeOptions, setAttributeOptions] = useState<Record<number, AttributeOption[]>>({});
   const [selectedOptions, setSelectedOptions] = useState<Record<number, number>>({});
   const [numericValues, setNumericValues] = useState<Record<number, string>>({});
-  const [aiFilledAttributes, setAiFilledAttributes] = useState<Set<number>>(new Set()); // Track AI-filled fields
+  const [aiFilledAttributes, setAiFilledAttributes] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  // Track which characteristics already exist (for UPDATE vs CREATE decision)
   const [existingCharacteristicIds, setExistingCharacteristicIds] = useState<Set<number>>(new Set());
-  
-  // Store existing characteristics for display (optionValue and value)
   const [existingCharacteristics, setExistingCharacteristics] = useState<Record<number, { optionValue?: string; value?: number; unit?: string }>>({});
 
-  // Determine if this is "editing existing pet" vs "adding new pet"
-  // Only true when editing from profile AND pet has existing characteristics saved
   const isEditingExistingPet = isFromProfile && existingCharacteristicIds.size > 0;
+
+  // Bắt hardware back button
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleBack();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [isEditingExistingPet, petId, petName, breed, description, isFromProfile, aiResults])
+  );
 
   useEffect(() => {
     if (!petId) {
-
       showAlert({
         type: 'error',
         title: t('auth.addPet.characteristics.error'),
@@ -64,37 +72,32 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       setLoading(true);
       const attrs = await getAttributes();
 
-      // Filter out invalid attributes and distance-related attributes (those are user preferences, not pet characteristics)
       const validAttrs = attrs.filter(attr => {
         if (attr.AttributeId == null) return false;
-
-        // Filter out distance/range attributes - these are user preferences, not pet characteristics
         const name = attr.Name?.toLowerCase() || '';
         if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
           return false;
         }
-
+        if (name.includes('loại')) {
+          return false;
+        }
         return true;
       });
       setAttributes(validAttrs);
 
-      // Load options for each attribute
       const optionsMap: Record<number, AttributeOption[]> = {};
       for (const attr of validAttrs) {
         if (!attr.AttributeId) continue;
-
         const options = await getAttributeOptions(attr.AttributeId);
         optionsMap[attr.AttributeId] = options;
       }
       setAttributeOptions(optionsMap);
 
-      // Pre-fill from AI results or existing characteristics
       const tempSelectedOptions: Record<number, number> = {};
       const tempNumericValues: Record<number, string> = {};
       const tempExistingIds = new Set<number>();
       const tempAiFilledIds = new Set<number>();
 
-      // If editing from profile, load existing characteristics
       if (isFromProfile) {
         try {
           const existingChars = await getPetCharacteristics(petId);
@@ -103,8 +106,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           existingChars.forEach((char: any) => {
             if (char.attributeId) {
               tempExistingIds.add(char.attributeId);
-              
-              // Store existing values for display
               tempExistingChars[char.attributeId] = {
                 optionValue: char.optionValue,
                 value: char.value,
@@ -113,7 +114,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             }
 
             if (char.optionValue && char.attributeId) {
-              // Find the option by name
               const options = optionsMap[char.attributeId];
               const option = options?.find(opt => opt.Name === char.optionValue);
               if (option?.OptionId) {
@@ -131,20 +131,15 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         }
       }
 
-      // Pre-fill from AI results (if available)
       if (aiResults && aiResults.length > 0) {
         aiResults.forEach((aiAttr: AIAttributeResult) => {
           if (!aiAttr.attributeId) return;
-
-          // Mark as AI-filled
           tempAiFilledIds.add(aiAttr.attributeId);
 
-          // Fill option-based attributes
           if (aiAttr.optionId && aiAttr.optionName) {
             tempSelectedOptions[aiAttr.attributeId] = aiAttr.optionId;
           }
 
-          // Fill numeric attributes
           if (aiAttr.value != null) {
             tempNumericValues[aiAttr.attributeId] = aiAttr.value.toString();
           }
@@ -156,7 +151,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       setNumericValues(tempNumericValues);
       setAiFilledAttributes(tempAiFilledIds);
     } catch (error: any) {
-
       showAlert({
         type: 'error',
         title: t('auth.addPet.characteristics.error'),
@@ -167,16 +161,90 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  // Validation ranges cho các thuộc tính của mèo (đồng bộ với Backend)
+  const ATTRIBUTE_RANGES: Record<string, { min: number; max: number; unit: string }> = {
+    'Cân nặng': { min: 0.5, max: 15, unit: 'kg' },
+    'Chiều cao': { min: 15, max: 45, unit: 'cm' },
+    'Tuổi': { min: 0, max: 25, unit: 'năm' },
+  };
+
+  const validateNumericValues = (): string | null => {
+    for (const [attributeId, value] of Object.entries(numericValues)) {
+      if (value && value.trim()) {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) continue;
+        
+        const attr = attributes.find(a => a.AttributeId === parseInt(attributeId, 10));
+        if (!attr?.Name) continue;
+        
+        const range = ATTRIBUTE_RANGES[attr.Name];
+        if (range && (numValue < range.min || numValue > range.max)) {
+          return `${attr.Name} phải từ ${range.min} đến ${range.max} ${range.unit}`;
+        }
+      }
+    }
+    return null;
+  };
+
   const handleContinue = async () => {
+    // Validate: Kiểm tra tất cả fields phải được điền
+    for (const attr of attributes) {
+      if (!attr.AttributeId) continue;
+      
+      const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
+      
+      if (isNumeric) {
+        const value = numericValues[attr.AttributeId];
+        if (!value || !value.trim()) {
+          showAlert({
+            type: 'warning',
+            title: 'Thiếu thông tin',
+            message: `Vui lòng nhập ${attr.Name}`,
+          });
+          return;
+        }
+      } else {
+        const selectedOption = selectedOptions[attr.AttributeId];
+        if (!selectedOption) {
+          showAlert({
+            type: 'warning',
+            title: 'Thiếu thông tin',
+            message: `Vui lòng chọn ${attr.Name}`,
+          });
+          return;
+        }
+      }
+    }
+
+    // Validate numeric values trước khi gửi
+    const validationError = validateNumericValues();
+    if (validationError) {
+      showAlert({
+        type: 'error',
+        title: t('auth.addPet.characteristics.error'),
+        message: validationError,
+      });
+      return;
+    }
+
     try {
       setSaving(true);
 
+      // Fetch lại existing characteristics để đảm bảo data mới nhất
+      let currentExistingIds = new Set<number>(existingCharacteristicIds);
+      try {
+        const existingChars = await getPetCharacteristics(petId);
+        currentExistingIds = new Set(existingChars.map((char: any) => char.attributeId).filter(Boolean));
+      } catch (error) {
+        // Silent fail - use cached existingCharacteristicIds
+      }
+
       const savePromises: Promise<any>[] = [];
 
-      // Save selected options (string types)
       Object.entries(selectedOptions).forEach(([attributeId, optionId]) => {
         const attrId = parseInt(attributeId, 10);
-        const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
+        // Check nếu đã tồn tại thì update, không thì create
+        const shouldUpdate = currentExistingIds.has(attrId);
         const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
 
         savePromises.push(
@@ -184,13 +252,13 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         );
       });
 
-      // Save numeric values (number types)
       Object.entries(numericValues).forEach(([attributeId, value]) => {
         if (value && value.trim()) {
           const numValue = parseFloat(value);
           if (!isNaN(numValue)) {
             const attrId = parseInt(attributeId, 10);
-            const shouldUpdate = isFromProfile && existingCharacteristicIds.has(attrId);
+            // Check nếu đã tồn tại thì update, không thì create
+            const shouldUpdate = currentExistingIds.has(attrId);
             const apiFunction = shouldUpdate ? updatePetCharacteristic : createPetCharacteristic;
 
             savePromises.push(
@@ -202,19 +270,14 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
 
       await Promise.all(savePromises);
 
-      // Complete profile after characteristics
       if (!isFromProfile) {
         try {
           const userIdStr = await getItem('userId');
-
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
-
-            if (isNaN(userId) || userId <= 0) {
-              throw new Error('Invalid userId');
+            if (!isNaN(userId) && userId > 0) {
+              await completeUserProfile(userId);
             }
-
-            await completeUserProfile(userId);
           }
         } catch (err) {
           // Silent fail
@@ -228,22 +291,17 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           ? t('auth.addPet.characteristics.characteristicsUpdated')
           : t('auth.addPet.characteristics.profileCreated'),
         confirmText: isEditingExistingPet ? t('auth.addPet.characteristics.backToProfile') : t('common.continue'),
-        onClose: () => {
+        onConfirm: () => {
           if (isEditingExistingPet) {
-            // Editing existing pet → go back to profile
             navigation.navigate("Profile");
           } else if (isFromProfile) {
-            // Adding new pet from profile → go back to profile
             navigation.navigate("Profile");
           } else {
-            // Adding new pet during registration → go to onboarding
             navigation.replace("OnboardingPreferences");
           }
         },
       });
     } catch (error: any) {
-
-
       let errorMessage = isEditingExistingPet 
         ? t('auth.addPet.characteristics.updateFailed')
         : t('auth.addPet.characteristics.saveFailed');
@@ -265,12 +323,20 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
   };
 
   const handleBack = () => {
-    // Allow going back to photos screen, preserve AI results
-    navigation.navigate("AddPetPhotos", {
-      petId,
-      isFromProfile,
-      aiResults: aiResults, // Truyền kết quả AI hiện tại để giữ lại
-    });
+    if (isEditingExistingPet) {
+      // Editing existing pet -> just go back
+      navigation.goBack();
+    } else {
+      // Adding new pet flow -> go back to AddPetPhotos (back giữa các bước)
+      navigation.navigate("AddPetPhotos", {
+        petId,
+        isFromProfile,
+        petName,
+        breed,
+        description,
+        aiResults: aiResults,
+      });
+    }
   };
 
   if (loading) {
@@ -295,13 +361,11 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
       end={{ x: 1, y: 1 }}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
 
-          {/* Step Indicator - Show when adding new pet (step 3), hide when editing existing */}
           {!isEditingExistingPet && (
             <View style={styles.stepIndicatorContainer}>
               <View style={styles.stepBarsContainer}>
@@ -321,9 +385,7 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           </Text>
         </View>
 
-        {/* Form */}
         <View style={styles.form}>
-          {/* AI Success Banner */}
           {aiResults && aiResults.length > 0 && (
             <View style={styles.aiBanner}>
               <View style={styles.aiIcon}>
@@ -338,22 +400,12 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             </View>
           )}
 
-          {/* Dynamic Attributes - Show ALL attributes for both add and edit */}
           {attributes
-            .filter((attr) => {
-              // Only filter out invalid attributes
-              if (!attr.AttributeId) return false;
-              
-              // Always show ALL attributes - for both adding new pet and editing existing pet
-              // This allows users to see which ones are filled and fill in missing ones
-              return true;
-            })
+            .filter((attr) => !!attr.AttributeId)
             .map((attr) => {
             if (!attr.AttributeId) return null;
 
-            // Check if this is a numeric input (float/number type)
             const isNumeric = attr.TypeValue === 'float' || attr.TypeValue === 'number';
-
             const existingChar = existingCharacteristics[attr.AttributeId!];
             const hasExistingValue = isEditingExistingPet && existingChar && (existingChar.optionValue || existingChar.value != null);
             
@@ -372,7 +424,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                   )}
                 </View>
                 
-                {/* Show current value when editing */}
                 {hasExistingValue && (
                   <View style={styles.currentValueContainer}>
                     <Icon name="checkmark-circle" size={14} color={colors.primary} />
@@ -386,7 +437,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                 )}
 
                 {isNumeric ? (
-                  // Numeric Input
                   <View style={styles.inputContainer}>
                     <TextInput
                       style={styles.numericInput}
@@ -405,7 +455,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
                     )}
                   </View>
                 ) : (
-                  // Option Selection - Chips
                   <View style={styles.optionsContainer}>
                     {attributeOptions[attr.AttributeId]?.map((option) => {
                       if (!option.OptionId) return null;
@@ -445,7 +494,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             );
           })}
 
-          {/* Info Card */}
           <View style={styles.infoCard}>
             <View style={styles.infoIcon}>
               <Icon name="bulb" size={20} color={colors.primary} />
@@ -455,7 +503,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
             </Text>
           </View>
 
-          {/* Buttons */}
           <TouchableOpacity
             style={styles.btnShadow}
             onPress={handleContinue}
@@ -480,7 +527,6 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
         </View>
       </ScrollView>
 
-      {/* Custom Alert */}
       {alertConfig && (
         <CustomAlert
           visible={visible}
@@ -488,12 +534,16 @@ const AddPetCharacteristicsScreen = ({ navigation, route }: Props) => {
           title={alertConfig.title}
           message={alertConfig.message}
           confirmText={alertConfig.confirmText}
+          onConfirm={alertConfig.onConfirm}
+          showCancel={alertConfig.showCancel}
+          cancelText={alertConfig.cancelText}
           onClose={hideAlert}
         />
       )}
     </LinearGradient>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -509,8 +559,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textMedium,
   },
-
-  // Header
   header: {
     paddingHorizontal: 24,
     marginBottom: 32,
@@ -563,14 +611,10 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 24,
   },
-
-  // Form
   form: {
     paddingHorizontal: 24,
     paddingBottom: 40,
   },
-
-  // AI Banner
   aiBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -604,7 +648,6 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 20,
   },
-
   inputGroup: {
     marginBottom: 32,
   },
@@ -635,13 +678,9 @@ const styles = StyleSheet.create({
     color: colors.white,
     letterSpacing: 0.5,
   },
-
-  // Input Container
   inputContainer: {
     position: 'relative',
   },
-
-  // Option Chips
   optionsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -676,8 +715,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: "700",
   },
-
-  // Numeric Input
   numericInput: {
     backgroundColor: colors.whiteWarm,
     borderRadius: radius.lg,
@@ -690,7 +727,6 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     ...shadows.small,
   },
-
   unitLabel: {
     position: 'absolute',
     right: 18,
@@ -699,8 +735,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMedium,
   },
-
-  // Info Card
   infoCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -727,8 +761,6 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 20,
   },
-
-  // Current Value Display (when editing)
   currentValueContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -749,8 +781,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.textDark,
   },
-
-  // Buttons
   btnShadow: {
     marginTop: 8,
     borderRadius: radius.xl,
@@ -770,16 +800,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 17,
     letterSpacing: 0.3,
-  },
-  skipBtn: {
-    marginTop: 16,
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  skipText: {
-    fontSize: 14,
-    color: colors.textMedium,
-    textDecorationLine: "underline",
   },
 });
 

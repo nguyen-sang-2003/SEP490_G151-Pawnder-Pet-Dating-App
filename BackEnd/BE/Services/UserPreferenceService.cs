@@ -11,12 +11,50 @@ namespace BE.Services
         private readonly IUserPreferenceRepository _userPreferenceRepository;
         private readonly PawnderDatabaseContext _context;
 
+        // Validation ranges cho các thuộc tính filter của mèo (BR: Business Requirements)
+        // Weight stored as gram (INT) in database: 500g = 0.5kg, 12000g = 12kg
+        private static readonly Dictionary<string, (int Min, int Max, string Unit)> AttributeRanges = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Cân nặng", (500, 12000, "gram") },  // BR: 0.5-12kg
+            { "Chiều cao", (15, 40, "cm") },       // BR: 15-40cm
+            { "Tuổi", (0, 25, "năm") },            // BR: 0-25 năm
+            { "Khoảng cách", (0, 100, "km") }      // BR: 0-100km
+        };
+
         public UserPreferenceService(
             IUserPreferenceRepository userPreferenceRepository,
             PawnderDatabaseContext context)
         {
             _userPreferenceRepository = userPreferenceRepository;
             _context = context;
+        }
+
+        /// <summary>
+        /// Validate MinValue và MaxValue theo range hợp lệ cho mèo
+        /// </summary>
+        private void ValidatePreferenceRange(string attributeName, int? minValue, int? maxValue)
+        {
+            // Validate MinValue không âm
+            if (minValue.HasValue && minValue.Value < 0)
+                throw new ArgumentException($"Giá trị tối thiểu của {attributeName} không được là số âm.");
+
+            // Validate MaxValue không âm
+            if (maxValue.HasValue && maxValue.Value < 0)
+                throw new ArgumentException($"Giá trị tối đa của {attributeName} không được là số âm.");
+
+            // Validate MinValue <= MaxValue
+            if (minValue.HasValue && maxValue.HasValue && minValue.Value > maxValue.Value)
+                throw new ArgumentException($"Giá trị tối thiểu ({minValue}) phải nhỏ hơn hoặc bằng giá trị tối đa ({maxValue}).");
+
+            // Validate theo range của attribute
+            if (AttributeRanges.TryGetValue(attributeName, out var range))
+            {
+                if (minValue.HasValue && (minValue.Value < range.Min || minValue.Value > range.Max))
+                    throw new ArgumentException($"Giá trị tối thiểu của {attributeName} phải từ {range.Min} đến {range.Max} {range.Unit}.");
+
+                if (maxValue.HasValue && (maxValue.Value < range.Min || maxValue.Value > range.Max))
+                    throw new ArgumentException($"Giá trị tối đa của {attributeName} phải từ {range.Min} đến {range.Max} {range.Unit}.");
+            }
         }
 
         public async Task<IEnumerable<UserPreferenceResponse>> GetUserPreferencesAsync(int userId, CancellationToken ct = default)
@@ -45,6 +83,9 @@ namespace BE.Services
             if (attribute == null)
                 throw new KeyNotFoundException("Attribute not found.");
 
+            // Business logic: Validate range values cho mèo
+            ValidatePreferenceRange(attribute.Name, req.MinValue, req.MaxValue);
+
             // Business logic: Check duplicate
             var exists = await _userPreferenceRepository.ExistsAsync(userId, attributeId, ct);
             if (exists)
@@ -71,6 +112,12 @@ namespace BE.Services
             var entity = await _userPreferenceRepository.GetUserPreferenceAsync(userId, attributeId, ct);
             if (entity == null)
                 throw new KeyNotFoundException("User preference not found.");
+
+            // Business logic: Validate range values cho mèo
+            if (entity.Attribute != null)
+            {
+                ValidatePreferenceRange(entity.Attribute.Name, req.MinValue, req.MaxValue);
+            }
 
             // Business logic: Update preference
             entity.OptionId = req.OptionId;
@@ -119,11 +166,20 @@ namespace BE.Services
                 var attributeIds = request.Preferences.Select(p => p.AttributeId).Distinct().ToList();
                 var validAttributes = await _context.Attributes
                     .Where(a => attributeIds.Contains(a.AttributeId) && a.IsDeleted == false)
-                    .Select(a => a.AttributeId)
                     .ToListAsync(ct);
 
                 if (validAttributes.Count != attributeIds.Count)
                     throw new ArgumentException("Có attribute không hợp lệ hoặc đã bị xóa.");
+
+                // Business logic: Validate range values cho từng preference
+                foreach (var pref in request.Preferences)
+                {
+                    var attr = validAttributes.FirstOrDefault(a => a.AttributeId == pref.AttributeId);
+                    if (attr != null)
+                    {
+                        ValidatePreferenceRange(attr.Name, pref.MinValue, pref.MaxValue);
+                    }
+                }
             }
 
             // Business logic: Get existing preferences

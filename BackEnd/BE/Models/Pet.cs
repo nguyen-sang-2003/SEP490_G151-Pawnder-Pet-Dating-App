@@ -38,4 +38,12 @@ public partial class Pet
     public virtual ICollection<PetPhoto> PetPhotos { get; set; } = new List<PetPhoto>();
 
     public virtual User? User { get; set; }
+
+    // PetAppointment navigation properties
+    public virtual ICollection<PetAppointment> PetAppointmentsAsInviter { get; set; } = new List<PetAppointment>();
+
+    public virtual ICollection<PetAppointment> PetAppointmentsAsInvitee { get; set; } = new List<PetAppointment>();
+
+    // Event navigation properties
+    public virtual ICollection<EventSubmission> EventSubmissions { get; set; } = new List<EventSubmission>();
 }

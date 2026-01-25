@@ -1,6 +1,5 @@
 /**
- * 🔄 API Retry Utility
- * Implements exponential backoff retry logic for failed requests
+ * API Retry Utility
  */
 
 import { AxiosError } from 'axios';

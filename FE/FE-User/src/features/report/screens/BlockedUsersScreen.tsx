@@ -53,9 +53,7 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
       }
       const currentUserId = parseInt(currentUserIdStr, 10);
 
-      console.log('📋 Loading blocked users for:', currentUserId);
       const users = await getBlockedUsers(currentUserId);
-      console.log('✅ Loaded blocked users:', users.length);
       setBlockedUsers(users);
     } catch (error: any) {
 
@@ -82,7 +80,6 @@ const BlockedUsersScreen = ({ navigation }: Props) => {
         confirmText: t('report.blocked.unblock'),
         onConfirm: async () => {
           try {
-            console.log("✅ Unblocking user:", currentUserId, "->", toUserId);
             await unblockUser(currentUserId, toUserId);
 
             // Remove from list

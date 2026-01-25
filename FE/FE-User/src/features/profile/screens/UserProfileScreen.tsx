@@ -57,7 +57,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
   const [showAllCharacteristics, setShowAllCharacteristics] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
-  // 🚀 OPTIMIZED: Fetch user and pets data with progressive loading
   const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true);
@@ -70,52 +69,50 @@ const UserProfileScreen = ({ navigation }: Props) => {
       }
 
       const userId = parseInt(userIdStr, 10);
-      console.log('📱 Loading profile for userId:', userId);
 
-      // 🚀 OPTIMIZATION 1: Parallel loading - Load user and pets simultaneously
       const [user, petsData] = await Promise.all([
         getUserById(userId),
         getPetsByUserId(userId)
       ]);
 
       setUserData(user);
-      setPets(petsData);
-      console.log('👤 User data loaded:', user);
-      console.log('🐾 Pets data loaded:', petsData);
 
-      // Find active pet (IsActive = true)
+      // Find active pet from server data
       const active = petsData.find(p => p.IsActive === true || p.isActive === true);
-      setActivePet(active || petsData[0] || null);
-      console.log('✅ Active pet:', active);
+      
+      // If no pet is marked as active but there are pets, mark the first one as active locally
+      if (!active && petsData.length > 0) {
+        petsData[0] = {
+          ...petsData[0],
+          IsActive: true,
+          isActive: true,
+        };
+        setActivePet(petsData[0]);
+      } else {
+        setActivePet(active || null);
+      }
+      
+      setPets(petsData);
 
-      // 🚀 OPTIMIZATION 2: Load VIP status and address in background (non-blocking)
-      // VIP status
       getVipStatus(userId)
         .then(vipStatus => {
           setIsVip(vipStatus.isVip);
-          console.log('💎 VIP status:', vipStatus.isVip);
         })
         .catch(() => {
-          console.log('⚠️ Failed to get VIP status, assuming not VIP');
           setIsVip(false);
         });
 
-      // Address data
       const addressId = user.AddressId || user.addressId;
-      console.log('🔍 User addressId:', addressId);
 
       if (addressId) {
         getAddressById(addressId)
           .then(address => {
-            console.log('📍 Address data loaded:', address);
             setAddressData(address);
           })
           .catch((error: any) => {
-
             setAddressData(null);
           });
       } else {
-        console.log('⚠️ User has no addressId');
         setAddressData(null);
       }
 
@@ -151,16 +148,19 @@ const UserProfileScreen = ({ navigation }: Props) => {
         const petId = activePet.PetId || activePet.petId;
         if (!petId) return;
 
-        // 🚀 OPTIMIZATION 3: Parallel loading - Load characteristics and photos simultaneously
         const [chars, photos] = await Promise.all([
           getPetCharacteristics(petId),
           getPetPhotos(petId)
         ]);
 
         // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
+        // Also filter out "Loại" attribute (not used)
         const filteredChars = chars.filter((char: any) => {
           const name = char.name?.toLowerCase() || '';
           if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
+            return false;
+          }
+          if (name.includes('loại')) {
             return false;
           }
           return true;
@@ -176,9 +176,7 @@ const UserProfileScreen = ({ navigation }: Props) => {
         });
 
         setPetPhotos(sortedPhotos || []);
-        console.log('📸 Pet photos loaded:', sortedPhotos.length, 'photos');
       } catch (error: any) {
-        console.log('⚠️ No characteristics found for pet');
         setCharacteristics([]);
         setPetPhotos([]);
       }
@@ -275,19 +273,30 @@ const UserProfileScreen = ({ navigation }: Props) => {
   };
 
   // My Pets List (convert from PetResponse[] to PetItem[])
-  // Note: Age is only loaded for active pet from characteristics
-  // For inactive pets, we'll show a placeholder until they become active
-  const myPets: PetItem[] = pets.map(pet => {
+  // Sort: active pet first, then by PetId descending (newest first - higher ID = created later)
+  const sortedPets = [...pets].sort((a, b) => {
+    const aActive = a.IsActive === true || a.isActive === true;
+    const bActive = b.IsActive === true || b.isActive === true;
+    
+    // Active pet always first
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    
+    // Then sort by PetId descending (higher ID = newer pet)
+    const aId = a.PetId || a.petId || 0;
+    const bId = b.PetId || b.petId || 0;
+    return bId - aId;
+  });
+
+  const myPets: PetItem[] = sortedPets.map(pet => {
     const isThisActive = pet.IsActive === true || pet.isActive === true;
+    const petId = pet.PetId || pet.petId || 0;
+    
     return {
-      id: (pet.PetId || pet.petId || 0).toString(),
+      id: petId.toString(),
       name: pet.Name || pet.name || '',
       breed: pet.Breed || pet.breed || '',
-      age: isThisActive
-        ? getAgeFromCharacteristics(characteristics) // Get from characteristics if active
-        : pet.Age
-          ? pet.Age.toString()
-          : (pet.age ? pet.age.toString() : ''), // Return raw value
+      age: '', // Age not displayed in pet list
       gender: (pet.Gender || pet.gender || 'male').toLowerCase() as "male" | "female",
       image: pet.UrlImageAvatar || pet.urlImageAvatar
         ? { uri: pet.UrlImageAvatar || pet.urlImageAvatar }
@@ -306,6 +315,18 @@ const UserProfileScreen = ({ navigation }: Props) => {
   };
 
   const handleDeletePet = async (petIdStr: string) => {
+    // Check if user has only 1 active (non-deleted) pet - cannot delete
+    const activePets = pets.filter(p => !(p.IsDeleted || p.isDeleted));
+    if (activePets.length <= 1) {
+      showAlert({
+        type: 'warning',
+        title: t('profile.deletePet.cannotDelete'),
+        message: t('profile.deletePet.mustHaveOnePet'),
+        confirmText: 'OK'
+      });
+      return;
+    }
+
     const petId = parseInt(petIdStr, 10);
     const pet = pets.find(p => (p.PetId || p.petId) === petId);
 
@@ -323,20 +344,26 @@ const UserProfileScreen = ({ navigation }: Props) => {
       cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
+          // Check if deleted pet was active
+          const wasActive = pet.IsActive === true || pet.isActive === true;
+          
           await deletePet(petId);
 
-          // ✅ Remove pet from state immediately (optimistic update)
-          setPets(prevPets => {
-            const updatedPets = prevPets.filter(p => (p.PetId || p.petId) !== petId);
+          // If deleted pet was active, set first remaining pet as active in database
+          if (wasActive) {
+            const remainingPets = pets.filter(p => (p.PetId || p.petId) !== petId);
             
-            // If deleted pet was active, set first remaining pet as active
-            if (pet.IsActive === true || pet.isActive === true) {
-              const newActivePet = updatedPets[0] || null;
-              setActivePet(newActivePet);
+            if (remainingPets.length > 0) {
+              const newActivePetId = remainingPets[0].PetId || remainingPets[0].petId;
+              
+              // Call API to set new active pet in database
+              try {
+                await setActivePetAPI(newActivePetId);
+              } catch (error) {
+                console.error('Failed to set new active pet:', error);
+              }
             }
-            
-            return updatedPets;
-          });
+          }
 
           // Reload data to ensure sync with server
           await fetchProfileData();
@@ -396,8 +423,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
           if (userIdStr) {
             const userId = parseInt(userIdStr, 10);
 
-            // ✅ CLEAR ALL CACHE khi đổi pet
-            console.log('🗑️ Clearing all cache after switching pet...');
             invalidateCache.all();
 
             const petsData = await getPetsByUserId(userId);
@@ -408,7 +433,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
             setActivePet(newActivePet || null);
 
             // Refresh badges for the new active pet
-            console.log('🔄 Refreshing badges after setting active pet...');
             await refreshBadgesForActivePet(userId);
           }
 
@@ -706,7 +730,6 @@ const UserProfileScreen = ({ navigation }: Props) => {
                       </Text>
                     </Text>
                     <Text style={styles.petBreed}>{pet.breed || t('profile.unknownBreed')}</Text>
-                    <Text style={styles.petAge}>{pet.age ? t('profile.ageYears', { age: pet.age }) : t('profile.unknownAge')}</Text>
                   </View>
 
                   {/* Edit Button */}
@@ -720,16 +743,18 @@ const UserProfileScreen = ({ navigation }: Props) => {
                     <Icon name="pencil" size={16} color={colors.primary} />
                   </TouchableOpacity>
 
-                  {/* Delete Button */}
-                  <TouchableOpacity
-                    style={styles.deletePetBtn}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleDeletePet(pet.id);
-                    }}
-                  >
-                    <Icon name="trash" size={16} color={colors.error} />
-                  </TouchableOpacity>
+                  {/* Delete Button - Only show if user has more than 1 active pet */}
+                  {pets.filter(p => !(p.IsDeleted || p.isDeleted)).length > 1 && (
+                    <TouchableOpacity
+                      style={styles.deletePetBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeletePet(pet.id);
+                      }}
+                    >
+                      <Icon name="trash" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  )}
                 </TouchableOpacity>
 
                 {/* Set Active Button */}

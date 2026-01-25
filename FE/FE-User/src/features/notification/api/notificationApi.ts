@@ -52,7 +52,6 @@ const detectNotificationType = (title?: string | null, message?: string | null):
 export const markNotificationAsRead = async (notificationId: number): Promise<void> => {
   try {
     await apiClient.put(`/api/notification/${notificationId}/read`);
-    console.log('✅ Marked notification as read:', notificationId);
   } catch (error) {
 
     throw error;
@@ -65,7 +64,6 @@ export const markNotificationAsRead = async (notificationId: number): Promise<vo
 export const markAllNotificationsAsRead = async (userId: number): Promise<void> => {
   try {
     await apiClient.put(`/api/notification/user/${userId}/read-all`);
-    console.log('✅ Marked all notifications as read for user:', userId);
   } catch (error) {
 
     throw error;
@@ -86,8 +84,18 @@ export const getUnreadNotificationCount = async (userId: number): Promise<number
     });
     return data.count || 0;
   } catch (error) {
-    console.error('❌ getUnreadNotificationCount error:', error);
-    return 0; // Fail gracefully
+    return 0;
+  }
+};
+
+/**
+ * Delete a notification
+ */
+export const deleteNotification = async (notificationId: number): Promise<void> => {
+  try {
+    await apiClient.delete(`/api/notification/${notificationId}`);
+  } catch (error) {
+    throw error;
   }
 };
 

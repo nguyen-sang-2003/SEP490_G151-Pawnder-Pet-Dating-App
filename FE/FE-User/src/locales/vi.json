@@ -95,9 +95,12 @@
       "emailExistsMessage": "Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập",
       "otpSendError": "Không thể gửi mã xác thực",
       "otpSendErrorMessage": "Không thể gửi mã OTP đến email. Vui lòng kiểm tra email và thử lại",
+      "passwordNeedsLowercase": "Mật khẩu phải chứa ít nhất 1 chữ thường (a-z)",
+      "passwordMaxLength": "Mật khẩu không được quá 100 ký tự",
       "passwordRequirements": {
         "minLength": "Ít nhất 8 ký tự",
         "hasUppercase": "Chứa ít nhất 1 chữ hoa",
+        "hasLowercase": "Chứa ít nhất 1 chữ thường",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt"
       }
@@ -191,12 +194,14 @@
         "description": "Giới thiệu",
         "descriptionPlaceholder": "Mô tả tính cách và đặc điểm của thú cưng...",
         "optional": "Tùy chọn",
-        "charCount": "Tùy chọn • {{count}}/200",
+        "charCount": "Tùy chọn • {{count}}/{{max}}",
         "continueButton": "Tiếp tục",
         "missingInfo": "Thiếu thông tin",
         "enterPetName": "Vui lòng nhập tên thú cưng",
+        "enterBreed": "Vui lòng nhập giống loài thú cưng",
         "invalidName": "Tên không hợp lệ",
         "nameMinLength": "Tên thú cưng phải có ít nhất 2 ký tự",
+        "nameMaxLength": "Tên thú cưng không được quá 50 ký tự",
         "error": "Lỗi",
         "userNotFound": "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.",
         "success": "Thành công!",
@@ -204,12 +209,17 @@
         "petUpdated": "Đã cập nhật hồ sơ {{name}}. Tiếp tục thêm ảnh!",
         "createFailed": "Không thể tạo hồ sơ thú cưng. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
-        "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục."
+        "needPetProfile": "Bạn cần tạo ít nhất một hồ sơ thú cưng để tiếp tục.",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại",
+        "deleteError": "Không thể xóa hồ sơ. Vui lòng thử lại."
       },
       "photos": {
         "title": "Thêm ảnh",
         "editTitle": "Ảnh thú cưng",
-        "subtitle": "Thêm ít nhất 3 ảnh để giới thiệu thú cưng của bạn",
+        "subtitle": "Thêm ít nhất 1 ảnh để giới thiệu thú cưng của bạn",
         "step": "Bước 2 / 3",
         "addPhoto": "Thêm ảnh",
         "photoLimit": "Giới hạn ảnh",
@@ -225,7 +235,7 @@
         "noNewPhotosMessage": "Bạn chưa thêm ảnh mới. Tiếp tục để chỉnh sửa đặc điểm.",
         "photoBreakdown": "{{db}} ảnh đã lưu • {{new}} ảnh mới",
         "needMorePhotos": "Cần thêm ảnh",
-        "minPhotosMessage": "Vui lòng thêm ít nhất 3 ảnh (Hiện tại: {{current}}/3)",
+        "minPhotosMessage": "Vui lòng thêm ít nhất 1 ảnh (Hiện tại: {{current}}/3)",
         "photoCount": "{{count}}/{{max}} ảnh",
         "photoCountReady": "{{count}}/{{max}} ảnh (Sẵn sàng!)",
         "photoCountNeed": "{{count}}/{{max}} ảnh (Cần {{need}} ảnh nữa)",
@@ -238,19 +248,30 @@
         "aiAnalysisFailedMessage": "Phân tích AI không khả dụng. Bạn có thể thêm đặc điểm thủ công.",
         "aiNotAvailable": "Tính năng phân tích AI hiện không khả dụng từ khu vực này. Bạn có thể tiếp tục và thêm đặc điểm thủ công.",
         "aiApiKeyError": "Lỗi cấu hình AI. Vui lòng thử lại sau.",
+        "networkUnstable": "Có vẻ như đường truyền của bạn không được tốt. Vui lòng thử lại sau.",
+        "usePreviousResults": "Dùng kết quả cũ",
+        "stayAndFix": "Ở lại sửa ảnh",
+        "usePreviousResultsMessage": "Phân tích ảnh mới không thành công. Bạn có muốn dùng kết quả AI từ lần trước để tiếp tục?",
         "aiQuotaExceeded": "Đã vượt quá giới hạn phân tích AI. Vui lòng thử lại sau.",
+        "notACatTitle": "Không phải ảnh mèo",
         "notCatPhoto": "Ảnh không hợp lệ",
         "uploadFailed": "Không thể tải ảnh lên. Vui lòng thử lại.",
+        "invalidFiles": "Một số ảnh không hợp lệ",
+        "invalidFilesMessage": "Chỉ chấp nhận ảnh JPG, PNG, WEBP với kích thước tối đa 5MB. Các ảnh sau không hợp lệ:",
         "tips": {
-          "title": "Mẹo chụp ảnh",
-          "clearPhoto": "Sử dụng ảnh rõ ràng, ánh sáng tốt",
-          "showPersonality": "Thể hiện tính cách thú cưng của bạn",
-          "includeVariety": "Bao gồm ảnh toàn thân và cận cảnh"
+          "title": "Lưu ý",
+          "clearPhoto": "Hệ thống chỉ phân tích ảnh mèo đầu tiên trong danh sách",
+          "showPersonality": "Đặt ảnh rõ mặt mèo ở vị trí đầu tiên để kết quả chính xác nhất",
+          "includeVariety": "Sử dụng ảnh rõ ràng, ánh sáng tốt"
         },
         "completeProfile": "Hoàn thành hồ sơ",
         "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
         "editBasicInfo": "Sửa thông tin cơ bản",
-        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?"
+        "editBasicInfoMessage": "Bạn có muốn quay lại để sửa thông tin cơ bản của thú cưng không?",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại"
       },
       "characteristics": {
         "title": "Đặc điểm thú cưng",
@@ -279,7 +300,20 @@
         "saveFailed": "Không thể lưu thuộc tính. Vui lòng thử lại.",
         "updateFailed": "Không thể cập nhật thuộc tính. Vui lòng thử lại.",
         "completeProfile": "Hoàn thành hồ sơ",
-        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục."
+        "needComplete": "Bạn cần hoàn thành hồ sơ thú cưng để tiếp tục.",
+        "incompletePet": "Hồ sơ chưa hoàn thành",
+        "incompletePetMessage": "Bạn chưa hoàn thành tạo hồ sơ thú cưng. Nếu thoát, hồ sơ này sẽ bị xóa. Bạn có chắc muốn thoát?",
+        "exitAndDelete": "Thoát và xóa",
+        "stayHere": "Ở lại",
+        "deleteError": "Không thể xóa hồ sơ. Vui lòng thử lại."
+      },
+      "exit": {
+        "titleRegistration": "Thoát tạo thú cưng?",
+        "messageRegistration": "Bạn cần tạo thú cưng để sử dụng app. Nếu thoát, lần đăng nhập sau bạn sẽ phải tạo lại.",
+        "titleFromProfile": "Hủy tạo thú cưng?",
+        "messageFromProfile": "Bạn chưa hoàn thành thông tin thú cưng. Bạn có chắc muốn thoát không?",
+        "exitButton": "Thoát",
+        "stayButton": "Ở lại"
       }
     },
     "onboarding": {
@@ -388,6 +422,10 @@
     "noChatsDesc": "Kết nối với chủ thú cưng khác để bắt đầu trò chuyện!",
     "noSearchResults": "Không tìm thấy kết quả",
     "noSearchResultsDesc": "Thử tìm kiếm với tên hoặc tin nhắn khác",
+    "badWord": {
+      "title": "Nội dung không phù hợp",
+      "message": "Tin nhắn của bạn chứa nội dung không phù hợp và không thể gửi. Vui lòng kiểm tra lại nội dung tin nhắn."
+    },
     "filter": {
       "all": "Tất cả",
       "unread": "Chưa đọc"
@@ -522,6 +560,9 @@
       "emptyQuestion": "Vui lòng nhập câu hỏi của bạn",
       "saveChatFirst": "Vui lòng lưu cuộc trò chuyện trước khi yêu cầu chuyên gia",
       "submitError": "Không thể gửi yêu cầu. Vui lòng thử lại."
+    },
+    "appointment": {
+      "noPetInfo": "Không tìm thấy thông tin thú cưng để tạo lịch hẹn"
     }
   },
 
@@ -571,7 +612,9 @@
       "terms": "Điều khoản & Điều kiện",
       "termsDesc": "Đọc điều khoản dịch vụ của chúng tôi",
       "privacy": "Chính sách bảo mật",
-      "privacyDesc": "Đọc chính sách bảo mật của chúng tôi"
+      "privacyDesc": "Đọc chính sách bảo mật của chúng tôi",
+      "policies": "Chính sách",
+      "policiesDesc": "Xem các chính sách của ứng dụng"
     },
     "danger": {
       "logout": "Đăng xuất",
@@ -603,6 +646,8 @@
       "requirements": {
         "title": "Yêu cầu mật khẩu:",
         "minLength": "Ít nhất 8 ký tự",
+        "hasUppercase": "Chứa ít nhất 1 chữ hoa",
+        "hasLowercase": "Chứa ít nhất 1 chữ thường",
         "hasNumber": "Chứa ít nhất 1 chữ số",
         "hasSpecial": "Chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
         "differentFromCurrent": "Khác với mật khẩu hiện tại"
@@ -611,6 +656,9 @@
         "enterCurrentPassword": "Vui lòng nhập mật khẩu hiện tại",
         "enterNewPassword": "Vui lòng nhập mật khẩu mới",
         "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+        "passwordMaxLength": "Mật khẩu không được quá 100 ký tự",
+        "passwordNeedsUppercase": "Mật khẩu phải chứa ít nhất 1 chữ hoa",
+        "passwordNeedsLowercase": "Mật khẩu phải chứa ít nhất 1 chữ thường (a-z)",
         "passwordNeedsNumber": "Mật khẩu phải chứa ít nhất 1 chữ số",
         "passwordNeedsSpecial": "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)",
         "passwordSameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại",
@@ -839,6 +887,13 @@
         "title": "Chưa tìm thấy giao dịch",
         "message": "Chưa phát hiện giao dịch thanh toán. Vui lòng đảm bảo đã chuyển khoản đúng số tiền và nội dung, sau đó thử lại.",
         "tryAgain": "Thử lại"
+      },
+      "timeRemaining": "Còn lại",
+      "autoChecking": "Đang tự động kiểm tra thanh toán...",
+      "expired": {
+        "title": "Mã QR đã hết hạn",
+        "message": "Mã QR thanh toán đã hết hạn sau 10 phút. Vui lòng tạo mã mới để tiếp tục thanh toán.",
+        "button": "Quay lại"
       }
     },
     "vip": {
@@ -888,7 +943,9 @@
       "confirmText": "Xóa",
       "successTitle": "Đã xóa! 👋",
       "successMessage": "{{name}} đã được xóa thành công.",
-      "error": "Không thể xóa thú cưng. Vui lòng thử lại."
+      "error": "Không thể xóa thú cưng. Vui lòng thử lại.",
+      "cannotDelete": "Không thể xóa 🐾",
+      "mustHaveOnePet": "Bạn phải có ít nhất 1 thú cưng để sử dụng ứng dụng. Vui lòng thêm thú cưng khác trước khi xóa."
     },
     "owner": {
       "title": "Thông tin chủ sở hữu",
@@ -1231,7 +1288,14 @@
     "errors": {
       "loadFailed": "Không thể tải thông báo",
       "createChatFailed": "Không thể tạo chat với chuyên gia"
-    }
+    },
+    "delete": "Xóa thông báo",
+    "deleteSuccess": "Đã xóa thông báo",
+    "deleteError": "Không thể xóa thông báo",
+    "deleteConfirmTitle": "Xóa thông báo",
+    "deleteConfirmMessage": "Bạn có chắc muốn xóa thông báo này?",
+    "longPressHint": "Nhấn giữ để xóa",
+    "viewAppointment": "Xem lịch hẹn"
   },
 
   "favorite": {
@@ -1248,7 +1312,8 @@
       "matched": "Ghép đôi!",
       "age": "{{age}} tuổi",
       "unknownAge": "Không rõ",
-      "unknownBreed": "Không rõ"
+      "unknownBreed": "Không rõ",
+      "viewMatch": "Xem %"
     },
     "actions": {
       "sendMessage": "Gửi tin nhắn",
@@ -1443,10 +1508,64 @@
 
   "appName": "Pawnder",
 
+  "matchDetails": {
+    "matchWithYou": "phù hợp với bạn",
+    "filterCount": "Khớp {{matched}}/{{total}} bộ lọc của bạn",
+    "matchedFilters": "Chi tiết các bộ lọc đã khớp",
+    "infoHint": "Điểm phù hợp dựa trên số bộ lọc khớp và độ ưu tiên của từng tiêu chí",
+    "noPreferences": "Chưa thiết lập bộ lọc",
+    "noPreferencesDesc": "Hãy vào bộ lọc để thiết lập tiêu chí tìm kiếm."
+  },
+
   "fallback": {
     "unknown": "Không rõ",
     "unknownBreed": "Không rõ giống",
     "noDescription": "Chưa có mô tả",
     "noAnswer": "Chưa có câu trả lời"
+  },
+
+  "policy": {
+    "requiredTitle": "Chính sách cần xác nhận",
+    "requiredSubtitle": "Vui lòng đọc và xác nhận các chính sách sau để tiếp tục sử dụng ứng dụng",
+    "acceptAll": "Xác nhận tất cả",
+    "checkAllHint": "Vui lòng đánh dấu xác nhận tất cả chính sách",
+    "version": "Phiên bản {{version}}",
+    "updateBadge": "Cập nhật mới",
+    "acceptance": {
+      "title": "Chính sách & Điều khoản",
+      "subtitle": "Vui lòng đọc và xác nhận các chính sách sau để tiếp tục",
+      "acceptAll": "Xác nhận tất cả",
+      "infoText": "Bằng việc xác nhận, bạn đồng ý tuân thủ các điều khoản và chính sách của chúng tôi.",
+      "checkedCount": "Đã xác nhận {{checked}}/{{total}} chính sách",
+      "incompleteTitle": "Chưa hoàn tất",
+      "incompleteMessage": "Vui lòng đọc và đánh dấu xác nhận tất cả các chính sách để tiếp tục.",
+      "errorTitle": "Lỗi",
+      "errorMessage": "Không thể xác nhận chính sách. Vui lòng thử lại."
+    },
+    "list": {
+      "title": "Chính sách",
+      "version": "Phiên bản {{version}}",
+      "emptyTitle": "Chưa có chính sách",
+      "emptySubtitle": "Các chính sách sẽ được hiển thị ở đây",
+      "errorTitle": "Không thể tải",
+      "loadError": "Không thể tải danh sách chính sách. Vui lòng thử lại."
+    },
+    "detail": {
+      "version": "Phiên bản",
+      "publishedDate": "Ngày công bố",
+      "errorTitle": "Không thể tải",
+      "loadError": "Không thể tải nội dung chính sách. Vui lòng thử lại."
+    },
+    "history": {
+      "title": "Lịch sử xác nhận",
+      "version": "v{{version}}",
+      "valid": "Còn hiệu lực",
+      "invalidated": "Đã hết hiệu lực",
+      "invalidatedAt": "Hết hiệu lực: {{date}}",
+      "emptyTitle": "Chưa có lịch sử",
+      "emptySubtitle": "Lịch sử xác nhận chính sách sẽ được hiển thị ở đây",
+      "errorTitle": "Không thể tải",
+      "loadError": "Không thể tải lịch sử xác nhận. Vui lòng thử lại."
+    }
   }
 }

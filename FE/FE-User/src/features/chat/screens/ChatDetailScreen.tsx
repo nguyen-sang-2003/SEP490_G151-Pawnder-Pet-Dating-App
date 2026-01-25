@@ -27,7 +27,7 @@ import { getChatMessages, sendMessage, deleteChat, ChatMessage, getChats, ChatUs
 import { blockUser } from "../../report/api/blockApi";
 import { reportMessage } from "../../report/api/reportApi";
 import { getUserById } from "../../profile/api/userApi";
-import { getPetsByUserId } from "../../pet/api/petApi";
+import { getPetsByUserId, getPetById } from "../../pet/api/petApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -71,9 +71,14 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const [myAvatar, setMyAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const [otherUserAvatar, setOtherUserAvatar] = useState<any>(require("../../../assets/cat_avatar.png"));
   const [userName, setUserName] = useState<string>(initialUserName || "Loading...");
+  // Pet info for appointment
+  const [myPetId, setMyPetId] = useState<number | null>(null);
+  const [otherPetId, setOtherPetId] = useState<number | null>(null);
+  const [myPetName, setMyPetName] = useState<string>("");
+  const [otherPetName, setOtherPetName] = useState<string>("");
   const flatListRef = useRef<FlatList>(null);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentUserIdRef = useRef<number | null>(null);
 
   // Keep ref updated
@@ -91,15 +96,30 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     }
   }, [messages]); // Watch entire messages array, not just length
 
-  // Fetch user info if not provided
+  // Fetch pet info if not provided (show pet name instead of owner name for privacy)
   useEffect(() => {
-    const fetchUserInfo = async () => {
+    const fetchPetInfo = async () => {
       if (!initialUserName || initialUserName === "Someone" || initialUserName === "undefined") {
         try {
-          console.log('📱 Fetching user info for userId:', otherUserId);
-          const userInfo = await getUserById(otherUserId);
-          setUserName(userInfo.fullName || t('fallback.unknown'));
-          console.log('✅ User info loaded:', userInfo.fullName);
+          // Get chat info to find other pet ID
+          const userIdStr = await AsyncStorage.getItem('userId');
+          if (userIdStr) {
+            const userId = parseInt(userIdStr);
+            const chats = await getChats(userId);
+            const currentChat = chats.find(c => c.matchId === matchId);
+            
+            if (currentChat) {
+              const otherPetIdValue = currentChat.fromUserId === userId ? currentChat.toPetId : currentChat.fromPetId;
+              
+              // Fetch pet name using getPetById API
+              if (otherPetIdValue) {
+                const petData = await getPetById(otherPetIdValue);
+                setUserName(petData.name || t('fallback.unknown'));
+              } else {
+                setUserName(t('fallback.unknown'));
+              }
+            }
+          }
         } catch (error) {
 
           setUserName(t('fallback.unknown'));
@@ -107,8 +127,8 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       }
     };
 
-    fetchUserInfo();
-  }, [otherUserId, initialUserName]);
+    fetchPetInfo();
+  }, [otherUserId, initialUserName, matchId]);
 
   // Typing animation
   const typingAnim1 = useRef(new Animated.Value(0)).current;
@@ -166,66 +186,41 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   // Load messages when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // ✅ Set active viewing chat ID to prevent badge from being added
       dispatch(setActiveViewingChatId(matchId));
-      console.log('👀 [ChatDetailScreen] Set activeViewingChatId:', matchId);
       
       loadMessages();
-      // Mark this chat as read (remove from unread list)
       dispatch(markChatAsRead(matchId));
       
-      // Cleanup: Clear active viewing chat when leaving
       return () => {
         dispatch(setActiveViewingChatId(null));
-        console.log('👋 [ChatDetailScreen] Cleared activeViewingChatId');
       };
     }, [matchId, dispatch])
   );
 
   const setupSignalR = async () => {
     try {
-      console.log('🔧 [setupSignalR] Starting setup...');
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        console.log('❌ [setupSignalR] No userId found');
         return;
       }
 
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
-      console.log('👤 [setupSignalR] Current user ID:', userId);
-      console.log('💬 [setupSignalR] Match ID:', matchId);
-      console.log('👥 [setupSignalR] Other user ID:', otherUserId);
 
-      // Connect to SignalR if not already connected
       if (!signalRService.isConnected()) {
-        console.log('🔌 [setupSignalR] Connecting to SignalR...');
         await signalRService.connect(userId);
-        console.log('✅ [setupSignalR] Connected to SignalR');
-      } else {
-        console.log('✅ [setupSignalR] Already connected to SignalR');
       }
 
-      // Join this chat room
-      console.log('🚪 [setupSignalR] Joining chat room...');
       await signalRService.joinChat(matchId, userId);
-      console.log('✅ [setupSignalR] Joined chat room Match_' + matchId);
 
-      // Setup listeners
-      console.log('👂 [setupSignalR] Setting up event listeners...');
       signalRService.on('ReceiveMessage', handleReceiveMessage);
       signalRService.on('UserTyping', handleUserTyping);
       signalRService.on('UserOnline', handleUserOnline);
       signalRService.on('UserOffline', handleUserOffline);
       signalRService.on('UserJoinedChat', handleUserJoinedChat);
-      console.log('✅ [setupSignalR] Event listeners attached');
 
-      // Check if other user is online
       const isOnline = await signalRService.isUserOnline(otherUserId);
       setOtherUserOnline(isOnline);
-      console.log('👤 [setupSignalR] Other user online status:', isOnline);
-
-      console.log('✅ [setupSignalR] Complete setup for match:', matchId);
     } catch (error) {
 
     }
@@ -237,124 +232,97 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         await signalRService.leaveChat(matchId, currentUserId);
       }
 
-      // Remove listeners
       signalRService.off('ReceiveMessage', handleReceiveMessage);
       signalRService.off('UserTyping', handleUserTyping);
       signalRService.off('UserOnline', handleUserOnline);
       signalRService.off('UserOffline', handleUserOffline);
       signalRService.off('UserJoinedChat', handleUserJoinedChat);
-
-      console.log('✅ SignalR cleanup complete');
     } catch (error) {
 
     }
   };
 
   const handleReceiveMessage = (data: any) => {
-    console.log('📨 [handleReceiveMessage] Received message via SignalR:', data);
-
-    // SignalR sends keys in camelCase: fromUserId, message, matchId, createdAt
     const fromUserId = data.fromUserId || data.FromUserId;
     const messageText = data.message || data.Message;
     let createdAt = data.createdAt || data.CreatedAt;
 
-    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
     if (typeof createdAt === 'string' && !createdAt.endsWith('Z') && !createdAt.includes('+')) {
       createdAt = createdAt + 'Z';
     }
 
-    console.log('📨 [handleReceiveMessage] From user:', fromUserId);
-    console.log('📨 [handleReceiveMessage] Message:', messageText);
-    console.log('📨 [handleReceiveMessage] Current userId (ref):', currentUserIdRef.current);
-
     const isFromMe = currentUserIdRef.current && fromUserId === currentUserIdRef.current;
-    console.log('📨 [handleReceiveMessage] Is from me:', isFromMe);
-
-    // Parse timestamp as UTC
     const timestamp = new Date(createdAt);
 
-    // ✅ If message is from other user, mark as read IMMEDIATELY (outside setState)
     if (!isFromMe) {
-      console.log('✅ [handleReceiveMessage] Message from other user - marking chat as read');
       dispatch(markChatAsRead(matchId));
     }
 
     setMessages(prev => {
-      // Check if message already exists (by text content and recent time)
-      const existingMsg = prev.find(msg =>
-        msg.text === messageText &&
-        Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 10000 // 10 seconds window
-      );
+      // For my own messages: find by status "sending" or "sent" within time window
+      // The text might be different due to bad word filtering
+      if (isFromMe) {
+        const recentSendingMsg = prev.find(msg =>
+          msg.isMe &&
+          (msg.status === "sending" || msg.status === "sent") &&
+          Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 30000 // 30 second window
+        );
 
-      if (existingMsg) {
-        console.log('📨 [handleReceiveMessage] Message already exists:', existingMsg.id);
-
-        // If it's our message in "sending" state, update to "sent"
-        if (isFromMe && existingMsg.status === "sending") {
-          console.log('📨 [handleReceiveMessage] Updating our message status to sent');
+        if (recentSendingMsg) {
           return prev.map(msg =>
-            msg.id === existingMsg.id
-              ? { ...msg, status: "sent" as const }
+            msg.id === recentSendingMsg.id
+              ? { 
+                  ...msg, 
+                  text: messageText, // Update with filtered message from backend
+                  status: "sent" as const 
+                }
               : msg
           );
         }
-
-        // Message already exists, don't add duplicate
-        console.log('📨 [handleReceiveMessage] Skipping duplicate message');
         return prev;
       }
 
-      // Add new message (only if it doesn't exist)
-      // This should only happen for messages from other users
-      if (!isFromMe) {
-        console.log('📨 [handleReceiveMessage] Adding new message from other user');
-        const newMessage: Message = {
-          id: `signalr_${fromUserId}_${Date.now()}`,
-          text: messageText,
-          isMe: false,
-          timestamp: timestamp,
-          status: "read" as const,
-        };
+      // For other user's messages: check for duplicates
+      const existingMsg = prev.find(msg =>
+        msg.text === messageText &&
+        Math.abs(timestamp.getTime() - msg.timestamp.getTime()) < 10000
+      );
 
-        return [...prev, newMessage];
+      if (existingMsg) {
+        return prev;
       }
 
-      console.log('📨 [handleReceiveMessage] Ignoring our own message (should have been added optimistically)');
-      return prev;
+      // Add new message from other user
+      const newMessage: Message = {
+        id: `signalr_${fromUserId}_${Date.now()}`,
+        text: messageText,
+        isMe: false,
+        timestamp: timestamp,
+        status: "read" as const,
+      };
+
+      return [...prev, newMessage];
     });
 
-    // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
 
   const handleUserTyping = (data: any) => {
-    console.log('⌨️ [handleUserTyping] Received typing event:', data);
-
-    // SignalR sends keys in camelCase
     const userId = data.userId || data.UserId;
     const isTyping = data.isTyping !== undefined ? data.isTyping : data.IsTyping;
-
-    console.log('⌨️ [handleUserTyping] User ID:', userId);
-    console.log('⌨️ [handleUserTyping] Other user ID:', otherUserId);
-    console.log('⌨️ [handleUserTyping] Is typing:', isTyping);
 
     if (userId === otherUserId) {
       setIsTyping(isTyping);
 
-      // Clear existing timeout
       if (typingTimeoutRef.current) {
-        console.log('⌨️ [handleUserTyping] Clearing existing timeout');
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
       }
 
-      // Auto-hide typing indicator after 3 seconds only if currently typing
       if (isTyping) {
-        console.log('⌨️ [handleUserTyping] Setting auto-hide timeout');
         typingTimeoutRef.current = setTimeout(() => {
-          console.log('⌨️ [handleUserTyping] Auto-hiding typing indicator');
           setIsTyping(false);
         }, 3000);
       }
@@ -364,43 +332,34 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
   const handleUserOnline = (userId: number) => {
     if (userId === otherUserId) {
       setOtherUserOnline(true);
-      console.log('👤 Other user is now online');
     }
   };
 
   const handleUserOffline = (userId: number) => {
     if (userId === otherUserId) {
       setOtherUserOnline(false);
-      console.log('👤 Other user is now offline');
     }
   };
 
   const handleUserJoinedChat = (data: any) => {
     if (data.userId === otherUserId && data.matchId === matchId) {
       setOtherUserOnline(true);
-      console.log('👤 Other user joined this chat');
     }
   };
 
-  // 🚀 OPTIMIZED: Load messages with pagination and parallel loading
+  // Load messages with pagination and parallel loading
   const loadMessages = async () => {
     try {
       setLoading(true);
 
-      // Get current user ID
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        console.log('❌ No userId found');
         return;
       }
 
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
-      console.log('👤 Current user:', userId);
-      console.log('💬 Loading messages for matchId:', matchId);
 
-      // 🚀 OPTIMIZATION 1: Load match info to get pet IDs, then load avatars and messages
-      // Get all chats to find the match with this matchId
       const [chats, chatMessages] = await Promise.all([
         getChats(userId),
         getChatMessages(matchId)
@@ -409,35 +368,37 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       const currentMatch = chats.find((chat: ChatUser) => chat.matchId === matchId);
       
       if (currentMatch) {
-        // Determine my pet ID and other user's pet ID from match
-        const myPetId = currentMatch.fromUserId === userId ? currentMatch.fromPetId : currentMatch.toPetId;
-        const otherPetId = currentMatch.fromUserId === userId ? currentMatch.toPetId : currentMatch.fromPetId;
-        
-        console.log('🐾 Match info:', {
-          matchId,
-          myPetId,
-          otherPetId,
-          fromUserId: currentMatch.fromUserId,
-          toUserId: currentMatch.toUserId
-        });
+        const myPetIdValue = currentMatch.fromUserId === userId ? currentMatch.fromPetId : currentMatch.toPetId;
+        const otherPetIdValue = currentMatch.fromUserId === userId ? currentMatch.toPetId : currentMatch.fromPetId;
 
-        // Load avatars using pet IDs from match (not active pet)
-        const myAvatarResult = myPetId 
-          ? await getPetAvatar(myPetId).catch(() => getUserPetAvatar(userId))
+        // Save pet IDs for appointment feature
+        if (myPetIdValue) setMyPetId(myPetIdValue);
+        if (otherPetIdValue) setOtherPetId(otherPetIdValue);
+
+        // Fetch pet names for appointment
+        if (myPetIdValue) {
+          getPetById(myPetIdValue)
+            .then(pet => setMyPetName(pet.name || pet.Name || ''))
+            .catch(() => {});
+        }
+        if (otherPetIdValue) {
+          getPetById(otherPetIdValue)
+            .then(pet => setOtherPetName(pet.name || pet.Name || ''))
+            .catch(() => {});
+        }
+
+        const myAvatarResult = myPetIdValue 
+          ? await getPetAvatar(myPetIdValue).catch(() => getUserPetAvatar(userId))
           : await getUserPetAvatar(userId);
         
         setMyAvatar(myAvatarResult);
-        console.log('👤 My avatar loaded (from match pet)');
 
-        // Load other user's avatar using pet ID from match
-        if (otherPetId) {
-          getPetAvatar(otherPetId)
+        if (otherPetIdValue) {
+          getPetAvatar(otherPetIdValue)
             .then(otherAvatar => {
               setOtherUserAvatar(otherAvatar);
-              console.log('👤 Other user avatar loaded (from match pet)');
             })
             .catch(() => {
-              console.log('⚠️ Could not load other user avatar from match pet, using active pet');
               getUserPetAvatar(otherUserId)
                 .then(otherAvatar => {
                   setOtherUserAvatar(otherAvatar);
@@ -447,44 +408,31 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
                 });
             });
         } else {
-          // Fallback to active pet if petId not found
           getUserPetAvatar(otherUserId)
             .then(otherAvatar => {
               setOtherUserAvatar(otherAvatar);
-              console.log('👤 Other user avatar loaded (fallback to active pet)');
             })
             .catch(() => {
-              console.log('⚠️ Could not load other user avatar, using default');
               setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
             });
         }
       } else {
-        console.log('⚠️ Match not found, using active pet avatar');
-        // Fallback to active pet if match not found
         const avatar = await getUserPetAvatar(userId);
         setMyAvatar(avatar);
         
-        // Load other user's avatar
         getUserPetAvatar(otherUserId)
           .then(otherAvatar => {
             setOtherUserAvatar(otherAvatar);
-            console.log('👤 Other user avatar loaded');
           })
           .catch(() => {
-            console.log('⚠️ Could not load other user avatar, using default');
             setOtherUserAvatar(require("../../../assets/cat_avatar.png"));
           });
       }
 
-      console.log('✅ Loaded messages:', chatMessages.length);
-
-      // 🚀 OPTIMIZATION 2: Only show last 50 messages initially
       const INITIAL_MESSAGE_COUNT = 50;
       const messagesToShow = chatMessages.slice(-INITIAL_MESSAGE_COUNT);
 
-      // Convert API messages to UI format
       const formattedMessages: Message[] = messagesToShow.map((msg) => {
-        // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
         let dateString = msg.createdAt;
         if (!dateString.endsWith('Z') && !dateString.includes('+')) {
           dateString = dateString + 'Z';
@@ -494,15 +442,14 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           id: msg.contentId.toString(),
           text: msg.message,
           isMe: msg.fromUserId === userId,
-          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
+          timestamp: new Date(dateString),
           status: "read" as const,
-          contentId: msg.contentId, // Store contentId for reporting
+          contentId: msg.contentId,
         };
       });
 
       setMessages(formattedMessages);
 
-      // 🚀 OPTIMIZATION 3: Immediate scroll without setTimeout
       requestAnimationFrame(() => {
         flatListRef.current?.scrollToEnd({ animated: false });
       });
@@ -521,7 +468,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     const messageText = inputText.trim();
     const tempId = Date.now().toString();
 
-    // Optimistic UI update
     const newMessage: Message = {
       id: tempId,
       text: messageText,
@@ -533,50 +479,58 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     setMessages(prev => [...prev, newMessage]);
     setInputText("");
 
-    // Stop typing indicator and clear timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
     signalRService.sendTyping(matchId, currentUserId, false);
 
-    // Scroll to bottom will be handled by useEffect when messages change
-
     try {
       setSending(true);
-      console.log('📤 [handleSend] Sending message:', { matchId, currentUserId, messageText });
-      console.log('📤 [handleSend] SignalR connected:', signalRService.isConnected());
 
-      // Send message to API (backend will broadcast via SignalR automatically)
-      console.log('📤 [handleSend] Saving to API (backend will broadcast)...');
-      await sendMessage(matchId, currentUserId, messageText);
-      console.log('✅ [handleSend] Saved to API and broadcast via SignalR');
+      const response = await sendMessage(matchId, currentUserId, messageText);
 
-      // Update status to sent
+      // Update message with filtered text from backend (if bad words were masked)
       setMessages(prev =>
         prev.map(msg =>
           msg.id === tempId
-            ? { ...msg, status: "sent" as const }
+            ? { 
+                ...msg,
+                text: response.message, // Use filtered message from backend
+                status: "sent" as const,
+                contentId: response.contentId,
+              }
             : msg
         )
       );
 
-      console.log('✅ [handleSend] Message sent successfully');
-
     } catch (error: any) {
 
-
-      // Remove failed message
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
 
-      showAlert({
-        type: 'error',
-        title: t('chat.detail.sendErrorTitle'),
-        message: error.message || t('chat.detail.sendError'),
-        showCancel: true,
-        confirmText: t('chat.detail.retryButton'),
-        onConfirm: () => setInputText(messageText),
-      });
+      // Check if it's a bad word filter error
+      const errorMessage = error.message || '';
+      const isBadWordError = errorMessage.includes('nội dung không phù hợp') || 
+                             errorMessage.includes('Tin nhắn của bạn chứa nội dung không phù hợp');
+
+      if (isBadWordError) {
+        // Show bad word warning alert - don't restore message to input
+        showAlert({
+          type: 'warning',
+          title: t('chat.badWord.title'),
+          message: t('chat.badWord.message'),
+        });
+      } else {
+        // Show regular error with retry option
+        showAlert({
+          type: 'error',
+          title: t('chat.detail.sendErrorTitle'),
+          message: error.message || t('chat.detail.sendError'),
+          showCancel: true,
+          confirmText: t('chat.detail.retryButton'),
+          onConfirm: () => setInputText(messageText),
+        });
+      }
     } finally {
       setSending(false);
     }
@@ -587,30 +541,42 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
 
     if (!currentUserId) return;
 
-    // Clear previous timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
 
-    // Send typing indicator
     if (text.trim().length > 0) {
-      console.log('⌨️ [handleInputChange] User is typing, sending indicator');
       signalRService.sendTyping(matchId, currentUserId, true);
 
-      // Auto-stop typing after 2 seconds of inactivity
       typingTimeoutRef.current = setTimeout(() => {
-        console.log('⌨️ [handleInputChange] User stopped typing (timeout)');
         signalRService.sendTyping(matchId, currentUserId, false);
       }, 2000);
     } else {
-      console.log('⌨️ [handleInputChange] Input empty, stopping typing indicator');
       signalRService.sendTyping(matchId, currentUserId, false);
     }
   };
 
   const handleMenuPress = () => {
     setShowMenuModal(true);
+  };
+
+  const handleCreateAppointment = () => {
+    if (!myPetId || !otherPetId) {
+      showAlert({
+        type: 'warning',
+        title: t('common.error'),
+        message: t('chat.appointment.noPetInfo') || 'Không tìm thấy thông tin thú cưng',
+      });
+      return;
+    }
+    navigation.navigate('CreateAppointment', {
+      matchId,
+      inviterPetId: myPetId,
+      inviteePetId: otherPetId,
+      inviterPetName: myPetName || t('fallback.unknown'),
+      inviteePetName: otherPetName || t('fallback.unknown'),
+    });
   };
 
   const closeMenu = () => {
@@ -621,9 +587,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     closeMenu();
 
     try {
-      console.log('📱 Fetching pets for userId:', otherUserId);
-
-      // Get pets of the other user
       const pets = await getPetsByUserId(otherUserId);
 
       if (!pets || pets.length === 0) {
@@ -635,7 +598,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      // Get the first pet (or active pet if you have that logic)
       const firstPet = pets[0];
       const petId = firstPet.petId || firstPet.PetId;
       const petName = firstPet.name || firstPet.Name || t('fallback.unknown');
@@ -649,12 +611,9 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      console.log('✅ Found pet:', petId, petName);
-
-      // Navigate to PetProfile screen (from chat = already matched)
       navigation.navigate('PetProfile' as any, {
         petId: petId.toString(),
-        fromChat: true  // Hide match/report/block actions
+        fromChat: true
       });
 
     } catch (error: any) {
@@ -677,23 +636,21 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
       confirmText: t('common.confirm'),
       onConfirm: async () => {
         try {
-          console.log("🗑️ Unmatching matchId:", matchId);
           await deleteChat(matchId);
 
-          // ✅ Remove badge for this chat immediately
           dispatch(markChatAsRead(matchId));
-          console.log('✅ Removed badge for matchId:', matchId);
 
+          // Navigate về ChatList ngay lập tức
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Chat' }],
+          });
+
+          // Hiển thị thông báo success sau khi đã navigate
           showAlert({
             type: 'success',
             title: t('chat.unmatch.success'),
             message: t('chat.unmatch.successMessage', { name: userName }),
-            onClose: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Chat' }],
-              });
-            },
           });
         } catch (error: any) {
 
@@ -716,9 +673,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     setShowReportModal(false);
 
     try {
-      console.log(`🚨 Reporting message: contentId=${selectedMessage.contentId}, reason=${reason}`);
-
-      // Report the message (backend will auto-block and delete chat)
       await reportMessage(currentUserId, selectedMessage.contentId!, reason);
 
       showAlert({
@@ -755,9 +709,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           }
           const currentUserId = parseInt(currentUserIdStr, 10);
 
-          console.log("🚫 Blocking user:", currentUserId, "->", otherUserId);
-
-          // Block user (backend will auto-delete chat)
           await blockUser(currentUserId, otherUserId);
 
           showAlert({
@@ -824,7 +775,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
     return currentDate.getTime() !== prevDate.getTime();
   };
 
-  // 🚀 OPTIMIZATION 4: Memoize renderMessage to prevent unnecessary re-renders
   const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const prevMessage = index > 0 ? messages[index - 1] : null;
     const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
@@ -954,6 +904,13 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
           </View>
 
           <TouchableOpacity
+            style={styles.appointmentButton}
+            onPress={handleCreateAppointment}
+          >
+            <Icon name="calendar-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.menuButton}
             onPress={handleMenuPress}
           >
@@ -989,7 +946,6 @@ const ChatDetailScreen = ({ navigation, route }: Props) => {
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
             showsVerticalScrollIndicator={false}
-            // 🚀 OPTIMIZATION 5: FlatList performance props
             removeClippedSubviews={true}
             maxToRenderPerBatch={10}
             updateCellsBatchingPeriod={50}
@@ -1283,6 +1239,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.whiteWarm,
     justifyContent: "center",
     alignItems: "center",
+    ...shadows.small,
+  },
+  appointmentButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.whiteWarm,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
     ...shadows.small,
   },
 

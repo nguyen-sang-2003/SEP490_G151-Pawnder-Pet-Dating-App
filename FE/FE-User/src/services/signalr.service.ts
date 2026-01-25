@@ -53,16 +53,12 @@ class SignalRService {
     this.setupEventHandlers();
 
     try {
-      // Start connection
       await this.connection.start();
-      console.log(`✅ [SignalR] Connected successfully for user ${userId}`);
 
-      // Register user after connection
       await this.registerUser(userId);
 
       this.reconnectAttempts = 0;
     } catch (error) {
-
       this.handleReconnect();
     }
   }
@@ -140,9 +136,7 @@ class SignalRService {
       this.notifyListeners('MessagesRead', data);
     });
 
-    // Match deleted/unmatched
     this.connection.on('MatchDeleted', (data) => {
-      console.log('💔 [SignalR] Match deleted:', data);
       this.notifyListeners('MatchDeleted', data);
     });
 
@@ -163,21 +157,15 @@ class SignalRService {
       this.notifyListeners('MatchSuccess', data);
     });
 
-    // New general notification
     this.connection.on('NewNotification', (data) => {
-      console.log('🔔 [SignalR] NewNotification received:', data);
       this.notifyListeners('NewNotification', data);
     });
 
-    // Expert chat message
     this.connection.on('ReceiveExpertMessage', (data) => {
-      console.log('💬 [SignalR] ReceiveExpertMessage received:', data);
       this.notifyListeners('ReceiveExpertMessage', data);
     });
 
-    // Expert chat badge
     this.connection.on('NewExpertMessageBadge', (data) => {
-      console.log('🔔 [SignalR] NewExpertMessageBadge received:', data);
       this.notifyListeners('NewExpertMessageBadge', data);
     });
   }
@@ -190,9 +178,8 @@ class SignalRService {
 
     try {
       await this.connection!.invoke('RegisterUser', userId);
-      console.log(`✅ [SignalR] User ${userId} registered successfully`);
     } catch (error) {
-
+      // Silent fail
     }
   }
 
@@ -201,15 +188,12 @@ class SignalRService {
    */
   async joinChat(matchId: number, userId: number): Promise<void> {
     if (!this.isConnected()) {
-      console.warn('⚠️ Cannot join chat - not connected');
       return;
     }
 
     try {
       await this.connection!.invoke('JoinChat', matchId, userId);
-
     } catch (error) {
-
       throw error;
     }
   }
@@ -233,30 +217,23 @@ class SignalRService {
    */
   async joinExpertChat(chatExpertId: number, userId: number): Promise<void> {
     if (!this.isConnected()) {
-      console.warn('⚠️ Cannot join expert chat - not connected');
       return;
     }
 
     try {
       await this.connection!.invoke('JoinExpertChat', chatExpertId, userId);
-      console.log(`✅ Joined expert chat ${chatExpertId}`);
     } catch (error) {
-
       throw error;
     }
   }
 
-  /**
-   * Leave an expert chat room
-   */
   async leaveExpertChat(chatExpertId: number, userId: number): Promise<void> {
     if (!this.isConnected()) return;
 
     try {
       await this.connection!.invoke('LeaveExpertChat', chatExpertId, userId);
-      console.log(`✅ Left expert chat ${chatExpertId}`);
     } catch (error) {
-
+      // Silent fail
     }
   }
 

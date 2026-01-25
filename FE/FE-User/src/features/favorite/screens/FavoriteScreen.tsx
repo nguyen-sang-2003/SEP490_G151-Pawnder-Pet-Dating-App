@@ -26,10 +26,11 @@ import { refreshBadgesForActivePet } from "../../../utils/badgeRefresh";
 import { getLikesReceived, respondToLike, type LikeReceivedItem } from "../../match/api/matchApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch, useSelector } from "react-redux";
-import { resetFavoriteBadge, showMatchModal, selectActivePetId, markChatAsRead } from "../../badge/badgeSlice";
+import { resetFavoriteBadge, showMatchModal as showGlobalMatchModal, selectActivePetId, markChatAsRead } from "../../badge/badgeSlice";
 import { AppDispatch } from "../../../app/store";
-import { getPetsByUserId } from "../../pet/api/petApi";
+import { getPetsByUserId, getPetMatchDetails, MatchedAttribute } from "../../pet/api/petApi";
 import OptimizedImage from "../../../components/OptimizedImage";
+import { MatchDetailsModal } from "../../../components/MatchDetailsModal";
 import { cache, CACHE_KEYS, CACHE_TTL, invalidateCache } from "../../../services/cache";
 import signalRService from "../../../services/signalr.service";
 import CustomAlert from "../../../components/CustomAlert";
@@ -51,8 +52,11 @@ interface LikeCat {
   breed: string;
   image: any;          // First image for backward compatibility
   images: any[];       // All images for carousel
-  likedAt: string;
   isMatch: boolean;
+  // Match data - how well this pet matches MY preferences
+  matchPercent?: number;
+  matchedAttributes?: MatchedAttribute[];
+  totalFilters?: number;
 }
 
 const FavoriteScreen = ({ navigation }: Props) => {
@@ -68,56 +72,58 @@ const FavoriteScreen = ({ navigation }: Props) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [reloadTrigger, setReloadTrigger] = useState(0); // Trigger for reload
 
-  // ✅ Reload likes when activePetId changes
+  // Match details modal state
+  const [showMatchModal, setShowMatchModal] = useState(false);
+  const [matchModalLoading, setMatchModalLoading] = useState(false);
+  const [selectedPetForMatch, setSelectedPetForMatch] = useState<{
+    petId: string;
+    petName: string;
+    matchPercent: number;
+    matchScore: number;
+    totalPercent: number;
+    matchedAttributes: MatchedAttribute[];
+    totalFilters: number;
+  } | null>(null);
+
+  // Reload likes when activePetId changes
   useEffect(() => {
     if (activePetId !== null) {
-      console.log('🔄 Active pet changed, reloading likes...');
-      loadLikes(true); // Force refresh
+      loadLikes(true);
     }
   }, [activePetId]);
 
-  // ✅ Setup realtime listeners for instant UI updates
+  // Setup realtime listeners for instant UI updates
   useEffect(() => {
     const handleMatchSuccess = (data: any) => {
-      console.log('🎉 [FavoriteScreen] Match success received:', data);
-      // Trigger reload
       setReloadTrigger(prev => prev + 1);
     };
 
     const handleNewLike = (data: any) => {
-      console.log('💗 [FavoriteScreen] New like received:', data);
-      // Trigger reload
       setReloadTrigger(prev => prev + 1);
     };
 
     const handleMatchDeleted = (data: any) => {
-      console.log('💔 [FavoriteScreen] Match deleted:', data);
       const matchId = data.matchId || data.MatchId;
       
       if (matchId) {
-        // ✅ Remove from UI immediately without full reload
         setPets(prevPets => prevPets.filter(pet => pet.id !== matchId.toString()));
-        console.log('✅ Removed matchId from FavoriteScreen:', matchId);
       }
     };
 
-    // Listen to SignalR events
     signalRService.on('MatchSuccess', handleMatchSuccess);
     signalRService.on('NewLikeBadge', handleNewLike);
     signalRService.on('MatchDeleted', handleMatchDeleted);
 
     return () => {
-      // Cleanup listeners
       signalRService.off('MatchSuccess', handleMatchSuccess);
       signalRService.off('NewLikeBadge', handleNewLike);
       signalRService.off('MatchDeleted', handleMatchDeleted);
     };
-  }, []); // Empty deps - listeners stay consistent
+  }, []);
 
-  // ✅ Reload when reloadTrigger changes
+  // Reload when reloadTrigger changes
   useEffect(() => {
     if (reloadTrigger > 0) {
-      console.log('🔄 Reload triggered by realtime event');
       loadLikes(true);
     }
   }, [reloadTrigger]);
@@ -125,25 +131,18 @@ const FavoriteScreen = ({ navigation }: Props) => {
   // Reload likes when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 Favorite screen focused - reloading likes...');
-      // Reset favorite badge when user views this screen
-      console.log('🔔 Resetting favorite badge to 0');
       dispatch(resetFavoriteBadge());
+      loadLikes(true);
 
-      // 🚀 FORCE REFRESH: Always fetch fresh data when entering screen
-      loadLikes(true); // Force refresh = true
-
-      // ✅ FORCE badge refresh to ensure all badges are up-to-date
       const refreshBadges = async () => {
         try {
           const userIdStr = await AsyncStorage.getItem('userId');
           if (userIdStr) {
             const userId = parseInt(userIdStr);
-            console.log('🔄 [FavoriteScreen] Force refreshing all badges on focus');
             await refreshBadgesForActivePet(userId, true);
           }
         } catch (error) {
-          console.error('❌ [FavoriteScreen] Failed to refresh badges:', error);
+          // Failed to refresh badges
         }
       };
       
@@ -151,21 +150,19 @@ const FavoriteScreen = ({ navigation }: Props) => {
     }, [dispatch])
   );
 
-  // 🚀 OPTIMIZED: Load likes with parallel API calls and caching
+  // Load likes with parallel API calls and caching
   const loadLikes = async (forceRefresh = false) => {
     try {
       setLoading(true);
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        console.log('❌ No userId found');
         setLoading(false);
         return;
       }
 
       const userId = parseInt(userIdStr);
-      console.log('📞 Loading likes for user:', userId);
 
-      // 🚀 OPTIMIZATION 1: Get active pet with cache
+      // Get active pet with cache
       let activePetId: number | undefined;
       try {
         const userPets = await cache.getOrFetch(
@@ -177,44 +174,34 @@ const FavoriteScreen = ({ navigation }: Props) => {
         const activePet = userPets.find(p => p.IsActive === true || p.isActive === true);
         if (activePet) {
           activePetId = activePet.PetId || activePet.petId;
-          console.log('🐾 Active pet for likes filtering:', activePetId);
-        } else {
-          console.log('⚠️ No active pet found - showing all likes');
         }
       } catch (error) {
-        console.log('⚠️ Could not get active pet - showing all likes');
+        // Could not get active pet
       }
 
-      // 🚀 OPTIMIZATION 2: Check cache first (unless force refresh)
+      // Check cache first (unless force refresh)
       const cacheKey = CACHE_KEYS.LIKES(userId, activePetId);
       if (!forceRefresh) {
         const cachedLikes = cache.get<LikeCat[]>(cacheKey, CACHE_TTL.SHORT);
         if (cachedLikes) {
-          console.log('✅ Using cached likes');
           setPets(cachedLikes);
           setLoading(false);
           return;
         }
       }
 
-      // 🚀 OPTIMIZATION 3: Fetch fresh data with petId filter
+      // Fetch fresh data with petId filter
       let likesData: LikeReceivedItem[] = [];
       try {
-        // Pass activePetId to API so backend filters correctly
         const initialLikes = await getLikesReceived(userId, activePetId);
-        console.log('📊 Total likes from API (filtered by pet):', initialLikes.length);
         likesData = initialLikes;
       } catch (error) {
-        console.log('⚠️ Error loading data:', error);
-        // Fallback: try to load likes without pet filter
         try {
           likesData = await getLikesReceived(userId);
         } catch (e) {
 
         }
       }
-
-      console.log('✅ Final likes to display:', likesData.length);
 
       // Convert API data to LikeCat format
       const formattedPets: LikeCat[] = likesData.map((item: LikeReceivedItem) => {
@@ -240,16 +227,31 @@ const FavoriteScreen = ({ navigation }: Props) => {
           breed: item.pet?.breed || '',
           image: photos[0],              // First image for backward compatibility
           images: photos,                // All images for carousel
-          likedAt: getTimeAgo(item.createdAt),
           isMatch: item.isMatch,
         };
       });
 
-      // 🚀 OPTIMIZATION 4: Cache the result
-      cache.set(cacheKey, formattedPets);
-      console.log('💾 Cached likes for future use');
+      // Load match details for each pet
+      const petsWithMatch = await Promise.all(
+        formattedPets.map(async (pet) => {
+          try {
+            const matchDetails = await getPetMatchDetails(userId, parseInt(pet.petId));
+            return {
+              ...pet,
+              matchPercent: matchDetails?.data?.matchPercent ?? 0,
+              matchedAttributes: matchDetails?.data?.matchedAttributes ?? [],
+              totalFilters: matchDetails?.totalPreferences ?? 0,
+            };
+          } catch (error) {
+            return pet;
+          }
+        })
+      );
 
-      setPets(formattedPets);
+      // Cache the result
+      cache.set(cacheKey, petsWithMatch);
+
+      setPets(petsWithMatch);
     } catch (error) {
 
     } finally {
@@ -257,39 +259,19 @@ const FavoriteScreen = ({ navigation }: Props) => {
     }
   };
 
-  // Helper to format time ago
-  const getTimeAgo = (dateString: string): string => {
-    // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
-    let dateStr = dateString;
-    if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
-      dateStr = dateStr + 'Z';
-    }
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    if (diffDays === 1) return 'Hôm qua';
-    return `${diffDays} ngày trước`;
-  };
-
   // Handle pull-to-refresh
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await loadLikes(true); // Force refresh
+      await loadLikes(true);
     } catch (error) {
-      console.error('❌ Error refreshing:', error);
+      // Error refreshing
     } finally {
       setRefreshing(false);
     }
   }, []);
 
-  // 🚀 OPTIMIZATION 2: Memoize filtered pets by tab
+  // Memoize filtered pets by tab
   const filteredPets = useMemo(() => {
     if (activeTab === 'likes') {
       return pets.filter(p => !p.isMatch);
@@ -298,40 +280,33 @@ const FavoriteScreen = ({ navigation }: Props) => {
     }
   }, [pets, activeTab]);
 
-  // 🚀 OPTIMIZATION 3: Memoize handlers to prevent re-renders
+  // Memoize handlers to prevent re-renders
   const handleMatch = useCallback(async (petId: string) => {
     const pet = pets.find(p => p.id === petId);
     if (!pet) return;
 
     try {
-      console.log('💘 Matching with:', petId);
-
-      // Call API to accept the match
       const response = await respondToLike({
         matchId: parseInt(petId),
         action: 'match'
       });
 
-      console.log('✅ Match response:', response);
-
-      // Update UI immediately - change to matched
       setPets(prevPets =>
         prevPets.map(p =>
           p.id === petId ? { ...p, isMatch: true } : p
         )
       );
 
-      // 🚀 OPTIMIZATION: Invalidate cache after action
+      // Invalidate cache after action
       const userIdStr = await AsyncStorage.getItem('userId');
       if (userIdStr) {
         const userId = parseInt(userIdStr);
         invalidateCache.likes(userId);
-        invalidateCache.chats(userId); // Also invalidate chats since we have a new match
+        invalidateCache.chats(userId);
       }
 
-      // Show global match modal
       const petPhotoUrl = typeof pet.image === 'string' ? pet.image : pet.image?.uri;
-      dispatch(showMatchModal({
+      dispatch(showGlobalMatchModal({
         otherUserName: pet.ownerName,
         otherUserId: pet.ownerId,
         matchId: parseInt(petId),
@@ -345,25 +320,19 @@ const FavoriteScreen = ({ navigation }: Props) => {
 
   const handlePass = useCallback(async (petId: string) => {
     try {
-      console.log('👎 Passing on:', petId);
-
-      // Call API to reject/pass
       await respondToLike({
         matchId: parseInt(petId),
         action: 'pass'
       });
 
-      // Remove from list immediately
       setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
 
-      // 🚀 OPTIMIZATION: Invalidate cache after action
+      // Invalidate cache after action
       const userIdStr = await AsyncStorage.getItem('userId');
       if (userIdStr) {
         const userId = parseInt(userIdStr);
         invalidateCache.likes(userId);
       }
-
-      console.log('✅ Passed successfully');
     } catch (error) {
 
     }
@@ -382,40 +351,30 @@ const FavoriteScreen = ({ navigation }: Props) => {
       cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
-          console.log('💔 Unmatching:', petId);
-
-          // Call API to unmatch (pass on already matched)
           await respondToLike({
             matchId: parseInt(petId),
             action: 'pass'
           });
 
-          // ✅ Remove badge for this chat immediately
           const matchId = parseInt(petId);
           dispatch(markChatAsRead(matchId));
-          console.log('✅ Removed badge for matchId:', matchId);
 
-          // Remove from list immediately
           setPets(prevPets => prevPets.filter(pet => pet.id !== petId));
 
-          // 🚀 OPTIMIZATION: Invalidate cache after action
+          // Invalidate cache after action
           const userIdStr = await AsyncStorage.getItem('userId');
           if (userIdStr) {
             const userId = parseInt(userIdStr);
             invalidateCache.likes(userId);
-            invalidateCache.chats(userId); // Also invalidate chats
+            invalidateCache.chats(userId);
           }
 
-          console.log('✅ Unmatched successfully');
-
-          // Show success message
           showAlert({
             type: 'success',
             title: t('favorite.unmatch.success'),
             message: t('favorite.unmatch.successMessage', { name: petName }),
           });
         } catch (error: any) {
-          console.error('❌ Error unmatching:', error);
           showAlert({
             type: 'error',
             title: t('common.error'),
@@ -426,22 +385,49 @@ const FavoriteScreen = ({ navigation }: Props) => {
     });
   }, [dispatch, pets, t, showAlert]);
 
-  const handleChat = useCallback((matchId: string, ownerId: number, ownerName: string, petAvatar: any) => {
-    console.log('💬 Opening chat:', { matchId, ownerId, ownerName });
+  const handleChat = useCallback((matchId: string, ownerId: number, petName: string, petAvatar: any) => {
     navigation.navigate('ChatDetail', {
       matchId: parseInt(matchId),
       otherUserId: ownerId,
-      userName: ownerName,
+      userName: petName,
       userAvatar: petAvatar || require("../../../assets/cat_avatar.png"),
     });
   }, [navigation]);
 
   const handleViewProfile = useCallback((petId: string) => {
-    console.log('🐾 Opening pet profile:', petId);
     navigation.navigate("PetProfile", { petId, fromFavorite: true } as any);
   }, [navigation]);
 
-  // 🚀 OPTIMIZATION 4: Memoize renderLikeItem
+  const handleShowMatchDetails = useCallback(async (petId: string, petName: string) => {
+    try {
+      setMatchModalLoading(true);
+      setShowMatchModal(true);
+      
+      const userIdStr = await AsyncStorage.getItem('userId');
+      if (!userIdStr) return;
+      const userId = parseInt(userIdStr);
+
+      const matchDetails = await getPetMatchDetails(userId, parseInt(petId));
+      
+      if (matchDetails?.data) {
+        setSelectedPetForMatch({
+          petId,
+          petName,
+          matchPercent: matchDetails.data.matchPercent ?? 0,
+          matchScore: matchDetails.data.matchScore ?? 0,
+          totalPercent: matchDetails.data.totalPercent ?? 0,
+          matchedAttributes: matchDetails.data.matchedAttributes ?? [],
+          totalFilters: matchDetails.totalPreferences ?? 0,
+        });
+      }
+    } catch (error) {
+      setShowMatchModal(false);
+    } finally {
+      setMatchModalLoading(false);
+    }
+  }, []);
+
+  // Memoize renderLikeItem
   const renderLikeItem = useCallback(({ item, index }: { item: LikeCat; index: number }) => {
     const currentPhotoIndex = currentPhotoIndices[item.id] || 0;
     const hasMultiplePhotos = item.images.length > 1;
@@ -512,12 +498,6 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   </LinearGradient>
                 </View>
               )}
-
-              {/* Time Badge */}
-              <View style={styles.timeBadge}>
-                <Icon name="time-outline" size={12} color={colors.white} />
-                <Text style={styles.timeBadgeText}>{item.likedAt}</Text>
-              </View>
             </View>
 
             {/* Gradient Overlay for better text readability */}
@@ -534,15 +514,37 @@ const FavoriteScreen = ({ navigation }: Props) => {
                       {" "}{item.gender === "male" ? "♂" : "♀"}
                     </Text>
                   </Text>
+                  {/* Match % Badge - Only show if we have match data */}
+                  {item.matchPercent !== undefined && item.matchPercent > 0 && (
+                    <TouchableOpacity
+                      style={styles.matchBadgeOnCard}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        // Open modal directly with cached data
+                        setSelectedPetForMatch({
+                          petId: item.petId,
+                          petName: item.catName,
+                          matchPercent: item.matchPercent || 0,
+                          matchScore: 0,
+                          totalPercent: 0,
+                          matchedAttributes: item.matchedAttributes || [],
+                          totalFilters: item.totalFilters || 0,
+                        });
+                        setShowMatchModal(true);
+                      }}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Icon name="star" size={12} color={colors.primary} />
+                      <Text style={styles.matchBadgeOnCardText}>{item.matchPercent}%</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <View style={styles.metaRow}>
                   <Icon name="paw" size={16} color={colors.white} />
                   <Text style={styles.metaText}>{item.age ? t('favorite.card.age', { age: item.age }) : t('favorite.card.unknownAge')} • {item.breed || t('favorite.card.unknownBreed')}</Text>
                 </View>
-                <View style={styles.ownerRow}>
-                  <Icon name="person-outline" size={16} color={colors.white} />
-                  <Text style={styles.ownerTextOnImage}>{item.ownerName}</Text>
-                </View>
+                {/* Owner name hidden for privacy - CHỈ MÌNH TÔI THẤY TÔI */}
               </View>
             </LinearGradient>
           </View>
@@ -556,7 +558,7 @@ const FavoriteScreen = ({ navigation }: Props) => {
                   style={styles.actionBtnChat}
                   onPress={(e) => {
                     e.stopPropagation();
-                    handleChat(item.id, item.ownerId, item.ownerName, item.image);
+                    handleChat(item.id, item.ownerId, item.catName, item.image);
                   }}
                   activeOpacity={0.8}
                 >
@@ -818,6 +820,30 @@ const FavoriteScreen = ({ navigation }: Props) => {
           onClose={hideAlert}
         />
       )}
+
+      {/* Match Details Modal */}
+      {showMatchModal && (
+        matchModalLoading ? (
+          <View style={styles.matchModalLoading}>
+            <View style={styles.matchModalLoadingBox}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.matchModalLoadingText}>{t('common.loading')}</Text>
+            </View>
+          </View>
+        ) : selectedPetForMatch ? (
+          <MatchDetailsModal
+            visible={showMatchModal}
+            onClose={() => {
+              setShowMatchModal(false);
+              setSelectedPetForMatch(null);
+            }}
+            petName={selectedPetForMatch.petName}
+            matchPercent={selectedPetForMatch.matchPercent}
+            matchedAttributes={selectedPetForMatch.matchedAttributes}
+            totalFilters={selectedPetForMatch.totalFilters}
+          />
+        ) : null
+      )}
     </View >
   );
 };
@@ -935,12 +961,12 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
 
-  // Photo Navigation
+  // Photo Navigation - Reduced height to not cover info section
   photoTapLeft: {
     position: "absolute",
     left: 0,
     top: 0,
-    height: "100%",
+    height: "60%", // Only cover top 60% to leave space for pet info
     width: "35%",
     zIndex: 2,
   },
@@ -948,7 +974,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     top: 0,
-    height: "100%",
+    height: "60%", // Only cover top 60% to leave space for pet info
     width: "35%",
     zIndex: 2,
   },
@@ -1002,20 +1028,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     letterSpacing: 0.5,
   },
-  timeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.sm,
-  },
-  timeBadgeText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: "600",
-  },
 
   // Image Gradient Overlay
   imageGradient: {
@@ -1026,6 +1038,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 20,
     paddingBottom: 14,
+    zIndex: 5, // Above photo tap areas
   },
   imageInfo: {
     gap: 6,
@@ -1033,7 +1046,8 @@ const styles = StyleSheet.create({
   petNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10, // Badge stays close to name
+    flexWrap: "wrap",
   },
   catNameOnImage: {
     fontSize: 22,
@@ -1042,6 +1056,42 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
+  },
+  matchBadgeOnCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  matchBadgeOnCardText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  matchModalLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  matchModalLoadingBox: {
+    backgroundColor: colors.white,
+    padding: 30,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  matchModalLoadingText: {
+    fontSize: 14,
+    color: colors.textMedium,
   },
   maleSymbol: {
     color: "#64B5F6",

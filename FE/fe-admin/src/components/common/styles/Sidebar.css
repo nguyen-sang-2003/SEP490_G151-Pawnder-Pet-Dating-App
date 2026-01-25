@@ -105,6 +105,75 @@ body.dark-theme .nav-link.active::before {
   flex: 1;
 }
 
+/* Submenu Styles */
+.nav-group-toggle {
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.nav-arrow {
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.nav-group-toggle.expanded .nav-arrow {
+  transform: rotate(180deg);
+}
+
+.nav-submenu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+body.dark-theme .nav-submenu {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.nav-subitem {
+  margin: 0;
+}
+
+.nav-sublink {
+  display: block;
+  padding: 0.625rem 1.5rem 0.625rem 3.25rem;
+  color: #666;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.nav-sublink:hover {
+  background: rgba(255, 240, 245, 0.8);
+  color: #FFB3D9;
+}
+
+.nav-sublink.active {
+  color: #FFB3D9;
+  background: rgba(255, 179, 217, 0.1);
+  font-weight: 500;
+}
+
+body.dark-theme .nav-sublink {
+  color: #aaa;
+}
+
+body.dark-theme .nav-sublink:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f72585;
+}
+
+body.dark-theme .nav-sublink.active {
+  color: #f72585;
+  background: rgba(247, 37, 133, 0.1);
+}
+
 /* Sidebar Footer */
 .sidebar-footer {
   padding: 1.5rem;

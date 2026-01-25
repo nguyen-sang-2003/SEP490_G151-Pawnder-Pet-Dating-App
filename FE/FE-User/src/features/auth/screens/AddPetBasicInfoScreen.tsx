@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,17 +7,19 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  BackHandler,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
 import CustomAlert from "../../../components/CustomAlert";
-import { createPet, getPetsByUserId, updatePet } from "../../../api";
+import { createPet, getPetsByUserId, updatePet, deletePet } from "../../../api";
 import { getItem } from "../../../services/storage";
 
 const MAX_PETS_PER_USER = 3;
@@ -30,6 +32,7 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
   // Get params - petId will exist if user came back from step 2
   const isFromProfile = route.params?.isFromProfile || false;
   const existingPetId = route.params?.petId;
+  const existingAiResults = route.params?.aiResults;
   
   // Pre-fill form with existing data if available (when coming back from step 2)
   const [petName, setPetName] = useState(route.params?.petName || "");
@@ -38,23 +41,112 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
+  // Hàm xử lý xóa pet và navigate (silent fail - vẫn thoát dù delete fail)
+  const handleDeleteAndExit = useCallback(async () => {
+    try {
+      if (existingPetId) {
+        await deletePet(existingPetId);
+      }
+    } catch (error) {
+      // Silent fail - vẫn thoát
+    } finally {
+      if (isFromProfile) {
+        navigation.navigate("Profile");
+      } else {
+        // Trong luồng đăng ký, thoát về màn đăng nhập
+        navigation.replace("SignIn");
+      }
+    }
+  }, [existingPetId, isFromProfile, navigation]);
+
+  // Hàm hiển thị confirm dialog khi thoát
+  const showExitConfirmation = useCallback(() => {
+    if (isFromProfile) {
+      showAlert({
+        type: 'warning',
+        title: t('auth.addPet.exit.titleFromProfile'),
+        message: t('auth.addPet.exit.messageFromProfile'),
+        showCancel: true,
+        confirmText: t('auth.addPet.exit.exitButton'),
+        cancelText: t('auth.addPet.exit.stayButton'),
+        onConfirm: handleDeleteAndExit,
+      });
+    } else {
+      showAlert({
+        type: 'warning',
+        title: t('auth.addPet.exit.titleRegistration'),
+        message: t('auth.addPet.exit.messageRegistration'),
+        showCancel: true,
+        confirmText: t('auth.addPet.exit.exitButton'),
+        cancelText: t('auth.addPet.exit.stayButton'),
+        onConfirm: handleDeleteAndExit,
+      });
+    }
+  }, [isFromProfile, showAlert, handleDeleteAndExit, t]);
+
+  // Bắt hardware back button
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleBack();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [existingPetId, isFromProfile])
+  );
+
   const handleContinue = async () => {
-    // Validation: Kiểm tra tên thú cưng trống
     if (!petName.trim()) {
       showAlert({
         type: 'warning',
-        title: t('auth.addPet.basicInfo.missingInfo'),
-        message: t('auth.addPet.basicInfo.enterPetName'),
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên thú cưng',
       });
       return;
     }
 
-    // Validation: Kiểm tra độ dài tên
     if (petName.trim().length < 2) {
       showAlert({
         type: 'error',
-        title: t('auth.addPet.basicInfo.invalidName'),
-        message: t('auth.addPet.basicInfo.nameMinLength'),
+        title: 'Tên quá ngắn',
+        message: 'Vui lòng nhập dài hơn',
+      });
+      return;
+    }
+
+    if (petName.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Tên quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
+      });
+      return;
+    }
+
+    if (!breed.trim()) {
+      showAlert({
+        type: 'warning',
+        title: 'Thiếu thông tin',
+        message: 'Bạn chưa nhập tên giống',
+      });
+      return;
+    }
+
+    if (breed.trim().length > 50) {
+      showAlert({
+        type: 'error',
+        title: 'Tên giống quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
+      });
+      return;
+    }
+
+    if (description.trim().length > 200) {
+      showAlert({
+        type: 'error',
+        title: 'Mô tả quá dài',
+        message: 'Vui lòng nhập ngắn hơn',
       });
       return;
     }
@@ -62,7 +154,6 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
     try {
       setLoading(true);
 
-      // Get userId from storage
       const userIdStr = await getItem('userId');
       if (!userIdStr) {
         showAlert({
@@ -75,11 +166,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
 
       const userId = parseInt(userIdStr, 10);
 
-      // If we already have a petId (user came back from step 2), UPDATE instead of CREATE
       if (existingPetId) {
         const updateData = {
           Name: petName.trim(),
-          Gender: "Male", // Keep default, will be updated in Characteristics screen
+          Gender: "Male",
           Breed: breed.trim() || undefined,
           Description: description.trim() || undefined,
         };
@@ -91,20 +181,20 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
           title: t('auth.addPet.basicInfo.success'),
           message: t('auth.addPet.basicInfo.petUpdated', { name: petName }),
           confirmText: t('common.continue'),
-          onClose: () => {
+          onConfirm: () => {
             navigation.navigate("AddPetPhotos", { 
               petId: existingPetId, 
               isFromProfile,
               petName: petName.trim(),
               breed: breed.trim(),
               description: description.trim(),
+              aiResults: existingAiResults,
             });
           },
         });
         return;
       }
 
-      // Kiểm tra số lượng pet hiện tại (tối đa 3 pet) - only for NEW pet creation
       if (isFromProfile) {
         try {
           const existingPets = await getPetsByUserId(userId);
@@ -122,16 +212,13 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         }
       }
 
-      // Create NEW pet (Gender default to "Male", user will update in Characteristics screen)
-      // IsActive: false by default - user can manually set active later
-      // Only first pet during registration will be auto-active (handled by backend or onboarding)
       const petData = {
         UserId: userId,
         Name: petName.trim(),
-        Gender: "Male", // Temporary default, will be updated in Characteristics screen
+        Gender: "Male",
         Breed: breed.trim() || undefined,
         Description: description.trim() || undefined,
-        IsActive: isFromProfile ? false : true, // Auto-active only for first pet (registration), not when adding from profile
+        IsActive: isFromProfile ? false : true,
       };
 
       const response = await createPet(petData);
@@ -146,18 +233,18 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         title: t('auth.addPet.basicInfo.success'),
         message: t('auth.addPet.basicInfo.petCreated', { name: petName }),
         confirmText: t('common.continue'),
-        onClose: () => {
+        onConfirm: () => {
           navigation.navigate("AddPetPhotos", { 
             petId, 
             isFromProfile,
             petName: petName.trim(),
             breed: breed.trim(),
             description: description.trim(),
+            aiResults: existingAiResults,
           });
         },
       });
     } catch (error: any) {
-
       showAlert({
         type: 'error',
         title: t('auth.addPet.basicInfo.error'),
@@ -169,13 +256,24 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
   };
 
   const handleBack = () => {
-    if (isFromProfile) {
+    if (existingPetId) {
+      // Có petId = pet đã được tạo nhưng chưa hoàn thành -> cần confirm
+      showExitConfirmation();
+    } else if (isFromProfile) {
+      // Từ profile, chưa tạo pet -> chỉ cần quay lại
       navigation.navigate("Profile");
     } else {
+      // Trong luồng đăng ký, chưa tạo pet -> confirm rồi về SignIn
       showAlert({
         type: 'warning',
-        title: t('auth.addPet.basicInfo.completeProfile'),
-        message: t('auth.addPet.basicInfo.needPetProfile'),
+        title: t('auth.addPet.exit.titleRegistration'),
+        message: t('auth.addPet.exit.messageRegistration'),
+        showCancel: true,
+        confirmText: t('auth.addPet.exit.exitButton'),
+        cancelText: t('auth.addPet.exit.stayButton'),
+        onConfirm: () => {
+          navigation.replace("SignIn");
+        },
       });
     }
   };
@@ -188,13 +286,11 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
       end={{ x: 1, y: 1 }}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Icon name="arrow-back" size={24} color={colors.textDark} />
           </TouchableOpacity>
 
-          {/* Step Indicator - Always show in Add Pet flow */}
           <View style={styles.stepIndicatorContainer}>
             <View style={styles.stepBarsContainer}>
               <View style={[styles.stepBar, styles.stepBarActive]} />
@@ -205,14 +301,10 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
           </View>
 
           <Text style={styles.title}>{t('auth.addPet.basicInfo.title')}</Text>
-          <Text style={styles.subtitle}>
-            {t('auth.addPet.basicInfo.subtitle')}
-          </Text>
+          <Text style={styles.subtitle}>{t('auth.addPet.basicInfo.subtitle')}</Text>
         </View>
 
-        {/* Form */}
         <View style={styles.form}>
-          {/* Pet Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.addPet.basicInfo.name')}</Text>
             <View style={styles.inputContainer}>
@@ -230,9 +322,8 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
             </View>
           </View>
 
-          {/* Breed */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('auth.addPet.basicInfo.breed')}</Text>
+            <Text style={styles.label}>{t('auth.addPet.basicInfo.breed')} *</Text>
             <View style={styles.inputContainer}>
               <TextInput
                 placeholder={t('auth.addPet.basicInfo.breedPlaceholder')}
@@ -242,11 +333,12 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 onChangeText={setBreed}
                 autoCapitalize="words"
               />
+              {breed.length > 0 && (
+                <Icon name="checkmark-circle" size={20} color={colors.success} style={styles.inputIcon} />
+              )}
             </View>
-            <Text style={styles.helperText}>{t('auth.addPet.basicInfo.optional')}</Text>
           </View>
 
-          {/* Description */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('auth.addPet.basicInfo.description')}</Text>
             <View style={styles.inputContainer}>
@@ -255,26 +347,24 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
                 style={[styles.input, styles.textArea]}
                 placeholderTextColor={colors.textLabel}
                 value={description}
-                onChangeText={(text) => setDescription(text.slice(0, 200))}
+                onChangeText={setDescription}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                maxLength={200}
               />
             </View>
             <View style={styles.charCount}>
-              <Text style={styles.helperText}>{t('auth.addPet.basicInfo.charCount', { count: description.length })}</Text>
+              <Text style={styles.helperText}>{description.length}/200</Text>
             </View>
           </View>
 
-          {/* Buttons */}
           <TouchableOpacity
-            style={[styles.btnShadow, !petName.trim() && styles.btnDisabled]}
+            style={[styles.btnShadow, (!petName.trim() || !breed.trim()) && styles.btnDisabled]}
             onPress={handleContinue}
-            disabled={loading || !petName.trim()}
+            disabled={loading || !petName.trim() || !breed.trim()}
           >
             <LinearGradient
-              colors={!petName.trim() ? ['#E0E0E0', '#BDBDBD'] : gradients.auth.buttonPrimary}
+              colors={(!petName.trim() || !breed.trim()) ? ['#E0E0E0', '#BDBDBD'] : gradients.auth.buttonPrimary}
               style={styles.button}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -292,7 +382,6 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
         </View>
       </ScrollView>
 
-      {/* Custom Alert */}
       {alertConfig && (
         <CustomAlert
           visible={visible}
@@ -300,6 +389,9 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
           title={alertConfig.title}
           message={alertConfig.message}
           confirmText={alertConfig.confirmText}
+          onConfirm={alertConfig.onConfirm}
+          showCancel={alertConfig.showCancel}
+          cancelText={alertConfig.cancelText}
           onClose={hideAlert}
         />
       )}
@@ -307,13 +399,12 @@ const AddPetBasicInfoScreen = ({ navigation, route }: Props) => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 50,
   },
-
-  // Header
   header: {
     paddingHorizontal: 24,
     marginBottom: 32,
@@ -366,8 +457,6 @@ const styles = StyleSheet.create({
     color: colors.textMedium,
     lineHeight: 24,
   },
-
-  // Form
   form: {
     paddingHorizontal: 24,
     paddingBottom: 40,
@@ -414,8 +503,6 @@ const styles = StyleSheet.create({
   charCount: {
     alignItems: 'flex-end',
   },
-
-  // Buttons
   btnShadow: {
     marginTop: 24,
     borderRadius: radius.xl,
@@ -442,4 +529,3 @@ const styles = StyleSheet.create({
 });
 
 export default AddPetBasicInfoScreen;
-

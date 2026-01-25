@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Pressable,
   ActivityIndicator,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
@@ -31,7 +30,6 @@ const SignUpScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -127,12 +125,32 @@ const SignUpScreen = ({ navigation }: Props) => {
       return;
     }
 
+    // Validation: Kiểm tra có chứa chữ thường (đồng bộ với BE)
+    if (!/[a-z]/.test(pass)) {
+      showAlert({
+        type: 'error',
+        title: t('auth.signUp.passwordInvalid'),
+        message: t('auth.signUp.passwordNeedsLowercase'),
+      });
+      return;
+    }
+
     // Validation: Kiểm tra có ký tự đặc biệt
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) {
       showAlert({
         type: 'error',
         title: t('auth.signUp.passwordInvalid'),
         message: t('auth.signUp.passwordNeedsSpecial'),
+      });
+      return;
+    }
+
+    // Validation: Kiểm tra độ dài tối đa 100 ký tự (đồng bộ với BE)
+    if (pass.length > 100) {
+      showAlert({
+        type: 'error',
+        title: t('auth.signUp.passwordInvalid'),
+        message: t('auth.signUp.passwordMaxLength'),
       });
       return;
     }
@@ -153,16 +171,6 @@ const SignUpScreen = ({ navigation }: Props) => {
         type: 'error',
         title: t('auth.signUp.passwordMismatch'),
         message: t('auth.signUp.passwordMismatchMessage'),
-      });
-      return;
-    }
-
-    // Validation: Kiểm tra đồng ý điều khoản
-    if (!agree) {
-      showAlert({
-        type: 'warning',
-        title: t('auth.signUp.termsNotAgreed'),
-        message: t('auth.signUp.termsNotAgreedMessage'),
       });
       return;
     }
@@ -356,6 +364,16 @@ const SignUpScreen = ({ navigation }: Props) => {
             </View>
             <View style={styles.requirement}>
               <Icon
+                name={/[a-z]/.test(pass) ? "check-circle" : "radio-button-unchecked"}
+                size={14}
+                color={/[a-z]/.test(pass) ? "#4CAF50" : "#999"}
+              />
+              <Text style={[styles.requirementText, /[a-z]/.test(pass) && styles.requirementMet]}>
+                {t('auth.signUp.passwordRequirements.hasLowercase')}
+              </Text>
+            </View>
+            <View style={styles.requirement}>
+              <Icon
                 name={/\d/.test(pass) ? "check-circle" : "radio-button-unchecked"}
                 size={14}
                 color={/\d/.test(pass) ? "#4CAF50" : "#999"}
@@ -396,11 +414,6 @@ const SignUpScreen = ({ navigation }: Props) => {
             />
           )}
         </View>
-
-        <Pressable style={styles.checkRow} onPress={() => setAgree((v) => !v)}>
-          <View style={[styles.checkbox, agree && styles.checkboxOn]} />
-          <Text style={styles.checkText}>{t('auth.signUp.agreeTerms')}</Text>
-        </Pressable>
 
         <TouchableOpacity 
           activeOpacity={0.9} 
@@ -574,24 +587,6 @@ const styles = StyleSheet.create({
   genderTextActive: {
     color: "#fff",
   },
-
-  checkRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 6,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "#FF7AAE",
-    marginRight: 8,
-    backgroundColor: "transparent",
-  },
-  checkboxOn: { backgroundColor: "#FF7AAE" },
-  checkText: { color: "#222" },
 
   btnShadow: {
     marginTop: 10,

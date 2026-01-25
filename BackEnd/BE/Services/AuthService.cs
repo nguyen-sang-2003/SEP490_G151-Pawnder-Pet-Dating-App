@@ -324,6 +324,11 @@ namespace BE.Services
             var currentPassword = request.CurrentPassword.Trim();
             var newPassword = request.NewPassword.Trim();
 
+            // BR-22: Validate password complexity
+            var (passwordValid, passwordError) = _passwordService.ValidatePasswordComplexity(newPassword);
+            if (!passwordValid)
+                throw new ArgumentException(passwordError);
+
             // Business logic: Get user
             var user = await _userRepository.GetByIdAsync(userId, ct);
             if (user == null)

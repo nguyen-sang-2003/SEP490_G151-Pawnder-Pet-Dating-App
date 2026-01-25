@@ -53,14 +53,12 @@ const AIChatListScreen = ({ navigation }: Props) => {
       setLoading(true);
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
-        console.log('❌ No userId found');
         setLoading(false);
         return;
       }
 
       const userId = parseInt(userIdStr);
       setCurrentUserId(userId);
-      console.log('📞 Loading AI chat sessions for user:', userId);
 
       const sessions = await getChatAISessions(userId);
 
@@ -76,7 +74,7 @@ const AIChatListScreen = ({ navigation }: Props) => {
           id: session.chatAiid.toString(),
           title: session.title,
           lastMessage: session.lastQuestion || '',
-          timestamp: new Date(dateString), // Parse as UTC, auto converts to local time
+          timestamp: new Date(dateString),
           messageCount: session.messageCount,
         };
       });
@@ -181,7 +179,6 @@ const AIChatListScreen = ({ navigation }: Props) => {
     const now = new Date();
     const diffTime = now.getTime() - date.getTime();
     
-    // Handle negative diff (clock skew) or just created (< 1 min)
     if (diffTime < 60000) {
       return t('chat.aiList.timeAgo.justNow');
     }

@@ -58,23 +58,52 @@ namespace BE.Repositories
                 .Where(n => n.UserId == userId && !n.IsRead)
                 .ToListAsync(ct);
 
+            // Use Vietnam timezone (UTC+7) for consistency
+            var vietnamNow = GetVietnamTime();
+
             foreach (var notification in notifications)
             {
                 notification.IsRead = true;
-                notification.UpdatedAt = DateTime.Now;
+                notification.UpdatedAt = vietnamNow;
             }
 
             await _context.SaveChangesAsync(ct);
             return notifications.Count;
         }
 
+        /// <summary>
+        /// Get current time in Vietnam timezone (UTC+7)
+        /// Works on both Windows and Linux
+        /// </summary>
+        private static DateTime GetVietnamTime()
+        {
+            try
+            {
+                // Try Windows timezone ID first
+                var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                try
+                {
+                    // Try Linux/IANA timezone ID
+                    var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+                    return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                    // Fallback: manually add 7 hours to UTC
+                    return DateTime.UtcNow.AddHours(7);
+                }
+            }
+        }
+
         public async Task<int> GetUnreadCountAsync(int userId, CancellationToken ct = default)
         {
-            // Count system, expert, and expert_confirmation notifications
+            // Count all unread notifications for the user
             return await _dbSet
-                .Where(n => n.UserId == userId 
-                           && !n.IsRead 
-                           && (n.Type == "system" || n.Type == "expert_confirmation"))
+                .Where(n => n.UserId == userId && !n.IsRead)
                 .CountAsync(ct);
         }
     }

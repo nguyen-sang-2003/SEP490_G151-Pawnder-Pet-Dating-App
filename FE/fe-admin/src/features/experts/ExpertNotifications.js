@@ -1,10 +1,40 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { useAuth } from '../../shared/context/AuthContext';
-import { expertService, userService } from '../../shared/api';
+import { expertService, userService, chatAIService } from '../../shared/api';
 import { mockUsers } from '../../shared/data/mockUsers';
 import './styles/ExpertNotifications.css';
+
+/**
+ * Loại bỏ markdown formatting từ text AI response
+ */
+const stripMarkdown = (text) => {
+  if (!text) return text;
+  
+  return text
+    // Loại bỏ ***text***
+    .replace(/\*{3}(.*?)\*{3}/g, '$1')
+    // Loại bỏ **text**
+    .replace(/\*{2}(.*?)\*{2}/g, '$1')
+    // Loại bỏ *text* (nhưng không phải bullet point)
+    .replace(/\*([^\s*][^*]*[^\s*])\*/g, '$1')
+    .replace(/\*([^\s*])\*/g, '$1')
+    // Chuyển bullet point * thành •
+    .replace(/^\s*\*\s+/gm, '• ')
+    // Loại bỏ _text_
+    .replace(/_(.*?)_/g, '$1')
+    // Loại bỏ # headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Loại bỏ ```code```
+    .replace(/```[\s\S]*?```/g, '')
+    // Loại bỏ `code`
+    .replace(/`([^`]+)`/g, '$1')
+    // Loại bỏ [text](url)
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .trim();
+};
 
 const ITEMS_PER_PAGE = 4;
 
@@ -134,6 +164,7 @@ const buildStaticAiHistory = (chatAiId, userName) => {
 };
 
 const ExpertNotifications = () => {
+  const navigate = useNavigate();
   const { updatePendingNotifications } = useNotification();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
@@ -147,6 +178,7 @@ const ExpertNotifications = () => {
   const [note, setNote] = useState('');
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cloning, setCloning] = useState(false);
   const prevPendingRef = useRef(0);
 
   const fetchUserInfo = useCallback(async (userId) => {
@@ -472,6 +504,17 @@ const ExpertNotifications = () => {
     });
   };
 
+  const formatDateOnly = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
+
   const getStatusBadge = (status) => {
     const normalized = (status || 'pending').toLowerCase();
     const map = {
@@ -565,6 +608,40 @@ const ExpertNotifications = () => {
     }
   };
 
+  // Clone chat AI and navigate to ExpertChatAI page
+  const handleCloneChatAndNavigate = async (chatAiId) => {
+    if (!chatAiId || chatAiId === 0) {
+      alert('Không tìm thấy ID cuộc trò chuyện.');
+      return;
+    }
+
+    try {
+      setCloning(true);
+      console.log('🔄 Cloning chat AI:', chatAiId);
+      
+      const result = await chatAIService.cloneChat(chatAiId);
+      console.log('✅ Clone result:', result);
+      
+      // Backend returns: { success: true, data: { chatId, title, ... } }
+      const clonedChatId = result?.data?.chatId || result?.data?.chatAiId || result?.chatId;
+      
+      if (!clonedChatId) {
+        throw new Error('Không thể lấy ID chat đã clone');
+      }
+
+      console.log('📍 Navigating to ExpertChatAI with clonedChatId:', clonedChatId);
+      
+      // Close modal and navigate
+      handleCloseModal();
+      navigate(`/expert/chat-ai?clonedChatId=${clonedChatId}`);
+    } catch (err) {
+      console.error('❌ Error cloning chat:', err);
+      alert('Không thể tạo cuộc trò chuyện mới. Vui lòng thử lại.');
+    } finally {
+      setCloning(false);
+    }
+  };
+
   useEffect(() => {
     setCurrentPage(1);
   }, [filterStatus, searchTerm]);
@@ -654,7 +731,7 @@ const ExpertNotifications = () => {
               <th>#</th>
               <th>Người dùng</th>
               <th>Câu hỏi người dùng</th>
-              <th>Nội dung</th>
+              {filterStatus !== 'pending' && <th>Nội dung</th>}
               <th>Ngày tạo</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
@@ -663,7 +740,7 @@ const ExpertNotifications = () => {
           <tbody>
             {currentNotifications.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan={filterStatus === 'pending' ? 6 : 7} style={{ textAlign: 'center', padding: '2rem' }}>
                   {filterStatus === 'pending'
                     ? 'Không có thông báo nào chờ xử lý'
                     : 'Không có thông báo nào đã xử lý'}
@@ -682,12 +759,12 @@ const ExpertNotifications = () => {
                   <td className="content-cell">
                     {notification.UserQuestion || notification.aiQuestion || notification.requestMessage || 'Không có'}
                   </td>
-                  <td className="content-cell">
-                    {notification.status === 'pending' 
-                      ? '-' 
-                      : (notification.expertNote || notification.content || 'Không có')}
-                  </td>
-                  <td>{formatDate(notification.createdAt)}</td>
+                  {filterStatus !== 'pending' && (
+                    <td className="content-cell">
+                      {notification.expertNote || notification.content || 'Không có'}
+                    </td>
+                  )}
+                  <td>{formatDateOnly(notification.createdAt)}</td>
                   <td>{getStatusBadge(notification.status)}</td>
                   <td>
                     {notification.status === 'pending' ? (
@@ -871,6 +948,33 @@ const ExpertNotifications = () => {
                             {showChatHistory ? 'Đang mở' : 'Xem file'}
                           </div>
                         </div>
+                        {/* Clone Chat AI Button */}
+                        <button
+                          className="btn-clone-chat"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCloneChatAndNavigate(selectedNotification.chatAiId);
+                          }}
+                          disabled={cloning}
+                        >
+                          {cloning ? (
+                            <>
+                              <svg className="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="32" />
+                              </svg>
+                              Đang tạo...
+                            </>
+                          ) : (
+                            <>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                <path d="M2 17l10 5 10-5" />
+                                <path d="M2 12l10 5 10-5" />
+                              </svg>
+                              Chat với AI
+                            </>
+                          )}
+                        </button>
                       </div>
                     )}
 
@@ -902,7 +1006,33 @@ const ExpertNotifications = () => {
                 {showChatHistory && selectedNotification.chatHistory.length > 0 && (
                   <div className="modal-right-panel">
                     <div className="chat-history-panel">
-                      <h3>Lịch sử chat</h3>
+                      <div className="chat-history-header">
+                        <h3>Lịch sử chat</h3>
+                        <button
+                          className="btn-clone-chat-small"
+                          onClick={() => handleCloneChatAndNavigate(selectedNotification.chatAiId)}
+                          disabled={cloning}
+                          title="Tiếp tục chat với AI dựa trên cuộc trò chuyện này"
+                        >
+                          {cloning ? (
+                            <>
+                              <svg className="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="32" />
+                              </svg>
+                              Đang tạo...
+                            </>
+                          ) : (
+                            <>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                <path d="M2 17l10 5 10-5" />
+                                <path d="M2 12l10 5 10-5" />
+                              </svg>
+                              Chat với AI
+                            </>
+                          )}
+                        </button>
+                      </div>
                       <div className="chat-history">
                         {selectedNotification.chatHistory.map((message) => (
                           <div key={message.id} className={`chat-message ${message.role}`}>
@@ -914,7 +1044,9 @@ const ExpertNotifications = () => {
                                 <span className="chat-time">{formatDate(message.timestamp)}</span>
                               )}
                             </div>
-                            <div className="chat-message-content">{message.content}</div>
+                            <div className="chat-message-content">
+                              {message.role === 'ai' ? stripMarkdown(message.content) : message.content}
+                            </div>
                           </div>
                         ))}
                       </div>

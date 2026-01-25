@@ -55,6 +55,11 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       
       // Sort by createdAt descending (newest first)
       const sortedData = [...data].sort((a, b) => {
+        // Handle null/undefined createdAt
+        if (!a.createdAt && !b.createdAt) return 0;
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        
         // Backend sends UTC time without 'Z' suffix, need to add it for correct parsing
         let dateStrA = a.createdAt;
         if (!dateStrA.endsWith('Z') && !dateStrA.includes('+')) {
@@ -70,7 +75,6 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       });
       
       setRequests(sortedData);
-      console.log("✅ Loaded expert confirmations:", sortedData.length);
     } catch (error: any) {
 
     } finally {
@@ -111,20 +115,14 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         return;
       }
 
-      console.log(`🔄 Creating chat with expert: expertId=${expertId}, userId=${userId}`);
-
-      // Create or get existing chat
       const chatResponse = await createOrGetExpertChat(expertId, userId);
-      console.log('✅ Chat created/retrieved:', chatResponse);
 
-      // Navigate to expert chat screen
       navigation.navigate("ExpertChat", {
         chatExpertId: chatResponse.chatExpertId,
         expertId: chatResponse.expertId,
         expertName: "Chuyên gia"
       });
     } catch (error: any) {
-      console.error('❌ Error creating expert chat:', error);
       showAlert({
         type: 'error',
         title: t('common.error'),
@@ -260,9 +258,9 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
       )}
 
       {/* Expert Response */}
-      {(item.status.toLowerCase() === "answered" ||
-        item.status.toLowerCase() === "approved" ||
-        item.status.toLowerCase() === "confirmed") && item.message && (
+      {(item.status?.toLowerCase() === "answered" ||
+        item.status?.toLowerCase() === "approved" ||
+        item.status?.toLowerCase() === "confirmed") && item.message && (
           <>
             <View style={styles.expertResponseSection}>
               <View style={styles.expertResponseHeader}>
@@ -293,7 +291,7 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
         )}
 
       {/* Pending Status */}
-      {item.status.toLowerCase() === "pending" && (
+      {item.status?.toLowerCase() === "pending" && (
         <View style={styles.pendingBox}>
           <Icon name="hourglass-outline" size={16} color="#FF9800" />
           <Text style={styles.pendingText}>
@@ -331,17 +329,17 @@ const ExpertConfirmationScreen = ({ navigation }: Props) => {
     );
   };
 
-  const pendingCount = requests.filter((r) => r.status.toLowerCase() === "pending").length;
+  const pendingCount = requests.filter((r) => r.status?.toLowerCase() === "pending").length;
   const answeredCount = requests.filter((r) =>
-    ["answered", "approved", "confirmed"].includes(r.status.toLowerCase())
+    ["answered", "approved", "confirmed"].includes(r.status?.toLowerCase() || '')
   ).length;
 
   // Filter requests based on selected filter
   const filteredRequests = requests.filter((r) => {
     if (selectedFilter === 'all') return true;
-    if (selectedFilter === 'pending') return r.status.toLowerCase() === 'pending';
+    if (selectedFilter === 'pending') return r.status?.toLowerCase() === 'pending';
     if (selectedFilter === 'answered') {
-      return ["answered", "approved", "confirmed"].includes(r.status.toLowerCase());
+      return ["answered", "approved", "confirmed"].includes(r.status?.toLowerCase() || '');
     }
     return true;
   });

@@ -18,8 +18,10 @@ import { RootStackParamList } from "../../../navigation/AppNavigator";
 // @ts-ignore
 import Icon from "react-native-vector-icons/Ionicons";
 import { getPetById, getPetCharacteristics, getPetPhotos, type PetCharacteristic, sendLike, blockUser, getPetsByUserId } from "../../../api";
+import { getPetMatchDetails, MatchedAttribute } from "../../pet/api/petApi";
 import { colors, gradients, radius, shadows } from "../../../theme";
 import { getItem } from "../../../services/storage";
+import { MatchDetailsModal } from "../../../components/MatchDetailsModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../../../components/CustomAlert";
 import { useCustomAlert } from "../../../hooks/useCustomAlert";
@@ -50,6 +52,16 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const [ownerAvatar, setOwnerAvatar] = useState<any>(require("../../../assets/cat_avatar_signin.png"));
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
+  // Match details state
+  const [matchData, setMatchData] = useState<{
+    matchPercent: number;
+    matchScore: number;
+    totalPercent: number;
+    matchedAttributes: MatchedAttribute[];
+    totalFilters: number;
+  } | null>(null);
+  const [showMatchDetailsModal, setShowMatchDetailsModal] = useState(false);
+
   const loadPetData = async () => {
     try {
       setLoading(true);
@@ -59,13 +71,9 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         return;
       }
 
-      console.log('📱 Loading pet profile for petId:', petId);
-
-      // Get current user ID
       const userIdStr = await getItem('userId');
       const currentUserId = userIdStr ? parseInt(userIdStr, 10) : null;
 
-      // Load active pet if user is logged in
       if (currentUserId) {
         try {
           const userPets = await getPetsByUserId(currentUserId);
@@ -74,29 +82,22 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
             setActivePetId((activePet.PetId || activePet.petId) ?? null);
           }
         } catch (e) {
-          console.log('Failed to load active pet', e);
+          // Silent fail
         }
       }
 
-      // Load pet data
       const pet = await getPetById(petId);
       setPetData(pet);
-      console.log('✅ Pet data loaded:', pet);
 
-      // Check if this is my pet
       const petUserId = pet.UserId || pet.userId;
       const isOwner = !!(currentUserId && petUserId === currentUserId);
       setIsMyPet(isOwner);
-      console.log('🔍 Is my pet:', isOwner);
 
-      // Load owner's pet avatar
       if (petUserId) {
         const avatar = await getUserPetAvatar(petUserId);
         setOwnerAvatar(avatar);
-        console.log('👤 Owner avatar loaded');
       }
 
-      // Load photos
       try {
         const photos = await getPetPhotos(petId);
         const sortedPhotos = photos.sort((a: any, b: any) => {
@@ -105,20 +106,19 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           return aSort - bSort;
         });
         setPetPhotos(sortedPhotos || []);
-        console.log('📸 Pet photos loaded:', sortedPhotos.length);
       } catch (error) {
-        console.log('⚠️ No photos found');
         setPetPhotos([]);
       }
 
-      // Load characteristics
       try {
         const chars = await getPetCharacteristics(petId);
 
-        // Filter out distance-related characteristics (those are user preferences, not pet characteristics)
         const filteredChars = chars.filter((char: any) => {
           const name = char.name?.toLowerCase() || '';
           if (name.includes('khoảng cách') || name.includes('distance') || name.includes('km')) {
+            return false;
+          }
+          if (name.includes('loại')) {
             return false;
           }
           return true;
@@ -126,32 +126,41 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
 
         setCharacteristics(filteredChars);
       } catch (error) {
-        console.log('⚠️ No characteristics found');
         setCharacteristics([]);
       }
 
-    } catch (error: any) {
+      if (!isOwner && currentUserId) {
+        try {
+          const matchDetails = await getPetMatchDetails(currentUserId, petId);
+          if (matchDetails?.data) {
+            setMatchData({
+              matchPercent: matchDetails.data.matchPercent ?? 0,
+              matchScore: matchDetails.data.matchScore ?? 0,
+              totalPercent: matchDetails.data.totalPercent ?? 0,
+              matchedAttributes: matchDetails.data.matchedAttributes ?? [],
+              totalFilters: matchDetails.totalPreferences ?? 0,
+            });
+          }
+        } catch (error) {
+          setMatchData(null);
+        }
+      }
 
+    } catch (error: any) {
       showAlert({ type: 'error', title: t('common.error'), message: error.response?.data?.message || t('profile.petProfile.loadError') });
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto reload when screen comes back into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 PetProfileScreen focused - reloading data');
       loadPetData();
     }, [petId])
   );
 
-  // Parse owner and address from API response
   const ownerData = petData?.Owner || petData?.owner;
   const addressData = ownerData?.Address || ownerData?.address;
-
-  console.log('🔍 PetProfile - ownerData:', ownerData);
-  console.log('🔍 PetProfile - addressData:', addressData);
 
   // Format location - Only show city for other people's pets for privacy
   const city = addressData?.City || addressData?.city;
@@ -169,10 +178,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   // fullAddress should only show ward + district (city already shown in location above)
   const fullAddress = rawFullAddress || formatWardDistrict(ward, district);
 
-  console.log('📍 PetProfile - location:', location);
-  console.log('📍 PetProfile - fullAddress:', fullAddress);
-
-  // Prepare photos array
   let photos;
   if (petPhotos && petPhotos.length > 0) {
     photos = petPhotos.map((photo: any) => ({
@@ -285,7 +290,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
   const handleSendMatchRequest = async () => {
     try {
       setSendingMatchRequest(true);
-      console.log('💘 Sending match request...');
 
       const userIdStr = await AsyncStorage.getItem('userId');
       if (!userIdStr) {
@@ -312,8 +316,6 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
         fromPetId: activePetId,
         toPetId: petId
       });
-
-      console.log('✅ Match request sent:', response);
 
       if (response.isMatch) {
         showAlert({
@@ -428,6 +430,20 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
                     {" "}{pet.gender === "male" ? "♂" : "♀"}
                   </Text>
                 </Text>
+                {/* Match Badge - Only show for other's pets */}
+                {!isMyPet && matchData && matchData.matchPercent > 0 && (
+                  <TouchableOpacity 
+                    style={styles.matchBadgeHero}
+                    onPress={() => {
+                      setShowMatchDetailsModal(true);
+                    }}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Icon name="star" size={14} color={colors.primary} />
+                    <Text style={styles.matchBadgeHeroText}>{matchData.matchPercent}%</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <View style={styles.heroMetaRow}>
                 <Icon name="paw" size={16} color="#fff" />
@@ -536,7 +552,8 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           <View style={styles.ownerCardModern}>
             <OptimizedImage source={pet.owner.avatar} style={styles.ownerAvatarModern} imageSize="thumbnail" />
             <View style={styles.ownerInfoContainer}>
-              <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>
+              {/* Owner name - Only visible to owner themselves */}
+              {isMyPet && <Text style={styles.ownerNameModern}>{pet.owner.name}</Text>}
               <Text style={styles.ownerStatusModern}>{pet.owner.status}</Text>
 
               {/* Email - Only show for my pet */}
@@ -560,7 +577,7 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
               <TouchableOpacity
                 style={styles.viewProfileBtn}
                 onPress={() => {
-                  console.log('View owner profile:', pet.owner.userId);
+                  // View owner profile
                 }}
               >
                 <Icon name="arrow-forward" size={20} color={colors.primary} />
@@ -639,6 +656,20 @@ const PetProfileScreen = ({ navigation, route }: Props) => {
           onConfirm={alertConfig.onConfirm}
           cancelText={alertConfig.cancelText}
           showCancel={alertConfig.showCancel}
+        />
+      )}
+
+      {/* Match Details Modal */}
+      {matchData && (
+        <MatchDetailsModal
+          visible={showMatchDetailsModal}
+          onClose={() => setShowMatchDetailsModal(false)}
+          petName={pet.name}
+          matchPercent={matchData.matchPercent}
+          matchScore={matchData.matchScore}
+          totalPercent={matchData.totalPercent}
+          matchedAttributes={matchData.matchedAttributes}
+          totalFilters={matchData.totalFilters}
         />
       )}
     </View>
@@ -759,6 +790,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
+    gap: 12,
+  },
+  matchBadgeHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  matchBadgeHeroText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
   },
   heroName: {
     fontSize: 34,
